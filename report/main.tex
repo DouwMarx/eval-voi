@@ -7,7 +7,9 @@
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric}
 \usepackage{listings}
 \usepackage{microtype}
+\usepackage{placeins}
 \usepackage[hidelinks]{hyperref}
+\renewcommand{\floatpagefraction}{0.55}
 \graphicspath{{generated/}}
 \input{generated/macros.tex}
 
@@ -238,6 +240,7 @@ EVSI is 0.}
 %% hand-authored from the reasoning strings stored in the DB; numbers via macros
 \input{commentary.tex}
 
+\FloatBarrier
 \section{Sensitivity and elicitation quality}
 \label{sec:sensitivity}
 
@@ -316,6 +319,7 @@ at matched $k$ (range statistics grow with the repeat count):
 %% hand-authored cross-protocol commentary; numbers via macros
 \input{protocol_commentary.tex}
 
+\FloatBarrier
 \section{Limitations}
 \label{sec:limitations}
 
