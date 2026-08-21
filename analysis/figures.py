@@ -93,7 +93,6 @@ def fig_evsi_vs_cost(con, run_id):
     evsi = metric_rows(con, run_id, "EVSI")
     eff_order = ranked_ids(con, run_id)
     # median C comes from the parameters table (pooled p50 across valid repeats)
-    ttl = titles(con)
     run = con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
     c_med = {}
     for sid in eff_order:
@@ -213,14 +212,13 @@ def fig_elicitation_noise(con, run_id):
     fig, ax = plt.subplots(figsize=(6.2, 3.4))
     data = [spreads[n] for n in io.PARAM_NAMES]
     if any(len(d) for d in data):
-        bp = ax.boxplot(data, tick_labels=io.PARAM_NAMES, showfliers=True,
-                        flierprops={"marker": ".", "ms": 3, "mec": INTERVAL},
-                        medianprops={"color": ACCENT, "lw": 1.5},
-                        boxprops={"color": "#555555"},
-                        whiskerprops={"color": "#555555"},
-                        capprops={"color": "#555555"})
+        ax.boxplot(data, tick_labels=io.PARAM_NAMES, showfliers=True,
+                   flierprops={"marker": ".", "ms": 3, "mec": INTERVAL},
+                   medianprops={"color": ACCENT, "lw": 1.5},
+                   boxprops={"color": "#555555"},
+                   whiskerprops={"color": "#555555"},
+                   capprops={"color": "#555555"})
         ax.set_ylabel("(max − min) / pooled p50 across repeats")
-        n = min(len(d) for d in data if len(d))
         ax.set_title(f"Cross-repeat elicitation noise per parameter ({len(sids)} scenarios)")
     else:
         ax.text(0.5, 0.5, "protocol has k = 1: no repeat noise", ha="center",

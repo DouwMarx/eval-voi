@@ -123,3 +123,18 @@ def test_lognormal_asymmetry_warning():
     # log-quantiles heavily right-skewed relative to a lognormal
     res = fit_lognormal(90.0, 100.0, 10000.0)
     assert res.warning
+
+
+def test_beta_fit_survives_extremely_tight_triple():
+    # moment-matched init lands above the optimizer bound; must clip, not crash
+    res = fit_beta(0.4999, 0.5, 0.5001)
+    assert res.family == "beta" and np.isfinite(res.residual)
+
+
+def test_rank_stability_zero_ties_do_not_count():
+    from core.sensitivity import rank_stability
+    eff = np.zeros((5, 100))
+    eff[3] = 1.0  # only one scenario ever positive
+    p = rank_stability(eff, top=3)
+    assert p[3] == 1.0
+    assert np.all(p[[0, 1, 2, 4]] == 0.0)

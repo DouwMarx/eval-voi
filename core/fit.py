@@ -84,13 +84,15 @@ def fit_beta(q05: float, q50: float, q95: float) -> FitResult:
     sd = (q[2] - q[0]) / 3.29
     sd = float(np.clip(sd, 1e-4, 0.99 * np.sqrt(m * (1.0 - m))))
     nu = m * (1.0 - m) / sd**2 - 1.0
-    x0 = np.log([max(m * nu, 1e-3), max((1.0 - m) * nu, 1e-3)])
+    lo, hi = np.log(1e-3), np.log(1e6)
+    # very tight triples give a moment-matched init above the optimizer bound
+    x0 = np.clip(np.log([max(m * nu, 1e-3), max((1.0 - m) * nu, 1e-3)]), lo, hi)
 
     def resid(log_ab):
         a, b = np.exp(log_ab)
         return stats.beta.ppf(QLEVELS, a, b) - q
 
-    sol = optimize.least_squares(resid, x0=x0, bounds=(np.log(1e-3), np.log(1e6)))
+    sol = optimize.least_squares(resid, x0=x0, bounds=(lo, hi))
     alpha, beta = (float(v) for v in np.exp(sol.x))
     residual = float(np.sqrt(np.mean(resid(np.log([alpha, beta])) ** 2)))
     return FitResult("beta", {"alpha": alpha, "beta": beta}, residual,

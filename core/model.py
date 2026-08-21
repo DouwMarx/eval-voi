@@ -32,9 +32,10 @@ def voi(p, s, t, e, B, K):
     )
     evpi = np.minimum(p * e * B, (1.0 - p) * K)
     evsi = np.minimum(np.maximum(evsi, 0.0), evpi)
-    # snap float-cancellation residue to an exact 0: a true EVSI below 1e-12 of
-    # the utility scale is numerically indistinguishable from "signal never
-    # changes the decision" and would otherwise pollute P(EVSI > 0) statistics
-    noise = 1e-12 * np.maximum(e * B, K)
+    # snap float-cancellation residue to an exact 0. Measured residue when the
+    # true EVSI is 0 is ~1e-15 of the utility scale; 1e-13 gives two orders of
+    # margin above it while staying below the 1e-12 test tolerance, and an
+    # EVSI below 1e-13 of the stakes is economically zero in any case.
+    noise = 1e-13 * np.maximum(e * B, K)
     evsi = np.where(evsi <= noise, 0.0, evsi)
     return evsi, evpi

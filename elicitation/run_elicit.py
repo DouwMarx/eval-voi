@@ -155,6 +155,7 @@ def store_attempts(con, scenario_id, protocol_id, repeat_ix, prompt_hash, attemp
                 io.insert_parameter(con, eid, name, d["p5"], d["p50"], d["p95"],
                                     d["unit"], d["reasoning"], att["fits"][name])
             slot_valid = True
+        con.commit()  # one transaction per attempt: row + all 7 params, atomically
     return slot_valid
 
 
@@ -196,6 +197,7 @@ def run_manual(con):
             n_ok += 1
         else:
             print(f"manual seed {sc['title']!r} INVALID: {err}")
+        con.commit()
     print(f"manual load: {n_ok} scenarios valid under p000_manual")
 
 

@@ -93,13 +93,25 @@ def replay_efficiency(con, run_id: int):
                                           run["n_draws"]):
         ids.append(sid)
         effs.append(scenario_metrics(draws)["efficiency"])
-    stored = {r[0] for r in con.execute(
-        "SELECT DISTINCT scenario_id FROM results WHERE run_id=?", (run_id,))}
-    if set(ids) != stored:
+    eff = np.vstack(effs)
+    # any change to the valid-elicitation set since the run (new scenarios OR
+    # extra repeats on existing ones) desynchronizes the shared rng stream, so
+    # verify the replay against the stored per-scenario efficiency medians
+    stored = {r["scenario_id"]: r["q50"] for r in con.execute(
+        "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric='efficiency'",
+        (run_id,))}
+    if set(ids) != set(stored):
         raise RuntimeError(
             f"run {run_id} replay mismatch: elicitations changed since the run "
             f"({len(ids)} scenarios now vs {len(stored)} stored)")
-    return ids, np.vstack(effs)
+    for i, sid in enumerate(ids):
+        got = float(np.quantile(eff[i], 0.5))
+        if abs(got - stored[sid]) > 1e-9 * max(1.0, abs(stored[sid])):
+            raise RuntimeError(
+                f"run {run_id} replay mismatch on scenario {sid}: efficiency q50 "
+                f"{got} vs stored {stored[sid]} — valid elicitations changed "
+                "since the run (e.g. repeats added under the same protocol)")
+    return ids, eff
 
 
 def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False) -> int:

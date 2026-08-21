@@ -87,10 +87,15 @@ def get_or_create_protocol(con, yaml_path: str | Path) -> int:
     template_hash = sha256(template_path.read_text())
     row = con.execute("SELECT * FROM protocols WHERE name=?", (cfg["name"],)).fetchone()
     if row:
-        if row["template_hash"] != template_hash:
+        changed = [what for what, got, want in (
+            ("template_hash", row["template_hash"], template_hash),
+            ("model_alias", row["model_alias"], cfg["model_alias"]),
+            ("k_repeats", row["k_repeats"], int(cfg["k_repeats"])),
+        ) if got != want]
+        if changed:
             raise RuntimeError(
-                f"protocol {cfg['name']} already registered with a different template hash; "
-                "create a new protocol file instead of editing the template")
+                f"protocol {cfg['name']} already registered with different {changed}; "
+                "create a new protocol file instead of editing an old one")
         return row["id"]
     cur = con.execute(
         "INSERT INTO protocols (name, template_path, template_hash, model_alias,"
@@ -114,25 +119,27 @@ def protocol_by_name(con, name: str) -> sqlite3.Row:
 def insert_elicitation(con, scenario_id: int, protocol_id: int, repeat_ix: int,
                        prompt_hash: str, raw_response: str, valid: bool,
                        error: str | None) -> int:
+    """No commit here: an elicitation row and its 7 parameter rows must land in
+    one transaction (the caller commits), so a crash cannot persist a valid
+    row with a partial parameter set that resume logic would then skip."""
     cur = con.execute(
         "INSERT INTO elicitations (scenario_id, protocol_id, repeat_ix, prompt_hash,"
         " raw_response, valid, error, created_at) VALUES (?,?,?,?,?,?,?,?)",
         (scenario_id, protocol_id, repeat_ix, prompt_hash, raw_response,
          int(valid), error, now_iso()),
     )
-    con.commit()
     return cur.lastrowid
 
 
 def insert_parameter(con, elicitation_id: int, name: str, p5: float, p50: float,
                      p95: float, unit: str, reasoning: str, fit) -> int:
+    """No commit here: see insert_elicitation."""
     cur = con.execute(
         "INSERT INTO parameters (elicitation_id, name, p5, p50, p95, unit, reasoning,"
         " dist_family, fit_params, fit_residual, fit_warning) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (elicitation_id, name, p5, p50, p95, unit, reasoning,
          fit.family, fit.params_json(), fit.residual, int(fit.warning)),
     )
-    con.commit()
     return cur.lastrowid
 
 
@@ -165,11 +172,13 @@ def scenario_param_fits(con, protocol_id: int) -> dict[int, dict[str, list[dict]
 # --- runs, results, sensitivities ------------------------------------------
 
 def insert_run(con, seed: int, n_draws: int, protocol_id: int) -> int:
+    """No commit here: the runs row commits together with its results and
+    sensitivities at the end of the MC run, so an interrupted run cannot
+    become the (empty) latest run."""
     cur = con.execute(
         "INSERT INTO runs (created_at, seed, n_draws, code_hash, protocol_id)"
         " VALUES (?,?,?,?,?)",
         (now_iso(), seed, n_draws, git_hash(), protocol_id))
-    con.commit()
     return cur.lastrowid
 
 
