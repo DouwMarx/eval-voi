@@ -1,0 +1,8 @@
+name: p000_manual
+template_path: scenarios/seed.json
+model_alias: manual
+k_repeats: 1
+notes: >
+  Hand-entered percentiles for the 8 seed scenarios (M1 smoke test).
+  template_path points at the data file that carries the numbers; its hash
+  freezes their provenance.

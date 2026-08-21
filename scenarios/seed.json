@@ -1,0 +1,138 @@
+[
+  {
+    "title": "Vibration survey before pulling a critical gearbox",
+    "agent": "Plant reliability engineer",
+    "decision": "Pull the gearbox for overhaul now, or leave it in service",
+    "theta_definition": "theta=1: an incipient bearing fault is present in the gearbox",
+    "instrument": "One third-party vibration-analysis survey",
+    "domain_tags": ["industrial", "reliability", "maintenance"],
+    "manual": {
+      "p": {"reasoning": "Critical gearboxes are monitored and usually healthy; incipient faults at any given inspection are uncommon but not rare on aging fleets.", "p5": 0.02, "p50": 0.08, "p95": 0.25, "unit": "probability"},
+      "s": {"reasoning": "Vibration analysis catches most developed bearing faults but can miss early-stage or low-signal faults.", "p5": 0.60, "p50": 0.80, "p95": 0.95, "unit": "probability"},
+      "t": {"reasoning": "False alarms from misalignment or noise happen but competent analysts keep them modest.", "p5": 0.70, "p50": 0.90, "p95": 0.98, "unit": "probability"},
+      "e": {"reasoning": "Reliability engineers usually act on a credible fault call and planned overhaul usually prevents the failure.", "p5": 0.50, "p50": 0.80, "p95": 0.95, "unit": "probability"},
+      "B": {"reasoning": "Avoided unplanned failure (secondary damage, downtime) minus the planned repair cost; heavy tail for production-critical trains.", "p5": 20000, "p50": 150000, "p95": 1500000, "unit": "USD"},
+      "K": {"reasoning": "Unnecessary teardown plus scheduled downtime for a healthy gearbox.", "p5": 2000, "p50": 10000, "p95": 60000, "unit": "USD"},
+      "C": {"reasoning": "A single third-party vibration survey visit and report.", "p5": 300, "p50": 1000, "p95": 5000, "unit": "USD"}
+    }
+  },
+  {
+    "title": "Pre-employment ergonomic screening before hiring a warehouse worker",
+    "agent": "Site manager",
+    "decision": "Reject or modify duties for the applicant, or hire as normal",
+    "theta_definition": "theta=1: the applicant is at high musculoskeletal injury risk in this role",
+    "instrument": "One functional-capacity ergonomic screening",
+    "domain_tags": ["industrial", "injury", "hiring"],
+    "manual": {
+      "p": {"reasoning": "A minority of warehouse applicants carry elevated injury risk for heavy lifting roles.", "p5": 0.05, "p50": 0.12, "p95": 0.30, "unit": "probability"},
+      "s": {"reasoning": "Functional screens are mediocre predictors of future injury; predictive validity studies show modest sensitivity.", "p5": 0.40, "p50": 0.60, "p95": 0.80, "unit": "probability"},
+      "t": {"reasoning": "Screens flag a nontrivial share of applicants who would have been fine.", "p5": 0.60, "p50": 0.80, "p95": 0.92, "unit": "probability"},
+      "e": {"reasoning": "Managers often act on a failed screen, but rejecting one applicant only partially prevents injuries (replacement risk, imperfect prevention).", "p5": 0.30, "p50": 0.60, "p95": 0.85, "unit": "probability"},
+      "B": {"reasoning": "An avoided lost-time musculoskeletal claim: typical workers-compensation claim tens of thousands USD, tail to serious back injury.", "p5": 5000, "p50": 40000, "p95": 300000, "unit": "USD"},
+      "K": {"reasoning": "Wrongly rejecting a good candidate: re-recruiting, vacancy time, possible discrimination exposure.", "p5": 1000, "p50": 5000, "p95": 20000, "unit": "USD"},
+      "C": {"reasoning": "Commercial pre-employment functional screening per applicant.", "p5": 50, "p50": 150, "p95": 500, "unit": "USD"}
+    }
+  },
+  {
+    "title": "Dangerous-capability evaluation of a frontier AI model before deployment",
+    "agent": "Lab deployment lead",
+    "decision": "Delay deployment and add mitigations, or deploy on schedule",
+    "theta_definition": "theta=1: the model materially uplifts biological misuse capability",
+    "instrument": "One third-party dangerous-capability evaluation",
+    "domain_tags": ["AI", "evaluation", "safety"],
+    "manual": {
+      "p": {"reasoning": "For a frontier model at current capability margins, material bio uplift is plausible but not the default expectation.", "p5": 0.01, "p50": 0.05, "p95": 0.20, "unit": "probability"},
+      "s": {"reasoning": "Evals can miss capabilities via under-elicitation; sensitivity is real but far from assured.", "p5": 0.30, "p50": 0.60, "p95": 0.85, "unit": "probability"},
+      "t": {"reasoning": "A careful eval rarely claims uplift where there is none, but threshold judgments are noisy.", "p5": 0.80, "p50": 0.93, "p95": 0.99, "unit": "probability"},
+      "e": {"reasoning": "Labs do gate deployments on eval results and mitigations mostly work once the risk is flagged.", "p5": 0.50, "p50": 0.85, "p95": 0.98, "unit": "probability"},
+      "B": {"reasoning": "Avoided expected harm, liability and trust damage from deploying an uplifting model; catastrophic tail dominates.", "p5": 1000000, "p50": 100000000, "p95": 10000000000, "unit": "USD"},
+      "K": {"reasoning": "Unneeded launch delay, mitigation engineering and lost revenue when the model was actually safe.", "p5": 100000, "p50": 2000000, "p95": 50000000, "unit": "USD"},
+      "C": {"reasoning": "A third-party dangerous-capability evaluation engagement.", "p5": 50000, "p50": 300000, "p95": 2000000, "unit": "USD"}
+    }
+  },
+  {
+    "title": "Standardized manipulation benchmark of a warehouse robot before a fleet purchase",
+    "agent": "Logistics buyer",
+    "decision": "Walk away or renegotiate the fleet purchase, or buy as planned",
+    "theta_definition": "theta=1: the robot underperforms its spec in the buyer's actual workflow",
+    "instrument": "One standardized manipulation benchmark campaign on the buyer's item mix",
+    "domain_tags": ["robotics", "procurement", "evaluation"],
+    "manual": {
+      "p": {"reasoning": "Vendor demos overstate in-situ performance often; underperformance vs spec in a specific workflow is common.", "p5": 0.10, "p50": 0.30, "p95": 0.60, "unit": "probability"},
+      "s": {"reasoning": "A benchmark on the buyer's own item mix usually exposes real shortfalls.", "p5": 0.50, "p50": 0.75, "p95": 0.92, "unit": "probability"},
+      "t": {"reasoning": "Benchmark conditions can unfairly penalize a robot that would do fine in production.", "p5": 0.60, "p50": 0.85, "p95": 0.97, "unit": "probability"},
+      "e": {"reasoning": "Buyers act on bad benchmark results and walking away fully avoids the bad purchase.", "p5": 0.60, "p50": 0.85, "p95": 0.97, "unit": "probability"},
+      "B": {"reasoning": "Avoided cost of a misfitting fleet: integration rework, throughput shortfall, partial write-off on a multi-robot order.", "p5": 100000, "p50": 800000, "p95": 5000000, "unit": "USD"},
+      "K": {"reasoning": "Walking away from a good deal: sourcing delay, price premium on the alternative.", "p5": 20000, "p50": 150000, "p95": 1000000, "unit": "USD"},
+      "C": {"reasoning": "A benchmark campaign with the vendor's robot on representative items.", "p5": 5000, "p50": 25000, "p95": 100000, "unit": "USD"}
+    }
+  },
+  {
+    "title": "Soil pathogen assay before planting a high-value crop",
+    "agent": "Farm operator",
+    "decision": "Fumigate/rotate/switch fields, or plant as planned",
+    "theta_definition": "theta=1: soil pathogen load is high enough to threaten the crop",
+    "instrument": "One laboratory soil pathogen assay panel",
+    "domain_tags": ["agriculture", "biology"],
+    "manual": {
+      "p": {"reasoning": "Fields chosen for high-value crops are usually vetted; serious pathogen load present a minority of the time.", "p5": 0.03, "p50": 0.10, "p95": 0.30, "unit": "probability"},
+      "s": {"reasoning": "Lab assays detect most economically relevant loads but sampling can miss patchy infestations.", "p5": 0.60, "p50": 0.80, "p95": 0.95, "unit": "probability"},
+      "t": {"reasoning": "Detection thresholds are conservative; some positives are agronomically irrelevant.", "p5": 0.80, "p50": 0.92, "p95": 0.99, "unit": "probability"},
+      "e": {"reasoning": "Operators usually act on a positive assay; fumigation or switching mostly prevents the loss.", "p5": 0.50, "p50": 0.80, "p95": 0.95, "unit": "probability"},
+      "B": {"reasoning": "Avoided loss of a high-value crop stand on the affected acreage (e.g. berries or vegetables).", "p5": 20000, "p50": 150000, "p95": 1000000, "unit": "USD"},
+      "K": {"reasoning": "Unneeded fumigation cost or forgone margin from switching away from the best crop.", "p5": 2000, "p50": 15000, "p95": 80000, "unit": "USD"},
+      "C": {"reasoning": "A soil sampling round plus a laboratory pathogen panel.", "p5": 100, "p50": 400, "p95": 2000, "unit": "USD"}
+    }
+  },
+  {
+    "title": "Structural inspection before purchasing a used mobile crane",
+    "agent": "Plant buyer",
+    "decision": "Walk away or renegotiate, or buy the crane as offered",
+    "theta_definition": "theta=1: the crane has disqualifying structural damage or fatigue cracking",
+    "instrument": "One third-party structural inspection with NDT (non-destructive testing)",
+    "domain_tags": ["construction", "procurement", "inspection"],
+    "manual": {
+      "p": {"reasoning": "Used cranes on the secondary market frequently hide structural issues, though most units are serviceable.", "p5": 0.05, "p50": 0.15, "p95": 0.40, "unit": "probability"},
+      "s": {"reasoning": "NDT by a competent inspector finds most disqualifying cracks and repairs.", "p5": 0.60, "p50": 0.85, "p95": 0.97, "unit": "probability"},
+      "t": {"reasoning": "Some cosmetic findings are wrongly escalated to disqualifying.", "p5": 0.75, "p50": 0.90, "p95": 0.98, "unit": "probability"},
+      "e": {"reasoning": "A buyer who paid for the inspection almost always acts on a bad report, and walking away avoids the loss.", "p5": 0.70, "p50": 0.90, "p95": 0.99, "unit": "probability"},
+      "B": {"reasoning": "Avoided bad purchase: repair or write-off of a compromised crane, plus liability exposure from a structural failure.", "p5": 50000, "p50": 250000, "p95": 2000000, "unit": "USD"},
+      "K": {"reasoning": "Losing a good deal: re-sourcing time and price premium on the next crane.", "p5": 5000, "p50": 25000, "p95": 150000, "unit": "USD"},
+      "C": {"reasoning": "A third-party structural inspection with NDT on a mobile crane.", "p5": 1000, "p50": 4000, "p95": 15000, "unit": "USD"}
+    }
+  },
+  {
+    "title": "Sepsis-risk panel for a newly admitted patient",
+    "agent": "Attending physician",
+    "decision": "Start the sepsis bundle (cultures, early antibiotics, monitoring), or standard care",
+    "theta_definition": "theta=1: early sepsis is present at admission",
+    "instrument": "One sepsis-risk biomarker panel",
+    "domain_tags": ["medicine", "diagnostics", "acute-care"],
+    "manual": {
+      "p": {"reasoning": "Among general admissions without obvious sepsis, early sepsis is present in a small fraction.", "p5": 0.02, "p50": 0.06, "p95": 0.15, "unit": "probability"},
+      "s": {"reasoning": "Biomarker panels catch most early sepsis but miss atypical presentations.", "p5": 0.60, "p50": 0.80, "p95": 0.93, "unit": "probability"},
+      "t": {"reasoning": "Inflammation from other causes produces false positives at a meaningful rate.", "p5": 0.70, "p50": 0.85, "p95": 0.96, "unit": "probability"},
+      "e": {"reasoning": "Physicians act on a positive panel and early bundles substantially reduce mortality and ICU escalation.", "p5": 0.60, "p50": 0.85, "p95": 0.97, "unit": "probability"},
+      "B": {"reasoning": "Avoided mortality risk and ICU escalation from earlier treatment; a few percent mortality reduction against a statistical-life-scale loss, plus avoided ICU cost.", "p5": 30000, "p50": 200000, "p95": 3000000, "unit": "USD"},
+      "K": {"reasoning": "Unnecessary broad-spectrum antibiotics, extra monitoring, longer stay, antimicrobial-resistance externality per decision.", "p5": 2000, "p50": 8000, "p95": 40000, "unit": "USD"},
+      "C": {"reasoning": "One biomarker panel including lab handling.", "p5": 50, "p50": 200, "p95": 1000, "unit": "USD"}
+    }
+  },
+  {
+    "title": "Counterparty credit report before extending 90-day trade credit",
+    "agent": "CFO of a supplier",
+    "decision": "Require prepayment or decline terms, or extend 90-day credit",
+    "theta_definition": "theta=1: the counterparty will default within the credit terms",
+    "instrument": "One commercial counterparty credit report",
+    "domain_tags": ["finance", "credit"],
+    "manual": {
+      "p": {"reasoning": "Trade-credit default rates for screened B2B counterparties run low single digits.", "p5": 0.01, "p50": 0.04, "p95": 0.15, "unit": "probability"},
+      "s": {"reasoning": "Credit reports flag many but far from all imminent defaults; fresh distress is often missed.", "p5": 0.40, "p50": 0.65, "p95": 0.85, "unit": "probability"},
+      "t": {"reasoning": "Healthy firms occasionally screen badly on stale or thin files.", "p5": 0.70, "p50": 0.88, "p95": 0.97, "unit": "probability"},
+      "e": {"reasoning": "A CFO who ordered the report acts on it, and requiring prepayment directly eliminates the exposure.", "p5": 0.70, "p50": 0.92, "p95": 0.99, "unit": "probability"},
+      "B": {"reasoning": "Avoided write-off of the receivable on a typical order.", "p5": 10000, "p50": 60000, "p95": 500000, "unit": "USD"},
+      "K": {"reasoning": "Lost sale margin or soured relationship from demanding prepayment of a good customer.", "p5": 1000, "p50": 8000, "p95": 60000, "unit": "USD"},
+      "C": {"reasoning": "One commercial credit report with analyst notes.", "p5": 50, "p50": 150, "p95": 500, "unit": "USD"}
+    }
+  }
+]
