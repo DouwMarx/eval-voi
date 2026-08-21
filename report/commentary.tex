@@ -1,11 +1,11 @@
 % Hand-authored from the reasoning strings stored in the DB (protocol p001).
 % Quantities cited in prose come from generated macros/tables only.
 
-The top decile of Table~\ref{tab:ranking} is a recognizable economic type: a
+The top ten of Table~\ref{tab:ranking} is a recognizable economic type: a
 routine, commercially available instrument costing tens to a few thousand
 dollars --- a credit-bureau inquiry, an employment verification, a laboratory
 assay, a sensor reading --- attached to a decision whose stakes are two to
-five orders of magnitude larger, with an elicited prior in the middle band
+three orders of magnitude larger, with an elicited prior in the middle band
 where neither acting nor not acting dominates by default. Four clusters
 recur: consumer credit decisions (an employment-verification check before a
 personal loan; a soft credit inquiry before a store card), acute-care
@@ -34,12 +34,14 @@ Two structural observations from the bottom of the ranking balance the
 picture. First, \voiZeroEvsiCount{} of \voiNRanked{} scenarios have median
 EVSI of zero, and the ones that stay dead across protocol variants share a
 signature: the prior already dictates the action (a track-safety check before
-a train departure happens regardless of any purchasable signal; a frontier-AI
-capability evaluation whose deployment-gating action is already optimal at
-the prior). In the model's terms, information only has value when the
-decision sits near the indifference boundary; several intuitively
-``important'' measurements are worthless per-decision because nobody's action
-hinges on them. Second, scenarios whose single decision touches many people
+a train departure happens regardless of any purchasable signal). The
+frontier-AI capability evaluation is the instructive near-miss: its median
+EVSI is zero under every protocol variant except one, because whether the
+deployment-gating response is already optimal at the prior sits on a knife
+edge of the elicited prior and stakes. In the model's terms, information only
+has value when the decision sits near the indifference boundary; several
+intuitively ``important'' measurements are worthless per-decision because
+nobody's action hinges on them. Second, scenarios whose single decision touches many people
 at once (a city air-quality alert) earn large $B$ legitimately --- one
 decision, population-scale consequences --- which the per-measurement framing
 rewards without any market-size unit error.

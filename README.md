@@ -23,5 +23,7 @@ facing a single binary decision (EVSI / cost), with parameters elicited by
 
 Outputs: `voi.db` (all data + provenance), `report/generated/` (figures,
 tables), `report/main.pdf`. Given the committed `voi.db`, steps 5–8 reproduce
-the report exactly (stored seed); steps 2–4 call the LLM and are not
+every number, figure and table exactly (the stored seed makes the MC
+deterministic; a rerun mints a fresh run id and code-hash string in the
+report's reproduction appendix). Steps 2–4 call the LLM and are not
 bit-reproducible.
