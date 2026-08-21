@@ -65,27 +65,57 @@ def summarize(vec: np.ndarray) -> dict:
     return dict(zip(SUMMARY_QS, (float(v) for v in qs)))
 
 
+def iter_scenario_draws(con, protocol_id: int, seed: int, n_draws: int):
+    """Deterministic generator of (scenario_id, draws dict) for every scenario
+    with a complete set of valid elicitations under the protocol. The rng
+    stream is consumed in sorted-scenario-id, PARAM_NAMES order, so a replay
+    with the same DB state reproduces the run's draws exactly."""
+    fits_by_scenario = io.scenario_param_fits(con, protocol_id)
+    complete = {
+        sid: fits for sid, fits in sorted(fits_by_scenario.items())
+        if all(name in fits for name in io.PARAM_NAMES)
+    }
+    rng = np.random.default_rng(seed)
+    for sid, fits in complete.items():
+        yield sid, {name: sample_mixture(rng, fits[name], n_draws)
+                    for name in io.PARAM_NAMES}
+
+
+def replay_efficiency(con, run_id: int):
+    """Recompute the efficiency draw matrix of a stored run from the DB alone
+    (seed, n_draws and fitted params are all persisted). Guards against the
+    valid-elicitation set having changed since the run."""
+    run = con.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
+    if run is None:
+        raise RuntimeError(f"no run {run_id}")
+    ids, effs = [], []
+    for sid, draws in iter_scenario_draws(con, run["protocol_id"], run["seed"],
+                                          run["n_draws"]):
+        ids.append(sid)
+        effs.append(scenario_metrics(draws)["efficiency"])
+    stored = {r[0] for r in con.execute(
+        "SELECT DISTINCT scenario_id FROM results WHERE run_id=?", (run_id,))}
+    if set(ids) != stored:
+        raise RuntimeError(
+            f"run {run_id} replay mismatch: elicitations changed since the run "
+            f"({len(ids)} scenarios now vs {len(stored)} stored)")
+    return ids, np.vstack(effs)
+
+
 def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False) -> int:
     """Execute one MC run over all scenarios with valid elicitations under the
     protocol. Writes runs, results (incl. a p_top10 stability row per scenario)
     and sensitivities. Returns the run id."""
     protocol = io.protocol_by_name(con, protocol_name)
-    fits_by_scenario = io.scenario_param_fits(con, protocol["id"])
-    complete = {
-        sid: fits for sid, fits in sorted(fits_by_scenario.items())
-        if all(name in fits for name in io.PARAM_NAMES)
-    }
-    if not complete:
+    fits = io.scenario_param_fits(con, protocol["id"])
+    if not any(all(n in f for n in io.PARAM_NAMES) for f in fits.values()):
         raise RuntimeError(f"no scenarios with complete valid elicitations under {protocol_name}")
-
-    rng = np.random.default_rng(seed)
     run_id = io.insert_run(con, seed, n_draws, protocol["id"])
 
-    scenario_ids = list(complete)
-    eff_matrix = np.empty((len(scenario_ids), n_draws))
-    for i, sid in enumerate(scenario_ids):
-        draws = {name: sample_mixture(rng, complete[sid][name], n_draws)
-                 for name in io.PARAM_NAMES}
+    scenario_ids = []
+    eff_rows = []
+    for sid, draws in iter_scenario_draws(con, protocol["id"], seed, n_draws):
+        scenario_ids.append(sid)
         metrics = scenario_metrics(draws)
         p_positive = float(np.mean(metrics["EVSI"] > draws["C"]))
         for metric in METRIC_NAMES:
@@ -93,9 +123,9 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
         for name in io.PARAM_NAMES:
             io.insert_sensitivity(con, run_id, sid, name,
                                   spearman(draws[name], metrics["efficiency"]))
-        eff_matrix[i] = metrics["efficiency"]
+        eff_rows.append(metrics["efficiency"])
 
-    p_top = rank_stability(eff_matrix, top=TOP_N_STABILITY)
+    p_top = rank_stability(np.vstack(eff_rows), top=TOP_N_STABILITY)
     for i, sid in enumerate(scenario_ids):
         io.insert_result(con, run_id, sid, "p_top10", {}, float(p_top[i]))
     con.commit()
