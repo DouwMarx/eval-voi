@@ -77,8 +77,8 @@ def fig_ranking(con, run_id):
         else:
             ax.plot(EFF_FLOOR, y, "o", mfc="white", mec=ACCENT, ms=4.5)
     ax.axvline(1.0, color="#555555", lw=0.8, ls="--")
-    ax.text(1.35, 0.1, "EVSI = C", fontsize=6.5, color="#555555", rotation=90,
-            va="bottom")
+    ax.text(1.35, len(order) - 0.35, "EVSI = C", fontsize=6.5, color="#555555",
+            rotation=90, va="top")
     ax.set_yticks(range(len(order)))
     ax.set_yticklabels([f"{sid} · {ttl[sid][:52]}" for sid in reversed(order)], fontsize=7)
     ax.set_xscale("log")
@@ -124,10 +124,12 @@ def fig_evsi_vs_cost(con, run_id):
             angle = np.degrees(np.arctan2(p1[1] - p0[1], p1[0] - p0[0]))
             ax.text(x_lab, y_lab * 1.25, f"eff $= 10^{{{k}}}$", fontsize=6,
                     color="#8a8a8a", rotation=angle, rotation_mode="anchor")
-    for sid in eff_order[:10]:
+    for i, sid in enumerate(eff_order[:10]):
         y = max(evsi[sid]["q50"] or 0.0, EVSI_FLOOR)
         ax.annotate(str(sid), (c_med[sid], y), textcoords="offset points",
-                    xytext=(4, 4), fontsize=7, color="#333333")
+                    xytext=(4, 4) if i % 2 == 0 else (-4, -9),
+                    ha="left" if i % 2 == 0 else "right",
+                    fontsize=7, color="#333333")
     ax.set_xlabel("median measurement cost C (USD, pooled elicited p50)")
     ax.set_ylabel("median EVSI (USD per measurement)")
     ax.set_title("Median EVSI vs median cost (top 10 labeled by id)")

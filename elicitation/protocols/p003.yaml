@@ -1,0 +1,11 @@
+name: p003
+template_path: elicitation/templates/elicitor_v3.md
+model_alias: haiku
+k_repeats: 3
+notes: >
+  One change vs p001 (p002's anchor-ratio instruction is reverted after a
+  negative result): B, K, C reasoning must derive the value by explicit
+  component arithmetic (Fermi decomposition) before percentiles. Hypothesis:
+  forced arithmetic pins the USD scale better than anchor ratios; prediction:
+  median cross-repeat spread of B and K drops below 1.0 (p001: 1.33/1.17,
+  p002: 1.60/1.34).
