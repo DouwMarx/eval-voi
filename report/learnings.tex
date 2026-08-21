@@ -1,2 +1,68 @@
-% Distilled from LEARNINGS.md after the protocol iterations.
-(To be written after the protocol iterations.)
+% Hand-authored, distilled from LEARNINGS.md; numbers via generated
+% macros/tables where cited.
+
+The iteration loop (run a batch, compute health checks, change one thing,
+re-run, compare) was executed three times on the full scenario set, plus a
+sensitivity-guided deepening pass. What it taught, in decreasing order of
+generality:
+
+\paragraph{Format compliance is a solved problem; scale calibration is not.}
+Every batch cleared the validity gates almost perfectly (JSON validity
+$\geq 99.5\%$, constraint pass $\geq 99.5\%$, and 100\% of slots valid after
+the single-retry rule) --- the final protocol's attempt-level validity of
+\voiValidityRate{} saturates the $\geq 95\%$ target with no tuning ever
+needed. All the difficulty lives in the numbers themselves: the dollar
+parameters came back with cross-repeat spreads near or above 1.0 in every
+protocol, while probabilities were reproducible to a few percent.
+
+\paragraph{Two reasonable prompt fixes failed, informatively.} Iteration 2
+(p002) required an explicit anchor-ratio statement (``roughly $3\times$ the
+gearbox $B$'') before each dollar percentile: dollar spreads got
+\emph{worse}, plausibly because choosing an anchor and a ratio adds free
+variables instead of removing one. Iteration 3 (p003) required explicit
+component arithmetic (a Fermi decomposition summed in the reasoning): the
+model did the arithmetic faithfully, and the spread moved into the component
+values. Both changes were reverted. The residual dollar noise appears to be
+genuine epistemic uncertainty of the elicitor, not a formatting artifact ---
+which is exactly what the repeats-as-noise-model design is meant to expose.
+
+\paragraph{The ranking is noise-fragile at the rank level, stable at the tier
+level.} Full-sweep variants correlate at
+$\rho = \voiRhoProtoMin$--$\voiRhoProtoMax$; the rank-stability analysis of
+the final run (Figure~\ref{fig:stability}) shows even top-3 scenarios are in
+the top 10 in well under all draws. Claims should be made about tiers, not
+adjacent ranks.
+
+\paragraph{Deepening helped only marginally --- and taught a methods lesson.}
+The sensitivity analysis pinned the top of the ranking on $C$ and $B$
+(Section~\ref{sec:sensitivity}), and a focused prompt variant (p004:
+vendor-invoice pricing for $C$, single-dominant-component sizing for $B$) was
+re-run on the top-quartile scenarios. At matched $k$, the targeted spreads
+improved modestly ($C$: $0.96 \to 0.83$; $B$: $1.00 \to 0.88$) while an
+untargeted parameter degraded by more ($K$: $0.80 \to 1.25$) --- with 17
+scenarios, indistinguishable from noise. A first comparison had looked
+dramatic and was an artifact of comparing 5-repeat ranges against 3-repeat
+ranges; repeat-noise comparisons must be made at matched $k$. The one
+intervention that reliably helped was buying more repeats: the final run
+pools $k=\voiKUsed$.
+
+\paragraph{Harness learnings.} The headless CLI's \texttt{--bare} isolation
+mode is incompatible with OAuth credentials in this environment; equivalent
+context isolation was achieved (and verified empirically) with disabled
+tools, disabled setting sources, and a fixed system prompt. The
+\texttt{--max-turns} flag of the spec no longer exists in the installed CLI;
+with tools disabled, calls are single-turn by construction. The model wrapped
+JSON in markdown fences from the very first smoke test, so fence-stripping
+before parsing is load-bearing. Storing the CLI's full JSON envelope as the
+raw response preserved cost and session metadata without schema changes. An
+adversarial multi-agent review of the pipeline found (and led to fixes for)
+two real defects: a replay guard that missed added repeats, and a
+non-atomic elicitation write that could silently unbalance mixture weights
+after a crash.
+
+\paragraph{For v2.} Elicit dollar parameters on an explicit log-decade scale
+or with retrieval grounding; model parameter correlations (the independence
+assumption most distorts scenarios where stakes and costs co-vary); compare
+elicitors (a larger model as a second rater) on the same protocol; and
+validate the informativeness constraint's rejection behavior against a
+signal-flip repair.

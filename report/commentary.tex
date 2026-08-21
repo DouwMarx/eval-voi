@@ -1,3 +1,45 @@
-% Commentary on the top of the ranking; written after the final run by
-% inspecting the reasoning strings stored in the DB. Numbers via macros only.
-(To be written after the final protocol run.)
+% Hand-authored from the reasoning strings stored in the DB (protocol p001).
+% Quantities cited in prose come from generated macros/tables only.
+
+The top decile of Table~\ref{tab:ranking} is a recognizable economic type: a
+routine, commercially available instrument costing tens to a few thousand
+dollars --- a credit-bureau inquiry, an employment verification, a laboratory
+assay, a sensor reading --- attached to a decision whose stakes are two to
+five orders of magnitude larger, with an elicited prior in the middle band
+where neither acting nor not acting dominates by default. Four clusters
+recur: consumer credit decisions (an employment-verification check before a
+personal loan; a soft credit inquiry before a store card), acute-care
+medicine (genomic risk stratification before a transplant decision; serial
+troponin testing in chest-pain triage), agricultural quality control (soil
+pathogen assay, seed germination testing, grape maturity sampling), and
+industrial safety or asset decisions (laboratory gas analysis before an
+emergency response, load-profile analysis before replacing a transformer).
+The stored reasoning strings show the mechanism directly: the elicitor prices
+the instrument at its market rate, prices the decision's dominant loss at a
+claim, outage, or crop scale, and lands on an efficiency far above one.
+
+The ranking's head deserves suspicion in proportion to its interval widths.
+The top-ranked scenario has $P_+ = \voiTopPpos$ but a q05 of zero, and its
+stored reasoning also illustrates a failure mode the validators cannot catch:
+in one repeat the benefit $B$ is priced as the lender's interest income from
+an approved loan rather than as the regret difference the model defines ---
+a quiet re-anchoring of the utility convention. By contrast, the genomic
+risk-stratification scenario is the sturdiest entry in the list: it is the
+only scenario whose efficiency stays above 1 at its 5th percentile
+(Table~\ref{tab:ranking}), because both the stakes (transplant-or-not with
+survival differences priced in the hundreds of thousands) and the assay cost
+(a few thousand dollars) are comparatively well-pinned quantities.
+
+Two structural observations from the bottom of the ranking balance the
+picture. First, \voiZeroEvsiCount{} of \voiNRanked{} scenarios have median
+EVSI of zero, and the ones that stay dead across protocol variants share a
+signature: the prior already dictates the action (a track-safety check before
+a train departure happens regardless of any purchasable signal; a frontier-AI
+capability evaluation whose deployment-gating action is already optimal at
+the prior). In the model's terms, information only has value when the
+decision sits near the indifference boundary; several intuitively
+``important'' measurements are worthless per-decision because nobody's action
+hinges on them. Second, scenarios whose single decision touches many people
+at once (a city air-quality alert) earn large $B$ legitimately --- one
+decision, population-scale consequences --- which the per-measurement framing
+rewards without any market-size unit error.

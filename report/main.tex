@@ -57,7 +57,7 @@ of the value a seller can capture, recurrence, rivalry --- is deliberately out
 of scope; the interpretation caveat in Section~\ref{sec:limitations} is load-bearing.
 Second, all seven parameters per scenario are elicited from a small language
 model under a fixed prompt protocol with worked anchor scenarios, repeated
-$k=\voiKRepeats{}$ times; the elicitation spread is propagated through every
+$k=\voiKUsed{}$ times; the elicitation spread is propagated through every
 result. The pipeline is an experiment about LLM-based elicitation as much as a
 ranking.
 
@@ -152,7 +152,7 @@ probability that the measurement is not worth buying at all.
 \subsection{Elicitation protocol}
 
 Each scenario's seven parameters $(p, s, t, e, B, K, C)$ are elicited from
-Claude Haiku via headless CLI calls (version \voiCliVersion), $k=\voiKRepeats{}$
+Claude Haiku via headless CLI calls (version \voiCliVersion), $k=\voiKUsed{}$
 independent repeats per scenario. Sampling temperature is not controllable
 from the CLI, so \emph{repeats are the noise model}: cross-repeat spread is the
 empirical elicitation uncertainty. Calls run in an isolated context (no user
@@ -270,7 +270,7 @@ efficiency, across aligned Monte Carlo draws.}
 \centering
 \includegraphics[width=0.85\textwidth]{fig_elicitation_noise.pdf}
 \caption{Cross-repeat elicitation noise: spread of the median estimate across
-$k=\voiKRepeats{}$ repeats, relative to the pooled median, per parameter.}
+$k=\voiKUsed{}$ repeats, relative to the pooled median, per parameter.}
 \label{fig:noise}
 \end{figure}
 
@@ -287,19 +287,30 @@ Global sensitivity over the top-quartile scenarios puts
 $|\rho|$ per parameter at: $p$: \voiGlobalP, $s$: \voiGlobalS, $t$:
 \voiGlobalT, $e$: \voiGlobalE, $B$: \voiGlobalB, $K$: \voiGlobalK, $C$:
 \voiGlobalC{} --- the ranking's top is controlled chiefly by
-\voiGlobalTopParams. Cross-repeat noise (median over scenarios of the relative
-p50 spread) is: $p$: \voiNoiseP, $s$: \voiNoiseS, $t$: \voiNoiseT, $e$:
-\voiNoiseE, $B$: \voiNoiseB, $K$: \voiNoiseK, $C$: \voiNoiseC.
+\voiGlobalTopParams. Cross-repeat noise over the final run's
+$k=\voiKUsed{}$ repeats (median over scenarios of the relative p50 spread;
+ranges over five repeats run higher than the matched-$k$ comparison table in
+Section~\ref{sec:protocols}) is: $p$: \voiNoiseP, $s$: \voiNoiseS, $t$:
+\voiNoiseT, $e$: \voiNoiseE, $B$: \voiNoiseB, $K$: \voiNoiseK, $C$: \voiNoiseC.
 
 \subsection{Protocol comparison}
 \label{sec:protocols}
 
 Spearman rank correlations of median efficiency between the latest runs of
 each protocol (rows/columns are protocols; the manual column is the
-hand-entered seed baseline over its 8 scenarios):
+hand-entered seed baseline over its 8 scenarios, and p004 covers only the 17
+deepened top-quartile scenarios):
 
 \begin{center}
 \input{generated/protocol_compare.tex}
+\end{center}
+
+Median cross-repeat spread of the elicited p50, per parameter and protocol,
+computed over the first three repeats of each protocol so the comparison is
+at matched $k$ (range statistics grow with the repeat count):
+
+\begin{center}
+\input{generated/protocol_noise.tex}
 \end{center}
 
 %% hand-authored cross-protocol commentary; numbers via macros

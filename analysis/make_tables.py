@@ -115,8 +115,13 @@ def write_ranking(con, run, top_n: int = 25):
 PARAM_MACRO = {"p": "P", "s": "S", "t": "T", "e": "E", "B": "B", "K": "K", "C": "C"}
 
 
-def noise_medians(con, protocol_id: int) -> dict[str, float | None]:
+def noise_medians(con, protocol_id: int,
+                  max_repeat_ix: int | None = None) -> dict[str, float | None]:
+    """Median cross-repeat p50 spread per parameter. Pass max_repeat_ix to
+    truncate to the first k repeats: range statistics grow with the number of
+    repeats, so cross-protocol comparisons must be made at matched k."""
     out = {}
+    cap = 10**9 if max_repeat_ix is None else max_repeat_ix
     sids = [r[0] for r in con.execute(
         "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
         (protocol_id,))]
@@ -125,8 +130,9 @@ def noise_medians(con, protocol_id: int) -> dict[str, float | None]:
         for sid in sids:
             p50s = [r[0] for r in con.execute(
                 "SELECT p.p50 FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-                " WHERE e.scenario_id=? AND e.protocol_id=? AND e.valid=1 AND p.name=?",
-                (sid, protocol_id, name))]
+                " WHERE e.scenario_id=? AND e.protocol_id=? AND e.valid=1 AND p.name=?"
+                " AND e.repeat_ix<=?",
+                (sid, protocol_id, name, cap))]
             sp = repeat_spread(p50s)
             if sp is not None:
                 spreads.append(sp)
@@ -204,6 +210,53 @@ def write_protocol_compare(con):
     (OUT / "protocol_compare.tex").write_text("\n".join(lines) + "\n")
 
 
+def full_sweep_runs(con, min_scenarios: int = 60) -> dict[str, int]:
+    """Latest run id per protocol, restricted to full-sweep protocols (>=
+    min_scenarios ranked scenarios; excludes the manual baseline and focused
+    subset protocols)."""
+    out = {}
+    for p in con.execute("SELECT * FROM protocols ORDER BY id"):
+        r = con.execute("SELECT id FROM runs WHERE protocol_id=? ORDER BY id DESC LIMIT 1",
+                        (p["id"],)).fetchone()
+        if not r:
+            continue
+        n = con.execute("SELECT COUNT(DISTINCT scenario_id) FROM results WHERE run_id=?",
+                        (r["id"],)).fetchone()[0]
+        if n >= min_scenarios:
+            out[p["name"]] = r["id"]
+    return out
+
+
+def write_protocol_noise(con):
+    """Median cross-repeat p50 spread per parameter, per protocol with repeats."""
+    prots = [p for p in con.execute(
+        "SELECT * FROM protocols WHERE k_repeats > 1 ORDER BY id")
+        if con.execute("SELECT 1 FROM elicitations WHERE protocol_id=? AND valid=1 LIMIT 1",
+                       (p["id"],)).fetchone()]
+    if not prots:
+        (OUT / "protocol_noise.tex").write_text("% no multi-repeat protocols yet\n")
+        return
+    lines = [r"\begin{tabular}{@{}l" + "r" * len(prots) + r"@{}}", r"\toprule",
+             "parameter & " + " & ".join(esc(p["name"]) for p in prots) + r"\\",
+             r"\midrule"]
+    # matched k: compare first-3-repeat spreads even where a protocol has more
+    per_prot = {p["name"]: noise_medians(con, p["id"], max_repeat_ix=2) for p in prots}
+    for name in io.PARAM_NAMES:
+        cells = [num(per_prot[p["name"]][name], "{:.2f}") for p in prots]
+        lines.append(f"${esc(name)}$ & " + " & ".join(cells) + r"\\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (OUT / "protocol_noise.tex").write_text("\n".join(lines) + "\n")
+
+
+def _k_used(con, protocol_id: int):
+    """Median number of valid repeats per scenario actually pooled (can exceed
+    the protocol's nominal k_repeats when elicitation ran with --k)."""
+    counts = [r[0] for r in con.execute(
+        "SELECT COUNT(DISTINCT repeat_ix) FROM elicitations WHERE protocol_id=?"
+        " AND valid=1 GROUP BY scenario_id", (protocol_id,))]
+    return int(np.median(counts)) if counts else "--"
+
+
 def write_macros(con, run):
     prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     n_scen = con.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0]
@@ -229,11 +282,12 @@ def write_macros(con, run):
         "voiCodeHash": esc(run["code_hash"][:12]),
         "voiProtocol": esc(prot["name"]),
         "voiKRepeats": prot["k_repeats"],
+        "voiKUsed": _k_used(con, run["protocol_id"]),
         "voiCliVersion": esc(prot["cli_version"]),
         "voiNScenarios": n_scen,
         "voiNRanked": n_ranked,
         "voiNAttempts": att[0],
-        "voiValidityRate": f"{100.0 * (att[1] or 0) / att[0]:.0f}\\%" if att[0] else "--",
+        "voiValidityRate": f"{100.0 * (att[1] or 0) / att[0]:.1f}\\%" if att[0] else "--",
         "voiTopScenario": esc(ttl[top][:70]),
         "voiTopEff": num(eff[top]["q50"]),
         "voiTopPpos": num(eff[top]["p_positive"], "{:.2f}"),
@@ -256,6 +310,17 @@ def write_macros(con, run):
           if manual_run and run["id"] != manual_run["id"] else None)
     macros["voiRhoManual"] = f"{rc[0]:.2f}" if rc else "--"
     macros["voiRhoManualN"] = rc[1] if rc else "--"
+    sweeps = full_sweep_runs(con)
+    rhos = []
+    names = list(sweeps)
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            pc = rank_corr_between_runs(con, sweeps[a], sweeps[b])
+            if pc:
+                rhos.append(pc[0])
+    macros["voiRhoProtoMin"] = f"{min(rhos):.2f}" if rhos else "--"
+    macros["voiRhoProtoMax"] = f"{max(rhos):.2f}" if rhos else "--"
+    macros["voiNProtocols"] = len(names)
     lines = [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
     (OUT / "macros.tex").write_text("\n".join(lines) + "\n")
 
@@ -273,8 +338,9 @@ def main():
     write_ranking(con, run)
     write_macros(con, run)
     write_protocol_compare(con)
-    print(f"wrote catalog.tex, ranking.tex, macros.tex, protocol_compare.tex"
-          f" for run {run['id']}")
+    write_protocol_noise(con)
+    print(f"wrote catalog.tex, ranking.tex, macros.tex, protocol_compare.tex,"
+          f" protocol_noise.tex for run {run['id']}")
 
 
 if __name__ == "__main__":

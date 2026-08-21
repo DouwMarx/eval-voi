@@ -1,2 +1,24 @@
-% Cross-protocol commentary; written after the protocol iterations.
-(To be written after the protocol iterations.)
+% Hand-authored cross-protocol commentary; numbers via generated macros/tables.
+
+Three full-sweep protocol iterations were run before the final report run,
+each changing exactly one thing (Section~\ref{sec:learnings}). The pairwise
+rank correlations between full-sweep variants span
+$\rho = \voiRhoProtoMin$--$\voiRhoProtoMax$: minor prompt edits reshuffle the
+ranking substantially. The noise table explains why. The probability
+parameters $s$, $t$, $e$ are elicited consistently (cross-repeat spreads of a
+few percent), the prior $p$ moderately so, while the dollar parameters $B$,
+$K$, $C$ carry relative spreads near or above 1.0 under \emph{every} prompt
+variant tried --- anchor-ratio cross-checks (p002) and forced component
+arithmetic (p003) both failed to reduce them. Efficiency is a ratio of
+exactly these noisy quantities, so the ranking inherits the noise. The
+correlations against the hand-entered seed baseline
+($\rho = \voiRhoManual$ against the final run) swing widely across protocol
+variants in the matrix above: with only \voiRhoManualN{} shared scenarios
+they mostly measure small-sample noise, and cannot separate a model-vs-human
+gap from the prompt-vs-prompt gap. The
+practical reading of this report is therefore tier-based: membership in the
+top decile, the broad middle, or the dead bottom is meaningful; adjacent
+ranks within a tier are not. The final run mitigates the repeat noise the
+only way that demonstrably worked --- averaging over $k=\voiKUsed{}$
+repeats per scenario --- and the interval plots carry the residual
+uncertainty honestly.

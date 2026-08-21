@@ -1,0 +1,12 @@
+name: p004
+template_path: elicitation/templates/elicitor_v4.md
+model_alias: haiku
+k_repeats: 3
+notes: >
+  Sensitivity-guided deepening (spec §10), run on the run-4 top-quartile
+  scenarios only (ids 53,42,60,48,41,5,52,31,46,32,61,62,50,47,13,22,54).
+  One change vs p001: focused estimation guidance for the two globally most
+  sensitive parameters — C (vendor-invoice pricing with a market cross-check)
+  and B (single dominant loss component from a stated reference quantity, no
+  speculative add-ons). Measured outcome: efficiency interval width and rank
+  stability on these scenarios vs the k=5 p001 run.
