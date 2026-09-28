@@ -49,8 +49,8 @@ optionally `manual` (hand percentiles for the `p000_manual` protocol).
 1. `uv run pytest`
 2. `uv run python -m voi_rank.elicit --study studies/X --manual [--dry-run]` (optional: hand percentiles; `--dry-run` lists what would be loaded and writes nothing; a study without `protocols/p000_manual.yaml` or without any `manual` key is reported and gets no `voi.db`)
 3. `uv run python -m voi_rank.propose --study studies/X --n 6 --yes [--dry-run]` (optional: generate scenarios via claude_cli; needs `templates/proposer.md` in the study, else it exits with a message; prints the plan, calls and estimated cost first and needs `--yes` or a TTY confirmation like step 5; the plan is made on an in-memory copy, so a declined plan or `--dry-run` creates nothing, not even `voi.db`)
-4. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --dry-run` (plan on an in-memory copy of the DB: render prompts, list pending slots per member with the effective k, call nothing, write nothing, not even `voi.db`)
-5. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --yes [--k 5] [--members claude_cli:haiku]` (prints the plan and estimated cost, then submits; without `--yes` it asks for confirmation on a TTY and aborts otherwise; the plan is made on an in-memory copy, so a declined plan writes nothing, not even `voi.db`, and registers no protocol; only a confirmed run whose preflight passed opens the real DB)
+4. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --dry-run` (plan on an in-memory copy of the DB: render prompts, list pending slots per member with the effective k, call nothing, write nothing, not even `voi.db`; a staged protocol lists both stages and the first pending prompt of each)
+5. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --yes [--k 5] [--members claude_cli:haiku] [--stage decision]` (prints the plan and estimated cost, then submits; without `--yes` it asks for confirmation on a TTY and aborts otherwise; the plan is made on an in-memory copy, so a declined plan writes nothing, not even `voi.db`, and registers no protocol; only a confirmed run whose preflight passed opens the real DB)
 6. `uv run python -m voi_rank.mc --study studies/X --protocol p001 --seed 42 --draws 100000 [--members claude_cli:sonnet,claude_cli:opus]` (refuses to run with uncommitted changes under `voi_rank/`, `pyproject.toml` or `uv.lock`, or when git cannot report the revision at all, unless `--allow-dirty`, which stores `code_hash` as `<hash>-dirty` or `unknown`; `--members` pools only that subset of the protocol's members, see "Member subsets")
 7. `uv run python -m voi_rank.analysis.health --study studies/X --protocol p001 [--compare p002] [--members ...]`
 8. `uv run python -m voi_rank.analysis.figures --study studies/X --protocol p001` and `uv run python -m voi_rank.analysis.tables --study studies/X --protocol p001` (the latest all-member run of that protocol, default `p001`; `--members a:b,c:d` selects the latest run that pooled exactly that subset; `--run ID` overrides both; both print `run <id> (protocol <name>[, members ...])`; a run made by the v1 model, without a `data_hash` or with sensitivities for the retired parameter `e`, is refused: re-run step 6)
@@ -58,8 +58,9 @@ optionally `manual` (hand percentiles for the `p000_manual` protocol).
 10. `cd studies/X/report && latexmk -pdf main.tex`
 
 Elicitation resumes: a slot is (scenario, protocol, provider, model,
-repeat) and slots with a valid response are skipped, so re-running step 5
-only fills what is missing. Before submitting, step 5 checks that every
+repeat, stage) and slots with a valid response are skipped, so re-running step 5
+only fills what is missing (per stage for a staged protocol; `--stage NAME`
+plans one stage only). Before submitting, step 5 checks that every
 selected provider has its credentials (a missing OpenRouter key aborts with
 zero calls made) and prints the plan: pending slots per member and the
 estimated cost (slots times the member's mean stored cost per attempt under
@@ -168,6 +169,62 @@ all-member run). The cross-protocol Spearman matrices
 (`protocol_compare.tex`, `protocol_noise_matched.tex`) carry each subset run
 as its own column, labelled `p003[opus+sonnet]`; a constant ranking (every
 median EVSI zero) prints `n/a`.
+
+### Staged protocols (decision stage + instrument stage)
+
+The model says `p, B, K` belong to the decision and `s, t, C` to the
+instrument, yet a single prompt lets the instrument description move the
+decision-level numbers across the rungs of a ladder (LEARNINGS, iteration
+1: CV(p) 0.14-0.31 across rungs whose decision text is byte-identical). A
+staged protocol asks each level its own questions:
+
+```yaml
+name: p004
+model: binary                                  # stages exist for the binary model only
+stages:
+  - name: decision
+    template_path: templates/decision.md       # renders $agent $decision $theta_definition $decision_context
+    params: [p, B, K]
+    group_key: attributes.context_group        # or 'group'; every scenario must carry a value
+    decision_contexts:                         # decision-level facts per group value
+      home manipulator: "..."
+      AV AEB: "..."
+  - name: instrument
+    template_path: templates/instrument.md     # renders the scenario as a single-stage template does
+    params: [s, t, C]
+members: [...]
+```
+
+The decision stage is elicited once per group x member x repeat from the
+group's shared agent, decision and theta text plus the protocol's decision
+context (a decision template that names `$instrument`, `$context` or
+`$title` is refused, so no rung can contaminate it; a group whose scenarios
+differ in that text, a scenario without a group value or a group without a
+context entry stops the plan), and its rows are stored on the group's
+representative scenario (its lowest id) with `elicitations.stage =
+'decision'`; the instrument stage is elicited per scenario with `$context`
+and stored with `stage = 'instrument'`. The stages are independent (the
+instrument prompt carries no decision-level number), so one run submits
+both. Validation accepts a stage's parameter subset (the informativeness
+check needs both `s` and `t`, the prior check `p`). The stages, each with
+its template hash, are stored as `protocols.stages_json` and are part of
+the immutability check; the unique valid-slot index includes the stage.
+`db.scenario_param_fits` assembles every scenario's `p, B, K` from its
+group's decision rows and `s, t, C` from its own instrument rows (a group
+without a complete decision stage leaves its scenarios incomplete), so MC,
+`data_hash` (each shared decision fit counted once), the replay and the
+member subsets work unchanged. The analyses know the stages: `health`
+prints per-stage validity and spreads (the decision stage's over groups)
+and, since the decision-stage spread across a group's rungs is zero by
+construction, the cross-member decision-level agreement per group instead
+of a per-scenario Spearman on `p, B, K`; `fig_param_medians` shows the
+decision-level points once per group (at the representative's rank); the
+catalog marks the shared `p, B, K` with a dagger; `consistency.tex` reports
+`CV(p) / mean(CV(s), CV(t))`, 0 by design under a staged protocol; the
+level-uplift ladders draw `p, B, K` from the decision stage. `sim2real` has
+`p004` (`templates/decision.md`, `templates/instrument.md`: the `p003`
+anchors and instructions split by stage); `ai-safety-evals` has none, every
+scenario there being its own decision.
 
 ## Gaussian-state family (protocols with `model: gaussian`)
 

@@ -12,13 +12,15 @@ CREATE TABLE IF NOT EXISTS protocols (
   model_alias TEXT, k_repeats INTEGER, cli_version TEXT, notes TEXT,
   members_json TEXT,                                   -- v2: [{provider, model, k_repeats}]
   scenario_selector TEXT,                              -- v2: 'all' | 'seed' | '1,2,3'
-  model_kind TEXT                                      -- v2.1: 'binary' | 'gaussian' (NULL = binary)
+  model_kind TEXT,                                     -- v2.1: 'binary' | 'gaussian' (NULL = binary)
+  stages_json TEXT                                     -- v2.2: staged protocol (NULL = one stage)
 );
 CREATE TABLE IF NOT EXISTS elicitations (
   id INTEGER PRIMARY KEY, scenario_id INTEGER, protocol_id INTEGER,
   repeat_ix INTEGER, prompt_hash TEXT, raw_response TEXT,
   valid INTEGER, error TEXT, created_at TEXT,
-  provider TEXT, model TEXT                            -- v2: ensemble member identity
+  provider TEXT, model TEXT,                           -- v2: ensemble member identity
+  stage TEXT                                           -- v2.2: stage name (NULL = single stage)
 );
 CREATE TABLE IF NOT EXISTS parameters (
   id INTEGER PRIMARY KEY, elicitation_id INTEGER, name TEXT,
@@ -28,7 +30,8 @@ CREATE TABLE IF NOT EXISTS parameters (
 CREATE TABLE IF NOT EXISTS runs (
   id INTEGER PRIMARY KEY, created_at TEXT, seed INTEGER, n_draws INTEGER,
   code_hash TEXT, protocol_id INTEGER,
-  data_hash TEXT                                       -- v2: digest of the valid elicitations used
+  data_hash TEXT,                                      -- v2: digest of the valid elicitations used
+  members_json TEXT                                    -- v2.2: pooled member subset (NULL = all)
 );
 CREATE TABLE IF NOT EXISTS results (
   run_id INTEGER, scenario_id INTEGER, metric TEXT,
@@ -38,6 +41,10 @@ CREATE TABLE IF NOT EXISTS sensitivities (
   run_id INTEGER, scenario_id INTEGER, param TEXT, spearman REAL
 );
 -- indexes
--- one valid elicitation per slot (scenario, protocol, member, repeat)
-CREATE UNIQUE INDEX IF NOT EXISTS ux_elicitations_valid_slot
-  ON elicitations (scenario_id, protocol_id, provider, model, repeat_ix) WHERE valid=1;
+-- one valid elicitation per slot (scenario, protocol, member, repeat, stage);
+-- the v2 index without the stage is replaced (a staged protocol stores a
+-- decision and an instrument row of one member and repeat on one scenario)
+DROP INDEX IF EXISTS ux_elicitations_valid_slot;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_elicitations_valid_slot_stage
+  ON elicitations (scenario_id, protocol_id, provider, model, repeat_ix, COALESCE(stage, ''))
+  WHERE valid=1;

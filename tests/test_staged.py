@@ -1,0 +1,427 @@
+"""Staged decision / instrument protocols (spec v2.2, feature B) on temporary
+copies of the sim2real study with a fake provider: registration and
+immutability with stages_json, validation of a stage's parameter subset, the
+dry run listing both stages, elicitation and resume per stage, the assembly
+of a scenario's fits from its group's decision rows and its own instrument
+rows, MC, replay, figures, tables, extra and health. No CLI, no network."""
+
+from __future__ import annotations
+
+import json
+import re
+import sqlite3
+from pathlib import Path
+
+import numpy as np
+import pytest
+import yaml
+
+from tests.test_gauss_pipeline import copy_study
+from voi_rank import db, elicit, mc
+from voi_rank.analysis import extra, figures, health, tables
+from voi_rank.validate import validate_payload
+
+SEED = {
+    "p": (0.02, 0.08, 0.25), "s": (0.60, 0.80, 0.95), "t": (0.70, 0.90, 0.98),
+    "B": (20e3, 150e3, 1.5e6), "K": (2e3, 10e3, 60e3), "C": (300.0, 1000.0, 5000.0),
+}
+HAIKU, SONNET = "claude_cli:haiku", "claude_cli:sonnet"
+HOME, AV = "home manipulator", "AV AEB"
+
+
+class StagedFake:
+    """Answers the parameters a stage's prompt asks for (the decision prompt
+    names DECISION-level, the instrument prompt INSTRUMENT-level), jittered
+    per (prompt, model, call), deterministic across reruns. One instance
+    serves every call, so repeats of a slot differ."""
+
+    def __init__(self, cost: float = 0.01):
+        self.counts: dict[str, int] = {}
+        self.cost = cost
+
+    def __call__(self, prompt, model, system_prompt):
+        n = self.counts[prompt] = self.counts.get(prompt, 0) + 1
+        rng = np.random.default_rng([int(db.sha256(prompt + model)[:8], 16), n])
+        if "DECISION-level" in prompt:
+            names = ["p", "B", "K"]
+        elif "INSTRUMENT-level" in prompt:
+            names = ["s", "t", "C"]
+        else:
+            names = list(SEED)
+        prm = {}
+        for name in names:
+            f = float(np.exp(rng.normal(0.0, 0.3 if name in ("B", "K", "C") else 0.08)))
+            q = [v * f for v in SEED[name]]
+            if name in ("p", "s", "t"):
+                q = [float(np.clip(v, 0.005, 0.995)) for v in q]
+                if not q[0] < q[1] < q[2]:
+                    q = list(SEED[name])
+            prm[name] = {"reasoning": f"{name} for {model}", "p5": q[0], "p50": q[1], "p95": q[2],
+                         "unit": "USD" if name in ("B", "K", "C") else "probability"}
+        text = json.dumps({"parameters": prm})
+        raw = json.dumps({"result": text, "total_cost_usd": self.cost})
+        return {"result": text, "total_cost_usd": self.cost}, raw, None
+
+
+def p004_cfg(study) -> dict:
+    return yaml.safe_load(study.protocol_path("p004").read_text())
+
+
+def write_p004(study, cfg: dict) -> Path:
+    path = study.protocol_path("p004")
+    path.write_text(yaml.safe_dump(cfg))
+    return path
+
+
+# --- registration -----------------------------------------------------------------
+
+def test_staged_protocol_registers_stages_and_is_immutable(tmp_path):
+    study = copy_study("sim2real", tmp_path)
+    con = study.connect()
+    db.seed_scenarios(con, study.scenarios_json)
+    pid = db.get_or_create_protocol(con, study.protocol_path("p004"), study.root)
+    prot = db.protocol_by_name(con, "p004")
+    stages = db.protocol_stages(prot)
+    assert [s["name"] for s in stages] == ["decision", "instrument"]
+    dec, ins = stages
+    assert dec["params"] == ["p", "B", "K"] and ins["params"] == ["s", "t", "C"]
+    assert dec["group_key"] == "attributes.context_group" and "group_key" not in ins
+    assert set(dec["decision_contexts"]) == {HOME, AV}
+    assert "fleet size" in dec["decision_contexts"][HOME]
+    assert "production volume" in dec["decision_contexts"][AV]
+    assert dec["template_hash"] == db.sha256((study.root / "templates/decision.md").read_text())
+    assert ins["template_hash"] == db.sha256((study.root / "templates/instrument.md").read_text())
+    assert prot["template_path"] == "templates/decision.md + templates/instrument.md"
+    assert prot["template_hash"] == db.sha256(db.stages_json(stages)) and prot["model_kind"] == "binary"
+    assert db.group_stage(stages) == dec and db.scenario_stage(stages) == ins
+    assert db.stage_of_param(stages, "B") == dec and db.stage_of_param(stages, "C") == ins
+    p003 = db.get_or_create_protocol(con, study.protocol_path("p003"), study.root)
+    assert db.stage_of_param(None, "p") is None and p003 != pid
+    assert db.protocol_stages(db.protocol_by_name(con, "p003")) is None
+    # the same file again: the same id
+    assert db.get_or_create_protocol(con, study.protocol_path("p004"), study.root) == pid
+    # a changed decision context, template or stage config is refused
+    cfg = p004_cfg(study)
+    cfg["stages"][0]["decision_contexts"][HOME] += " Extra sentence."
+    write_p004(study, cfg)
+    with pytest.raises(RuntimeError, match="different \\['template_hash', 'stages'\\]"):
+        db.get_or_create_protocol(con, study.protocol_path("p004"), study.root)
+    write_p004(study, p004_cfg(study) | {"stages": p004_cfg(study)["stages"]})
+    cfg = p004_cfg(study)
+    cfg["stages"][0]["decision_contexts"][HOME] = dec["decision_contexts"][HOME]
+    write_p004(study, cfg)
+    assert db.get_or_create_protocol(con, study.protocol_path("p004"), study.root) == pid
+    (study.root / "templates/decision.md").write_text(
+        (study.root / "templates/decision.md").read_text() + "\nOne more line.\n")
+    with pytest.raises(RuntimeError, match="template_hash"):
+        db.get_or_create_protocol(con, study.protocol_path("p004"), study.root)
+    con.close()
+
+
+@pytest.mark.parametrize("edit, match", [
+    (lambda c: c.update(model="gaussian"), "binary model only"),
+    (lambda c: c.update(template_path="templates/elicitor.md"), "not a template_path"),
+    (lambda c: c["stages"].pop(), "exactly two stages"),
+    (lambda c: c["stages"][1].update(params=["s", "t"]), "partition"),
+    (lambda c: c["stages"][1].update(params=["s", "t", "C", "e"]), "subset of"),
+    (lambda c: c["stages"][1].update(group_key="attributes.level"), "exactly one stage"),
+    (lambda c: c["stages"][0].update(group_key="attrs.x"), "group_key must be"),
+    (lambda c: c["stages"][0].update(name="instrument"), "names must differ"),
+    (lambda c: c["stages"][0].update(decision_contexts="text"), "decision_contexts must map"),
+])
+def test_bad_stage_configs_are_refused(tmp_path, edit, match):
+    study = copy_study("sim2real", tmp_path)
+    cfg = p004_cfg(study)
+    edit(cfg)
+    write_p004(study, cfg)
+    con = study.connect()
+    with pytest.raises(RuntimeError, match=match):
+        db.get_or_create_protocol(con, study.protocol_path("p004"), study.root)
+    con.close()
+
+
+# --- validation of a stage's subset ----------------------------------------------------
+
+def _payload(names):
+    return {"parameters": {n: {"reasoning": "r", "p5": SEED[n][0], "p50": SEED[n][1], "p95": SEED[n][2]}
+                           for n in names}}
+
+
+def test_validate_payload_accepts_a_stage_subset():
+    clean, err = validate_payload(_payload(["p", "B", "K"]), ["p", "B", "K"])
+    assert err is None and list(clean) == ["p", "B", "K"]
+    clean, err = validate_payload(_payload(["s", "t", "C"]), ["s", "t", "C"])
+    assert err is None and list(clean) == ["s", "t", "C"]
+    # the full payload validates against a subset (extra keys ignored), a subset not against the full list
+    assert validate_payload(_payload(SEED), ["s", "t", "C"])[1] is None
+    assert validate_payload(_payload(["p", "B", "K"]))[1] == "schema: missing parameters ['s', 't', 'C']"
+    # informativeness only when both s and t are asked for; the prior check only with p
+    bad = _payload(["s", "t", "C"])
+    bad["parameters"]["s"] = {"p5": 0.02, "p50": 0.05, "p95": 0.08}
+    assert "informativeness" in validate_payload(bad, ["s", "t", "C"])[1]
+    assert validate_payload(bad, ["s", "C"])[1] is None
+    bad = _payload(["p", "B", "K"])
+    bad["parameters"]["p"] = {"p5": 0.0001, "p50": 0.0005, "p95": 0.001}
+    assert "degenerate prior" in validate_payload(bad, ["p", "B", "K"])[1]
+    assert validate_payload(bad, ["B", "K"])[1] is None
+    with pytest.raises(ValueError, match="unknown parameter names"):
+        validate_payload(_payload(SEED), ["p", "e"])
+
+
+# --- end to end ------------------------------------------------------------------------
+
+def test_staged_elicitation_mc_analyses_end_to_end(tmp_path, monkeypatch, capsys):
+    study = copy_study("sim2real", tmp_path)
+    scen = json.loads(study.scenarios_json.read_text())
+    fake = StagedFake()
+    monkeypatch.setattr(elicit, "get_provider", lambda name: fake)
+    # the dry run lists both stages and renders a prompt of each
+    elicit.main(["--study", str(study.root), "--protocol", "p004", "--dry-run"])
+    out = capsys.readouterr().out
+    assert "DRY RUN: protocol p004 (model binary, stages decision + instrument, hash" in out
+    assert ("stage decision (template templates/decision.md, params p, B, K,"
+            " group_key attributes.context_group):") in out
+    assert f"member {HAIKU} (k=5): 10 pending slots over 2 groups ({AV}, {HOME})" in out
+    assert "stage instrument (template templates/instrument.md, params s, t, C):" in out
+    assert f"member {SONNET} (k=5): 75 pending slots over 15 scenarios (ids 1..15)" in out
+    assert f"first pending prompt of stage decision (group '{AV}', representative scenario 11," in out
+    assert "first pending prompt of stage instrument (scenario 1," in out
+    assert f"{3 * (10 + 75)} slots would be elicited; no provider was called." in out
+    dec_prompt, ins_prompt = out.split("first pending prompt of stage decision")[1].split(
+        "first pending prompt of stage instrument")
+    assert scen[10]["agent"] in dec_prompt and "production volume" in dec_prompt
+    assert scen[10]["instrument"] not in dec_prompt and scen[10]["context"][:80] not in dec_prompt
+    assert '"s":' not in dec_prompt and '"C":' not in dec_prompt and '"p":' in dec_prompt
+    assert scen[0]["instrument"] in ins_prompt and scen[0]["context"][:80] in ins_prompt
+    assert '"p":' not in ins_prompt and '"s":' in ins_prompt and "$decision_context" not in ins_prompt
+    assert not list(study.root.glob("voi.db*"))
+    # the plan prints the per-stage breakdown (declined without --yes)
+    with pytest.raises(SystemExit, match="--yes"):
+        elicit.main(["--study", str(study.root), "--protocol", "p004", "--k", "2",
+                     "--members", f"{HAIKU},{SONNET}"])
+    out = capsys.readouterr().out
+    assert f"{HAIKU}: 34 slots (decision 4, instrument 30), estimated cost" in out
+    # the decision stage alone, two members, k = 2
+    elicit.main(["--study", str(study.root), "--protocol", "p004", "--stage", "decision", "--k", "2",
+                 "--members", f"{HAIKU},{SONNET}", "--yes"])
+    out = capsys.readouterr().out
+    assert "done: 8/8 slots valid" in out
+    assert f"scenario 1 stage decision (group '{HOME}') {HAIKU} repeat 0: ok" in out
+    con = study.connect()
+    prot = db.protocol_by_name(con, "p004")
+    pid = prot["id"]
+    rows = con.execute("SELECT * FROM elicitations WHERE protocol_id=? ORDER BY id", (pid,)).fetchall()
+    assert len(rows) == 8 and all(r["stage"] == "decision" and r["valid"] for r in rows)
+    assert {r["scenario_id"] for r in rows} == {1, 11}   # the groups' representatives (lowest ids)
+    names = {r[0] for r in con.execute(
+        "SELECT DISTINCT p.name FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
+        " WHERE e.protocol_id=?", (pid,))}
+    assert names == {"p", "B", "K"}
+    # resume per stage: the decision stage is done, the instrument stage pending
+    elicit.main(["--study", str(study.root), "--protocol", "p004", "--stage", "decision", "--k", "2",
+                 "--members", f"{HAIKU},{SONNET}", "--yes"])
+    assert "nothing to do" in capsys.readouterr().out
+    _, jobs = elicit.plan_jobs(con, study, pid, None, 2, {HAIKU, SONNET})
+    assert len(jobs) == 60 and {j["stage"] for j in jobs} == {"instrument"}
+    assert all(j["names"] == ["s", "t", "C"] and "group" not in j for j in jobs)
+    with pytest.raises(SystemExit, match="--stage 'nope': protocol p004 has stages"):
+        elicit.plan_jobs(con, study, pid, None, 2, None, stage="nope")
+    p003 = db.get_or_create_protocol(con, study.protocol_path("p003"), study.root)
+    with pytest.raises(SystemExit, match="has no stages"):
+        elicit.plan_jobs(con, study, p003, None, 2, None, stage="decision")
+    # incomplete until the instrument stage is in
+    assert mc.complete_fits(con, pid) == {}
+    elicit.main(["--study", str(study.root), "--protocol", "p004", "--k", "2",
+                 "--members", f"{HAIKU},{SONNET}", "--yes"])
+    assert "done: 60/60 slots valid" in capsys.readouterr().out
+    # a decision row and an instrument row of one member and repeat share a scenario; a
+    # duplicate valid slot within a stage is refused
+    assert con.execute("SELECT COUNT(*) FROM elicitations WHERE protocol_id=? AND scenario_id=1"
+                       " AND provider='claude_cli' AND model='haiku' AND repeat_ix=0 AND valid=1",
+                       (pid,)).fetchone()[0] == 2
+    with pytest.raises(sqlite3.IntegrityError):
+        db.insert_elicitation(con, 1, pid, "claude_cli", "haiku", 0, "h", "{}", True, None, "decision")
+    con.rollback()
+    # assembly: p, B, K of every scenario of a group are the group's decision fits (same
+    # elicitation ids); s, t, C its own instrument fits
+    fits = mc.complete_fits(con, pid)
+    assert sorted(fits) == list(range(1, 16))
+    home = [sc_id for sc_id in range(1, 11)]
+    dec_ids = {f["elicitation_id"] for f in fits[1]["p"]}
+    assert len(dec_ids) == 4 and all({f["elicitation_id"] for f in fits[s]["B"]} == dec_ids for s in home)
+    assert {f["elicitation_id"] for f in fits[11]["K"]}.isdisjoint(dec_ids)
+    assert all(len(fits[s]["s"]) == 4 for s in fits)
+    assert {f["elicitation_id"] for f in fits[1]["s"]}.isdisjoint({f["elicitation_id"] for f in fits[2]["s"]})
+    assert fits[1]["p"] == fits[7]["p"] and fits[1]["C"] != fits[7]["C"]
+    assert db.elicited_p50s(con, pid, 5, "p") == db.elicited_p50s(con, pid, 1, "p")
+    assert db.elicited_p50s(con, pid, 5, "s") != db.elicited_p50s(con, pid, 1, "s")
+    assert db.elicited_p50s(con, pid, 12, "B", "claude_cli", "sonnet") == \
+        [f["p50"] for f in fits[12]["B"] if f["model"] == "sonnet"]
+    assert db.param_scenario_ids(con, pid, "p") == [1, 11]
+    assert db.param_scenario_ids(con, pid, "s") == list(range(1, 16))
+    assert db.param_scenario_ids(con, pid, "K", [SONNET]) == [1, 11]
+    assert [lab for lab, _ in db.elicited_points(con, pid, 9, "p")] == [HAIKU, HAIKU, SONNET, SONNET]
+    assert db.scenario_group_ids(con, "attributes.context_group", 9) == home
+    assert db.scenario_groups_by_key(con, "attributes.context_group") == {AV: list(range(11, 16)), HOME: home}
+    # a group without a complete decision stage leaves its scenarios incomplete
+    con.execute("UPDATE elicitations SET valid=0 WHERE protocol_id=? AND stage='decision' AND scenario_id=11",
+                (pid,))
+    assert sorted(mc.complete_fits(con, pid)) == home
+    con.rollback()
+    # MC, data hash (each shared decision fit counted once), replay
+    run_id = mc.run_mc(con, "p004", seed=3, n_draws=2000, quiet=True)
+    run = db.get_run(con, run_id)
+    assert con.execute("SELECT COUNT(DISTINCT scenario_id) FROM results WHERE run_id=?",
+                       (run_id,)).fetchone()[0] == 15
+    assert run["data_hash"] == mc.data_hash(fits)
+    rows_hashed = {(f["elicitation_id"], n, f["fit_params"])
+                   for s in fits for n, lst in fits[s].items() for f in lst}
+    assert len(rows_hashed) == 8 * 3 + 60 * 3
+    ids, eff = mc.replay_efficiency(con, run_id)
+    assert ids == list(range(1, 16)) and eff.shape == (15, 2000)
+    # the shared p, B, K draws of a ladder pool the group's decision fits once
+    assert len(extra.unique_fits([f for s in home for f in fits[s]["p"]])) == 4
+    ladders, skipped = extra.leveled_rungs(con, run)
+    assert skipped == {} and set(ladders) == {AV, HOME}
+    d = extra.ladder_draws(con, run, ladders[HOME])
+    assert set(d["shared"]) == {"p", "B", "K"} and list(d["rungs"]) == home
+    # figures, tables
+    written = figures.make_all(con, run_id, study.generated_dir)
+    assert "fig_param_medians" in written and "fig_by_level" in written and "fig_elicitation_noise" in written
+    tables.make_all(con, run, study.generated_dir)
+    catalog = (study.generated_dir / "catalog.tex").read_text()
+    assert r"$p$$^\dagger$ & $s$ & $t$ & $B$$^\dagger$ & $K$$^\dagger$ & $C$" in catalog
+    assert "shared by every scenario of a group (attributes.context\\_group)" in catalog
+    p_cells = {}
+    for ln in catalog.splitlines():
+        m = re.match(r"^(\d+) & .* & ([0-9.]+) & [0-9.]+ & [0-9.]+ & (\S+) & (\S+) & \S+\\\\$", ln)
+        if m:
+            p_cells[int(m.group(1))] = (m.group(2), m.group(3), m.group(4))
+    assert len(p_cells) == 15 and len({p_cells[s] for s in home}) == 1
+    assert len({p_cells[s] for s in range(11, 16)}) == 1 and p_cells[1] != p_cells[11]
+    macros = dict(re.findall(r"\\newcommand\{\\(\w+)\}\{(.*)\}",
+                             (study.generated_dir / "macros.tex").read_text()))
+    assert macros["voiKUsed"] == "4" and macros["voiNAttempts"] == "68" and macros["voiNMembers"] == "3"
+    noise = (study.generated_dir / "protocol_noise.tex").read_text()
+    assert "p004" in noise
+    # extra: ladders, consistency (ratio 0 by design), plug-in, member agreement
+    capsys.readouterr()
+    written, skipped = extra.make_all(con, run, study.generated_dir)
+    out = capsys.readouterr().out
+    assert skipped == ["domain_map"] and "plugin: skipped" not in out
+    cons = (study.generated_dir / "consistency.tex").read_text()
+    assert r"$\frac{\mathrm{CV}(p)}{\overline{\mathrm{CV}(s,t)}}$" in cons and "0 by design here" in cons
+    st = extra.consistency_stats(con, run)
+    assert set(st) == {AV, HOME}
+    for g in st:
+        assert st[g]["dispersion"]["p"] == 0.0 and st[g]["dispersion"]["B"] == 0.0
+        assert st[g]["cv_ratio"] == 0.0 and st[g]["dispersion"]["s"] > 0.0 and st[g]["flat"]
+    assert re.search(r"home manipulator & 10 & 0\.00 & .* & 0\.00 & yes", cons)
+    assert extra.cv_ratio({"p": 0.0, "s": 0.0, "t": 0.0}) is None
+    assert extra.cv_ratio({"p": 0.1, "s": 0.2, "t": 0.4}) == pytest.approx(1 / 3)
+    plug = extra.plugin_stats(con, run)
+    assert plug is not None and len(plug["rows"]) == 15
+    med = {r["sid"]: r["medians"] for r in plug["rows"]}
+    assert all(med[s]["p"] == med[1]["p"] and med[s]["B"] == med[1]["B"] for s in home)
+    assert med[1]["p"] != med[11]["p"] and med[1]["s"] != med[2]["s"]
+    assert "member_agreement.tex" in written
+    # health: per-stage validity and spreads, decision-level agreement per group
+    capsys.readouterr()
+    health.health(con, "p004")
+    out = capsys.readouterr().out
+    assert ("stage decision (params p, B, K): 8 attempts, 8 valid (100.0%), 2 groups with a valid"
+            " answer") in out
+    assert "stage instrument (params s, t, C): 60 attempts, 60 valid (100.0%), 15 scenarios" in out
+    assert f"    {SONNET}: 4 attempts, 4 valid (100.0%)" in out
+    assert "the decision-stage parameters over groups:" in out
+    assert re.search(r"\n  p: [0-9.]+  \(n=2 groups\)  \[stage decision\]", out)
+    assert re.search(r"\n  s: [0-9.]+  \(n=15 scenarios\)  \[stage instrument\]", out)
+    assert "(s, t, C; the decision stage is per group, below)" in out
+    agreement = out.split("cross-member agreement")[1].split("decision-level agreement")[0]
+    assert "\n  p:" not in agreement and "\n  s: " in agreement
+    dl = out.split("decision-level agreement")[1]
+    assert f"p [{AV}]: {HAIKU}" in dl and f"K [{HOME}]:" in dl and "spread=" in dl
+    dla = health.decision_level_agreement(con, pid, db.protocol_members(prot), db.protocol_stages(prot))
+    assert [(name, g) for name, g, _, _ in dla] == [(n, g) for n in ("p", "B", "K") for g in (AV, HOME)]
+    for _, _, pooled, spread in dla:
+        assert set(pooled) == {HAIKU, SONNET, "claude_cli:opus"} - {"claude_cli:opus"}
+        assert spread == pytest.approx((max(pooled.values()) - min(pooled.values()))
+                                       / float(np.median(list(pooled.values()))))
+    assert f"scenarios with median EVSI ~ 0 (run {run_id})" in out
+    con.close()
+    # the analysis CLIs select the staged run like any other
+    figures.main(["--study", str(study.root), "--protocol", "p004"])
+    assert f"run {run_id} (protocol p004)" in capsys.readouterr().out
+
+
+def _edited_copy(tmp_path, edit_scenarios=None, edit_cfg=None, edit_template=None):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    study = copy_study("sim2real", tmp_path)
+    if edit_scenarios:
+        scen = json.loads(study.scenarios_json.read_text())
+        edit_scenarios(scen)
+        study.scenarios_json.write_text(json.dumps(scen))
+    if edit_cfg:
+        cfg = p004_cfg(study)
+        edit_cfg(cfg)
+        write_p004(study, cfg)
+    if edit_template:
+        path = study.root / "templates/decision.md"
+        path.write_text(edit_template(path.read_text()))
+    return study
+
+
+def test_staged_planning_checks_groups_contexts_and_the_decision_template(tmp_path, monkeypatch):
+    monkeypatch.setattr(elicit, "get_provider", lambda name: StagedFake())
+    dry = ["--protocol", "p004", "--dry-run"]
+
+    def drop_group(scen):
+        del scen[3]["attributes"]["context_group"]
+    study = _edited_copy(tmp_path / "a", edit_scenarios=drop_group)
+    with pytest.raises(SystemExit, match=r"scenarios \[4\] carry no attributes.context_group value"):
+        elicit.main(["--study", str(study.root), *dry])
+
+    def other_decision(scen):
+        scen[2]["decision"] = "A different decision"
+    study = _edited_copy(tmp_path / "b", edit_scenarios=other_decision)
+    with pytest.raises(SystemExit,
+                       match=f"group '{HOME}' .*mixes 2 different agent / decision / theta texts"):
+        elicit.main(["--study", str(study.root), *dry])
+
+    def drop_context(cfg):
+        del cfg["stages"][0]["decision_contexts"][AV]
+    study = _edited_copy(tmp_path / "c", edit_cfg=drop_context)
+    with pytest.raises(SystemExit, match=f"no decision_contexts entry for group '{AV}'"):
+        elicit.main(["--study", str(study.root), *dry])
+
+    study = _edited_copy(tmp_path / "d", edit_template=lambda t: t + "\nInstrument: $instrument\n")
+    with pytest.raises(SystemExit, match=r"decision-stage template uses \$instrument"):
+        elicit.main(["--study", str(study.root), *dry])
+    study = _edited_copy(tmp_path / "e", edit_template=lambda t: t + "\nFacts: $context\n")
+    with pytest.raises(SystemExit, match=r"uses \$context"):
+        elicit.main(["--study", str(study.root), *dry])
+    # the scenario stage template may use every field
+    study = _edited_copy(tmp_path / "f")
+    elicit.main(["--study", str(study.root), *dry])
+    assert not list(study.root.glob("voi.db*"))
+
+
+def test_dry_run_of_p004_on_sim2real_renders_every_scenario(tmp_path, monkeypatch):
+    """Every scenario of the study belongs to a group with a decision context
+    and renders under both stages; ai-safety-evals has no p004 by design."""
+    study = copy_study("sim2real", tmp_path)
+    monkeypatch.setattr(elicit, "get_provider",
+                        lambda n: (_ for _ in ()).throw(AssertionError("provider called")))
+    con = study.connect_copy()
+    db.seed_scenarios(con, study.scenarios_json)
+    pid = db.get_or_create_protocol(con, study.protocol_path("p004"), study.root)
+    _, jobs = elicit.plan_jobs(con, study, pid, None, None, None)
+    scen = db.get_scenarios(con)
+    assert len(jobs) == 3 * (5 * 2 + 5 * len(scen))
+    assert {j["scenario_id"] for j in jobs if j["stage"] == "instrument"} == {r["id"] for r in scen}
+    assert {j["group"] for j in jobs if j["stage"] == "decision"} == {HOME, AV}
+    reps = {j["group"]: j["scenario_id"] for j in jobs if j["stage"] == "decision"}
+    groups = db.scenario_groups_by_key(con, "attributes.context_group")
+    assert reps == {g: min(ids) for g, ids in groups.items()}
+    assert not (Path(__file__).resolve().parent.parent
+                / "studies/ai-safety-evals/protocols/p004.yaml").exists()

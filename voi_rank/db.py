@@ -5,8 +5,11 @@ new rows under a new protocol.
 v2 additions: scenarios.context/grp/attributes, elicitations.provider/model,
 protocols.members_json/scenario_selector, runs.data_hash, a unique index on
 valid slots. v2.2: runs.members_json (the member subset a run pooled, NULL =
-every member of the protocol). connect() migrates pre-v2 databases in place;
-connect_copy() prepares an in-memory copy for dry runs.
+every member of the protocol), protocols.stages_json and elicitations.stage
+(staged protocols: a decision stage elicited once per scenario group and an
+instrument stage per scenario, see "staged protocols" below). connect()
+migrates pre-v2 databases in place; connect_copy() prepares an in-memory
+copy for dry runs.
 
 Provenance of a run: code_hash is the git HEAD of the CODE_PATHS (suffixed
 '-dirty' when any of them has uncommitted changes; study inputs are frozen
@@ -39,8 +42,9 @@ __all__ = ["GAUSS_PARAM_NAMES", "PARAM_NAMES", "ROOT", "connect"]
 # columns added after v1; (table -> {column: type}) checked on every connect
 V2_COLUMNS = {
     "scenarios": {"context": "TEXT", "grp": "TEXT", "attributes": "TEXT"},
-    "elicitations": {"provider": "TEXT", "model": "TEXT"},
-    "protocols": {"members_json": "TEXT", "scenario_selector": "TEXT", "model_kind": "TEXT"},
+    "elicitations": {"provider": "TEXT", "model": "TEXT", "stage": "TEXT"},
+    "protocols": {"members_json": "TEXT", "scenario_selector": "TEXT", "model_kind": "TEXT",
+                  "stages_json": "TEXT"},
     "runs": {"data_hash": "TEXT", "members_json": "TEXT"},
 }
 # protocol model kinds (v2.1): the binary model of spec §2 (parameters
@@ -173,19 +177,21 @@ def _prepare(con: sqlite3.Connection) -> sqlite3.Connection:
 
 
 def duplicate_valid_slots(con) -> list[sqlite3.Row]:
-    """Slots (scenario, protocol, member, repeat) holding more than one valid
-    elicitation: possible only in databases written before the unique index."""
+    """Slots (scenario, protocol, member, repeat, stage) holding more than one
+    valid elicitation: possible only in databases written before the unique
+    index."""
     return con.execute(
         "SELECT scenario_id, protocol_id, provider, model, repeat_ix, COUNT(*) AS n,"
         " GROUP_CONCAT(id) AS ids FROM elicitations WHERE valid=1"
-        " GROUP BY scenario_id, protocol_id, provider, model, repeat_ix HAVING COUNT(*) > 1"
+        " GROUP BY scenario_id, protocol_id, provider, model, repeat_ix, COALESCE(stage, '')"
+        " HAVING COUNT(*) > 1"
         " ORDER BY scenario_id, protocol_id, provider, model, repeat_ix").fetchall()
 
 
 DUPLICATE_SLOT_REPAIR_SQL = (
     "UPDATE elicitations SET valid=0, error='duplicate slot' WHERE valid=1 AND id NOT IN"
     " (SELECT MIN(id) FROM elicitations WHERE valid=1"
-    " GROUP BY scenario_id, protocol_id, provider, model, repeat_ix);")
+    " GROUP BY scenario_id, protocol_id, provider, model, repeat_ix, COALESCE(stage, ''));")
 
 
 def check_duplicate_valid_slots(con) -> None:
@@ -553,6 +559,144 @@ def run_model_kind(con, run) -> str:
     return protocol_model_kind(prot) if prot else BINARY_KIND
 
 
+# --- staged protocols (v2.2) --------------------------------------------------
+# A protocol may split the six binary parameters over two stages: a GROUP
+# stage (name 'decision' by convention) elicited once per scenario group and
+# stored on the group's representative scenario (its lowest id) with
+# elicitations.stage = the stage name, and a SCENARIO stage ('instrument')
+# elicited per scenario. Protocol YAML:
+#   stages:
+#     - {name: decision, template_path: templates/decision.md, params: [p, B, K],
+#        group_key: attributes.context_group, decision_contexts: {<group>: text}}
+#     - {name: instrument, template_path: templates/instrument.md, params: [s, t, C]}
+# Stored as protocols.stages_json (with each stage's template hash) and part
+# of the immutability check. scenario_param_fits assembles a scenario's fits
+# from its group's decision rows and its own instrument rows.
+
+STAGE_GROUP_PREFIX = "attributes."
+
+
+def normalize_stages(cfg: dict, study_root: str | Path) -> list[dict] | None:
+    """The stored form of a protocol's 'stages' (None when single-stage):
+    [{name, template_path, template_hash, params, group_key?,
+    decision_contexts?}]. Exactly two stages of a binary protocol, one with a
+    group_key (the group stage) and one without, whose params partition
+    PARAM_NAMES."""
+    raw = cfg.get("stages")
+    if raw is None:
+        return None
+    if cfg.get("template_path") is not None:
+        raise ValueError("a staged protocol names its templates per stage, not a template_path")
+    if normalize_model_kind(cfg.get("model")) != BINARY_KIND:
+        raise ValueError("stages are defined for the binary model only")
+    if not isinstance(raw, list) or len(raw) != 2:
+        raise ValueError("stages must list exactly two stages (a group stage and a scenario stage)")
+    stages, seen_params = [], []
+    for st in raw:
+        if not isinstance(st, dict) or not st.get("name") or not st.get("template_path"):
+            raise ValueError("every stage needs a name and a template_path")
+        params = [str(p) for p in st.get("params") or []]
+        unknown = [p for p in params if p not in PARAM_NAMES]
+        if not params or unknown:
+            raise ValueError(f"stage {st['name']}: params must be a non-empty subset of {PARAM_NAMES}"
+                             f" (got {params})")
+        path = Path(study_root) / str(st["template_path"])
+        out = {"name": str(st["name"]), "template_path": str(st["template_path"]),
+               "template_hash": sha256(path.read_text()), "params": params}
+        if st.get("group_key") is not None:
+            key = str(st["group_key"])
+            if key != "group" and not key.startswith(STAGE_GROUP_PREFIX):
+                raise ValueError(f"stage {st['name']}: group_key must be 'group' or 'attributes.<key>'")
+            out["group_key"] = key
+            contexts = st.get("decision_contexts") or {}
+            if not isinstance(contexts, dict):
+                raise ValueError(f"stage {st['name']}: decision_contexts must map group values to text")
+            out["decision_contexts"] = {str(k): str(v) for k, v in contexts.items()}
+        stages.append(out)
+        seen_params += params
+    if len({s["name"] for s in stages}) != 2:
+        raise ValueError("stage names must differ")
+    if sorted(seen_params) != sorted(PARAM_NAMES):
+        raise ValueError(f"the stages' params must partition {PARAM_NAMES} (got {seen_params})")
+    if sum("group_key" in s for s in stages) != 1:
+        raise ValueError("exactly one stage (the decision stage) takes a group_key")
+    return stages
+
+
+def stages_json(stages: list[dict] | None) -> str | None:
+    return None if stages is None else json.dumps(stages, sort_keys=True)
+
+
+def protocol_stages(row) -> list[dict] | None:
+    """The stored stages of a protocol row (None for a single-stage one, or
+    for a missing row)."""
+    if row is None:
+        return None
+    try:
+        raw = row["stages_json"]
+    except (IndexError, KeyError):
+        return None
+    return json.loads(raw) if raw else None
+
+
+def group_stage(stages: list[dict]) -> dict:
+    return next(s for s in stages if "group_key" in s)
+
+
+def scenario_stage(stages: list[dict]) -> dict:
+    return next(s for s in stages if "group_key" not in s)
+
+
+def stage_of_param(stages: list[dict] | None, name: str) -> dict | None:
+    if stages is None:
+        return None
+    return next((s for s in stages if name in s["params"]), None)
+
+
+def scenario_group_value(row, group_key: str) -> str | None:
+    """The group a scenario row belongs to under a stage's group_key
+    ('group' -> the grp column, 'attributes.<key>' -> that attribute), as a
+    string; None when absent."""
+    if group_key == "group":
+        value = row["grp"]
+    else:
+        value = scenario_attributes(row).get(group_key[len(STAGE_GROUP_PREFIX):])
+    return None if value is None else str(value)
+
+
+def scenario_groups_by_key(con, group_key: str, selector: str = "all") -> dict[str, list[int]]:
+    """{group value: sorted scenario ids} over get_scenarios(con, selector);
+    scenarios without a value are left out (the caller checks)."""
+    out: dict[str, list[int]] = {}
+    for r in get_scenarios(con, selector):
+        value = scenario_group_value(r, group_key)
+        if value is not None:
+            out.setdefault(value, []).append(r["id"])
+    return {g: sorted(ids) for g, ids in out.items()}
+
+
+def scenario_group_ids(con, group_key: str, scenario_id: int) -> list[int]:
+    """Every scenario (retired ones included, so a representative that left
+    scenarios.json keeps carrying its group's decision rows) in the same
+    group as scenario_id, sorted; [scenario_id] when it has no group value."""
+    row = con.execute("SELECT * FROM scenarios WHERE id=?", (scenario_id,)).fetchone()
+    value = scenario_group_value(row, group_key) if row else None
+    if value is None:
+        return [scenario_id]
+    return sorted(r["id"] for r in con.execute("SELECT * FROM scenarios")
+                  if scenario_group_value(r, group_key) == value)
+
+
+def _protocol_row(con, protocol_id: int):
+    return con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone()
+
+
+def stage_clause(stage: str | None, alias: str = "e") -> tuple[str, list]:
+    """SQL fragment restricting elicitation rows to one stage (NULL = the
+    single stage of an unstaged protocol)."""
+    return f" AND COALESCE({alias}.stage, '')=?", [stage or ""]
+
+
 def manual_hash(scenarios_json: str | Path) -> str:
     """Template hash stored when a manual protocol is registered: the hand
     percentiles of scenarios.json ({title: manual}) at that moment. It is a
@@ -579,10 +723,20 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
     hand percentiles can be added later (see manual_hash)."""
     yaml_path = Path(yaml_path)
     cfg = yaml.safe_load(yaml_path.read_text())
-    template_path = Path(study_root) / cfg["template_path"]
     members = normalize_members(cfg)
     manual = is_manual_protocol(members)
     kind = normalize_model_kind(cfg.get("model"))
+    try:
+        stages = normalize_stages(cfg, study_root)
+    except ValueError as ex:
+        raise RuntimeError(f"protocol {cfg['name']}: {ex}") from None
+    if stages is not None and manual:
+        raise RuntimeError(f"protocol {cfg['name']}: a manual protocol has no stages")
+    if stages is None:
+        template_path = Path(study_root) / cfg["template_path"]
+        template_path_text = cfg["template_path"]
+    else:   # the row's template columns describe both stages; stages_json is authoritative
+        template_path_text = " + ".join(s["template_path"] for s in stages)
     if cfg["name"] == MANUAL_PROTOCOL and not manual:
         raise RuntimeError(
             f"protocol {MANUAL_PROTOCOL} is reserved for hand percentiles (model_alias: manual);"
@@ -592,6 +746,8 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
                            f" model {kind!r} is not supported for a manual protocol")
     if manual:
         template_hash = manual_hash(template_path)
+    elif stages is not None:
+        template_hash = sha256(stages_json(stages))   # covers both templates and the stage config
     else:
         template_hash = sha256(template_path.read_text())
     selector = normalize_selector(cfg.get("scenarios"))
@@ -602,26 +758,28 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
             ("members", members_json(protocol_members(row)), members_json(members)),
             ("scenarios", protocol_selector(row), selector),
             ("model", protocol_model_kind(row), kind),
+            ("stages", stages_json(protocol_stages(row)), stages_json(stages)),
         ) if got != want]
         if changed:
             raise RuntimeError(
                 f"protocol {cfg['name']} already registered with different {changed}; "
                 "create a new protocol file instead of editing an old one")
-        if row["template_path"] != cfg["template_path"]:
+        if row["template_path"] != template_path_text:
             # same content, relocated file (v1 -> v2 study layout): keep the
             # row self-describing
             con.execute("UPDATE protocols SET template_path=? WHERE id=?",
-                        (cfg["template_path"], row["id"]))
+                        (template_path_text, row["id"]))
             con.commit()
         return row["id"]
     cur = con.execute(
         "INSERT INTO protocols (name, template_path, template_hash, model_alias,"
-        " k_repeats, cli_version, notes, members_json, scenario_selector, model_kind)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (cfg["name"], cfg["template_path"], template_hash,
+        " k_repeats, cli_version, notes, members_json, scenario_selector, model_kind, stages_json)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        (cfg["name"], template_path_text, template_hash,
          ",".join(member_label(m) for m in members),
          sum(m["k_repeats"] for m in members),
-         claude_cli_version(), cfg.get("notes", ""), members_json(members), selector, kind),
+         claude_cli_version(), cfg.get("notes", ""), members_json(members), selector, kind,
+         stages_json(stages)),
     )
     con.commit()
     return cur.lastrowid
@@ -638,15 +796,17 @@ def protocol_by_name(con, name: str) -> sqlite3.Row:
 
 def insert_elicitation(con, scenario_id: int, protocol_id: int, provider: str,
                        model: str, repeat_ix: int, prompt_hash: str,
-                       raw_response: str, valid: bool, error: str | None) -> int:
+                       raw_response: str, valid: bool, error: str | None,
+                       stage: str | None = None) -> int:
     """No commit here: an elicitation row and its parameter rows must land in
     one transaction (the caller commits), so a crash cannot persist a valid
-    row with a partial parameter set that resume logic would then skip."""
+    row with a partial parameter set that resume logic would then skip.
+    stage: the stage name under a staged protocol (NULL otherwise)."""
     cur = con.execute(
         "INSERT INTO elicitations (scenario_id, protocol_id, provider, model, repeat_ix,"
-        " prompt_hash, raw_response, valid, error, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        " prompt_hash, raw_response, valid, error, created_at, stage) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (scenario_id, protocol_id, provider, model, repeat_ix, prompt_hash,
-         raw_response, int(valid), error, now_iso()),
+         raw_response, int(valid), error, now_iso(), stage),
     )
     return cur.lastrowid
 
@@ -663,14 +823,19 @@ def insert_parameter(con, elicitation_id: int, name: str, p5: float, p50: float,
     return cur.lastrowid
 
 
-def valid_repeats(con, scenario_id: int, protocol_id: int, provider: str,
-                  model: str) -> set[int]:
+def valid_repeats(con, scenario_id, protocol_id: int, provider: str,
+                  model: str, stage: str | None = None) -> set[int]:
     """repeat_ix values already holding a valid elicitation for one slot
-    family (scenario, protocol, member)."""
+    family (scenario, protocol, member, stage). scenario_id may be a list of
+    ids (a group's, for the decision stage whose rows sit on the group's
+    representative scenario)."""
+    ids = list(scenario_id) if isinstance(scenario_id, (list, tuple, set)) else [scenario_id]
+    marks = ",".join("?" * len(ids))
+    clause, args = stage_clause(stage)
     return {r[0] for r in con.execute(
-        "SELECT DISTINCT repeat_ix FROM elicitations WHERE scenario_id=? AND protocol_id=?"
-        " AND provider=? AND model=? AND valid=1",
-        (scenario_id, protocol_id, provider, model))}
+        f"SELECT DISTINCT repeat_ix FROM elicitations e WHERE scenario_id IN ({marks}) AND protocol_id=?"
+        f" AND provider=? AND model=? AND valid=1{clause}",
+        (*ids, protocol_id, provider, model, *args))}
 
 
 def valid_raw_responses(con, scenario_id: int, protocol_id: int, provider: str,
@@ -693,49 +858,112 @@ def scenario_param_fits(con, protocol_id: int, names: list[str] | None = None,
     `names`) are returned (stored rows for the retired parameter e are
     ignored). Each fit row carries elicitation_id, provider, model, family,
     fit_params (the stored JSON string), params (parsed), p5/p50/p95."""
+    prot = _protocol_row(con, protocol_id)
     if names is None:
-        prot = con.execute("SELECT model_kind FROM protocols WHERE id=?", (protocol_id,)).fetchone()
         names = param_names(protocol_model_kind(prot) if prot else BINARY_KIND)
+    stages = protocol_stages(prot) if prot else None
     clause, args = member_filter(members)
     rows = con.execute(
-        "SELECT e.scenario_id, e.provider, e.model, e.repeat_ix, e.id AS elicitation_id,"
+        "SELECT e.scenario_id, e.provider, e.model, e.repeat_ix, e.id AS elicitation_id, e.stage,"
         " p.name, p.p5, p.p50, p.p95, p.dist_family, p.fit_params"
         " FROM elicitations e JOIN parameters p ON p.elicitation_id = e.id"
         f" WHERE e.protocol_id=? AND e.valid=1{clause}"
         " ORDER BY e.scenario_id, e.provider, e.model, e.repeat_ix, e.id", (protocol_id, *args)).fetchall()
     out: dict[int, dict[str, list[dict]]] = {}
+    by_group: dict[str, dict[str, list[dict]]] = {}   # staged: the decision rows per group value
+    group_of: dict[int, str | None] = {}
+    if stages is not None:
+        gstage, sstage = group_stage(stages), scenario_stage(stages)
+        group_of = {r["id"]: scenario_group_value(r, gstage["group_key"])
+                    for r in con.execute("SELECT * FROM scenarios")}
     for r in rows:
         if r["name"] not in names:
             continue
-        out.setdefault(r["scenario_id"], {}).setdefault(r["name"], []).append({
-            "elicitation_id": r["elicitation_id"],
-            "provider": r["provider"], "model": r["model"],
-            "family": r["dist_family"], "params": json.loads(r["fit_params"]),
-            "fit_params": r["fit_params"],
-            "p5": r["p5"], "p50": r["p50"], "p95": r["p95"],
-        })
+        fit = {"elicitation_id": r["elicitation_id"],
+               "provider": r["provider"], "model": r["model"],
+               "family": r["dist_family"], "params": json.loads(r["fit_params"]),
+               "fit_params": r["fit_params"],
+               "p5": r["p5"], "p50": r["p50"], "p95": r["p95"]}
+        if stages is None:
+            out.setdefault(r["scenario_id"], {}).setdefault(r["name"], []).append(fit)
+        elif r["stage"] == gstage["name"] and r["name"] in gstage["params"]:
+            value = group_of.get(r["scenario_id"])
+            if value is not None:
+                by_group.setdefault(value, {}).setdefault(r["name"], []).append(fit)
+        elif r["stage"] == sstage["name"] and r["name"] in sstage["params"]:
+            out.setdefault(r["scenario_id"], {}).setdefault(r["name"], []).append(fit)
+    if stages is not None:
+        # a scenario takes its group's decision fits (the same fit rows, hence
+        # the same elicitation ids, for every scenario of the group); a group
+        # without a complete decision stage leaves its scenarios incomplete
+        for sid, fits in out.items():
+            shared = by_group.get(group_of.get(sid), {})
+            for name in gstage["params"]:
+                if name in names and shared.get(name):
+                    fits[name] = shared[name]
     return out
+
+
+def _elicited_rows(con, protocol_id: int, scenario_id: int, name: str,
+                   provider: str | None = None, model: str | None = None,
+                   members: list[str] | None = None) -> list[sqlite3.Row]:
+    """(provider, model, p50) of one parameter over the valid elicitations
+    that feed one scenario under a protocol, in (provider, model, repeat_ix,
+    id) order. Under a staged protocol a group-stage parameter (p, B, K) is
+    read from the scenario's group (the rows on its representative), the
+    scenario-stage ones from the scenario's own rows of that stage."""
+    stages = protocol_stages(_protocol_row(con, protocol_id))
+    ids, sclause, sargs = [scenario_id], "", []
+    if stages is not None:
+        stage = stage_of_param(stages, name)
+        if stage is not None and "group_key" in stage:
+            ids = scenario_group_ids(con, stage["group_key"], scenario_id)
+        sclause, sargs = stage_clause(stage["name"] if stage else None)
+    clause, margs = member_filter(members)
+    marks = ",".join("?" * len(ids))
+    sql = ("SELECT e.provider, e.model, p.p50 FROM parameters p"
+           " JOIN elicitations e ON e.id=p.elicitation_id"
+           f" WHERE e.scenario_id IN ({marks}) AND e.protocol_id=? AND e.valid=1 AND p.name=?"
+           f"{sclause}{clause}")
+    args: list = [*ids, protocol_id, name, *sargs, *margs]
+    if provider is not None:
+        sql += " AND e.provider=? AND e.model=?"
+        args += [provider, model]
+    sql += " ORDER BY e.provider, e.model, e.repeat_ix, e.id"
+    return con.execute(sql, args).fetchall()
+
+
+def elicited_points(con, protocol_id: int, scenario_id: int, name: str,
+                    members: list[str] | None = None) -> list[tuple[str, float]]:
+    """[(member label, p50)] of one parameter over the valid elicitations
+    that feed one scenario (staged protocols: see _elicited_rows)."""
+    return [(f"{r[0]}:{r[1]}", r[2]) for r in _elicited_rows(con, protocol_id, scenario_id, name,
+                                                             members=members)]
+
+
+def param_scenario_ids(con, protocol_id: int, name: str, members: list[str] | None = None) -> list[int]:
+    """Scenario ids holding a valid elicitation that carries parameter `name`
+    under a protocol: every elicited scenario for a single-stage protocol; the
+    group representatives for a group-stage parameter of a staged one (so a
+    noise statistic over them counts each group once)."""
+    clause, margs = member_filter(members)
+    return [r[0] for r in con.execute(
+        "SELECT DISTINCT e.scenario_id FROM elicitations e JOIN parameters p ON p.elicitation_id=e.id"
+        f" WHERE e.protocol_id=? AND e.valid=1 AND p.name=?{clause} ORDER BY e.scenario_id",
+        (protocol_id, name, *margs))]
 
 
 def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,
                   provider: str | None = None, model: str | None = None,
                   first: int | None = None, members: list[str] | None = None) -> list[float]:
     """p50 of one parameter over the valid elicitations of one scenario under
-    a protocol, optionally restricted to one member (provider, model), to a
-    member subset (`members`, a list of labels) and/or to the first `first`
-    VALID repeats of each member in repeat_ix order (a count, not an index
-    cap: a member whose repeat 1 ended invalid still contributes its repeats
-    0, 2, 3 to 'first 3')."""
-    clause, margs = member_filter(members)
-    sql = ("SELECT e.provider, e.model, p.p50 FROM parameters p"
-           " JOIN elicitations e ON e.id=p.elicitation_id"
-           f" WHERE e.scenario_id=? AND e.protocol_id=? AND e.valid=1 AND p.name=?{clause}")
-    args: list = [scenario_id, protocol_id, name, *margs]
-    if provider is not None:
-        sql += " AND e.provider=? AND e.model=?"
-        args += [provider, model]
-    sql += " ORDER BY e.provider, e.model, e.repeat_ix, e.id"
-    rows = con.execute(sql, args).fetchall()
+    a protocol (its group's decision rows for a group-stage parameter of a
+    staged protocol), optionally restricted to one member (provider, model),
+    to a member subset (`members`, a list of labels) and/or to the first
+    `first` VALID repeats of each member in repeat_ix order (a count, not an
+    index cap: a member whose repeat 1 ended invalid still contributes its
+    repeats 0, 2, 3 to 'first 3')."""
+    rows = _elicited_rows(con, protocol_id, scenario_id, name, provider, model, members)
     if first is None:
         return [r[2] for r in rows]
     taken: dict[tuple, int] = {}

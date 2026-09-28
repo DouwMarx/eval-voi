@@ -362,8 +362,15 @@ def fig_param_medians(con, run_id, out: Path):
                    fontsize=7, frameon=False)
     n_elic = con.execute(f"SELECT COUNT(*) FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
                          (run["protocol_id"], *margs)).fetchone()[0]
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                            (run["protocol_id"],)).fetchone())
+    staged = ""
+    if stages is not None:   # decision rows sit on each group's representative: plotted once per group
+        g = db.group_stage(stages)
+        staged = (f"; ${', '.join(g['params'])}$ once per group, at the representative's rank"
+                  f" (stage {g['name']})")
     fig.suptitle(f"Elicited medians per parameter, every valid elicitation of the run's members"
-                 f" ({n_elic} elicitations)", fontsize=9)
+                 f" ({n_elic} elicitations{staged})", fontsize=8 if staged else 9)
     fig.savefig(out / "fig_param_medians.pdf")
     plt.close(fig)
     return True
@@ -491,13 +498,13 @@ def fig_elicitation_noise(con, run_id, out: Path):
     run = db.get_run(con, run_id)
     names = run_param_names(con, run_id)
     labels = db.run_member_labels(run)
-    clause, margs = db.member_filter(labels)
     spreads = {name: [] for name in names}
-    sids = [r[0] for r in con.execute(
-        f"SELECT DISTINCT scenario_id FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
-        (run["protocol_id"], *margs))]
+    sids: set[int] = set()
     for name in names:
-        for sid in sids:
+        # the scenarios carrying the parameter (group representatives for a
+        # decision-stage parameter of a staged protocol: one spread per group)
+        for sid in db.param_scenario_ids(con, run["protocol_id"], name, labels):
+            sids.add(sid)
             sp = db.elicited_spread(con, run["protocol_id"], sid, name, members=labels)
             if sp is not None:
                 spreads[name].append(sp)

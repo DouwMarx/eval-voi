@@ -120,16 +120,26 @@ def write_catalog(con, run, out: Path):
     if run_kind(con, run["id"]) == db.GAUSSIAN_KIND:
         return write_gauss_catalog(con, run, out)
     order = ranked_ids(con, run["id"])
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                            (run["protocol_id"],)).fetchone())
+    shared = set(db.group_stage(stages)["params"]) if stages else set()
+    head = " & ".join(f"${n}$" + (r"$^\dagger$" if n in shared else "") for n in ("p", "s", "t", "B", "K"))
+    staged_note = ""
+    if stages:
+        g = db.group_stage(stages)
+        staged_note = (r" $^\dagger$: shared by every scenario of a group (" + esc(g["group_key"])
+                       + r"), elicited once per group in the " + esc(g["name"])
+                       + r" stage of this staged protocol, so identical down a ladder by construction.")
     lines = [
         r"\begin{longtable}{@{}rp{6.2cm}rrrrrr@{}}",
         r"\caption{Scenario catalog. $p$, $s$, $t$, $B$, $K$: pooled elicited medians"
         r" (median of the p50 across valid elicitations); $C$: the run's mixture median"
         r" (q50 of the pooled cost draws), the same $C$ the efficiency column divides by."
-        r" $B$, $K$, $C$ in USD.}\label{tab:catalog}\\",
+        r" $B$, $K$, $C$ in USD." + staged_note + r"}\label{tab:catalog}\\",
         r"\toprule",
-        r"id & scenario & $p$ & $s$ & $t$ & $B$ & $K$ & $C$\\",
+        f"id & scenario & {head} & $C$\\\\",
         r"\midrule\endfirsthead",
-        r"\toprule id & scenario & $p$ & $s$ & $t$ & $B$ & $K$ & $C$\\"
+        f"\\toprule id & scenario & {head} & $C$\\\\"
         r"\midrule\endhead",
         r"\bottomrule\endfoot",
     ]
@@ -197,12 +207,10 @@ def noise_median(con, protocol_id: int, name: str, first: int | None = None,
     shrink the pool; range statistics grow with the count, so cross-protocol
     comparisons need matched k); member restricts to one (provider, model),
     members to a subset (labels)."""
-    clause, margs = db.member_filter(members)
-    sids = [r[0] for r in con.execute(
-        f"SELECT DISTINCT scenario_id FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
-        (protocol_id, *margs))]
     spreads = []
-    for sid in sids:
+    # the scenarios carrying the parameter (group representatives for a
+    # decision-stage parameter of a staged protocol: one spread per group)
+    for sid in db.param_scenario_ids(con, protocol_id, name, members):
         sp = db.elicited_spread(con, protocol_id, sid, name,
                                 provider=member["provider"] if member else None,
                                 model=member["model"] if member else None, first=first,
@@ -383,11 +391,14 @@ def write_members(con, run, out: Path, members: list[dict]):
 def _k_used(con, protocol_id: int, members: list[str] | None = None):
     """Median number of valid elicitations pooled per scenario (the run's
     members and all repeats; can exceed the nominal k when elicitation ran
-    with --k)."""
+    with --k). Under a staged protocol: the scenario-stage rows (the decision
+    stage adds the group's rows once, on its representative)."""
     clause, margs = db.member_filter(members)
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone())
+    sclause, sargs = db.stage_clause(db.scenario_stage(stages)["name"] if stages else None)
     counts = [r[0] for r in con.execute(
-        f"SELECT COUNT(*) FROM elicitations e WHERE protocol_id=? AND valid=1{clause}"
-        " GROUP BY scenario_id", (protocol_id, *margs))]
+        f"SELECT COUNT(*) FROM elicitations e WHERE protocol_id=? AND valid=1{clause}{sclause}"
+        " GROUP BY scenario_id", (protocol_id, *margs, *sargs))]
     return int(np.median(counts)) if counts else "--"
 
 

@@ -15,7 +15,9 @@ study's voi.db. Outputs land in <study>/report/generated/:
    draws (fresh rng from the run's seed and draw count).
 2. fig_within_group_consistency.pdf + consistency.tex: for groups whose
    scenarios share identical agent / decision / theta text, the elicited p50
-   of p, B, K should be level-invariant while s, t, C move with the rung.
+   of p, B, K should be level-invariant while s, t, C move with the rung;
+   the table reports the ratio CV(p) / mean(CV(s), CV(t)), which a staged
+   protocol (p, B, K elicited once per group) makes 0 by design.
 3. fig_domain_map.pdf + domain_summary.tex: EVSI vs C by attributes.risk_domain
    (colour) and group (marker), with per-domain / per-group summaries and the
    percentile rank of every non-reference scenario within the reference
@@ -374,6 +376,18 @@ def complete_fits(fits_by_sid: dict[int, dict[str, list[dict]]]) -> dict[int, di
             if all(name in fits and fits[name] for name in db.PARAM_NAMES)}
 
 
+def unique_fits(fits: list[dict]) -> list[dict]:
+    """Fit rows with distinct elicitation ids, first occurrence kept: the
+    rungs of a staged protocol share their group's decision fits, which a
+    ladder pools once."""
+    seen, out = set(), []
+    for f in fits:
+        if f["elicitation_id"] not in seen:
+            seen.add(f["elicitation_id"])
+            out.append(f)
+    return out
+
+
 def draw_metrics(rng, fits: dict[str, list[dict]], n: int) -> dict[str, np.ndarray]:
     """One scenario's EVSI / EVPI / C draw vectors from its pooled fits, the
     rng consumed in PARAM_NAMES order."""
@@ -448,7 +462,7 @@ def ladder_draws(con, run, rungs: list[tuple[float, int]]) -> dict | None:
         return None
     rng = np.random.default_rng(run["seed"])
     n = run["n_draws"]
-    shared = {name: sample_mixture(rng, [f for sid in sids for f in fits_all[sid][name]], n)
+    shared = {name: sample_mixture(rng, unique_fits([f for sid in sids for f in fits_all[sid][name]]), n)
               for name in SHARED_PARAMS}
     per_rung = {}
     for sid in sids:
@@ -590,20 +604,16 @@ def consistent_groups(con) -> dict[str, list[tuple[float, int]]]:
 
 def elicited_points(con, protocol_id: int, sids: list[int],
                     members: list[str] | None = None) -> dict[str, dict[int, list]]:
-    """{param: {sid: [(member label, p50), ...]}} over valid elicitations (of
-    the `members` subset when given)."""
-    marks = ",".join("?" * len(sids))
-    clause, margs = db.member_filter(members)
-    rows = con.execute(
-        "SELECT e.scenario_id, e.provider || ':' || e.model AS member, p.name, p.p50"
-        " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-        f" WHERE e.protocol_id=? AND e.valid=1 AND e.scenario_id IN ({marks}){clause}"
-        " ORDER BY e.scenario_id, e.provider, e.model, e.repeat_ix, e.id",
-        (protocol_id, *sids, *margs)).fetchall()
+    """{param: {sid: [(member label, p50), ...]}} over the valid elicitations
+    that feed each scenario (of the `members` subset when given; under a
+    staged protocol a scenario's p, B, K points are its group's decision
+    rows, db.elicited_points)."""
     out: dict[str, dict[int, list]] = {n: {} for n in db.PARAM_NAMES}
-    for r in rows:
-        if r["name"] in out:
-            out[r["name"]].setdefault(r["scenario_id"], []).append((r["member"], r["p50"]))
+    for name in db.PARAM_NAMES:
+        for sid in sids:
+            pts = db.elicited_points(con, protocol_id, sid, name, members)
+            if pts:
+                out[name][sid] = pts
     return out
 
 
@@ -613,10 +623,23 @@ def dispersion(name: str, pooled: list[float]) -> float | None:
     arr = np.asarray(pooled, dtype=float)
     if arr.size < 2:
         return None
+    if arr.max() == arr.min():   # level-invariant by construction (a staged protocol): exactly 0
+        return 0.0
     if FAMILY_BY_PARAM[name] == "lognormal":
         return float(np.log10(arr.max() / arr.min()))
     mean = float(arr.mean())
     return float(arr.std() / mean) if mean > 0 else None
+
+
+def cv_ratio(disp: dict[str, float]) -> float | None:
+    """CV(p) / mean(CV(s), CV(t)): how much the decision-level prior drifts
+    across rungs relative to the instrument-level probabilities. 0 when p is
+    flat (a staged protocol elicits it once per group, so 0 by design); None
+    when s and t are flat too (0 / 0)."""
+    denom = (disp["s"] + disp["t"]) / 2.0
+    if denom <= 0.0:
+        return None if disp["p"] <= 0.0 else float("inf")
+    return disp["p"] / denom
 
 
 def consistency_analysis(con, run) -> tuple[dict[str, dict], dict[str, str]]:
@@ -652,8 +675,14 @@ def consistency_analysis(con, run) -> tuple[dict[str, dict], dict[str, str]]:
             skipped[g] = f"dispersion undefined for {undefined} (pooled p50 of 0 or one level)"
             continue
         flat = (disp["p"] < min(disp["s"], disp["t"])) and (max(disp["B"], disp["K"]) < disp["C"])
-        out[g] = {"levels": levels, "rungs": rungs, "pooled": pooled, "dispersion": disp, "flat": flat}
+        out[g] = {"levels": levels, "rungs": rungs, "pooled": pooled, "dispersion": disp, "flat": flat,
+                  "cv_ratio": cv_ratio(disp)}
     return out, skipped
+
+
+def run_is_staged(con, run) -> bool:
+    prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
+    return db.protocol_stages(prot) is not None
 
 
 def consistency_stats(con, run) -> dict[str, dict]:
@@ -722,14 +751,19 @@ def write_consistency(con, run, out: Path) -> bool:
         d = st["dispersion"]
         cells = " & ".join(num(d[n], "{:.2f}") for n in db.PARAM_NAMES)
         verdict = "yes" if st["flat"] else "no"
-        rows.append(f"{esc(g)} & {len(st['levels'])} & {cells} & {verdict}")
+        rows.append(f"{esc(g)} & {len(st['levels'])} & {cells} & {num(st['cv_ratio'], '{:.2f}')} & {verdict}")
     header = (r"group & levels & CV $p$ & CV $s$ & CV $t$ & $\log_{10}$ range $B$ &"
-              r" $\log_{10}$ range $K$ & $\log_{10}$ range $C$ & $p,B,K$ flatter")
+              r" $\log_{10}$ range $K$ & $\log_{10}$ range $C$ &"
+              r" $\frac{\mathrm{CV}(p)}{\overline{\mathrm{CV}(s,t)}}$ & $p,B,K$ flatter")
+    staged = run_is_staged(con, run)
     _write(out, "consistency.tex", tabular(
-        "@{}lrrrrrrrl@{}", header, rows,
+        "@{}lrrrrrrrrl@{}", header, rows,
         "dispersion of the pooled p50 across levels: coefficient of variation for probabilities,"
-        " log10(max/min) for USD; last column: CV(p) < min(CV(s), CV(t)) and"
-        " max(range(B), range(K)) < range(C)"))
+        " log10(max/min) for USD; CV(p) / mean(CV(s), CV(t)) is the drift of the decision-level"
+        " prior relative to the instrument-level probabilities"
+        + (" (0 by design here: this staged protocol elicits p, B, K once per group)" if staged
+           else " (a staged protocol, p, B, K elicited once per group, makes it 0 by design)")
+        + "; last column: CV(p) < min(CV(s), CV(t)) and max(range(B), range(K)) < range(C)"))
     return True
 
 
@@ -1167,13 +1201,14 @@ def member_noise(con, protocol_id: int, member: dict, first: int | None) -> tupl
     """({param: median cross-repeat spread}, n scenarios with >= 2 repeats)
     for one member, optionally truncated to the first `first` valid repeats
     of each scenario (in repeat_ix order)."""
-    sids = [r[0] for r in con.execute(
-        "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1"
-        " AND provider=? AND model=?", (protocol_id, member["provider"], member["model"]))]
     med, n = {}, 0
+    label = [db.member_label(member)]
     for name in db.PARAM_NAMES:
-        spreads = [sp for sid in sids if (sp := db.elicited_spread(
-            con, protocol_id, sid, name, member["provider"], member["model"], first)) is not None]
+        # the scenarios carrying the parameter for this member (group
+        # representatives for a decision-stage parameter of a staged protocol)
+        spreads = [sp for sid in db.param_scenario_ids(con, protocol_id, name, label)
+                   if (sp := db.elicited_spread(con, protocol_id, sid, name, member["provider"],
+                                                member["model"], first)) is not None]
         med[name] = float(np.median(spreads)) if spreads else None
         n = max(n, len(spreads))
     return med, n

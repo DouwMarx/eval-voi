@@ -44,14 +44,12 @@ def noise_table(con, protocol_id: int, member: dict | None = None,
     members pooled, a subset (`members`, labels) or one member; the spread is
     db.elicited_spread (relative, or max - min in sd units for the signed
     Gaussian quantities)."""
-    clause, margs = db.member_filter(members)
-    sids = [r[0] for r in con.execute(
-        f"SELECT DISTINCT scenario_id FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
-        (protocol_id, *margs))]
     out = {}
     for name in protocol_names(con, protocol_id):
         spreads = []
-        for sid in sids:
+        # the scenarios carrying the parameter: the group representatives for
+        # a decision-stage parameter of a staged protocol (one spread per group)
+        for sid in db.param_scenario_ids(con, protocol_id, name, members):
             sp = db.elicited_spread(con, protocol_id, sid, name,
                                     provider=member["provider"] if member else None,
                                     model=member["model"] if member else None, members=members)
@@ -73,11 +71,13 @@ def member_pooled_p50(con, protocol_id: int, member: dict, name: str) -> dict[in
     return out
 
 
-def cross_member_agreement(con, protocol_id: int, members: list[dict]) -> list[tuple]:
+def cross_member_agreement(con, protocol_id: int, members: list[dict],
+                           names: list[str] | None = None) -> list[tuple]:
     """Spearman of per-scenario pooled p50 between every member pair, per
-    parameter, over shared scenarios. Returns (param, a, b, rho, n) rows."""
+    parameter (`names`, default all of the protocol's), over shared
+    scenarios. Returns (param, a, b, rho, n) rows."""
     rows = []
-    for name in protocol_names(con, protocol_id):
+    for name in names if names is not None else protocol_names(con, protocol_id):
         pooled = {db.member_label(m): member_pooled_p50(con, protocol_id, m, name)
                   for m in members}
         labels = list(pooled)
@@ -93,11 +93,42 @@ def cross_member_agreement(con, protocol_id: int, members: list[dict]) -> list[t
     return rows
 
 
+def decision_level_agreement(con, protocol_id: int, members: list[dict],
+                             stages: list[dict]) -> list[tuple]:
+    """Staged protocols: the decision-stage numbers per group and member.
+    Returns (param, group, {member label: pooled p50}, cross-member spread)
+    rows, the spread being (max - min) / median of the members' pooled p50
+    (None with one member). Across the rungs of a group the decision-stage
+    spread is zero by construction (one elicitation per group), so this
+    per-group agreement is the consistency number of a staged protocol."""
+    gstage = db.group_stage(stages)
+    rows = []
+    groups = db.scenario_groups_by_key(con, gstage["group_key"])
+    for name in gstage["params"]:
+        for value, sids in sorted(groups.items()):
+            pooled = {}
+            for m in members:
+                p50s = db.elicited_p50s(con, protocol_id, sids[0], name, m["provider"], m["model"])
+                if p50s:
+                    pooled[db.member_label(m)] = float(np.median(p50s))
+            if not pooled:
+                continue
+            vals = np.array(list(pooled.values()))
+            med = float(np.median(vals))
+            spread = float((vals.max() - vals.min()) / med) if len(vals) > 1 and med else None
+            rows.append((name, value, pooled, spread))
+    return rows
+
+
 def health(con, protocol_name: str, members: list[str] | None = None):
     """The protocol's health checks; `members` (labels) restricts every
     per-member table, the pooled spread and the cross-member agreement to
     that subset (a label the protocol does not list exits) and reads the
-    subset's latest run."""
+    subset's latest run. A staged protocol gets per-stage validity and
+    spreads (the decision stage's over groups) and, since its decision-stage
+    spread across rungs is zero by construction, the cross-member
+    decision-level agreement per group in place of a per-scenario Spearman
+    on p, B, K."""
     prot = db.protocol_by_name(con, protocol_name)
     all_members = db.protocol_members(prot)
     try:
@@ -143,20 +174,54 @@ def health(con, protocol_name: str, members: list[str] | None = None):
         print(f"  {db.member_label(m)} (k={m['k_repeats']}): {len(mr)} attempts, "
               f"{valid} valid ({rate}), ${cost:.2f}")
 
-    # cross-elicitation spread of p50 per parameter (median over scenarios)
+    # staged protocols: validity per stage and member
+    stages = db.protocol_stages(prot)
+    if stages is not None:
+        print("\nper stage: attempts, valid, validity (all members; then per member)")
+        for st in stages:
+            sr = [r for r in rows if r["stage"] == st["name"]]
+            valid = sum(int(r["valid"] or 0) for r in sr)
+            unit = "groups" if "group_key" in st else "scenarios"
+            n_units = len({r["scenario_id"] for r in sr if r["valid"]})
+            head = f"  stage {st['name']} (params {', '.join(st['params'])}):"
+            print(f"{head} {len(sr)} attempts, {valid} valid ({valid/len(sr):.1%}), {n_units} {unit}"
+                  " with a valid answer" if sr else f"{head} no attempts")
+            for m in members:
+                mr = [r for r in sr if r["provider"] == m["provider"] and r["model"] == m["model"]]
+                mv = sum(int(r["valid"] or 0) for r in mr)
+                print(f"    {db.member_label(m)}: {len(mr)} attempts, {mv} valid"
+                      + (f" ({mv/len(mr):.1%})" if mr else ""))
+
+    # cross-elicitation spread of p50 per parameter (median over scenarios; over
+    # groups for the decision-stage parameters of a staged protocol)
+    spread_of = noise_table(con, prot["id"], members=labels)
     print("\ncross-elicitation p50 spread ((max-min)/pooled p50 unless marked), median over scenarios"
-          + (f" (members {db.members_label(labels)})" if labels else "") + ":")
-    for name, (med, cnt) in noise_table(con, prot["id"], members=labels).items():
-        print(f"  {name}{db.spread_label(name)}: {med:.3f}  (n={cnt} scenarios)")
+          + (f" (members {db.members_label(labels)})" if labels else "")
+          + ("; the decision-stage parameters over groups" if stages else "") + ":")
+    for name, (med, cnt) in spread_of.items():
+        stage = db.stage_of_param(stages, name)
+        unit = "groups" if stage and "group_key" in stage else "scenarios"
+        print(f"  {name}{db.spread_label(name)}: {med:.3f}  (n={cnt} {unit})"
+              + (f"  [stage {stage['name']}]" if stage else ""))
     if len(members) > 1:
         print("\nper-member cross-repeat p50 spread (median over scenarios):")
         for m in members:
             cells = "  ".join(f"{name} {med:.2f}" for name, (med, _) in
                               noise_table(con, prot["id"], m).items())
             print(f"  {db.member_label(m)}: {cells}")
-        print("\ncross-member agreement: Spearman of per-scenario pooled p50 over shared scenarios:")
-        for name, a, b, rho, cnt in cross_member_agreement(con, prot["id"], members):
+        scen_names = None if stages is None else db.scenario_stage(stages)["params"]
+        print("\ncross-member agreement: Spearman of per-scenario pooled p50 over shared scenarios"
+              + (f" ({', '.join(scen_names)}; the decision stage is per group, below)" if stages else "")
+              + ":")
+        for name, a, b, rho, cnt in cross_member_agreement(con, prot["id"], members, scen_names):
             print(f"  {name}: {a} vs {b}: rho={rho:.3f} (n={cnt})")
+    if stages is not None:
+        print("\ndecision-level agreement across members (the decision-stage spread across the rungs"
+              " of a group is 0 by construction): per group, pooled p50 per member and"
+              " (max - min) / median across members:")
+        for name, value, pooled, spread in decision_level_agreement(con, prot["id"], members, stages):
+            cells = "  ".join(f"{lab} {v:.3g}" for lab, v in pooled.items())
+            print(f"  {name} [{value}]: {cells}  spread={'n/a' if spread is None else f'{spread:.2f}'}")
 
     # fit warnings (for a Gaussian protocol: over-determination residuals past their thresholds)
     names = protocol_names(con, prot["id"])
