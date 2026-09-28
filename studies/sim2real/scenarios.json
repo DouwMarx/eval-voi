@@ -1,0 +1,407 @@
+[
+  {
+    "title": "L0 text prompt suite (SafePlan) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a SafePlan-style text-only prompt suite (several hundred expert-labelled safe and unsafe task requests) sent to the language planner or orchestrator of the robot stack and scored accept/reject against the labels; the evaluation flags the hazard if unsafe-prompt acceptance exceeds a preset threshold.",
+    "context": "The instrument is a text-only prompt suite in the style of SafePlan (Purdue SMART Lab, 2025). Natural-language task requests, some safe and some unsafe, are sent to the language front end of the robot stack (the task planner or orchestrator that sits above the VLA policy); each response is scored accept or reject against expert safe/unsafe labels, giving a confusion matrix. The SafePlan benchmark has 621 expert-curated prompts (127 safe, 494 unsafe) spanning assistive, navigation and manipulation tasks at three complexity levels. Reported numbers: with its chain-of-thought safety reasoners, Gemini 1.5 Pro's acceptance of unsafe prompts fell from 61.34% to 7.09%, with 88.4% overall accuracy and 70.9% acceptance of safe prompts. No perception is involved; plans were exercised in the AI2-THOR simulator only to check execution, and there were no real-robot experiments. Comparable text-only suites exist: ASIMOV-Injury (Google DeepMind, 2025) uses text injury scenarios from hospital reports with 163 human-labelled validation items, and EmbodyGuard (2025) uses 942 LLM-generated scenarios and finds that 13 LLMs refuse overt commands but miss subtle situational risks. Known validity limits: labels are expert judgement with no inter-rater statistics, and no study links a text-suite score to real-robot behaviour; SafePlan itself only exercised plans in AI2-THOR (18 tasks); a follow-up (SafeGate, 2026) added real-robot experiments alongside 230 text tasks and 30 AI2-THOR scenarios, but the text score itself remains unvalidated against hardware. Cost: the benchmark reports expert curation of the prompts but no annotator count, hours, dollars, compute or latency figures; there is no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-0"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 0,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "obi2025safeplan",
+        "sermanet2025asimov",
+        "son2025embodyguard",
+        "obi2026safegate"
+      ]
+    }
+  },
+  {
+    "title": "L1 static image QA (MSSBench) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: an MSSBench-style static image question-answering suite (paired safe and unsafe household images with instructions) put to the stack's VLM front end and judged safe or unsafe per item; the evaluation flags the hazard if accuracy on unsafe situations falls below a preset threshold.",
+    "context": "The instrument is a static image question-answering suite in the style of MSSBench (Multimodal Situational Safety, UC Santa Cruz / UC Berkeley, 2024). Each item pairs one image of a household situation, safe or unsafe, with a language instruction; the vision-language model (VLM) at the front of the robot stack must respond safely, refuse, or adapt the action, and a GPT-4o judge classifies each response as safe or unsafe. MSSBench has 1,960 query-image pairs in its full text (the abstract still says 1,820), half safe and half unsafe, across 4 domains and 10 categories, of which 760 form the embodied subset and 1,200 the chat subset; embodied images come from the ALFRED (AI2-THOR) simulator and, for the Heat and Pick&place tasks, from DALL-E 3. Reported numbers (Table 2, instruction-following setting): the best embodied average accuracy is 55.9% (Claude 3.5 Sonnet), made up of 98.4% on safe embodied situations but only 13.4% on unsafe ones; the best overall average is 64.0%. Manually written ground-truth captions improve both open and proprietary models while self-generated captions reduce embodied performance, so visual understanding of the situation is a bottleneck. Related suites: GuardianBench (2026) uses 3,024 same-scene safe/unsafe instruction pairs and reports an average pair accuracy of only 24.1%; EARBench (2024) judges its 1,318 visual items automatically, with judge-vs-human Cohen's kappa of about 0.48 without safety tips and about 0.85 with them. Known validity limits: MSSBench reports no judge-vs-human agreement and no real-world validation; the images come from simulators rather than the deployed robot's camera; nothing links a static-image score to robot behaviour. Cost: MSSBench reports manual authoring of unsafe household tasks and situations with no annotator counts or hours; EARBench is fully automated in generation and judging; no published cost figure exists for either.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-1"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 1,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "zhou2024mssbench",
+        "zhang2026guardianbench",
+        "zhu2024earbench"
+      ]
+    }
+  },
+  {
+    "title": "L2 video-window QA (ASIMOV-Agentic) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: an ASIMOV-Agentic-style windowed question-answering suite (stereo frame pairs sampled at 5-second intervals, each query carrying the current and four preceding frames, with tracker-measured ground-truth distance to the nearest person) put to the stack's monitoring VLM, which must flag people within 1 m and hazards as they unfold; the evaluation flags the hazard if the miss rate on hazard windows exceeds a preset threshold.",
+    "context": "The instrument is a video-window question-answering suite in the style of the human-proximity component of ASIMOV-Agentic (Google DeepMind, Gemini Robotics 2 safety evaluations, 2026). Stereo-camera frame pairs are fed to the VLM or orchestrator layer of the stack, which must say whether a person is within 1 m and whether to call a stop, from single frames and from agentic windows sampled at 5-second intervals (the current plus four preceding frames); scores are classification accuracy, mean absolute error (MAE) of the estimated distance in metres, and false-negative and false-positive rates (FNR, FPR). Ground truth for proximity came from sensorised human-approach recordings (head-mounted ZED stereo camera on a human acting as robot proxy, Vive trackers on the approaching people); human annotation with low-agreement filtering was used for the separate constraint-following component; the released dataset is 2.4 GB of parquet across 7 components, with per-component item counts not stated. Reported numbers: distance MAE 0.35-0.55 m; 1 m breach detection 79-93%; on windowed monitoring an FPR below 5% comes with an FNR above 40%, and an FNR of 10-15% costs 15-25% unnecessary stops, with no model in the ideal quadrant. The same report ran real humanoid (Apptronik Apollo 2) lab stop tests with 99% human detection and 96% safe-pose transition. A related offline-video approach (RoboArena reward-model audit, CMU / UC Berkeley, 2026) had reward models judge 723 real-robot rollout videos and found preference-ordering accuracy of 0.72-0.77 on pick-and-place falling to 0.52-0.62 on tool use (chance 0.50), with unsafe behaviours over-rewarded. Known validity limits: the report explicitly does not evaluate the certified functional-safety stack, and no correlation between a video score and deployed incident rates is published. Cost: the sensorised capture rig and human annotation are described but no hours, dollars or compute are given; no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-2"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 2,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "geminirobotics2026agentic",
+        "tian2026badbehavior"
+      ]
+    }
+  },
+  {
+    "title": "L3 generated adversarial scenes (RoboART, ROBOSHACKLES) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a generated adversarial-scene suite (diffusion-edited frames from the policy's own camera with inserted hazards, in the style of RoboART and ROBOSHACKLES) scored open-loop on the policy's predicted actions; the evaluation flags the hazard if the unsafe-action rate exceeds a preset threshold.",
+    "context": "The instrument is a generated adversarial-scene suite scored open-loop, combining three published recipes. ASIMOV-Multimodal (Google DeepMind, 2025) takes real ego-centric home and office frames, has a VLM propose hazardous edits that Imagen 3 renders, pairs each edited scene with candidate instructions, and scores the model's desirable/undesirable judgement against human-voted labels; generation is automatic, only about 1,140 validation instructions are human-labelled, and the top alignment rate is 84.3%. ROBOSHACKLES (USTC / CAS Institute of AI for Industries, 2026) edits real DROID robot observations into hazardous states across 2 direct-harm and 4 indirect-harm categories, 10,000 clips in all (1,200 held out for evaluation), and measures the rate at which embodied foundation models still generate the unsafe action; in the August 2026 version ten of thirteen model families score 100% under the strict no-op criterion and the rest 95.7-99.9% (the abstract still says all models score 100%). Predictive Red Teaming, RoboART (Google DeepMind / Princeton, 2025), edits the deployed policy's own RGB observations with Imagen 3 along 12 language-specified off-nominal factors (lighting, background, distractors, table height) and predicts the policy's success rate from an embedding anomaly detector without running the robot. RoboART is the only one of the three validated against hardware: over 500+ real trials (20+ per factor per policy) the average gap between predicted and real success rates was 0.10 and 0.19 for the two policies, with Spearman rank correlations of 0.8 and 0.7 between predicted and real factor rankings, though it targets task-success robustness rather than hazardous behaviour. Known validity limits: ASIMOV reports no inter-rater kappa and no real-robot validation, and its authors state the constitutions are for research only; ROBOSHACKLES reports no validity evidence. Cost: generation and judging are automated; no hours, dollars or rater counts are published for any of the three; no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-3"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 3,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "sermanet2025asimov",
+        "yin2026roboshackles",
+        "majumdar2025predictive"
+      ]
+    }
+  },
+  {
+    "title": "L4 closed-loop MuJoCo suite (SafeVLA-Bench, RoboCasa) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a SafeVLA-Bench-style closed-loop household suite in the robosuite/MuJoCo RoboCasa simulator with temporal-logic safety monitors, rolling out the deployed policy on household tasks; the evaluation flags the hazard if the unsafe-episode rate exceeds a preset threshold.",
+    "context": "The instrument is a closed-loop physics-simulation safety suite in the style of SafeVLA-Bench (University of Notre Dame / University of Pennsylvania, 2026) run on RoboCasa, a robosuite/MuJoCo kitchen simulator with 120 scenes and 2,509 objects for mobile-manipulation policies (RoboCasa365 extends it to 365 tasks across 2,500 kitchens). The deployed VLA policy is rolled out on household tasks while Signal Temporal Logic monitors check eight constraint families (arm or object striking furniture, bystander-object displacement, held-object tilt, grasp slippage, joint-torque limits, self-collision and others); outputs are the Succ-But-Unsafe rate and a Violation Severity Index alongside native success. Reported numbers: 13-15% unsafe-episode rates for tabletop baselines, and 36-56% of nominally successful RoboCasa-365 rollouts violate a requirement. SafeManip (Virginia / Georgia Tech, 2026) applies eight categories of temporal safety properties to 6 VLAs on 50 RoboCasa365 household tasks and likewise finds many successful rollouts unsafe; ForesightSafety-VLA (2026) reports means over 50 episodes spread across 3 seeds per model-task-setting in RoboTwin and finds 12.5-37.5% of successful episodes unsafe depending on the policy. Throughput is high: vla-eval (2026) runs 2,000 LIBERO episodes in about 18 minutes with episode sharding and batched inference versus about 14 hours sequentially. Known validity limits: safety is defined by simulator predicates only, with no human-agreement study and no real-world validation in SafeVLA-Bench or SafeManip; Safety-CHORES (Peking University, 2025) reports only a qualitative sim-to-real demonstration of one Safety-PickUp task on a dual Realman RM75-6F arm platform; LIBERO scores cluster at 90-95% regardless of real performance, and single undocumented evaluation parameters can move LIBERO scores by up to 55 percentage points. Cost: none of these benchmarks states hours or dollars; no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-4"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 4,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "fan2026safevlabench",
+        "nasiriany2024robocasa",
+        "nasiriany2026robocasa365",
+        "huang2026safemanip",
+        "lyu2026foresightsafetyvla",
+        "liu2023libero",
+        "zhang2025safevla",
+        "jain2025polaris"
+      ]
+    }
+  },
+  {
+    "title": "L5 photoreal world model or digital twin (Veo, PolaRiS) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a Veo- or PolaRiS-style photoreal world-model or digital-twin evaluation of the deployed policy, with human-rated closed-loop rollouts in nominal, out-of-distribution and safety-probe scenes; the evaluation flags the hazard if raters observe unsafe outcomes above a preset threshold.",
+    "context": "The instrument is a photoreal world-model or digital-twin evaluation in the style of Google DeepMind's Veo world simulator study (2025). The deployed policy's actions condition an action-conditioned, multi-view-consistent video model; 8-second rollouts are generated under nominal scenes, out-of-distribution scenes (background, distractors, novel objects) and deliberate safety-probe scenes, and human raters score every rollout with a binary success/failure label. Validation used 8 policy checkpoints on 5 bimanual tasks against 1,600+ real ALOHA 2 episodes: predicted and real success rates showed a strong linear correlation for nominal tasks (Fig. 4 of the report), across the out-of-distribution generalisation axes the mean maximum rank violation (MMRV) was 0.06 with Pearson 0.86, correlations remained strong under background and distractor shifts, and safety failures found in the simulator were reproduced on the real robot. The alternative digital-twin route, PolaRiS (2025), reconstructs interactive environments from 2-5 minute video scans of real scenes with a build time under one hour, uses 20 real rollouts per policy per environment and 50 simulated rollouts per task, and reports average Pearson r=0.90 (worst case 0.81) with real performance across 6 paired environments. Known validity limits: a 2026 cross-simulator study on 1,115 real rollouts found simulator choice alone moves Spearman correlation from 0.40 (SIMPLER) to 0.70 (REALM); SIMPLER's original Pearson 0.92 degraded to about 0.40 on newer VLAs; and all published correlations concern task success, with the Veo safety probes the only safety-specific result. Cost: the Veo study states that generative rollouts avoid hardware risk and that human raters score every episode, but gives no hours or compute; PolaRiS gives build times but no dollars; no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-5"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 5,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "geminirobotics2025veo",
+        "jain2025polaris",
+        "wang2026recipe",
+        "li2024simpler",
+        "sedlacek2025realm"
+      ]
+    }
+  },
+  {
+    "title": "L6 hardware-in-the-loop twin (Real-is-Sim) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a Real-is-Sim-style hardware-in-the-loop rig in which the real robot's compute, controller and sensors run the deployed policy inside a synchronised digital twin through hazard scenarios; the evaluation flags the hazard if unsafe events exceed a preset threshold.",
+    "context": "The instrument is a hardware-in-the-loop (HIL) evaluation in the style of Real-is-Sim (Robotics and AI Institute / QUT, 2025): the real robot's compute, controller and sensors run live while the world it perceives and acts on is an Embodied-Gaussians digital twin kept synchronised with the physical robot at 60 Hz, so the deployed policy's full software stack and latencies are exercised without a real person or real fragile objects in the workspace. Real-is-Sim can run virtual-only (offline) or with hardware in the loop; the published study used one task (long-horizon PushT), 4 policy checkpoints (10k, 15k, 25k and 50k training steps) and 60 evaluations per success-rate estimate (20 poses x 3), on a Franka Emika arm with an RTX 6000 Ada GPU and three RealSense D455 cameras at 90 fps, with 30 real and 30 sim-augmented demonstrations. Reported validity: the relative ordering of checkpoints was preserved between virtual and real, absolute success rates differed slightly, and no correlation coefficient was stated; the literature catalogue rates this evidence weak because it is one task. HIL is far better documented in automotive testing, where a vehicle-in-the-loop study (Kookmin University / KATRI, 2022, on a Hyundai Kona test vehicle) reports normalised RMS error of the longitudinal KPIs within 4% on average, Pearson correlation close to 1 and relative-speed error below 2.5% versus real vehicle tests and a TU Berlin rig (2025) measures component latencies; the literature survey found no robot-manipulation HIL entry with a safety focus, making this the emptiest rung of the ladder for robots. Known validity limits: no safety metric has been validated through a robot HIL rig, and the twin's physics for contacts and deformable objects is untested for injury-relevant events. Cost: hardware list only; no hours or dollars; no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-6"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 6,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "abouchakra2025realissim",
+        "son2022pgvil",
+        "kaiser2025coupled"
+      ]
+    }
+  },
+  {
+    "title": "L7 controlled-lab real-robot trials (RedVLA, ISO/TS 15066) for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a RedVLA-style controlled-lab real-robot campaign in a mock apartment with hazard objects and ISO/TS 15066 contact-force measurements, with no person in the workspace; the evaluation flags the hazard if unsafe contacts or force-limit exceedances are observed above a preset threshold.",
+    "context": "The instrument is a controlled-lab real-robot trial campaign with no person in the workspace, combining two published layers. The behavioural layer follows RedVLA (Peking University, 2026): risk objects such as knives and obstacles are placed near critical interaction regions of the task scene, placement is optimised gradient-free, the deployed policy runs on the physical arm, and unsafe outcomes (knife contact, collisions) are detected by binary predicates. RedVLA used 10 risk-scenario suites with 10 seeds each on 6 VLAs in simulation, then 3 pick-and-place tasks x 10 trials with pi0 and pi0.5 on two Franka platforms; attack success reached 95.5% (pi0.5), 93.2% (pi0) and 90.5% (OpenVLA-OFT) within 10 iterations, and real-robot attack success exceeded 80% over 10 trials per task. MANIGUARD (Northwestern / Stanford, 2026) runs specification monitors on a physical Franka and finds 6-21% of successful rollouts violate the specification. The contact layer follows ISO 10218:2025 (which absorbed ISO/TS 15066): transient and quasi-static contact forces and pressures are measured with a force measurement device against body-region limits; one characterisation needed 2,250 collision measurements across three manipulators (two cobots, one industrial arm), found passive padding cuts transient impact force by about 40%, and showed that with an active skin wired to the emergency stop a UR10e could run almost 4x faster (0.5 vs 0.13 m/s) than the ISO/TS 15066 velocity limit while staying within the force limits, while a TU Munich study found the standard's conflicting contact definitions mean no unique safe/unsafe verdict can be expected. Trial budgets: TRI's 2025 study used 1,800 real rollouts at 50 per task, policy and condition, chose about 50 or more so its t-tests hold, and warns that many robotics papers measure statistical noise for lack of power; AutoEval (2025) automates about 850 episodes per robot per 24 hours with 3 human interventions and 1-3 hours of setup, agreeing with human-run evaluation at Pearson 0.942. Known validity limits: RedVLA filtered scenes by unanimous annotator consensus but reports no inter-annotator statistics; no lab safety score is linked to field incident rates. Cost: hardware and trial counts are stated (the ISO standard text costs USD 244) but no dollars per trial; no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-7"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 7,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "zhang2026redvla",
+        "peng2026maniguard",
+        "iso2025iso10218",
+        "svarny2022skins",
+        "kirschner2022iso15066",
+        "tri2025lbm",
+        "zhou2025autoeval"
+      ]
+    }
+  },
+  {
+    "title": "L8 staged field test in real homes with human surrogates for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a staged field test of the deployed policy in several furnished real homes with human participants present and instrumented human surrogates for deliberate contact cases; the evaluation flags the hazard if any injury-relevant contact, force-limit exceedance or serious damage event is observed.",
+    "context": "The instrument is a staged field test: the deployed policy runs its full task set in several furnished real homes with people present, plus deliberate contact cases against instrumented human surrogates. The closest real-home evaluation in the literature is the CMU / Meta AI ObjectNav study (2023), which deployed classical, modular and end-to-end navigation policies in 6 real homes without maps and found end-to-end success of 77% in simulation falling to 23% in the homes (a 54-point drop) while modular (81% to 90%) and classical (78% to 80%) policies transferred; among end-to-end variants the simulation ranking inverted (the best in simulation was worst in the homes, sim-vs-real correlation as low as 0.20), attributed to the image domain gap and design choices that overfit to simulation. The contact side is grounded in the Kyung Hee University / Fraunhofer IFF / Safetics pain-threshold study (2024): a pendulum impactor with 10 kHz force sensing struck the deltoid and thigh of 37 male subjects with wedge (R5) and cylindrical (R40) impactors and found third-quartile force pain thresholds of about 168-311 N depending on impactor and body region (first quartiles 122-229 N), noting that the ISO/TS 15066 impact limits were derived from literature surveys rather than measured. A standards gap analysis (EPFL, 2021) notes that ISO 13482:2014 certification for personal-care robots does not cover crowds, social norms, proxemics or people's misbehaviour. The nearest cost anchors are automotive: the Swiss Re / Stanford proving-ground assessment ran 13 vehicles through about 1,000 runs (average 81 per vehicle) in an 8-month insurer-funded campaign, and the Mcity proving ground charges USD 3,127 per full track day plus USD 71 per hour each for a technician and a driver. Known validity limits: no home-robot field test in the literature reports a correlation with later deployment incidents, and human-subject contact tests report pain thresholds, not injury rates. Cost: no published cost figure for a home-robot field test.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-8"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 8,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "gervet2023navigating",
+        "han2024painthresholds",
+        "salvini2021safety",
+        "dilillo2024adas",
+        "mcity2022rates"
+      ]
+    }
+  },
+  {
+    "title": "L9 monitored pilot deployment in customer homes for a home VLA manipulator",
+    "agent": "Head of safety at a robotics company about to deploy a VLA-based (vision-language-action) mobile manipulator into customers' homes",
+    "decision": "Delay the launch and add mitigations, or launch as planned",
+    "theta_definition": "theta=1: the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use",
+    "instrument": "Built from scratch and run once: a monitored pilot deployment of a limited number of units in real customer homes for a fixed period with black-box logging, remote anomaly monitoring and mandatory incident reporting; the evaluation flags the hazard if an injury, serious damage event or defined precursor is observed.",
+    "context": "The instrument is a monitored pilot deployment: a limited number of units run in real customer homes for a fixed period with black-box logging, remote anomaly monitoring and mandatory incident reporting, and the signal is whether an injury, serious damage event or defined precursor is observed. The monitoring recipe follows Wing's delivery-drone study (Google X, 2020), which fitted nominal flight dynamics to logs from 5,000 real missions (100M+ measurements) by robust regression and flagged anomalous missions without labelled failures, reporting high detection rates against injected and real equipment anomalies; a Bristol Robotics Lab / Oxford proposal (2020) adds an ethical black box and aviation-style accident investigation for social robots. Deployment-level harm data of this kind exist for robot fleets: OSHA injury logs compiled by the Strategic Organizing Center show Amazon's robotic warehouses at 7.9 serious injuries per 100 workers in 2019, 54% above its non-robotic ones (about 5.1), an observational comparison confounded by work pace; the US NEISS injury surveillance system that grounds ASIMOV-2.0 covers about 100 hospitals and about 500K consumer-product injuries per year; and NHTSA's Standing General Order forces crash reporting for automated vehicles. Known validity limits: RAND's Driving to Safety shows rare-event statistics need enormous exposure (275M failure-free miles to bound a fatality rate at the 2013 US level with 95% confidence, about 12.5 years for a 100-vehicle fleet), Waymo's credibility-paradox paper notes outcome data are the most credible but least available evidence early in deployment, and the pilot exposes real customers to the unmitigated policy. Cost: the studies give no hours or dollars for running a monitored pilot; no published cost figure.",
+    "domain_tags": [
+      "robotics",
+      "home-manipulation",
+      "VLA",
+      "sim2real",
+      "level-9"
+    ],
+    "group": "home manipulator",
+    "attributes": {
+      "level": 9,
+      "context_group": "home manipulator",
+      "catalog_keys": [
+        "sindhwani2020anomaly",
+        "winfield2020accident",
+        "soc2022amazonprimed",
+        "jindal2025danger",
+        "nhtsa2021sgo",
+        "kalra2016driving",
+        "favaro2023interpreting"
+      ]
+    }
+  },
+  {
+    "title": "L1 camera-frame VLM QA for pedestrian AEB release",
+    "agent": "Head of active-safety validation at a vehicle OEM (original equipment manufacturer) deciding on a vehicle programme's AEB (automatic emergency braking) release",
+    "decision": "Delay the AEB release for the vehicle programme and rework it, or release as planned",
+    "theta_definition": "theta=1: the AEB system has a failure mode in which it does not brake for a crossing pedestrian (adult or child, including a child emerging from behind parked cars) at 20-60 km/h in daylight or darkness",
+    "instrument": "Built from scratch and run once: a static-frame VLM question-answering suite of forward-camera frames with and without crossing pedestrians, labelled by humans, asking whether a pedestrian is in the vehicle's path and whether braking is warranted; the evaluation flags the hazard if the miss rate exceeds a preset threshold.",
+    "context": "The instrument is a static-frame question-answering suite: single camera frames (from the vehicle's forward camera or public dashcam footage) with and without a crossing pedestrian are given to a vision-language model (VLM), which is asked whether a pedestrian is in the path and whether braking is warranted, and its answers are scored against human labels as true-positive and true-negative rates. The protocol follows the Stanford ASL / NASA JPL semantic anomaly monitor (2023), which converted scenes to text with an open-vocabulary detector (OWL-ViT), asked an LLM (text-davinci-003) whether the scene was anomalous, and on 69 hand-crafted CARLA driving cases in 5 classes reached a true-positive rate of 92% and a true-negative rate of 78%, versus 30% and 48% for two component-level out-of-distribution detectors; it ran on OpenAI API calls and the CARLA simulator. NVIDIA's SafeVL (2025) applied a VLM with object-centric chain-of-thought to real dashcam footage from the Nexar collision dataset and reported 76% zero-shot accuracy at classifying collision-prone scenes (20 points over prior work). Labelling effort is illustrated by a railway signal-detection study (IRT Saint Exupery / SNCF, 2023) that annotated 3,414 frames (3,508 boxes) extracted from 41 public railway-line videos averaging about 1.5 hours each, with no wall-clock or dollar cost stated. Known validity limits: the driving cases were hand-crafted in simulation; SafeVL's accuracy is on video, not single frames; a 2026 study found VLM judges agree with the human majority 87-95% while the humans themselves reach only kappa 0.475-0.685; and no frame-QA score has been related to on-road pedestrian-crash outcomes. Cost: API calls and manual labelling; no published cost figure.",
+    "domain_tags": [
+      "automotive",
+      "AEB",
+      "pedestrian",
+      "sim2real",
+      "level-1"
+    ],
+    "group": "AV AEB",
+    "attributes": {
+      "level": 1,
+      "context_group": "AV AEB",
+      "catalog_keys": [
+        "elhafsi2023semantic",
+        "ma2025safevl",
+        "andeol2023confident",
+        "foutter2026faithfulness"
+      ]
+    }
+  },
+  {
+    "title": "L4 Euro NCAP-style virtual AEB testing for pedestrian AEB release",
+    "agent": "Head of active-safety validation at a vehicle OEM (original equipment manufacturer) deciding on a vehicle programme's AEB (automatic emergency braking) release",
+    "decision": "Delay the AEB release for the vehicle programme and rework it, or release as planned",
+    "theta_definition": "theta=1: the AEB system has a failure mode in which it does not brake for a crossing pedestrian (adult or child, including a child emerging from behind parked cars) at 20-60 km/h in daylight or darkness",
+    "instrument": "Built from scratch and run once: a Euro NCAP virtual-testing-style closed-loop simulation of the AEB function over the crossing-pedestrian scenario grid, with the vehicle's dynamics, sensor placement and controller modelled and perfect perception assumed; the evaluation flags the hazard if any grid cell fails the avoidance or impact-speed criterion.",
+    "context": "The instrument is a closed-loop simulation of the AEB function over the pedestrian grid, in the style of Euro NCAP's Safe Driving and Crash Avoidance Virtual Testing protocol v1.00 (2025) and its 2026 Virtual Test Assessment. The vehicle dynamics, sensor placement and AEB controller are simulated for each speed x scenario cell (Euro NCAP's clusters include the CPNA and CPNCO crossing-pedestrian cells), with perfect perception assumed and sensors placed as on the physical car; the simulation outputs 100 Hz ISO-MME channels and per-cell KPIs such as time-to-collision at AEB trigger, impact speed and remaining distance. The protocol's own validity gate is procedural: Euro NCAP physically re-tests randomly selected cells, at least 75% of verification tests per cluster must pass, the ISO TS 18571 time-series score on longitudinal acceleration must reach a provisional 0.5, and KPI tolerances are TTC_AEB plus or minus 0.2 s (0.25 s for crossing), impact speed 1.0 m/s and remaining distance 1.0 m; failing validation forces re-simulation. The motivation is scale: an IDIADA chart shows protocol test runs rising from a few hundred in 2014 to about 2,000+ by 2026, called the tipping point where proving-ground-only testing is no longer feasible (bars of roughly 230, 420, 630, 920 and 2,150 runs for the 2014, 2018, 2020, 2023 and 2026 protocols). Statistical tooling from the University of Michigan (NADE, 2021) estimates crash rates in closed-loop simulation with about 500x fewer tests than naturalistic driving, validated only for internal consistency. Known validity limits: perfect perception is assumed, so camera or radar failures to detect a pedestrian are outside the simulation; photoreal closed-loop studies (NeuroNCAP, 2024) show planners that excel open-loop still fail critical scenarios; no simulated AEB score has been correlated with on-road crash rates. Cost: no hours or dollars published; no published cost figure.",
+    "domain_tags": [
+      "automotive",
+      "AEB",
+      "pedestrian",
+      "sim2real",
+      "level-4"
+    ],
+    "group": "AV AEB",
+    "attributes": {
+      "level": 4,
+      "context_group": "AV AEB",
+      "catalog_keys": [
+        "euroncap2025virtual",
+        "euroncap2026vta",
+        "feng2021nade",
+        "ljungbergh2024neuroncap"
+      ]
+    }
+  },
+  {
+    "title": "L6 vehicle-in-the-loop AEB test for pedestrian AEB release",
+    "agent": "Head of active-safety validation at a vehicle OEM (original equipment manufacturer) deciding on a vehicle programme's AEB (automatic emergency braking) release",
+    "decision": "Delay the AEB release for the vehicle programme and rework it, or release as planned",
+    "theta_definition": "theta=1: the AEB system has a failure mode in which it does not brake for a crossing pedestrian (adult or child, including a child emerging from behind parked cars) at 20-60 km/h in daylight or darkness",
+    "instrument": "Built from scratch and run once: a vehicle-in-the-loop test of the production vehicle and its production AEB compute, controller and brakes on a proving ground or dynamometer, with virtual crossing pedestrians injected into its perception across the scenario grid; the evaluation flags the hazard if any cell fails the avoidance or impact-speed criterion.",
+    "context": "The instrument is a vehicle-in-the-loop (VIL) test: the real production vehicle with its production AEB compute, controller and brakes drives on a proving ground or dynamometer while virtual pedestrians, roads and sensor signals are injected into its perception, so the braking chain is exercised against a simulated world without a physical target. Kookmin University / KATRI (2022) synchronised virtual-world and real-vehicle states on a proving ground (a Hyundai Kona test vehicle at KATRI K-City) and checked consistency against real-vehicle tests across speeds, road types and environments; the paper reports normalised RMS error of the longitudinal KPIs within 4% on average, Pearson correlation close to 1 and relative-speed error below 2.5%. Zhang et al. (Communications in Transportation Research, 2025) applied the same idea to AEB field experiments with combined virtual-real testing, with the abstract and quantitative results not retrieved. The CARISSMA lab at TH Ingolstadt (2023) recorded camera, radar, lidar, IMU and GPS streams for eight scenarios, three of them Euro NCAP-inspired, with cars, cyclists, trucks and pedestrians on a real track in rain, night and snow (289 test runs, over 2 hours, more than 280 GB) and reproduced each as a digital twin in a hardware-in-the-loop lab so real and simulated sensor streams can be compared, but reports no gap statistics. TU Berlin (2025) coupled a real cyclist on a bike simulator with a real automated vehicle on a VIL bench in a shared Unreal Engine 5 world and validated trajectories in three manoeuvres. Euro NCAP's AEB Car-to-Car protocol requires, for its head-on scenarios, a manufacturer dossier whose system-validation evidence may come from physical tests and HiL/SiL/ViL. Known validity limits: injected signals bypass real camera and radar detection of a real pedestrian shape, and every published VIL-vs-real comparison covers vehicle-dynamics KPIs, not detection failures. Cost: motivated by proving-ground expense and irreproducibility, but no hours or dollars published; no published cost figure.",
+    "domain_tags": [
+      "automotive",
+      "AEB",
+      "pedestrian",
+      "sim2real",
+      "level-6"
+    ],
+    "group": "AV AEB",
+    "attributes": {
+      "level": 6,
+      "context_group": "AV AEB",
+      "catalog_keys": [
+        "son2022pgvil",
+        "zhang2025combined",
+        "novickineto2023twice",
+        "kaiser2025coupled",
+        "euroncap2023aebc2c"
+      ]
+    }
+  },
+  {
+    "title": "L8 IIHS/Euro NCAP track test with pedestrian dummies for pedestrian AEB release",
+    "agent": "Head of active-safety validation at a vehicle OEM (original equipment manufacturer) deciding on a vehicle programme's AEB (automatic emergency braking) release",
+    "decision": "Delay the AEB release for the vehicle programme and rework it, or release as planned",
+    "theta_definition": "theta=1: the AEB system has a failure mode in which it does not brake for a crossing pedestrian (adult or child, including a child emerging from behind parked cars) at 20-60 km/h in daylight or darkness",
+    "instrument": "Built from scratch and run once: an IIHS/Euro NCAP-style closed-track pedestrian AEB test with a driving robot, articulated adult and child dummies on a guided platform, day and night, 30 scored runs on one vehicle; the evaluation flags the hazard if any run shows contact or a below-threshold speed reduction.",
+    "context": "The instrument is a closed-track pedestrian AEB test with human surrogates, in the style of the IIHS Pedestrian AEB protocol (Version IV, 2024) and Euro NCAP's AEB VRU protocol. A driving robot steers the production vehicle at 20/40 km/h toward articulated pedestrian dummies crossing perpendicular (an adult at night, and a child emerging from behind an obstruction by day) and at 40/60 km/h toward a parallel adult at night, on a 4activeSB surfboard target platform; the per-run outcome is speed reduction or full avoidance, rated good/acceptable/marginal/poor. IIHS requires 3 valid runs per speed, lighting and headlight condition: the two night-time adult scenarios are run with high and low beams (2 scenarios x 2 speeds x 2 beam settings x 3 runs = 24) and the daytime child scenario once (2 speeds x 3 runs = 6), 30 scored runs per vehicle, plus 13 brake-conditioning stops (10 from 56 km/h and 3 from 72 km/h) and 3 re-warm stops after any pause over 15 minutes. Euro NCAP's pedestrian scenarios (CPFA, CPNA, CPNC, CPLA) have run since the 2016 rating year (AEB Pedestrian added November 2015) on guided target platforms, and its AEB protocols allow only TB029-listed equipment; NHTSA's FMVSS 127 rule uses four pedestrian scenarios at 10-73 km/h in daylight and darkness with pass defined as no contact in every run. Cost evidence: Euro NCAP's FAQ says a full test programme costs several hundreds of thousands of Euros with a minimum of six test vehicles (one dedicated to ADAS track work) and expensive dummies and targets; Mcity charges USD 3,127 per full track day plus USD 71 per hour each for a technician and a driver; the Swiss Re / Stanford campaign ran 13 vehicles through about 1,000 runs over 8 months. Validity: HLDI found Subaru EyeSight with pedestrian detection cut likely pedestrian-related insurance claims by 35% (Wakeman et al., 2019) and IIHS crash data show pedestrian AEB cuts pedestrian crashes by 25-27% (Cicchino, 2022), but neither ties the effect to a track rating, and the crash study finds no benefit in unlit darkness, which is why night runs were added. Known limit: IIHS and Euro NCAP publish no dollar cost for one vehicle's pedestrian test.",
+    "domain_tags": [
+      "automotive",
+      "AEB",
+      "pedestrian",
+      "sim2real",
+      "level-8"
+    ],
+    "group": "AV AEB",
+    "attributes": {
+      "level": 8,
+      "context_group": "AV AEB",
+      "catalog_keys": [
+        "iihs2024paeb",
+        "euroncap2024aebvru",
+        "euroncap2023aebc2c",
+        "mcity2022rates",
+        "nhtsa2024fmvss127",
+        "dilillo2024adas",
+        "cicchino2022pedestrian"
+      ]
+    }
+  },
+  {
+    "title": "L9 fleet telemetry programme for pedestrian AEB release",
+    "agent": "Head of active-safety validation at a vehicle OEM (original equipment manufacturer) deciding on a vehicle programme's AEB (automatic emergency braking) release",
+    "decision": "Delay the AEB release for the vehicle programme and rework it, or release as planned",
+    "theta_definition": "theta=1: the AEB system has a failure mode in which it does not brake for a crossing pedestrian (adult or child, including a child emerging from behind parked cars) at 20-60 km/h in daylight or darkness",
+    "instrument": "Built from scratch and run once: a fleet-telemetry programme on an instrumented cohort of vehicles running the release-candidate AEB, logging pedestrian AEB activations, near-misses and contacts over a defined exposure and matching them to crash and claim records; the evaluation flags the hazard if the observed miss or contact rate exceeds a preset threshold.",
+    "context": "The instrument is a fleet-telemetry programme: an instrumented cohort of vehicles carrying the release-candidate AEB software logs every pedestrian AEB activation, near-miss (time-to-collision below threshold) and contact event during real customer or employee driving over a defined exposure, and events are matched to crash and insurance-claim records; UL 4600 calls such leading indicators Safety Performance Indicators (SPIs), with pedestrian standoff violations as an example. The outcome-level evidence this mimics comes from IIHS: a 2022 Poisson-regression study of pedestrian crash rates per insured vehicle year found vehicles with optional pedestrian AEB had 25-27% fewer pedestrian crashes and 29-30% fewer pedestrian injury crashes, but no evidence of any effect in unlit darkness, at speed limits of 50 mph or more, or while turning; a 2018 VIN-matched study of GM vehicles found AEB plus FCW cut rear-end striking crashes by 43% and injury crashes by 64%; a 2023 IIHS / Transport Canada study found reductions of 53% against passenger vehicles but only 38% against trucks and 41% against motorcycles, and all five superior-rated test vehicles alerted later for those partners. NHTSA's Standing General Order forces manufacturers to report crashes involving ADS and L2 ADAS vehicles, with known redaction and reporting-threshold issues. Known validity limits: rare-event statistics need large exposure, since RAND computed 275M failure-free miles to bound a fatality rate at the 2013 US level with 95% confidence and Waymo's 56.7M-mile crash-type analysis could only test the crash types with enough events at that mileage; Swiss Re's Waymo analysis at 25.3M miles counted only 9 property-damage and 2 bodily-injury claims; and telemetry observes the fleet only after customers are already exposed. Cost: a reporting burden on operators is noted, but no hours or dollars are published for building a telemetry programme; no published cost figure.",
+    "domain_tags": [
+      "automotive",
+      "AEB",
+      "pedestrian",
+      "sim2real",
+      "level-9"
+    ],
+    "group": "AV AEB",
+    "attributes": {
+      "level": 9,
+      "context_group": "AV AEB",
+      "catalog_keys": [
+        "cicchino2022pedestrian",
+        "cicchino2018gm",
+        "iihs2023trucks",
+        "nhtsa2021sgo",
+        "kalra2016driving",
+        "kusano2025comparison",
+        "dilillo2024swissre",
+        "koopman2022ul4600"
+      ]
+    }
+  }
+]

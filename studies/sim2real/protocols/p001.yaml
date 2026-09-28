@@ -1,0 +1,11 @@
+name: p001
+template_path: templates/elicitor.md
+members:
+  - provider: claude_cli
+    model: haiku
+    k_repeats: 5
+notes: >
+  Baseline v2 protocol: six parameters (no e), anchors A1/A2 as in the
+  business study, a background-facts block ($context) the elicitor must not
+  contradict, C = cost to build the evaluation from scratch and run it once,
+  B/K defined for the deployment decision. Single member, k=5.

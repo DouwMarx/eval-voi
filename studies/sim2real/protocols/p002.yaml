@@ -1,0 +1,12 @@
+name: p002
+template_path: templates/elicitor_v2.md
+members:
+  - provider: claude_cli
+    model: haiku
+    k_repeats: 5
+notes: >
+  One change vs p001: log-decade framing for B, K, C (the v1 learnings found
+  dollar magnitudes carry 1.0-1.5 relative cross-repeat spread that prompting
+  did not fix; this tests the untested proposal). Prediction: median
+  cross-repeat spread of B, K, C at matched k=5 drops below p001; probability
+  parameters unchanged.
