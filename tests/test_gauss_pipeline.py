@@ -26,6 +26,7 @@ from voi_rank.study import Study
 ROOT = Path(__file__).resolve().parent.parent
 STUDIES = ROOT / "studies"
 STUDY_NAMES = ("business", "ai-safety-evals", "sim2real")
+HAIKU = "claude_cli:haiku"   # the member the single-member tests elicit (g001 lists three)
 
 ANCHOR = {
     "state": {"reasoning": "r", "variable": "bearing-fault vibration severity", "unit": "mm/s",
@@ -173,8 +174,9 @@ def test_gauss_protocol_registers_its_kind_and_is_immutable(tmp_path):
 def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeypatch, capsys):
     study = copy_study("business", tmp_path)
     use_providers(monkeypatch, FakeProvider(jittered_gauss))
+    # the studies' g001 lists the haiku, sonnet, opus ensemble; this test elicits one member
     elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2,3,4",
-                 "--workers", "2", "--yes"])
+                 "--workers", "2", "--members", HAIKU, "--yes"])
     assert "done: 20/20 slots valid" in capsys.readouterr().out
     con = study.connect()
     prot = db.protocol_by_name(con, "g001")
@@ -192,8 +194,8 @@ def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeyp
         assert json.loads(r["fit_params"]) == {"value": r["p50"]} and r["p5"] == r["p50"] == r["p95"]
         assert r["fit_residual"] is not None and r["fit_warning"] in (0, 1)
     assert fam["g_mu0"]["unit"] == "mm/s" and fam["g_L"]["unit"] == "USD"
-    # resume: nothing pending
-    _, jobs = elicit.plan_jobs(con, study, prot["id"], "1,2,3,4", None, None)
+    # resume: nothing pending for that member
+    _, jobs = elicit.plan_jobs(con, study, prot["id"], "1,2,3,4", None, {HAIKU})
     assert jobs == []
     # pooled fits: five point values per quantity, drawn as their empirical mixture
     fits = db.scenario_param_fits(con, prot["id"])
@@ -309,7 +311,8 @@ def test_invalid_gauss_answer_is_stored_with_its_error(tmp_path, monkeypatch, ca
     bad = copy.deepcopy(ANCHOR)
     bad["answers"]["W1"]["value"] = 4.0          # wider than the prior interval
     use_providers(monkeypatch, FakeProvider(jittered_gauss, override=bad))
-    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1", "--k", "1", "--yes"])
+    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1", "--k", "1",
+                 "--members", HAIKU, "--yes"])
     con = study.connect()
     rows = con.execute("SELECT valid, error FROM elicitations ORDER BY id").fetchall()
     assert [r["valid"] for r in rows] == [0, 0]   # the attempt and its immediate retry
@@ -318,7 +321,8 @@ def test_invalid_gauss_answer_is_stored_with_its_error(tmp_path, monkeypatch, ca
     assert con.execute("SELECT COUNT(*) FROM parameters").fetchone()[0] == 0
     bad["answers"]["W1"]["value"] = 1.25
     bad["state"]["bad_is_high"] = False
-    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "2", "--k", "1", "--yes"])
+    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "2", "--k", "1",
+                 "--members", HAIKU, "--yes"])
     err = con.execute("SELECT error FROM elicitations WHERE scenario_id=2").fetchone()[0]
     assert err.startswith("schema: state.bad_is_high must be true") and health.error_class(err) == "schema"
     with pytest.raises(RuntimeError, match="no scenarios with complete valid elicitations"):
@@ -334,16 +338,19 @@ def test_plan_cost_estimate_pools_only_attempts_of_the_same_model_kind(tmp_path,
     elicit.main(["--study", str(study.root), "--protocol", "p001", "--scenarios", "1,2", "--k", "2", "--yes"])
     capsys.readouterr()
     with pytest.raises(SystemExit, match="--yes"):          # stdin is not a TTY under pytest
-        elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2", "--k", "1"])
+        elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2", "--k", "1",
+                     "--members", HAIKU])
     out = capsys.readouterr().out
     assert ("claude_cli:haiku: 2 slots, estimated cost unknown (no stored attempts of this member"
             " under a gaussian protocol in this study)") in out
     assert "estimated total: $0.00 + unknown" in out
     use_providers(monkeypatch, FakeProvider(jittered_gauss, cost=0.03))
-    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1", "--k", "1", "--yes"])
+    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1", "--k", "1",
+                 "--members", HAIKU, "--yes"])
     capsys.readouterr()
     with pytest.raises(SystemExit, match="--yes"):
-        elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2,3", "--k", "1"])
+        elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2,3", "--k", "1",
+                     "--members", HAIKU])
     out = capsys.readouterr().out
     assert ("claude_cli:haiku: 2 slots, estimated cost $0.06 (mean $0.0300/attempt over 1 stored"
             " gaussian attempts)") in out
@@ -376,7 +383,7 @@ def test_compare_models_on_a_study_with_both_runs(tmp_path, monkeypatch, capsys)
                  "--k", "2", "--yes"])
     use_providers(monkeypatch, FakeProvider(jittered_gauss))
     elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2,3,4,5,6,7,8",
-                 "--k", "3", "--yes"])
+                 "--k", "3", "--members", HAIKU, "--yes"])
     con = study.connect()
     b_run = mc.run_mc(con, "p001", seed=1, n_draws=2000, quiet=True)
     g_run = mc.run_mc(con, "g001", seed=2, n_draws=2000, quiet=True)
@@ -445,8 +452,9 @@ def test_dry_run_of_g001_renders_every_scenario(name, tmp_path, monkeypatch, cap
     elicit.main(["--study", str(study.root), "--protocol", "g001", "--dry-run"])
     out = capsys.readouterr().out
     assert "DRY RUN: protocol g001 (model gaussian, template templates/elicitor_gauss.md" in out
+    members = yaml.safe_load(study.protocol_path("g001").read_text())["members"]
     assert f"claude_cli:haiku (k=5): {5 * len(scen)} pending slots over {len(scen)} scenarios" in out
-    assert f"{5 * len(scen)} slots would be elicited; no provider was called." in out
+    assert f"{5 * len(members) * len(scen)} slots would be elicited; no provider was called." in out
     prompt = out.split("first pending prompt")[1]
     assert scen[0]["title"] in prompt and "Anchor A1" in prompt and "Anchor A2" in prompt
     assert "First step: name the state variable" in prompt and '"bad_is_high": true' in prompt
@@ -464,5 +472,5 @@ def test_dry_run_of_g001_renders_every_scenario(name, tmp_path, monkeypatch, cap
     db.seed_scenarios(con, study.scenarios_json)
     pid = db.get_or_create_protocol(con, study.protocol_path("g001"), study.root)
     _, jobs = elicit.plan_jobs(con, study, pid, None, None, None)
-    assert len(jobs) == 5 * len(scen)
+    assert len(jobs) == 5 * len(members) * len(scen)
     assert {j["scenario_id"] for j in jobs} == {r["id"] for r in db.get_scenarios(con)}
