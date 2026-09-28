@@ -12,7 +12,17 @@ study's voi.db. Outputs land in <study>/report/generated/:
    median(dEVSI) / median(dC) with P(dC > 0), P(dEVSI > 0) and
    P(dEVSI > dC): quantiles of the per-draw ratio are dominated by draws with
    dC near zero and were reporting noise. These are NOT the stored run's
-   draws (fresh rng from the run's seed and draw count).
+   draws (fresh rng from the run's seed and draw count). Per step the table
+   adds three more marginals: the MEAN-based ones (means of dEVSI and dC over
+   the same draws and their ratio), the PLUG-IN ones (differences of the
+   per-rung plug-in values: model.voi at the ladder's pooled medians of p, B,
+   K and the rung's medians of s, t, C, and the rung's median C) and the
+   FENCE ones (differences of the per-rung fence value EVSI* = Lambda p (1 -
+   p) (s + t - 1) at the same medians, over the plug-in dC). The figure's
+   bottom panel shows the plug-in and fence marginal efficiencies per step,
+   with the CRN median ratio and P(dEVSI > dC) as a label.
+1b. fig_level_fence.pdf: per group of leveled scenarios, EVSI* (fence), EVSI
+   (plug-in) and C at each scenario's pooled medians against its level.
 2. fig_within_group_consistency.pdf + consistency.tex: for groups whose
    scenarios share identical agent / decision / theta text, the elicited p50
    of p, B, K should be level-invariant while s, t, C move with the rung;
@@ -57,7 +67,13 @@ study's voi.db. Outputs land in <study>/report/generated/:
    compares the three rankings pairwise (rank scatter, Spearman annotated).
    The elicited stakes vary several-fold across repeats, so the mixture can
    close the gate in more than half the draws (median EVSI 0) where the
-   medians sit inside it; this table shows that side by side.
+   medians sit inside it; this table shows that side by side. The fence
+   value EVSI* = (B + K) p (1 - p) (s + t - 1) at the same medians (chapter,
+   "The buyer on the fence": the maximum of EVSI over the threshold at fixed
+   stakes), eff* = EVSI* / C and the ratio EVSI / EVSI* (0 when EVSI = 0)
+   stand next to them; \voiFenceRhoPlugin is the Spearman of eff* against
+   the plug-in eff over the scenarios with EVSI > 0 and \voiFenceTopOverlap
+   the top-k overlap of the two rankings.
 
 Usage: python -m voi_rank.analysis.extra --study PATH [--protocol p001] [--run ID]
        [--members claude_cli:sonnet,claude_cli:opus]
@@ -147,6 +163,7 @@ LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
                   "^": r"\textasciicircum{}"}
 OUTPUTS = {
     "level_uplift": ("fig_level_uplift.pdf", "level_uplift.tex"),
+    "level_fence": ("fig_level_fence.pdf",),
     "consistency": ("fig_within_group_consistency.pdf", "consistency.tex"),
     "domain_map": ("fig_domain_map.pdf", "domain_summary.tex"),
     "member_agreement": ("fig_member_agreement.pdf", "member_agreement.tex"),
@@ -472,21 +489,66 @@ def ladder_draws(con, run, rungs: list[tuple[float, int]]) -> dict | None:
     return {"shared": shared, "rungs": per_rung}
 
 
+def _ratio(num: float, den: float) -> float:
+    return num / den if den != 0.0 else float("nan")
+
+
 def step_stats(lo: dict, hi: dict) -> dict:
     """Marginals of one step from two rungs' aligned draws: medians of dEVSI
     and dC, the marginal efficiency as the RATIO OF MEDIANS median(dEVSI) /
     median(dC) (nan when median dC is 0), P(dC > 0), P(dEVSI > 0) and
-    P(dEVSI > dC). Per-draw ratio quantiles are not reported: with dC
-    crossing zero on a fraction of draws they have Cauchy-like tails."""
+    P(dEVSI > dC), plus the MEAN-based marginals (mean dEVSI, mean dC and
+    their ratio over the same draws). Per-draw ratio quantiles are not
+    reported: with dC crossing zero on a fraction of draws they have
+    Cauchy-like tails."""
     d_evsi = hi["EVSI"] - lo["EVSI"]
     d_c = hi["C"] - lo["C"]
     evsi_med, c_med = float(np.median(d_evsi)), float(np.median(d_c))
+    evsi_mean, c_mean = float(np.mean(d_evsi)), float(np.mean(d_c))
     return {
-        "dEVSI_q50": evsi_med, "dC_q50": c_med,
-        "meff": evsi_med / c_med if c_med != 0.0 else float("nan"),
+        "dEVSI_q50": evsi_med, "dC_q50": c_med, "meff": _ratio(evsi_med, c_med),
         "p_dc_pos": float(np.mean(d_c > 0.0)),
         "p_gain": float(np.mean(d_evsi > 0.0)), "p_pays": float(np.mean(d_evsi > d_c)),
+        "dEVSI_mean": evsi_mean, "dC_mean": c_mean, "meff_mean": _ratio(evsi_mean, c_mean),
     }
+
+
+def plugin_step_stats(lo: dict, hi: dict) -> dict:
+    """The plug-in and fence marginals of one step from two rungs' plug-in
+    points (ladder_plugin): differences of the per-rung EVSI, EVSI* and C at
+    the medians, the plug-in ratio dEVSI / dC and the fence ratio dEVSI* /
+    dC (nan when dC is 0)."""
+    d_evsi, d_star, d_c = hi["EVSI"] - lo["EVSI"], hi["EVSI_star"] - lo["EVSI_star"], hi["C"] - lo["C"]
+    return {"dEVSI_plug": d_evsi, "dC_plug": d_c, "meff_plug": _ratio(d_evsi, d_c),
+            "dEVSI_star": d_star, "meff_star": _ratio(d_star, d_c)}
+
+
+def ladder_plugin(con, run, rungs: list[tuple[float, int]]) -> dict[int, dict] | None:
+    """Per rung, the plug-in point of the ladder: p, B, K at the pooled
+    elicited medians over EVERY rung's elicitations (the decision is shared,
+    as the CRN draws share them; under a staged protocol every rung returns
+    the group's decision rows, so the pooled median is theirs), s, t, C at
+    the rung's own medians: {sid: {"medians", "EVSI", "EVPI", "EVSI_star",
+    "C"}}; None when a rung lacks a parameter."""
+    labels = db.run_member_labels(run)
+    pid = run["protocol_id"]
+    shared = {}
+    for name in SHARED_PARAMS:
+        p50s = [v for _, sid in rungs for v in db.elicited_p50s(con, pid, sid, name, members=labels)]
+        if not p50s:
+            return None
+        shared[name] = float(np.median(p50s))
+    out = {}
+    for _, sid in rungs:
+        own = {name: pooled_p50(con, pid, sid, name, labels) for name in RUNG_PARAMS}
+        if any(v is None for v in own.values()):
+            return None
+        med = {**shared, **own}
+        evsi, evpi = model.voi(med["p"], med["s"], med["t"], med["B"], med["K"])
+        star = model.voi_fence(med["p"], med["s"], med["t"], med["B"], med["K"])
+        out[sid] = {"medians": med, "EVSI": float(evsi), "EVPI": float(evpi),
+                    "EVSI_star": float(star), "C": med["C"]}
+    return out
 
 
 def level_uplift_analysis(con, run) -> dict:
@@ -494,17 +556,19 @@ def level_uplift_analysis(con, run) -> dict:
     "steps": {group: [step dict with lo/hi ids and levels]}, "skipped":
     {group: reason}} over the run's ladders."""
     ladders, skipped = leveled_rungs(con, run)
-    out = {"rungs": {}, "draws": {}, "steps": {}, "skipped": skipped}
+    out = {"rungs": {}, "draws": {}, "plugin": {}, "steps": {}, "skipped": skipped}
     for g, rungs in ladders.items():
         draws = ladder_draws(con, run, rungs)
-        if draws is None:
+        plug = ladder_plugin(con, run, rungs)
+        if draws is None or plug is None:
             skipped[g] = "a rung has no complete valid elicitations under the run's protocol"
             continue
         steps = []
         for (l0, a), (l1, b) in zip(rungs, rungs[1:], strict=False):
             steps.append({"lo_id": a, "hi_id": b, "lo_level": l0, "hi_level": l1,
-                          **step_stats(draws["rungs"][a], draws["rungs"][b])})
-        out["rungs"][g], out["draws"][g], out["steps"][g] = rungs, draws, steps
+                          **step_stats(draws["rungs"][a], draws["rungs"][b]),
+                          **plugin_step_stats(plug[a], plug[b])})
+        out["rungs"][g], out["draws"][g], out["plugin"][g], out["steps"][g] = rungs, draws, plug, steps
     return out
 
 
@@ -543,16 +607,24 @@ def fig_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
             top.legend(fontsize=6.5, frameon=False, loc="upper left")
         steps = stats[g]
         xs = np.array([(s["lo_level"] + s["hi_level"]) / 2 for s in steps])
-        med = np.array([s["meff"] for s in steps])
-        ok = np.isfinite(med)
-        cheaper = np.array([s["dC_q50"] <= 0.0 for s in steps])
-        bot.plot(xs[ok & ~cheaper], med[ok & ~cheaper], "o", color=ACCENT, ms=4.5, mec="white",
-                 mew=0.4)
-        bot.plot(xs[ok & cheaper], med[ok & cheaper], "o", mfc="white", mec=ACCENT, ms=4.5)
+        # plug-in (differences of the per-rung values at the medians), fence
+        # (dEVSI* over the plug-in dC) and the CRN ratio of medians; a step
+        # whose dC is not positive gets an open marker
+        series = (("meff_plug", "dC_plug", "o", ACCENT, "plug-in", 0.0),
+                  ("meff_star", "dC_plug", "^", CATEGORICAL[2], "fence EVSI*", 0.0),
+                  ("meff", "dC_q50", "s", "#7f7f7f", "CRN median ratio", 0.0))
+        for key, dc_key, marker, color, label, off in series:
+            vals = np.array([s[key] for s in steps])
+            ok = np.isfinite(vals)
+            cheaper = np.array([s[dc_key] <= 0.0 for s in steps])
+            bot.plot(xs[ok & ~cheaper] + off, vals[ok & ~cheaper], marker, color=color, ms=4.5,
+                     mec="white", mew=0.4, label=label if j == 0 else None)
+            bot.plot(xs[ok & cheaper] + off, vals[ok & cheaper], marker, mfc="white", mec=color, ms=4.5)
         for x, s in zip(xs, steps, strict=True):
-            if np.isfinite(s["meff"]):
-                bot.annotate(f"{s['p_pays']:.0%}", (x, s["meff"]), textcoords="offset points",
-                             xytext=(0, 4), ha="center", fontsize=5.5, color="#555555")
+            y = s["meff_plug"] if np.isfinite(s["meff_plug"]) else s["meff"]
+            if np.isfinite(y):
+                bot.annotate(f"{s['p_pays']:.0%}", (x, y), textcoords="offset points",
+                             xytext=(0, 5), ha="center", fontsize=5.5, color="#555555")
         bot.axhline(1.0, color="#555555", lw=0.8, ls="--")
         bot.set_yscale("symlog", linthresh=0.1)
         bot.set_xticks(levels)
@@ -560,10 +632,13 @@ def fig_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
         bot.set_xlabel("level (steps sit between adjacent rungs)", fontsize=8)
         bot.tick_params(labelsize=7)
         if j == 0:
-            bot.set_ylabel(r"median $\Delta$EVSI / median $\Delta C$", fontsize=8)
-    fig.suptitle("Value and cost per rung (top); marginal efficiency per step, labelled with"
-                 " P($\\Delta$EVSI > $\\Delta C$) (bottom); common-random-number draws, one"
-                 " decision per ladder", fontsize=7.5)
+            bot.set_ylabel(r"marginal efficiency $\Delta$EVSI / $\Delta C$", fontsize=8)
+    handles, labels_ = axes[1][0].get_legend_handles_labels()
+    fig.legend(handles, labels_, loc="outside lower center", ncol=3, fontsize=6.5, frameon=False)
+    fig.suptitle("Top: value and cost per rung (CRN draws: median, q05-q95). Bottom: marginal efficiency"
+                 " per step,\nplug-in (dEVSI/dC of the per-rung values at the pooled medians), fence"
+                 " (dEVSI*/dC, EVSI* = (B+K) p (1-p) (s+t-1))\nand the CRN ratio of medians; labels:"
+                 " CRN P(dEVSI > dC); open markers: dC <= 0", fontsize=7)
     fig.savefig(out / "fig_level_uplift.pdf")
     plt.close(fig)
     return True
@@ -573,23 +648,86 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
     stats = level_uplift_stats(con, run, analysis)
     if not stats:
         return False
-    rows = []
+    rows, rows2 = [], []
     for g, steps in stats.items():
         rows.append(r"\multicolumn{8}{@{}l}{\emph{" + esc(g) + "}}")
+        rows2.append(r"\multicolumn{10}{@{}l}{\emph{" + esc(g) + "}}")
         for s in steps:
+            step = (f"{level_label(s['lo_level'])}$\\to${level_label(s['hi_level'])} &"
+                    f" {s['lo_id']}$\\to${s['hi_id']}")
             rows.append(
-                f"{level_label(s['lo_level'])}$\\to${level_label(s['hi_level'])} &"
-                f" {s['lo_id']}$\\to${s['hi_id']} & {money(s['dEVSI_q50'])} & {money(s['dC_q50'])} &"
+                f"{step} & {money(s['dEVSI_q50'])} & {money(s['dC_q50'])} &"
                 f" {num(s['meff'])} & {pct(s['p_dc_pos'])} & {pct(s['p_gain'])} & {pct(s['p_pays'])}")
+            rows2.append(
+                f"{step} & {money(s['dEVSI_mean'])} & {money(s['dC_mean'])} & {num(s['meff_mean'])} &"
+                f" {money(s['dEVSI_plug'])} & {money(s['dC_plug'])} & {num(s['meff_plug'])} &"
+                f" {money(s['dEVSI_star'])} & {num(s['meff_star'])}")
     header = (r"step & ids & $\Delta$EVSI & $\Delta C$ & $\Delta$EVSI/$\Delta C$ &"
               r" $P(\Delta C>0)$ & $P(\Delta\mathrm{EVSI}>0)$ & $P(\Delta\mathrm{EVSI}>\Delta C)$")
-    _write(out, "level_uplift.tex", tabular(
+    crn = tabular(
         "@{}llrrrrrr@{}", header, rows,
         "adjacent-rung marginals within one decision (ladders: groups whose rungs share the"
         f" agent, decision and theta text) over {run['n_draws']} common-random-number draws"
         f" seeded like run {run['id']} (p, B, K drawn once per ladder from the pooled rung"
         " fits, s, t, C per rung; not the stored run's draws); medians of dEVSI and dC,"
-        " dEVSI/dC is the ratio of those medians"))
+        " dEVSI/dC is the ratio of those medians")
+    header2 = (r"step & ids & $\overline{\Delta\mathrm{EVSI}}$ & $\overline{\Delta C}$ &"
+               r" $\overline{\Delta\mathrm{EVSI}}/\overline{\Delta C}$ &"
+               r" $\Delta$EVSI$_\mathrm{pi}$ & $\Delta C_\mathrm{pi}$ &"
+               r" $\Delta$EVSI$_\mathrm{pi}/\Delta C_\mathrm{pi}$ &"
+               r" $\Delta$EVSI$^\star$ & $\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$")
+    other = tabular(
+        "@{}llrrrrrrrr@{}", header2, rows2,
+        "the same steps by three other statistics: mean-based (means of dEVSI and dC over the"
+        " same common-random-number draws and their ratio), plug-in (pi: differences of the"
+        " per-rung values at the pooled medians, p, B, K pooled over the ladder, s, t, C per"
+        " rung, EVSI from model.voi, C the rung's median) and fence (differences of the"
+        " per-rung EVSI* = (B + K) p (1 - p) (s + t - 1) at the same medians, over the"
+        " plug-in dC)")
+    _write(out, "level_uplift.tex", crn + "\\par\\medskip\n" + other)
+    return True
+
+
+def fig_level_fence(con, run, out: Path) -> bool:
+    """Per group of leveled scenarios ranked in the run: the fence value
+    EVSI*, the plug-in EVSI and C, each at the scenario's own pooled
+    medians, against the level (log y). Skipped without a leveled ranked
+    scenario with a complete plug-in point."""
+    levels = scenario_levels(con)
+    groups = scenario_groups(con)
+    order = [s for s in ranked_ids(con, run["id"]) if s in levels]
+    pts = {s: plugin_point(con, run, s) for s in order}
+    order = [s for s in order if pts[s] is not None]
+    if not order:
+        return False
+    names = sorted({groups[s] or "(no group)" for s in order})
+    fig, axes = plt.subplots(1, len(names), figsize=(min(6.2, 3.3 * len(names)), 2.9),
+                             squeeze=False, sharey=True)
+    series = (("EVSI_star", "^", CATEGORICAL[2], "EVSI* (fence)"), ("EVSI", "o", ACCENT, "EVSI (plug-in)"),
+              ("C", "s", CATEGORICAL[1], "C"))
+    for ax, g in zip(axes[0], names, strict=True):
+        sids = sorted((s for s in order if (groups[s] or "(no group)") == g), key=lambda s: (levels[s], s))
+        x = np.array([levels[s] for s in sids])
+        for key, marker, color, label in series:
+            y = np.array([pts[s][key] for s in sids], dtype=float)
+            floored = y < EVSI_FLOOR
+            y = np.maximum(y, EVSI_FLOOR)
+            ax.plot(x[~floored], y[~floored], marker, color=color, ms=4.5, mec="white", mew=0.4,
+                    label=label if g == names[0] else None, ls="-", lw=0.7, alpha=0.9)
+            ax.plot(x[floored], y[floored], marker, mfc="white", mec=color, ms=4.5)
+        ax.set_yscale("log")
+        ax.set_title(g, fontsize=9)
+        ax.set_xticks(sorted(set(x)))
+        ax.set_xticklabels([level_label(lv) for lv in sorted(set(x))])
+        ax.set_xlabel("level", fontsize=8)
+        ax.tick_params(labelsize=7)
+    axes[0][0].set_ylabel("USD at the pooled medians", fontsize=8)
+    axes[0][0].legend(fontsize=6, frameon=False, loc="best")
+    fig.suptitle("Fence value EVSI* = (B+K) p (1-p) (s+t-1), plug-in EVSI and cost C at each scenario's"
+                 f" pooled medians,\nagainst its level (open markers: below {EVSI_FLOOR:g} USD)",
+                 fontsize=7.5)
+    fig.savefig(out / "fig_level_fence.pdf")
+    plt.close(fig)
     return True
 
 
@@ -1326,9 +1464,12 @@ def plugin_point(con, run, sid: int) -> dict | None:
     if any(v is None for v in med.values()):
         return None
     evsi, evpi = model.voi(med["p"], med["s"], med["t"], med["B"], med["K"])
+    star = float(model.voi_fence(med["p"], med["s"], med["t"], med["B"], med["K"]))
     return {"medians": med, "EVSI": float(evsi), "EVPI": float(evpi),
             "eff": float(evsi) / med["C"],
-            "regime": gate_regime(med["p"], med["s"], med["t"], med["B"], med["K"])}
+            "regime": gate_regime(med["p"], med["s"], med["t"], med["B"], med["K"]),
+            "EVSI_star": star, "eff_star": star / med["C"], "C": med["C"],
+            "fence_ratio": (float(evsi) / star if star > 0.0 else float("nan")) if evsi > 0.0 else 0.0}
 
 
 def replay_run(con, run) -> tuple[dict[int, dict[str, float]] | None, str | None]:
@@ -1395,6 +1536,9 @@ def plugin_analysis(con, run) -> tuple[dict | None, str | None]:
     k = min(TOP_N_PLUGIN, len(rows))
     plug = {r["sid"]: r["eff"] for r in rows}
     top_plugin = sorted(plug, key=lambda s: (-plug[s], s))[:k]
+    star = {r["sid"]: r["eff_star"] for r in rows}
+    top_star = sorted(star, key=lambda s: (-star[s], s))[:k]
+    positive = [r for r in rows if r["EVSI"] > 0.0]
     return {
         "rows": rows,
         "rho_plugin_median": rho("eff", "mc_median"),
@@ -1403,6 +1547,12 @@ def plugin_analysis(con, run) -> tuple[dict | None, str | None]:
         "n_gate": sum(1 for r in rows if r["regime"] == "in gate"),
         "n_zero_median": sum(1 for s in order if float(evsi[s]["q50"] or 0.0) == 0.0),
         "top_k": k, "top_overlap": len(set(order[:k]) & set(top_plugin)),
+        # the fence ranking against the plug-in one: Spearman over the scenarios inside the
+        # gate at the medians (EVSI > 0; outside it the plug-in eff is 0 and ranks nothing)
+        "fence_rho": (spearman([r["eff_star"] for r in positive], [r["eff"] for r in positive])
+                      if len(positive) >= 3 else None),
+        "fence_n": len(positive),
+        "fence_top_overlap": len(set(top_plugin) & set(top_star)),
     }, None
 
 
@@ -1463,32 +1613,40 @@ def write_plugin(con, run, out: Path, st: dict | None = None) -> bool:
     for r in st["rows"]:
         rows.append(
             f"{r['rank']} & {r['sid']} & {money(r['medians']['C'])} & {money(r['EVSI'])} &"
-            f" {money(r['EVPI'])} & {num(r['eff'])} & {REGIME_CELL[r['regime']]} &"
+            f" {money(r['EVPI'])} & {money(r['EVSI_star'])} & {num(r['eff'])} & {num(r['eff_star'])} &"
+            f" {num(r['fence_ratio'], '{:.2f}')} & {REGIME_CELL[r['regime']]} &"
             f" {num(r['mc_median'])} & {num(r['mc_mean'])} & {pct(r['p_positive'])} & {pct(r['p_gate'])}")
-    header = (r"rank & id & $C$ & EVSI & EVPI & eff & regime & $\mathrm{eff}_{q50}$ &"
-              r" $\overline{\mathrm{eff}}$ & $P_+$ & $P_\mathrm{gate}$")
+    header = (r"rank & id & $C$ & EVSI & EVPI & EVSI$^\star$ & eff & eff$^\star$ & EVSI/EVSI$^\star$ &"
+              r" regime & $\mathrm{eff}_{q50}$ & $\overline{\mathrm{eff}}$ & $P_+$ & $P_\mathrm{gate}$")
     table = longtable(
-        "@{}rrrrrrlrrrr@{}", header, rows,
+        "@{}rrrrrrrrrlrrrr@{}", header, rows,
         r"Plug-in vs Monte Carlo per scenario, in the order of the run's median efficiency (rank)."
         r" EVSI, EVPI and eff $=$ EVSI$/C$ are \texttt{model.voi} at the pooled elicited medians"
         r" of $p$, $s$, $t$, $B$, $K$ (the catalog's values) and $C$ (median of the p50 across"
         r" valid elicitations, printed here because the catalog's $C$ is the run's mixture"
-        r" median). Regime at the medians from $\pi^* = K/(B+K)$ against the posteriors"
+        r" median). EVSI$^\star = (B+K)\,p(1-p)(s+t-1)$ at the same medians is the fence value,"
+        r" the maximum of EVSI over the threshold $\pi^*$ at fixed stakes (the buyer on the"
+        r" fence, $\pi^* = p$); eff$^\star = $ EVSI$^\star/C$; EVSI/EVSI$^\star$ is the share of"
+        r" it this buyer obtains (0 outside the gate)."
+        r" Regime at the medians from $\pi^* = K/(B+K)$ against the posteriors"
         r" $\pi_1$, $\pi_0$: gate ($\pi^*$ strictly between them, EVSI $>$ 0), always / never"
         r" respond (both posteriors at or above / below $\pi^*$, EVSI $=$ 0)."
         r" $\mathrm{eff}_{q50}$: the run's stored median efficiency; $\overline{\mathrm{eff}}$:"
         f" the mean over the {run['n_draws']} draws of run {run['id']}, replayed from the DB and"
         r" verified against the stored quantiles; $P_+ = P(\mathrm{EVSI} > C)$ stored by the run;"
         r" $P_\mathrm{gate} = P(\mathrm{EVSI} > 0)$ over the replayed draws. USD in $B$, $K$, $C$,"
-        r" EVSI, EVPI.", "tab:plugin")
+        r" EVSI, EVPI, EVSI$^\star$.", "tab:plugin")
     summary = tabular("@{}lr@{}", "statistic & value", [
         r"Spearman $\rho$(plug-in eff, MC median eff) & " + num(st["rho_plugin_median"], "{:.2f}"),
         r"Spearman $\rho$(plug-in eff, MC mean eff) & " + num(st["rho_plugin_mean"], "{:.2f}"),
         r"Spearman $\rho$(MC median eff, MC mean eff) & " + num(st["rho_median_mean"], "{:.2f}"),
+        r"Spearman $\rho$(fence eff$^\star$, plug-in eff), EVSI $>$ 0 & "
+        + num(st["fence_rho"], "{:.2f}") + f" ($n$={st['fence_n']})",
         f"scenarios in gate at the medians & {st['n_gate']} / {len(st['rows'])}",
         f"scenarios with MC median EVSI $= 0$ & {st['n_zero_median']} / {len(st['rows'])}",
         f"top-{st['top_k']} overlap, plug-in vs MC median & {st['top_overlap']} / {st['top_k']}",
-    ], "plug-in vs Monte Carlo rankings over the efficiencies of the table above")
+        f"top-{st['top_k']} overlap, fence vs plug-in & {st['fence_top_overlap']} / {st['top_k']}",
+    ], "plug-in, fence and Monte Carlo rankings over the efficiencies of the table above")
     _write(out, "plugin.tex", table + "\\par\\medskip\n" + summary)
     write_macros(out, {
         "voiPluginRhoMedian": num(st["rho_plugin_median"], "{:.2f}"),
@@ -1498,6 +1656,9 @@ def write_plugin(con, run, out: Path, st: dict | None = None) -> bool:
         "voiMcZeroMedian": st["n_zero_median"],
         "voiPluginTopK": st["top_k"],
         "voiPluginTopOverlap": st["top_overlap"],
+        "voiFenceRhoPlugin": num(st["fence_rho"], "{:.2f}"),
+        "voiFenceN": st["fence_n"],
+        "voiFenceTopOverlap": st["fence_top_overlap"],
     }, merge=True)
     return True
 
@@ -1508,7 +1669,7 @@ def write_plugin(con, run, out: Path, st: dict | None = None) -> bool:
 # dispersion of p, s, t, B, K, C; per-member re-draws through model.voi; the
 # EVPI/C ranking; the plug-in point through model.voi): a Gaussian run skips
 # them with a printed reason
-BINARY_ONLY = ("level_uplift", "consistency", "member_agreement", "simplicity", "plugin")
+BINARY_ONLY = ("level_uplift", "level_fence", "consistency", "member_agreement", "simplicity", "plugin")
 
 
 def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[str, str]:
@@ -1524,6 +1685,8 @@ def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[st
     reasons = {f"level_uplift ({g})": why for g, why in uplift["skipped"].items()}
     if not uplift["steps"]:
         reasons["level_uplift"] = "no ladder (a group of >= 2 ranked levels sharing one decision text)"
+    if not any(s in scenario_levels(con) for s in ranked_ids(con, run["id"])):
+        reasons["level_fence"] = "no ranked scenario carries a numeric attributes.level"
     stats, cskipped = consistency_analysis(con, run)
     reasons.update({f"consistency ({g})": why for g, why in cskipped.items()})
     if not stats:
@@ -1561,6 +1724,7 @@ def make_all(con, run, out: Path) -> tuple[list[str], list[str]]:
     plan = [
         ("level_uplift", lambda: binary and fig_level_uplift(con, run, out, uplift)
          and write_level_uplift(con, run, out, uplift)),
+        ("level_fence", lambda: binary and fig_level_fence(con, run, out)),
         ("consistency", lambda: binary and fig_within_group_consistency(con, run, out)
          and write_consistency(con, run, out)),
         ("domain_map", lambda: fig_domain_map(con, run, out) and write_domain_summary(con, run, out)),
