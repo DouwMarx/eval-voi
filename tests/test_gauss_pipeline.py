@@ -19,7 +19,8 @@ import yaml
 
 from voi_rank import db, elicit, gaussian, mc
 from voi_rank.analysis import compare_models, extra, figures, health, tables
-from voi_rank.fit import GAUSS_PARAM_NAMES, PARAM_NAMES
+from voi_rank.fit import GAUSS_PARAM_NAMES, GAUSS_SPREAD_SCALE, PARAM_NAMES
+from voi_rank.sensitivity import repeat_spread
 from voi_rank.study import Study
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -204,6 +205,34 @@ def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeyp
     assert np.array_equal(mc.sample_mixture(np.random.default_rng(0), fits[1]["g_d"][:1], 3),
                           np.full(3, fits[1]["g_d"][0]["params"]["value"]))
     assert "p" not in fits[1] and db.scenario_param_fits(con, prot["id"], PARAM_NAMES)[1].keys() == {"C"}
+    # cross-repeat noise: one rule (fit.GAUSS_SPREAD_SCALE through db.elicited_spread) for every
+    # noise statistic: d and sigma_b/sigma0 as a plain max - min, mu0 in units of the pooled
+    # sigma0, the rest relative to their own pooled p50
+    pid = prot["id"]
+    for sid in (1, 2, 3, 4):
+        d_p50s = db.elicited_p50s(con, pid, sid, "g_d")
+        assert len(d_p50s) == 5
+        assert db.elicited_spread(con, pid, sid, "g_d") == pytest.approx(max(d_p50s) - min(d_p50s))
+        sb = db.elicited_p50s(con, pid, sid, "g_sigma_b_rel")
+        assert db.elicited_spread(con, pid, sid, "g_sigma_b_rel") == pytest.approx(max(sb) - min(sb))
+        mu = db.elicited_p50s(con, pid, sid, "g_mu0")
+        sig = np.median(db.elicited_p50s(con, pid, sid, "g_sigma0"))
+        assert db.elicited_spread(con, pid, sid, "g_mu0") == pytest.approx((max(mu) - min(mu)) / sig)
+        for name in ("g_x", "g_L", "C"):
+            p50s = db.elicited_p50s(con, pid, sid, name)
+            assert db.elicited_spread(con, pid, sid, name) == pytest.approx(repeat_spread(p50s))
+            assert db.elicited_spread(con, pid, sid, name) == pytest.approx(
+                (max(p50s) - min(p50s)) / np.median(p50s))
+    d_p50s = db.elicited_p50s(con, pid, 1, "g_d")
+    assert repeat_spread(d_p50s) != pytest.approx(max(d_p50s) - min(d_p50s))   # the old relative rule differs
+    member = ("claude_cli", "haiku")
+    assert db.elicited_spread(con, pid, 1, "g_d", *member, first=2) == pytest.approx(
+        max(d_p50s[:2]) - min(d_p50s[:2]))
+    assert db.elicited_spread(con, pid, 1, "g_d", *member, first=1) is None
+    assert set(GAUSS_SPREAD_SCALE) == {"g_d", "g_sigma_b_rel", "g_mu0"}
+    assert tables.noise_median(con, pid, "g_d") == pytest.approx(float(np.median(
+        [db.elicited_spread(con, pid, s, "g_d") for s in (1, 2, 3, 4)])))
+    assert health.noise_table(con, pid)["g_d"][0] == pytest.approx(tables.noise_median(con, pid, "g_d"))
 
     run_id = mc.run_mc(con, "g001", seed=1, n_draws=2000, quiet=True)
     metrics = {r[0] for r in con.execute("SELECT DISTINCT metric FROM results WHERE run_id=?", (run_id,))}
@@ -240,7 +269,12 @@ def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeyp
     assert r"\newcommand{\voiModelKind}{gaussian}" in macros
     assert r"\voiNoiseGD}" in macros and r"\voiGlobalGX}" in macros and r"\voiNoiseP}" not in macros
     noise = (study.generated_dir / "protocol_noise.tex").read_text()
-    assert "protocol & g001" in noise and r"$\sigma_b/\sigma_0$" in noise
+    assert "protocol & g001" in noise and r"$\sigma_b/\sigma_0$ (max $-$ min, sd units) &" in noise
+    assert r"$d$ (max $-$ min, sd units) &" in noise and r"$\mu_0$ (max $-$ min, sd units) &" in noise
+    assert r"$x$ &" in noise and "$x$ (max" not in noise
+    d_row = [ln for ln in noise.splitlines() if ln.startswith("$d$ ")][0]
+    d_cell = tables.noise_median(con, pid, "g_d", first=tables.MATCHED_K, member=db.protocol_members(prot)[0])
+    assert float(d_row.split("&")[1].replace("\\\\", "")) == pytest.approx(d_cell, abs=0.005)
     capsys.readouterr()
     written, skipped = extra.make_all(con, run, study.generated_dir)
     out = capsys.readouterr().out
@@ -251,7 +285,7 @@ def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeyp
     health.health(con, "g001")
     out = capsys.readouterr().out
     assert "fit warnings:" in out and "scenarios with median EVSI_step ~ 0" in out
-    assert "g_d:" in out and "g_x:" in out
+    assert "g_d (max - min, sd units):" in out and "g_x:" in out and "g_x (max" not in out
     con.close()
     # the analysis CLIs select the latest g001 run
     figures.main(["--study", str(study.root), "--protocol", "g001"])
@@ -321,7 +355,11 @@ def test_compare_models_on_a_study_with_both_runs(tmp_path, monkeypatch, capsys)
     assert "binary & stepfix &" in cmp_tex and "quad & kg &" in cmp_tex
     assert "stepfix median EVSI $= 0$" in cmp_tex
     cons = (study.generated_dir / "consistency_gauss.tex").read_text()
-    assert "route spread" in cons and "consistency score" in cons
+    assert "route spread" in cons and "consistency score" in cons and "max - min in sd units for $d$" in cons
+    con = study.connect()
+    res = compare_models.residual_stats(con, db.get_run(con, g_run))
+    assert res["g_d"]["n_spread"] == 8 and res["g_x"]["n_spread"] == 8
+    con.close()
     # the wrong kinds are refused
     with pytest.raises(RuntimeError, match="is a gaussian protocol; --binary needs a binary one"):
         compare_models.main(["--study", str(study.root), "--binary", "g001", "--gaussian", "p001"])

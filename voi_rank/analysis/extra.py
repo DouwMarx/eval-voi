@@ -68,7 +68,7 @@ import numpy as np  # noqa: E402
 
 from voi_rank import db, model  # noqa: E402
 from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
-from voi_rank.sensitivity import repeat_spread, spearman  # noqa: E402
+from voi_rank.sensitivity import spearman  # noqa: E402
 from voi_rank.study import Study, add_study_arg  # noqa: E402
 
 # --- style (mirrors figures.py) --------------------------------------------
@@ -1084,9 +1084,8 @@ def member_noise(con, protocol_id: int, member: dict, first: int | None) -> tupl
         " AND provider=? AND model=?", (protocol_id, member["provider"], member["model"]))]
     med, n = {}, 0
     for name in db.PARAM_NAMES:
-        spreads = [sp for sid in sids if (sp := repeat_spread(db.elicited_p50s(
-            con, protocol_id, sid, name, member["provider"], member["model"], first)))
-            is not None]
+        spreads = [sp for sid in sids if (sp := db.elicited_spread(
+            con, protocol_id, sid, name, member["provider"], member["model"], first)) is not None]
         med[name] = float(np.median(spreads)) if spreads else None
         n = max(n, len(spreads))
     return med, n

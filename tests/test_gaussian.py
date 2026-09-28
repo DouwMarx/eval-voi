@@ -6,7 +6,7 @@ import copy
 
 import numpy as np
 import pytest
-from scipy import integrate, stats
+from scipy import integrate, optimize, stats
 
 from voi_rank import gauss_fit, model
 from voi_rank import gaussian as g
@@ -36,11 +36,20 @@ def step_bruteforce(d, R2, B, K):
     return val - float(model.value_of_acting(stats.norm.cdf(d), B, K))
 
 
-def act_at_mean_loss(sigma, k, c_minus, c_plus):
-    """Expected loss of acting at the mean of a N(., sigma^2) belief under the
-    loss c_- |a - theta|^k (a < theta) / c_+ |a - theta|^k (a > theta)."""
-    f = lambda z: (c_plus if z < 0 else c_minus) * abs(sigma * z) ** k * stats.norm.pdf(z)  # noqa: E731
-    return integrate.quad(f, -np.inf, 0)[0] + integrate.quad(f, 0, np.inf)[0]
+def expected_loss_at(m, sigma, k, c_minus, c_plus):
+    """Expected loss of acting m sd above the mean of a N(., sigma^2) belief
+    under the loss c_- |a - theta|^k (a < theta) / c_+ |a - theta|^k (a > theta),
+    by quadrature over z."""
+    f = lambda z: (c_plus if z < m else c_minus) * abs(sigma * (z - m)) ** k * stats.norm.pdf(z)  # noqa: E731
+    return integrate.quad(f, -np.inf, m)[0] + integrate.quad(f, m, np.inf)[0]
+
+
+def min_loss(sigma, k, c_minus, c_plus):
+    """(minimal expected loss, optimal shift m* in sd units): the chapter's
+    c_k sigma^k, by an independent scalar minimisation of the quadrature."""
+    res = optimize.minimize_scalar(expected_loss_at, bounds=(-8, 8), args=(sigma, k, c_minus, c_plus),
+                                   method="bounded", options={"xatol": 1e-9})
+    return res.fun, res.x
 
 
 # --- closed forms vs numerics ---------------------------------------------------
@@ -68,24 +77,62 @@ def test_bvn_cdf_matches_scipy_including_edges():
 
 
 def test_quad_closed_form_vs_numerical_integration():
-    """EVSI = L (1 - (1 - R^2)^(k/2)) with L the expected loss of acting at
-    the prior mean (eq. lossfamily), for symmetric and asymmetric costs."""
+    """EVSI = L (1 - (1 - R^2)^(k/2)) with L = c_k sigma0^k the MINIMAL expected
+    loss under the prior (eq. lossfamily): the optimal action shifts by the
+    same multiple of sigma before and after the measurement, so the identity
+    is exact for asymmetric costs too, and min_expected_loss (the fit's L,
+    from L1m = c_- sigma0^k, L1p = c_+ sigma0^k) equals the independent
+    quadrature-plus-minimiser reference."""
     for k in (0.7, 1.0, 2.0, 3.5):
-        for c_minus, c_plus in ((1.0, 1.0), (3.0, 0.5)):
+        for c_minus, c_plus in ((1.0, 1.0), (3.0, 0.5), (100.0, 1.0)):
+            sigma0 = 1.7
+            L, shift = min_loss(sigma0, k, c_minus, c_plus)
+            fit_L, fit_shift = g.min_expected_loss(k, c_minus * sigma0**k, c_plus * sigma0**k)
+            assert fit_L == pytest.approx(L, rel=1e-7) and fit_shift == pytest.approx(shift, abs=1e-5)
             for R2 in (0.1, 0.6, 0.95):
-                sigma0 = 1.7
-                L = act_at_mean_loss(sigma0, k, c_minus, c_plus)
-                after = act_at_mean_loss(sigma0 * np.sqrt(1 - R2), k, c_minus, c_plus)
+                after, shift1 = min_loss(sigma0 * np.sqrt(1 - R2), k, c_minus, c_plus)
+                assert shift1 == pytest.approx(shift, abs=1e-5)           # the shift is scale-free
                 evsi, evpi = g.voi_quad(L, R2, k)
-                assert float(evsi) == pytest.approx(L - after, rel=1e-8)
+                assert float(evsi) == pytest.approx(L - after, rel=1e-7)
                 assert float(evpi) == pytest.approx(L)
-    # E|z|^k against direct integration (used by the fit for L)
+    # E|z|^k against direct integration
     def abs_pow(z, k):
         return abs(z) ** k * stats.norm.pdf(z)
 
     for k in (0.5, 1.0, 2.0, 3.5, 4.0):
         mom = integrate.quad(abs_pow, -np.inf, np.inf, args=(k,))[0]
         assert float(g.abs_moment(k)) == pytest.approx(mom, rel=1e-9)
+
+
+def test_partial_moment_and_minimal_loss():
+    """M_k(delta) = E[(z - delta)^+^k] by the parabolic cylinder function against
+    quadrature; the minimal loss reduces to the act-at-the-mean loss only for
+    symmetric costs, is below it otherwise, and at k = 1 the optimal shift is
+    the newsvendor quantile Phi^-1(c_- / (c_- + c_+))."""
+    def m_quad(k, delta):
+        return integrate.quad(lambda z: (z - delta) ** k * stats.norm.pdf(z), delta, np.inf,
+                              epsabs=0, epsrel=1e-13)[0]
+
+    for k in (0.5, 0.7, 1.0, 2.0, 3.0, 4.0):
+        for delta in np.linspace(-6, 5, 23):
+            ref = m_quad(k, delta)
+            if ref > 1e-10:
+                assert float(g.partial_moment(k, delta)) == pytest.approx(ref, rel=1e-8)
+        assert float(g.partial_moment(k, 0.0)) == pytest.approx(0.5 * float(g.abs_moment(k)), rel=1e-12)
+        L, shift = g.min_expected_loss(k, 7.0, 7.0)
+        assert shift == pytest.approx(0.0, abs=1e-6)
+        assert L == pytest.approx(7.0 * float(g.abs_moment(k)), rel=1e-12)
+        L_asym, shift_asym = g.min_expected_loss(k, 7.0, 1.0)
+        assert shift_asym > 0.3                                  # under-response costlier: act higher
+        assert L_asym < 4.0 * float(g.abs_moment(k))             # and below the act-at-the-mean loss
+        assert g.min_expected_loss(k, 1.0, 7.0)[1] == pytest.approx(-shift_asym, abs=1e-6)
+    assert g.partial_moment(np.array([0.5, 4.0]), np.array([[-3.0], [12.0]])).shape == (2, 2)
+    assert np.all(np.isfinite(g.partial_moment(4.0, np.array([-g.LOSS_SHIFT_BOUND, g.LOSS_SHIFT_BOUND]))))
+    for cm, cp in ((3.0, 1.0), (100.0, 1.0), (1.0, 9.0)):
+        assert g.min_expected_loss(1.0, cm, cp)[1] == pytest.approx(stats.norm.ppf(cm / (cm + cp)), abs=1e-6)
+    # the anchors of the Gaussian template (independent reference: quad + minimiser)
+    assert g.min_expected_loss(2.0, 30000.0, 4000.0)[0] == pytest.approx(9567.35, rel=1e-5)
+    assert g.min_expected_loss(2.0, 120.0, 40.0)[0] == pytest.approx(66.504, rel=1e-4)
 
 
 def test_kg_matches_monte_carlo_of_the_preposterior_mean():
@@ -118,20 +165,25 @@ def test_kg_limits_and_identities():
 
 def test_step_matches_brute_force_integration_over_y():
     """The stored EVSI_step (exact cutoff route) reproduces the integral over
-    y and the posterior to 1e-8 Lambda; the design's 64-node Gauss-Hermite
-    quadrature agrees only where the sensor is coarse and misses up to a few
-    percent of Lambda as R^2 -> 1 (why it is not the stored metric)."""
-    worst_exact, worst_gh = 0.0, {}
+    y and the posterior to 1e-8 Lambda, including at the d where the
+    quadrature peaks; the design's 64-node Gauss-Hermite quadrature agrees
+    only where the sensor is coarse and misses 1.8e-3 / 1.6e-2 / 4.3e-2 Lambda
+    at R^2 = 0.9 / 0.99 / 0.999 (the numbers the docs quote; measured against
+    the exact route on a 0.01 grid in d, since the error is spiky in d and a
+    coarse grid understates it)."""
+    worst_exact = 0.0
     for R2 in (0.05, 0.3, 0.6, 0.9, 0.99, 0.999):
-        for d in np.linspace(-4, 4, 33):
+        for d in list(np.linspace(-4, 4, 33)) + [0.10, -0.65]:
             ref = step_bruteforce(d, R2, B, K)
-            exact = float(g.voi_step(d, R2, B, K)[0])
-            gh = float(g.voi_step_gh(d, R2, B, K)[0])
-            worst_exact = max(worst_exact, abs(exact - ref) / LAMBDA)
-            worst_gh[R2] = max(worst_gh.get(R2, 0.0), abs(gh - ref) / LAMBDA)
+            worst_exact = max(worst_exact, abs(float(g.voi_step(d, R2, B, K)[0]) - ref) / LAMBDA)
     assert worst_exact < 1e-8
-    assert worst_gh[0.3] < 1e-3 and worst_gh[0.9] < 3e-3     # the quadrature is fine for coarse sensors
-    assert worst_gh[0.999] > 1e-2                              # and off by > 1% of Lambda for a sharp one
+    d = np.arange(-4.0, 4.0 + 1e-9, 0.01)
+    worst_gh = {R2: float(np.max(np.abs(g.voi_step_gh(d, R2, B, K)[0] - g.voi_step(d, R2, B, K)[0])) / LAMBDA)
+                for R2 in (0.3, 0.9, 0.99, 0.999)}
+    assert worst_gh[0.3] < 1e-3                                # the quadrature is fine for coarse sensors
+    assert 1.5e-3 < worst_gh[0.9] < 2e-3
+    assert 1.5e-2 < worst_gh[0.99] < 1.7e-2
+    assert 4e-2 < worst_gh[0.999] < 4.5e-2                     # almost all of the value near d = -0.6
 
 
 def test_stepfix_equals_binary_model_at_derived_st():
@@ -244,7 +296,9 @@ def test_fit_on_consistent_answers_has_small_residuals_and_no_warnings():
     assert v["g_d"] == pytest.approx(-1.40, abs=0.01)
     assert stats.norm.cdf(v["g_d"]) == pytest.approx(0.08, abs=0.002)   # p = Phi(d) is the anchor p
     assert v["g_x"] == pytest.approx(0.40, abs=0.01) and set(der["routes"]) == {"a", "b", "c"}
-    assert v["g_k"] == 2.0 and v["g_L"] == pytest.approx(0.5 * (30000 + 4000))
+    assert v["g_x"] == pytest.approx(float(np.exp(np.median(list(der["routes"].values())))))
+    assert v["g_k"] == 2.0 and v["g_L"] == pytest.approx(min_loss(1.0, 2.0, 30000, 4000)[0], rel=1e-7)
+    assert v["g_L"] < 0.5 * (30000 + 4000) and der["shift"] == pytest.approx(0.792, abs=0.001)
     assert v["g_sigma_b_rel"] == pytest.approx(0.3 / v["g_sigma0"])
     assert res["g_x"] < 0.05 and res["g_d"] < 0.01 and res["g_k"] == 0.0 and res["g_mu0"] < 0.05
     assert not any(warn.values()) and der["notes"] == []
@@ -258,6 +312,7 @@ def test_fit_on_consistent_answers_has_small_residuals_and_no_warnings():
             assert rows[name]["p5"] == rows[name]["p50"] == rows[name]["p95"] == v[name]
     assert rows["g_mu0"]["unit"] == "mm/s" and rows["g_d"]["unit"] == "dimensionless"
     assert rows["g_L"]["unit"] == "USD" and "state: bearing-fault" in rows["g_sigma0"]["reasoning"]
+    assert rows["g_L"]["reasoning"].startswith("optimal action shift +0.79 sigma0 | loss:")
     assert gauss_fit.consistency_score({n: fits[n].residual for n in fits if n != "C"}) < 0.25
 
 
@@ -273,14 +328,28 @@ def test_fit_residuals_and_warnings_on_inconsistent_answers():
     assert der["residuals"]["g_d"] == pytest.approx(abs(0.40 - stats.norm.cdf(d_a)))
     assert der["values"]["g_d"] == pytest.approx(0.5 * (d_a + stats.norm.ppf(0.40)))
     assert der["warnings"]["g_d"]
-    # Q3 routes disagree
+    # Q3 routes disagree: x is the median of the three log routes, so the outlier route a
+    # does not move it; the std of the logs is the residual
     der = derive(set_in(base, ("answers", "W_rr", "value"), 3.0))
     assert der["residuals"]["g_x"] > 0.5 and der["warnings"]["g_x"]
-    assert der["values"]["g_x"] == pytest.approx(float(np.exp(np.mean(list(der["routes"].values())))))
-    # Q3c beyond what a Gaussian sensor can do: the route is dropped with a warning
+    logs = sorted(der["routes"].values())
+    assert der["values"]["g_x"] == pytest.approx(float(np.exp(logs[1])))
+    assert der["values"]["g_x"] == pytest.approx(0.40, abs=0.02)        # not exp(mean) = 0.6
+    assert der["residuals"]["g_x"] == pytest.approx(float(np.std(logs)))
+    # Q3c beyond what a Gaussian sensor can do: the route is dropped with a warning; the
+    # drop point is 0.40 (0.4108 is the bound, and the last 0.01 no longer resolves x)
     der = derive(set_in(base, ("answers", "c_move", "value"), 0.6))
     assert set(der["routes"]) == {"a", "b"} and der["warnings"]["g_x"]
-    assert any("Q3c dropped" in n for n in der["notes"])
+    assert any("Q3c dropped" in n and "0.4108" in n for n in der["notes"])
+    assert der["values"]["g_x"] == pytest.approx(float(np.exp(np.mean(list(der["routes"].values())))))
+    assert gauss_fit.C_MOVE_MAX == pytest.approx(2 * (1 - stats.norm.cdf(g.Z95 / 2)))
+    assert "c" not in gauss_fit.x_routes(1.0, 0.95, 1.25, 0.405)
+    assert "c" not in gauss_fit.x_routes(1.0, 0.95, 1.25, 0.41)
+    routes = gauss_fit.x_routes(1.0, 0.95, 1.25, 0.40)
+    assert "c" in routes and np.exp(routes["c"]) == pytest.approx(0.22, abs=0.01)
+    # a coarse c at the drop point cannot drag x: the median keeps the two agreeing routes
+    der = derive(set_in(base, ("answers", "c_move", "value"), 0.40))
+    assert der["values"]["g_x"] == pytest.approx(0.40, abs=0.01)
     # Q4: the two sides disagree on the exponent; k is their mean
     der = derive(set_in(base, ("answers", "loss", "L2p"), 64000))
     assert der["values"]["g_k"] == 3.0 and der["residuals"]["g_k"] == 2.0

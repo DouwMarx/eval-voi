@@ -16,8 +16,9 @@ protocol, writes to <study>/report/generated/:
   quantity (theta asymmetry, d mismatch, x route spread, k mismatch) over the
   Gaussian protocol's valid elicitations, the fraction flagged, and their
   Spearman with the cross-repeat spread of the corresponding quantity
-  (per-scenario median residual vs (max - min) / pooled p50 of the quantity's
-  repeat values; absolute max - min for d, which crosses zero).
+  (per-scenario median residual vs db.elicited_spread of the quantity: (max -
+  min) / pooled p50 of the repeat values, or max - min for d, which crosses
+  zero, as everywhere else).
 - macros_compare.tex: \\voiGaussRhoQuad, \\voiGaussRhoKg, \\voiGaussRhoStep,
   \\voiGaussRhoStepfix, \\voiGaussTopOverlapStepfix, \\voiGaussRhoP, \\voiGaussRhoS,
   \\voiGaussRhoT, \\voiGaussGateAgree, \\voiGaussN (+ the run ids).
@@ -43,17 +44,17 @@ from voi_rank.analysis import figures  # noqa: E402
 from voi_rank.analysis.tables import esc, num, pooled_p50  # noqa: E402
 from voi_rank.gauss_fit import THRESHOLDS, consistency_score  # noqa: E402
 from voi_rank.gaussian import ACTION_MODELS  # noqa: E402
-from voi_rank.sensitivity import repeat_spread, spearman  # noqa: E402
+from voi_rank.sensitivity import spearman  # noqa: E402
 from voi_rank.study import Study, add_study_arg  # noqa: E402
 
 EVSI_ZERO_USD = 1e-6
 TOP_N = 10
 MODEL_MACRO = {"quad": "Quad", "kg": "Kg", "step": "Step", "stepfix": "Stepfix"}
-# residual-carrying quantities: (stored name, label, spread of which quantity, absolute spread?)
-RESIDUALS = (("g_sigma0", r"$\theta$ triple asymmetry", "g_sigma0", False),
-             ("g_d", r"$d$ mismatch (probability)", "g_d", True),
-             ("g_x", r"$x$ route spread (log units)", "g_x", False),
-             ("g_k", r"$k$ mismatch", "g_k", False))
+# residual-carrying quantities: (stored name, label, spread of which quantity)
+RESIDUALS = (("g_sigma0", r"$\theta$ triple asymmetry", "g_sigma0"),
+             ("g_d", r"$d$ mismatch (probability)", "g_d"),
+             ("g_x", r"$x$ route spread (log units)", "g_x"),
+             ("g_k", r"$k$ mismatch", "g_k"))
 OUTPUTS = ("compare_models.tex", "fig_compare_models.pdf", "fig_derived_pst.pdf",
            "consistency_gauss.tex", "macros_compare.tex")
 
@@ -153,16 +154,13 @@ def residual_stats(con, g_run) -> dict:
         if r["fit_residual"] is not None:
             per_elic.setdefault(r["eid"], {})[r["name"]] = r["fit_residual"]
     out = {}
-    for name, label, spread_of, absolute in RESIDUALS:
+    for name, label, spread_of in RESIDUALS:
         per_sid = by_name.get(name, {})
         res = [v[1] for lst in per_sid.values() for v in lst if v[1] is not None]
         flagged = [bool(v[2]) for lst in per_sid.values() for v in lst]
         xs, ys = [], []
         for sid, lst in per_sid.items():
-            p50s = [v[0] for v in by_name.get(spread_of, {}).get(sid, [])]
-            if len(p50s) < 2:
-                continue
-            spread = (max(p50s) - min(p50s)) if absolute else repeat_spread(p50s)
+            spread = db.elicited_spread(con, pid, sid, spread_of)
             if spread is None:
                 continue
             xs.append(float(np.median([v[1] for v in lst if v[1] is not None])))
@@ -209,7 +207,7 @@ def write_compare(rs: dict, b_run, g_run, out: Path) -> None:
 def write_consistency(res: dict, g_run, out: Path) -> None:
     lines = [r"\begin{tabular}{@{}lrrrrrrr@{}}", r"\toprule",
              r"residual & $n$ & q25 & q50 & q75 & threshold & flagged & $\rho$(spread)\\", r"\midrule"]
-    for name, _label, _, _ in RESIDUALS:
+    for name, _label, _ in RESIDUALS:
         st = res[name]
         lines.append(f"{st['label']} & {st['n']} & {num(st['q25'])} & {num(st['q50'])} & {num(st['q75'])}"
                      f" & {st['threshold']:g} & {pct(st['flagged'])}"
@@ -223,8 +221,8 @@ def write_consistency(res: dict, g_run, out: Path) -> None:
               + str(g_run["id"]) + r"), over its valid elicitations: quantiles, the warning"
               r" threshold, the fraction of elicitations flagged, and the Spearman between each"
               r" scenario's median residual and the cross-repeat spread of the quantity the"
-              r" residual checks ((max - min) / pooled p50 of the repeat values; absolute"
-              r" max - min for $d$).}"]
+              r" residual checks ((max - min) / pooled p50 of the repeat values; max - min"
+              r" in sd units for $d$, which crosses zero).}"]
     (out / "consistency_gauss.tex").write_text("\n".join(lines) + "\n")
 
 

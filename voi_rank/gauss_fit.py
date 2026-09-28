@@ -19,25 +19,33 @@ Questions (all in the expert's own state unit u, bad is high, and USD):
   Q3c c_move: probability that the result moves the estimate by more than half the
               prior 90% half-width, U/2 with U = 1.645 sigma0
               -> sigtilde = (U/2) / Phi^-1(1 - c/2), r_c = sigma0^2 (sigma0^2 / sigtilde^2 - 1)
-                 (route dropped with a warning when sigtilde >= sigma0, i.e. c >= 0.41:
-                 the preposterior sd cannot exceed the prior sd)
-              x = exp(mean of log(sqrt(r_i) / sigma0) over the valid routes)
+                 (the preposterior sd cannot exceed the prior sd, which bounds c below
+                 C_MOVE_MAX = 2 (1 - Phi(1.645/2)) = 0.4108; the route is dropped with a
+                 warning when c > C_MOVE_DROP = 0.40, because within 0.01 of the bound a
+                 two-decimal c no longer resolves x: x_c = 0.22 at c = 0.40, 0.06 at 0.41)
+              x = exp(median of log(sqrt(r_i) / sigma0) over the valid routes) (the mean
+                 when two remain), so one coarse route cannot move x on its own
               residual = std of the log x's
   Q4  loss:   L1m, L2m: cost of under-responding when theta is 1 and 2 sigma0 above the
               estimate; L1p, L2p: cost of over-responding by 1 and 2 sigma0 (USD)
               -> k_side = log2(L2 / L1), k = mean clipped to [0.5, 4], residual = |k_m - k_p|
-                 L = 0.5 (L1m + L1p) E|z|^k
+                 L = min over m of [L1m M_k(m) + L1p M_k(-m)], M_k(m) = E[(z - m)^+^k]
+                 (gaussian.min_expected_loss; 0.5 (L1m + L1p) E|z|^k when L1m = L1p)
   Q5  kappa_sigma0: value of responding when theta is one sigma0 above theta_c (USD)
   Q6  B, K:   as in the binary protocol (USD, single decision)
   Q7  sigma_b: plausible systematic error that repeating the measurement would not
               reveal (u, 0 allowed) -> sigma_b / sigma0
   Q8  C:      p5 / p50 / p95 as in the binary protocol (lognormal, voi_rank.fit)
 
-L is the expected loss of acting at the prior mean, 0.5 (c_- + c_+) sigma0^k
-E|z|^k: with asymmetric costs the certainty-equivalent optimum shifts the
-action and lowers this by a k-dependent constant that the same policy also
-applies after the measurement, so EVSI = L (1 - (1 - R^2)^(k/2)) holds for
-the act-at-the-estimate policy exactly (chapter, "Other loss shapes").
+L is the chapter's L = c_k sigma0^k (eq. lossfamily): the MINIMAL expected
+loss of acting on the prior alone, i.e. under the optimal action, which
+asymmetric costs shift above the prior mean by m* sigma0 (L1m = c_- sigma0^k
+and L1p = c_+ sigma0^k, so sigma0 never enters). Acting at the mean instead
+would cost 0.5 (L1m + L1p) E|z|^k, more by a factor that depends on the
+asymmetry and k (1.78 at anchor A1), so that is not L. The same shift
+applies after the measurement, hence EVSI = L (1 - (1 - R^2)^(k/2)) exactly
+(chapter, "Other loss shapes and asymmetry"). The shift is written into the
+g_L reasoning for the spot-read.
 
 Warnings (fit_warning on the stored rows): asymmetry > 0.25, d mismatch >
 0.15 in probability, x route spread > 0.5 in log units (or a dropped route),
@@ -65,6 +73,10 @@ LOSS_KEYS = ("L1m", "L2m", "L1p", "L2p")
 PROB_QUESTIONS = ("p_above", "c_move")
 PROB_RANGE = (0.001, 0.999)
 K_RANGE = (0.5, 4.0)
+# Q3c: c at which the implied preposterior sd equals the prior sd (route c undefined
+# beyond it), and the drop point below it where a two-decimal c stops resolving x
+C_MOVE_MAX = float(2.0 * (1.0 - stats.norm.cdf(gaussian.Z95 / 2.0)))   # 0.4108
+C_MOVE_DROP = 0.40
 # warning thresholds per stored quantity (spec v2.1)
 THRESHOLDS = {"g_mu0": 0.25, "g_sigma0": 0.25, "g_d": 0.15, "g_x": 0.5, "g_k": 1.0, "g_L": 1.0}
 DIMENSIONLESS = "dimensionless"
@@ -156,16 +168,16 @@ def validate_gauss_payload(obj) -> tuple[dict | None, str | None]:
 def x_routes(sigma0: float, W_rr: float, W1: float, c: float) -> dict[str, float]:
     """log(sqrt(r_i) / sigma0) per route a, b, c (Q3); a route the model
     cannot accommodate is absent (b is excluded by validation; c when
-    sigtilde >= sigma0)."""
+    c > C_MOVE_DROP, i.e. sigtilde within a hair of sigma0)."""
     out = {}
     out["a"] = float(np.log(W_rr / (gaussian.Z95 * np.sqrt(2.0)) / sigma0))
     sigma1 = W1 / gaussian.W90
     if sigma1 < sigma0:
         r_b = sigma0**2 * sigma1**2 / (sigma0**2 - sigma1**2)
         out["b"] = float(np.log(np.sqrt(r_b) / sigma0))
-    half_u = 0.5 * gaussian.Z95 * sigma0
-    sigtilde = half_u / stats.norm.ppf(1.0 - c / 2.0)
-    if 0.0 < sigtilde < sigma0:
+    if c <= C_MOVE_DROP:
+        half_u = 0.5 * gaussian.Z95 * sigma0
+        sigtilde = half_u / stats.norm.ppf(1.0 - c / 2.0)
         r_c = sigma0**2 * (sigma0**2 / sigtilde**2 - 1.0)
         out["c"] = float(np.log(np.sqrt(r_c) / sigma0))
     return out
@@ -174,7 +186,8 @@ def x_routes(sigma0: float, W_rr: float, W1: float, c: float) -> dict[str, float
 def derive(clean: dict) -> dict:
     """The stored quantities from a validated payload: {"values": {name:
     float}, "residuals": {name: float}, "warnings": {name: bool}, "notes":
-    [str], "routes": {route: log x}}."""
+    [str], "routes": {route: log x}, "shift": m* of the optimal action in
+    sigma0 units}."""
     th = clean["theta"]
     mu0 = th["p50"]
     width = th["p95"] - th["p5"]
@@ -187,12 +200,13 @@ def derive(clean: dict) -> dict:
     d_res = abs(q - float(stats.norm.cdf(d_a)))
     routes = x_routes(sigma0, clean["W_rr"]["value"], clean["W1"]["value"], clean["c_move"]["value"])
     logs = np.array(list(routes.values()))
-    x = float(np.exp(logs.mean()))
+    x = float(np.exp(np.median(logs)))   # the mean of two, the middle of three
     x_res = float(logs.std())
     notes = []
     if "c" not in routes:
-        notes.append("Q3c dropped: the stated move probability implies a preposterior sd at or"
-                     " above the prior sd (c >= 0.41)")
+        notes.append(f"Q3c dropped: c > {C_MOVE_DROP:g} (a Gaussian sensor allows at most"
+                     f" {C_MOVE_MAX:.4f}, where the preposterior sd equals the prior sd, and within"
+                     " 0.01 of that bound a two-decimal c no longer resolves x)")
     loss = clean["loss"]
     k_m = float(np.log2(loss["L2m"] / loss["L1m"]))
     k_p = float(np.log2(loss["L2p"] / loss["L1p"]))
@@ -201,7 +215,7 @@ def derive(clean: dict) -> dict:
     if k != k_raw:
         notes.append(f"k clipped from {k_raw:.3g} to {k:g}")
     k_res = abs(k_m - k_p)
-    L = 0.5 * (loss["L1m"] + loss["L1p"]) * float(gaussian.abs_moment(k))
+    L, shift = gaussian.min_expected_loss(k, loss["L1m"], loss["L1p"])
     values = {
         "g_mu0": mu0, "g_sigma0": sigma0, "g_d": d, "g_x": x, "g_k": k, "g_L": L,
         "g_kappa_sigma0": clean["kappa_sigma0"]["value"], "g_B": clean["B"]["value"],
@@ -212,7 +226,7 @@ def derive(clean: dict) -> dict:
     warnings = {name: residuals[name] > THRESHOLDS[name] for name in residuals}
     warnings["g_x"] = warnings["g_x"] or "c" not in routes
     return {"values": values, "residuals": residuals, "warnings": warnings, "notes": notes,
-            "routes": routes}
+            "routes": routes, "shift": shift}
 
 
 def _reasoning(clean: dict, *questions: str) -> str:
@@ -242,7 +256,7 @@ def fit_gauss(clean: dict) -> tuple[dict | None, dict | None, str | None]:
         "g_d": _reasoning(clean, "theta_c", "p_above"),
         "g_x": notes + _reasoning(clean, "W_rr", "W1", "c_move"),
         "g_k": notes + _reasoning(clean, "loss"),
-        "g_L": _reasoning(clean, "loss"),
+        "g_L": f"optimal action shift {der['shift']:+.2f} sigma0 | " + _reasoning(clean, "loss"),
         "g_kappa_sigma0": _reasoning(clean, "kappa_sigma0"),
         "g_B": _reasoning(clean, "B"),
         "g_K": _reasoning(clean, "K"),

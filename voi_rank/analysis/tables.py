@@ -26,7 +26,6 @@ from voi_rank.analysis.figures import (
     run_param_names,
     select_run,
 )
-from voi_rank.sensitivity import repeat_spread
 from voi_rank.study import Study, add_study_arg
 
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
@@ -183,7 +182,8 @@ def write_ranking(con, run, out: Path, top_n: int = 25):
 def noise_median(con, protocol_id: int, name: str, first: int | None = None,
                  member: dict | None = None) -> float | None:
     """Median over scenarios of the cross-elicitation p50 spread of one
-    parameter. first truncates to the first `first` valid repeats of each
+    parameter (db.elicited_spread: relative, or max - min in sd units for the
+    signed Gaussian quantities). first truncates to the first `first` valid repeats of each
     member (a count in repeat_ix order, so an invalid middle repeat does not
     shrink the pool; range statistics grow with the count, so cross-protocol
     comparisons need matched k); member restricts to one (provider, model)."""
@@ -192,10 +192,9 @@ def noise_median(con, protocol_id: int, name: str, first: int | None = None,
         (protocol_id,))]
     spreads = []
     for sid in sids:
-        p50s = db.elicited_p50s(con, protocol_id, sid, name,
+        sp = db.elicited_spread(con, protocol_id, sid, name,
                                 provider=member["provider"] if member else None,
                                 model=member["model"] if member else None, first=first)
-        sp = repeat_spread(p50s)
         if sp is not None:
             spreads.append(sp)
     return float(np.median(spreads)) if spreads else None
@@ -342,7 +341,8 @@ def write_protocol_noise(con, out: Path, kind: str = db.BINARY_KIND):
     per_col = [noise_medians(con, prots[name], first=MATCHED_K, member=m) for name, m in cols]
     for name in db.param_names(kind):
         cells = [num(col[name], "{:.2f}") for col in per_col]
-        lines.append(f"{tex_param(name)} & " + " & ".join(cells) + r"\\")
+        label = tex_param(name) + esc(db.spread_label(name)).replace(" - ", " $-$ ")
+        lines.append(f"{label} & " + " & ".join(cells) + r"\\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     (out / "protocol_noise.tex").write_text("\n".join(lines) + "\n")
 

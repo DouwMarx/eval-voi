@@ -16,7 +16,6 @@ import numpy as np
 from scipy import stats
 
 from voi_rank import db
-from voi_rank.sensitivity import repeat_spread
 from voi_rank.study import Study, add_study_arg
 
 EVSI_ZERO_USD = 1e-6  # "median EVSI ~ 0" threshold, in USD
@@ -36,7 +35,8 @@ def protocol_names(con, protocol_id: int) -> list[str]:
 
 def noise_table(con, protocol_id: int, member: dict | None = None) -> dict[str, tuple]:
     """{param: (median spread, n scenarios)} over valid elicitations, all
-    members pooled or one member."""
+    members pooled or one member; the spread is db.elicited_spread (relative,
+    or max - min in sd units for the signed Gaussian quantities)."""
     sids = [r[0] for r in con.execute(
         "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
         (protocol_id,))]
@@ -44,10 +44,9 @@ def noise_table(con, protocol_id: int, member: dict | None = None) -> dict[str, 
     for name in protocol_names(con, protocol_id):
         spreads = []
         for sid in sids:
-            p50s = db.elicited_p50s(con, protocol_id, sid, name,
+            sp = db.elicited_spread(con, protocol_id, sid, name,
                                     provider=member["provider"] if member else None,
                                     model=member["model"] if member else None)
-            sp = repeat_spread(p50s)
             if sp is not None:
                 spreads.append(sp)
         out[name] = (float(np.median(spreads)) if spreads else float("nan"), len(spreads))
@@ -127,9 +126,9 @@ def health(con, protocol_name: str):
               f"{valid} valid ({rate}), ${cost:.2f}")
 
     # cross-elicitation spread of p50 per parameter (median over scenarios)
-    print("\ncross-elicitation p50 spread ((max-min)/pooled p50), median over scenarios:")
+    print("\ncross-elicitation p50 spread ((max-min)/pooled p50 unless marked), median over scenarios:")
     for name, (med, cnt) in noise_table(con, prot["id"]).items():
-        print(f"  {name}: {med:.3f}  (n={cnt} scenarios)")
+        print(f"  {name}{db.spread_label(name)}: {med:.3f}  (n={cnt} scenarios)")
     if len(members) > 1:
         print("\nper-member cross-repeat p50 spread (median over scenarios):")
         for m in members:

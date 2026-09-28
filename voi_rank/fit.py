@@ -38,6 +38,15 @@ GAUSS_PARAM_NAMES = list(GAUSS_FAMILY_BY_PARAM)
 # (g_mu0, g_sigma0) or dimensionless
 GAUSS_USD_PARAMS = ("g_L", "g_kappa_sigma0", "g_B", "g_K", "C")
 GAUSS_LOG_PARAMS = GAUSS_USD_PARAMS + ("g_sigma0", "g_x")
+# cross-repeat spread rule (db.elicited_spread, sensitivity.repeat_spread): the
+# spread of a stored quantity is (max - min) / |pooled p50| of the quantity
+# itself, except for these, whose max - min is divided by the pooled p50 of the
+# named quantity (None: taken as is). d is signed and crosses zero, so a
+# relative spread diverges where EVSI is largest; sigma_b / sigma0 may be 0;
+# both are already in prior-sd units. The location mu0 (any sign, any unit) is
+# scaled by sigma0 so its noise is in prior-sd units too. Reported as
+# "max - min, sd units".
+GAUSS_SPREAD_SCALE = {"g_d": None, "g_sigma_b_rel": None, "g_mu0": "g_sigma0"}
 
 
 @dataclass

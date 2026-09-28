@@ -15,7 +15,8 @@ effective R^2.
 
 Action models, all on the same (d, R^2) with d = (mu0 - theta_c) / sigma0:
     quad     graded response, loss c |a - theta|^k: EVPI = L, EVSI = L (1 - (1 - R^2)^(k/2))
-             (eq. lossfamily; k = 2 gives eq. lqg, EVSI = L R^2)
+             (eq. lossfamily; k = 2 gives eq. lqg, EVSI = L R^2); L = c_k sigma0^k is the
+             minimal expected loss under the prior (min_expected_loss)
     kg       binary action, payoff linear in the state: EVSI = kappa sigtilde Psi(d / R),
              EVPI = kappa sigma0 Psi(d), Psi(z) = phi(z) - |z| Phi(-|z|) (eq. kg)
     step     binary action, step payoff, the agent sees y itself: eq. stepcont, evaluated
@@ -32,14 +33,17 @@ The design (spec v2.1) evaluated `step` by 64-node Gauss-Hermite quadrature
 over mu1. That quadrature is kept as voi_step_gh for the cross-check tests
 but is NOT the stored metric: the integrand (Phi((mu1 - theta_c)/sigma1) -
 pi*)^+ tends to a step function as R^2 -> 1 and 64 nodes miss the integral
-by up to 1.6e-2 Lambda (67% of the value) at R^2 = 0.99, while the cutoff
-route is exact to machine precision (tests/test_gaussian.py measures both).
+by up to 1.8e-3 Lambda at R^2 = 0.9, 1.6e-2 Lambda (67% of the value) at
+0.99 and 4.3e-2 Lambda (almost all of the value) at 0.999 (max over d in
+[-4, 4] at 0.005 steps; the error is spiky in d because the fixed nodes
+straddle the moving step), while the cutoff route is exact to machine
+precision (tests/test_gaussian.py measures both).
 """
 
 from __future__ import annotations
 
 import numpy as np
-from scipy import special, stats
+from scipy import optimize, special, stats
 
 from voi_rank import model
 
@@ -47,6 +51,8 @@ Z95 = float(stats.norm.ppf(0.95))     # 1.6449: half-width of a 90% interval in 
 W90 = 2.0 * Z95                        # 3.2897: full width of a 90% interval (spec: 3.29)
 BIAS_VARIANCE_FACTOR = 1.0 - 2.0 / np.pi   # variance of a half-normal with scale 1
 GH_NODES = 64                          # the design's quadrature order (voi_step_gh)
+LOSS_SHIFT_BOUND = 12.0                # |m*| bound (sd units) for min_expected_loss: the k = 1
+                                       # shift is Phi^-1(c_-/(c_- + c_+)), 7.0 at a 1e12 cost ratio
 ACTION_MODELS = ("quad", "kg", "step", "stepfix")
 # metrics an MC run stores for a Gaussian protocol, in this order
 METRIC_NAMES = [f"{kind}_{m}" for m in ACTION_MODELS for kind in ("EVSI", "EVPI", "eff")] + [
@@ -91,6 +97,37 @@ def abs_moment(k):
     equals 1 at k = 2 and sqrt(2 / pi) at k = 1."""
     k = np.asarray(k, dtype=float)
     return 2.0 ** (k / 2.0) * special.gamma((k + 1.0) / 2.0) / np.sqrt(np.pi)
+
+
+def partial_moment(k, delta):
+    """M_k(delta) = E[(z - delta)^+^k] for z ~ N(0, 1):
+    Gamma(k + 1) exp(-delta^2 / 4) D_{-(k+1)}(delta) / sqrt(2 pi) with D the
+    parabolic cylinder function (Gradshteyn and Ryzhik 3.462.1, scipy.special.pbdv).
+    abs_moment(k) / 2 at delta = 0, ~ |delta|^k as delta -> -inf, Gaussian-tail
+    decay as delta -> +inf; 1e-9 against quadrature for k in [0.5, 4] (tests)."""
+    k, delta = np.broadcast_arrays(*_arrays(k, delta))
+    return (special.gamma(k + 1.0) * np.exp(-delta**2 / 4.0) * special.pbdv(-(k + 1.0), delta)[0]
+            / np.sqrt(2.0 * np.pi))
+
+
+def min_expected_loss(k: float, L1m: float, L1p: float) -> tuple[float, float]:
+    """(L, m*): the minimal expected loss under the prior, L = c_k sigma0^k
+    (eq. lossfamily; the chapter's L and the quad EVPI), and the shift m* of
+    the optimal action above the prior mean in prior-sd units. L1m = c_-
+    sigma0^k and L1p = c_+ sigma0^k are the elicited costs of under- and
+    over-responding by one sigma0 (Q4), so acting at a = mu0 + m sigma0 costs
+        E loss(m) = L1m E[(z - m)^+^k] + L1p E[(m - z)^+^k] = L1m M_k(m) + L1p M_k(-m),
+    minimised over m by bounded Brent (unimodal; convex for k >= 1). Symmetric
+    costs give m* = 0 and L = 0.5 (L1m + L1p) E|z|^k, the loss of acting at
+    the mean; asymmetry shifts the action by a fixed multiple of sigma and
+    lowers L, and the same shift applies after the measurement, so
+    EVSI = L (1 - (1 - R^2)^(k/2)) is exact (chapter, "Other loss shapes")."""
+    def expected_loss(m):
+        return float(L1m * partial_moment(k, m) + L1p * partial_moment(k, -m))
+
+    res = optimize.minimize_scalar(expected_loss, bounds=(-LOSS_SHIFT_BOUND, LOSS_SHIFT_BOUND),
+                                   method="bounded", options={"xatol": 1e-9})
+    return float(res.fun), float(res.x)
 
 
 # --- bivariate normal ---------------------------------------------------------
@@ -179,8 +216,9 @@ def optimal_cutoff(d, R2, pistar):
 
 def voi_quad(L, R2, k=2.0):
     """Graded response, loss c |a - theta|^k: (EVSI, EVPI) = (L (1 - (1 - R^2)^(k/2)), L)
-    (eq. lossfamily; k = 2 is eq. lqg). L is the expected loss of acting on the
-    prior alone."""
+    (eq. lossfamily; k = 2 is eq. lqg). L = c_k sigma0^k is the minimal expected
+    loss of acting on the prior alone, under the optimal (shifted, for
+    asymmetric costs) action: min_expected_loss."""
     L, R2, k = _arrays(L, R2, k)
     evsi = L * (1.0 - (1.0 - R2) ** (k / 2.0))
     return np.minimum(np.maximum(evsi, 0.0), L), L * np.ones_like(evsi)

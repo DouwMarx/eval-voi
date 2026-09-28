@@ -19,7 +19,6 @@ from scipy.stats import gaussian_kde  # noqa: E402
 
 from voi_rank import db, mc  # noqa: E402
 from voi_rank.fit import FAMILY_BY_PARAM, GAUSS_LOG_PARAMS, GAUSS_USD_PARAMS  # noqa: E402
-from voi_rank.sensitivity import repeat_spread  # noqa: E402
 from voi_rank.study import Study, add_study_arg  # noqa: E402
 
 ACCENT = "#0072B2"          # single hue for single-series marks
@@ -475,19 +474,22 @@ def fig_elicitation_noise(con, run_id, out: Path):
         (run["protocol_id"],))]
     for name in names:
         for sid in sids:
-            sp = repeat_spread(db.elicited_p50s(con, run["protocol_id"], sid, name))
+            sp = db.elicited_spread(con, run["protocol_id"], sid, name)
             if sp is not None:
                 spreads[name].append(sp)
     fig, ax = plt.subplots(figsize=(6.2, 3.4))
     data = [spreads[n] for n in names]
+    sd_units = [n for n in names if db.spread_label(n)]
     if any(len(d) for d in data):
-        ax.boxplot(data, tick_labels=[f"${esc_math(n)}$" for n in names], showfliers=True,
+        ticks = [f"${esc_math(n)}$" + ("*" if n in sd_units else "") for n in names]
+        ax.boxplot(data, tick_labels=ticks, showfliers=True,
                    flierprops={"marker": ".", "ms": 3, "mec": INTERVAL},
                    medianprops={"color": ACCENT, "lw": 1.5},
                    boxprops={"color": "#555555"},
                    whiskerprops={"color": "#555555"},
                    capprops={"color": "#555555"})
-        ax.set_ylabel("(max − min) / pooled p50 across elicitations")
+        ax.set_ylabel("(max − min) / pooled p50 across elicitations"
+                      + ("\n* max − min in prior-sd units" if sd_units else ""))
         ax.set_title(f"Cross-elicitation noise per parameter ({len(sids)} scenarios)")
     else:
         ax.text(0.5, 0.5, "protocol has k = 1: no repeat noise", ha="center",

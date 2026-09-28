@@ -158,7 +158,9 @@ From one elicitation four action models are computed on every MC draw
 (`voi_rank/gaussian.py`, each formula annotated with its chapter equation):
 
 - `quad`: graded response, loss `c |a - theta|^k`: `EVPI = L`,
-  `EVSI = L (1 - (1 - R^2)^(k/2))` (`L R^2` at `k = 2`).
+  `EVSI = L (1 - (1 - R^2)^(k/2))` (`L R^2` at `k = 2`), with `L = c_k sigma0^k`
+  the minimal expected loss under the prior (the optimal action shifts by a
+  fixed multiple of `sigma0` under asymmetric costs; `gaussian.min_expected_loss`).
 - `kg`: respond or not, payoff linear in `theta - theta_c`:
   `EVSI = kappa sigtilde Psi(d/R)`, `EVPI = kappa sigma0 Psi(d)`,
   `Psi(z) = phi(z) - |z| Phi(-|z|)`.
@@ -167,7 +169,7 @@ From one elicitation four action models are computed on every MC draw
   exactly through the decision-optimal cutoff (the binary closed form at the
   orthant probabilities of correlation `R`; the 64-node Gauss-Hermite
   quadrature of the design is kept as `voi_step_gh` for the tests only, it
-  misses up to 2% of `B + K` once `R^2 > 0.99`). The primary ranking metric
+  misses up to 1.6% of `B + K` at `R^2 = 0.99` and 4% at `R^2 = 0.999`). The primary ranking metric
   of a Gaussian run is `eff_step = EVSI_step / C`.
 - `stepfix`: the same decision with a pass/fail report at the fixed mark
   `theta_c`: `s, t` derived from `(d, R)`, then `voi_rank.model.voi(p, s, t, B, K)`.
@@ -180,7 +182,9 @@ of `theta`; `theta_c` and `P(theta > theta_c)` (must equal `Phi(d)`); three
 routes to `x` (test-retest width `W_rr`, the 90% width after the result
 `W1`, the probability `c` that the result moves the estimate by more than
 half the prior half-width); four loss numbers (under- and over-response by
-one and two `sigma0`, giving the exponent `k` per side and `L`); `kappa
+one and two `sigma0`, giving the exponent `k` per side and, by minimising
+the expected loss over the action, `L`; `x` pools its routes by the median
+of their logs); `kappa
 sigma0`; `B`, `K`; `sigma_b`; and the `C` triple. The two anchors are the
 binary anchors re-expressed as Gaussian answers (`p = Phi(d)` reproduces
 their `p50` of `p`). `voi_rank/gauss_fit.py` validates the JSON (errors
@@ -192,7 +196,11 @@ repeat values) and `C` as the usual lognormal; `fit_residual` carries the
 over-determination residual of the questions behind each row (theta
 asymmetry, `d` mismatch, `x` route spread in log units, `k` mismatch) and
 `fit_warning` flags a residual past its threshold (0.25, 0.15, 0.5, 1.0) or
-a `c` route the model cannot accommodate (`c >= 0.41`).
+a `c` route too close to the Gaussian bound to resolve `x` (`c > 0.40`; the
+bound is 0.4108). Cross-repeat noise is `(max - min) / pooled p50` per
+quantity except `d`, `sigma_b/sigma0` and `mu0`, which are reported as a
+`max - min` in prior-sd units (`fit.GAUSS_SPREAD_SCALE`), since `d` crosses
+zero exactly where EVSI is largest.
 
 Run order, per study (steps 1, 6 to 9 of the main run order apply unchanged;
 the binary-only analyses of `extra` are skipped with a printed reason):

@@ -23,9 +23,11 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+import numpy as np
 import yaml
 
-from voi_rank.fit import GAUSS_PARAM_NAMES, PARAM_NAMES
+from voi_rank.fit import GAUSS_PARAM_NAMES, GAUSS_SPREAD_SCALE, PARAM_NAMES
+from voi_rank.sensitivity import repeat_spread
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
@@ -637,6 +639,33 @@ def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,
             taken[(prov, mod)] = taken.get((prov, mod), 0) + 1
             out.append(p50)
     return out
+
+
+def elicited_spread(con, protocol_id: int, scenario_id: int, name: str,
+                    provider: str | None = None, model: str | None = None,
+                    first: int | None = None) -> float | None:
+    """Cross-repeat spread of one stored quantity of one scenario, the one
+    statistic every noise table, figure and macro reports:
+    sensitivity.repeat_spread over elicited_p50s, relative to the quantity's
+    own pooled p50 except for the names in fit.GAUSS_SPREAD_SCALE (d and
+    sigma_b / sigma0 as a plain max - min, mu0 divided by the pooled sigma0,
+    all in prior-sd units). None with fewer than two repeats."""
+    p50s = elicited_p50s(con, protocol_id, scenario_id, name, provider, model, first)
+    if name not in GAUSS_SPREAD_SCALE:
+        return repeat_spread(p50s)
+    by = GAUSS_SPREAD_SCALE[name]
+    if by is None:
+        return repeat_spread(p50s, scale=1.0)
+    ref = elicited_p50s(con, protocol_id, scenario_id, by, provider, model, first)
+    if not ref:
+        return None
+    return repeat_spread(p50s, scale=abs(float(np.median(ref))))
+
+
+def spread_label(name: str) -> str:
+    """Suffix naming the spread statistic of a quantity where it is not the
+    default relative one (tables, health, figures print it after the name)."""
+    return " (max - min, sd units)" if name in GAUSS_SPREAD_SCALE else ""
 
 
 def envelope_cost(raw: str) -> float:
