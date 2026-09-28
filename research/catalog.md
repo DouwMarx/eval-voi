@@ -1,0 +1,1423 @@
+# Literature catalogue: robot and frontier-AI safety evaluations
+
+Generated from 512 sweep records in `research/literature/*.json`, merged to 443 unique papers (`research/catalog.json`, `research/refs.bib`). Built by `research/build_catalog.py`.
+
+Sim-to-real ladder: 0 text-only QA of an LLM planner (no perception); 1 static image / scene QA with a VLM; 2 video / temporal QA; 3 generated or synthetic adversarial scenes, scored open-loop; 4 closed-loop physics simulation; 5 photoreal / digital-twin simulation or real-data replay; 6 hardware-in-the-loop; 7 real robot, controlled lab, no humans at risk; 8 real robot, field or track test with humans or human surrogates; 9 deployment monitoring / operational data. Speaker sweeps used their own scales and were re-levelled from the modality text (see notes in catalog.json).
+
+Each line: `key` | name | year | one line (what it measures). Markers: [C] quantified cost evidence, [V] quantified validity evidence, [S] safety_focus.
+
+
+## (a) By sim-to-real level
+
+| level | rung | count |
+|---|---|---|
+| 0 | text-only QA of an LLM planner (no perception) | 71 |
+| 1 | static image / scene QA with a VLM | 17 |
+| 2 | video / temporal QA | 3 |
+| 3 | generated or synthetic adversarial scenes, scored open-loop | 24 |
+| 4 | closed-loop physics simulation | 77 |
+| 5 | photoreal / digital-twin simulation or real-data replay | 54 |
+| 6 | hardware-in-the-loop | 11 |
+| 7 | real robot, controlled lab, no humans at risk | 86 |
+| 8 | real robot, field or track test with humans or human surrogates | 13 |
+| 9 | deployment monitoring / operational data | 30 |
+| n/a | not on the ladder (position, survey, standard text, tooling) | 57 |
+
+### Level 0: text-only QA of an LLM planner (no perception) (71)
+
+- `aisi2024inspect` | Inspect AI evaluation framework | 2024 | Infrastructure used by AISI, CAISI and labs to run agentic and QA evaluations reproducibly.
+- `aisi2024o1` | US/UK AISI joint pre-deployment test: OpenAI o1 | 2024 | [CS] Pre-deployment cyber, bio, software/AI development capability of o1.
+- `aisi2024sonnet` | US/UK AISI joint pre-deployment test: Claude 3.5 Sonnet (upgraded) | 2024 | [CS] Pre-deployment capability in bio, cyber, software/AI development and safeguard efficacy.
+- `aisi2025trends` | UK AISI Frontier AI Trends Report | 2025 | [CS] Trends in frontier capability and safeguard robustness across 30+ systems.
+- `andriushchenko2024agentharm` | AgentHarm | 2024 | [S] Harmfulness and jailbreak robustness of LLM agents.
+- `anthropic2025agenticmisalignment` | Agentic misalignment (blackmail scenarios) | 2025 | [S] Propensity for harmful insider-like actions (blackmail, espionage) under contrived pressure.
+- `anthropic2025opus45card` | Claude Opus 4.5 system card: uplift trials, eval awareness, alignment audit effort | 2025 | [CS] ASL-3/4 CBRN and AI R&D threshold checks; alignment and evaluation-awareness assessment.
+- `anthropic2025opus4card` | Claude Opus 4 system card: bioweapons acquisition uplift trial | 2025 | [CVS] Real human uplift for the ASL-3 CBRN threshold (deployment gate).
+- `anthropic2025petri` | Petri: automated alignment auditing tool | 2025 | [CVS] Broad misaligned-behaviour propensity; reused by UK AISI for sabotage case study.
+- `anthropic2025sonnet45card` | Claude Sonnet 4.5 system card: evaluation awareness | 2025 | [CS] Alignment propensities and the confound of evaluation awareness.
+- `anurin2024threecb` | 3CB: Catastrophic Cyber Capabilities Benchmark | 2024 | [S] Offensive cyber capability of agents (reconnaissance, exploitation).
+- `bajrami2026robotignores` | LLM-orchestrator safety benchmark for human-humanoid collaboration | 2026 | [S] Compliance spectrum of LLM orchestrators (over-refusal vs violation) against industrial safety invariants over long sessions.
+- `benton2024sabotage` | Anthropic sabotage evaluations | 2024 | [CS] Whether a model could covertly sabotage evaluations, monitoring or deployment decisions.
+- `bergen2026monitoring` | Internal-representation monitors for reward hacking during evaluations | 2026 | [CS] Whether reward hacking has a linear signature in activations that can be used as a runtime monitor during evaluations and to discover new hack types.
+- `bhatt2023cyberseceval` | CyberSecEval (Purple Llama) | 2023 | [S] Insecure code generation rate and compliance with cyberattack assistance requests.
+- `caisi2025deepseek` | CAISI evaluation of DeepSeek models | 2025 | [S] Capability, cost, security and censorship comparison of DeepSeek R1/R1-0528/V3.1 vs GPT-5, GPT-5-mini, gpt-oss, Opus 4.
+- `chan2024mlebench` | MLE-bench | 2024 | [C] ML engineering capability (AI R&D threshold proxy in Preparedness Framework).
+- `chao2024jailbreakbench` | JailbreakBench | 2024 | [VS] Jailbreak attack and defence performance under a standard threat model.
+- `cui2024orbench` | OR-Bench (over-refusal) | 2024 | [S] Over-refusal (false-alarm) rate vs true refusal across 32 LLMs.
+- `debenedetti2024agentdojo` | AgentDojo | 2024 | [S] Prompt-injection robustness of tool-using agents (targeted attack success and utility under attack).
+- `deepmind2025gemini3fsf` | Gemini 3 Pro Frontier Safety Framework report | 2025 | [CS] Whether Gemini 3 Pro reached any CCL.
+- `fan2024crashevent` | CrashEvent / CrashLLM | 2024 | [VS] Whether LLMs can predict crash outcomes from contextual factors and support what-if traffic-safety analyses.
+- `ghosh2025ailuminate` | AILuminate v1.0 | 2025 | [S] Product-level risk and reliability grade for chat systems (industry standard benchmark).
+- `greenblatt2024alignmentfaking` | Alignment faking | 2024 | [S] Whether a model selectively complies during perceived training (alignment faking).
+- `hundt2024llmrobots` | LLM-Driven Robots Risk Enacting Discrimination, Violence, and Unlawful Actions | 2024 | [S] Whether LLMs used as robot decision-makers produce discriminatory or unsafe action choices across protected characteristics and accept dangerous open-vocabulary...
+- `ivanov2024biolp` | BioLP-bench | 2024 | [S] Understanding of biological lab protocols (a wet-lab tacit-knowledge proxy used in AISI bio evaluations).
+- `jia2026mishear` | When Robots Mishear Us (ASR errors and embodied safety) | 2026 | [S] Effect of speech-recognition noise on acceptance of harmful instructions by embodied LLM agents.
+- `kapoor2025hal` | Holistic Agent Leaderboard (HAL) | 2025 | [C] Agent accuracy vs cost; behavioural issues in logs.
+- `kim2026spoc` | SPOC | 2026 | [S] Safety-aware planning under implicit constraints (fire, fluid, injury, damage, pollution).
+- `kinniment2023ara` | METR ARA evaluations (autonomous replication and adaptation) | 2023 | [S] Autonomous replication and adaptation capability; early template for autonomy thresholds in RSP/Preparedness.
+- `korpan2025caregiving` | Encoding Inequity (LLM caregiving bias) | 2025 | [S] Demographic bias in LLM-generated robot caregiving behaviour.
+- `kutasov2025shade` | SHADE-Arena | 2025 | [CVS] Sabotage capability and monitorability of agents.
+- `kwa2025horizon` | METR 50% task-completion time horizon | 2025 | [CV] Length of tasks (in human-expert minutes) an agent completes with 50% reliability; used as a headline autonomy capability metric and as an ASL/CCL autonomy prox...
+- `li2024wmdp` | WMDP (Weapons of Mass Destruction Proxy) | 2024 | [CS] Proxy for hazardous knowledge that could uplift malicious actors; also a target for unlearning (RMU).
+- `li2026evalawaredecomp` | Decomposing and measuring evaluation awareness (EvalAwareBench) | 2026 | [S] Environment-driven vs model-driven evaluation awareness and whether it changes behaviour.
+- `lin2021truthfulqa` | TruthfulQA | 2021 | [VS] Imitative falsehoods; a widely used honesty proxy (MASK shows it does not track lying under pressure).
+- `lindner2026gram` | Gram: automated sabotage-propensity auditing | 2026 | [S] Sabotage propensity of Gemini agents.
+- `liu2026mdpgap` | Sim-to-Real Gap of Foundation Model Agents (MDP view) | 2026 | Conceptual mapping; no experiments.
+- `lu2026simmer` | SIMMER | 2026 | [CS] Latent (delayed) failures in LLM executable plans.
+- `marchiori2025jdapt` | J-DAPT (robotic jailbreak detection) | 2025 | [S] Detection accuracy of jailbreak attempts against robot-embedded VLMs across domains.
+- `marks2025hiddenobjectives` | Auditing for hidden objectives (blind auditing game) | 2025 | [VS] Detectability of hidden objectives by auditing (sensitivity of audits).
+- `meinke2024scheming` | Apollo in-context scheming evaluations | 2024 | [S] Capability for in-context scheming (deception, oversight subversion).
+- `metr2026horizonlimits` | METR: clarifying limitations of time horizon | 2026 | Stated limits of the time-horizon metric.
+- `mouton2024randbio` | RAND red-team study: LLMs and biological attack planning | 2024 | [S] Operational uplift from LLM access for bioweapon attack planning.
+- `nakao2026healthattendant` | LLM safety for robotic health attendant control | 2026 | [S] Refusal of ethically prohibited instructions by LLMs controlling a care robot.
+- `needham2025evalaware` | LLMs often know when they are being evaluated | 2025 | [S] Evaluation awareness (ability to distinguish test from deployment).
+- `obi2025safeplan` | SafePlan (+ SafePlan benchmark) | 2025 | [CS] Ability of an LLM robotic task planner to reject harmful task prompts while accepting safe ones.
+- `openai2024bioearlywarning` | OpenAI early-warning system for LLM-aided biological threat creation | 2024 | [CS] Uplift from model access on biological threat creation tasks (Preparedness Framework bio category).
+- `pan2025evalgaming` | Sonnet 4.5's eval gaming undermines alignment evals (Redwood analysis) | 2025 | [S] How much of measured alignment improvement is attributable to evaluation gaming.
+- `parrish2021bbq` | BBQ: Bias Benchmark for QA | 2021 | [S] Reliance on social stereotypes in QA; used in many model cards (e.g.
+- `patrikar2025negative` | Crash-report precedents for reasonable driving | 2025 | [S] Whether negative data (crash reports) improves calibration of driving decisions near safety boundaries.
+- `phuong2024dangerous` | DeepMind dangerous capability evaluations (Gemini 1.0) | 2024 | [CS] Whether a frontier model has dangerous capabilities in four domains; pilot of a 'science of dangerous capability evaluation'.
+- `rein2025hcast` | HCAST: Human-Calibrated Autonomy Software Tasks | 2025 | [CV] Agent success as a function of human task duration (1 min to 8+ h).
+- `ren2024safetywashing` | Safetywashing | 2024 | [S] Whether safety benchmarks measure anything beyond capability.
+- `ren2025mask` | MASK: honesty benchmark | 2025 | [CVS] Propensity to lie under pressure, disentangled from factual accuracy.
+- `rottger2023xstest` | XSTest (exaggerated safety) | 2023 | [S] False-refusal rate (specificity) alongside unsafe compliance (sensitivity).
+- `schoen2025antischeming` | Anti-scheming training stress test (OpenAI/Apollo) | 2025 | [S] Whether deliberative alignment reduces covert actions, and how evaluation awareness confounds the measurement.
+- `sermanet2025scifi` | SciFi-Benchmark | 2025 | [VS] Alignment of LLM decisions with human values in robot/AI decision moments drawn from fiction, and the effect of auto-generated constitutions on alignment and ja...
+- `son2025embodyguard` | EmbodyGuard (Subtle Risks, Critical Failures) | 2025 | [S] Whether LLM planners anticipate subtle situational physical risks, beyond refusing overt commands.
+- `souly2024strongreject` | StrongREJECT | 2024 | [CVS] Jailbreak effectiveness measured as useful harmful information, not surface compliance.
+- `souly2026aisicase` | UK AISI alignment evaluation case study | 2026 | [VS] Whether frontier models sabotage safety research as coding assistants; also measures eval-vs-deployment distinguishability.
+- `starace2025paperbench` | PaperBench | 2025 | [C] AI research replication ability (AI R&D threshold proxy).
+- `swebench2024verified` | SWE-bench Verified | 2024 | [C] Real-world software engineering capability; used as capability proxy in RSP/Preparedness autonomy evaluations and CAISI comparisons.
+- `tang2024physicalsafetyllm` | Defining and Evaluating Physical Safety for LLMs (drones) | 2024 | [S] Trade-off between code-generation capability and physical safety in LLM drone control.
+- `tice2024noise` | Noise injection reveals sandbagging | 2024 | [VS] Model-agnostic detector for sandbagging.
+- `vanderweij2024sandbagging` | AI sandbagging | 2024 | [S] Feasibility of strategic underperformance on dangerous-capability evals (a sensitivity threat).
+- `wang2026physicaljailbreak` | PhysicalJailbreakBench-2K / PRISM | 2026 | [S] Whether physical-harm risk is separable from textual jailbreak risk in model internals.
+- `wijk2024rebench` | RE-Bench | 2024 | [CS] Frontier AI R&D automation capability (an RSP/FSF AI R&D threshold proxy).
+- `xie2024sorrybench` | SORRY-Bench | 2024 | [VS] Fine-grained safety refusal behaviour.
+- `zhang2024cybench` | Cybench | 2024 | [CVS] Offensive cyber capability of LLM agents (vulnerability discovery and exploitation).
+- `zhang2025bountybench` | BountyBench | 2025 | [S] Dollar-denominated offensive and defensive cyber capability on real systems.
+
+### Level 1: static image / scene QA with a VLM (17)
+
+- `andeol2023confident` | Conformal risk control for railway signal detection (SNCF dataset) | 2023 | [CVS] Whether split conformal prediction and conformal risk control give formally guaranteed miscoverage (<=10%) on detected railway signals, and the price in box siz...
+- `christensen2025maritime` | Semantic Lookout (maritime VLM hazard detection) | 2025 | [VS] Whether VLMs give usable semantic hazard awareness in the IMO MASS alert-to-takeover window.
+- `elhafsi2023semantic` | Semantic anomaly detection with LLMs | 2023 | [VS] Whether an LLM monitor catches system-level semantic edge cases (stop signs on billboards, traffic lights on trucks) that component-level OOD detectors miss.
+- `foutter2026faithfulness` | Pinocchio (faithfulness of embodied CoT) | 2026 | [VS] Whether verbalized reasoning of a driving VLA faithfully reflects its decisions, and whether faithfulness improves long-tail robustness.
+- `gotting2025vct` | Virology Capabilities Test (VCT) | 2025 | [CVS] Tacit and visual practical virology knowledge relevant to bioweapons uplift.
+- `indukuri2026hazardanomaly` | Hazard or Anomaly? (VLM danger vs discrepancy) | 2026 | [S] Whether VLMs conflate unusualness with danger (false-alarm behaviour).
+- `laurent2024labbench` | LAB-Bench | 2024 | Practical biology research assistance capability; used by UK/US AISI as a bio capability probe.
+- `lu2026homeguard` | HomeGuard | 2026 | [S] Contextual risk identification for household tasks with reduced over-refusal.
+- `mazeika2024harmbench` | HarmBench | 2024 | [CVS] Robust refusal under automated jailbreaks; standardised comparison of red-teaming methods.
+- `samarakoon2026paperhijack` | Hijacking Robots with a Piece of Paper (physical prompt injection) | 2026 | [CS] Susceptibility of VLM robot controllers to visual text injection and the efficacy of mitigations.
+- `steinberg2026semanticdos` | Semantic Denial of Service in LLM-controlled robots | 2026 | [S] Availability attacks that exploit safety refusals (false-alarm exploitation).
+- `wang2026touchsafebench` | TouchSafeBench (collision grounding for HRC) | 2026 | [VS] Whether VLMs can ground physical contact risk between humans and robots from visual input.
+- `yeke2026robojailbench` | RoboJailBench | 2026 | [CVS] Standardised jailbreak attack/defense comparison for embodied VLM agents with a security-utility trade-off, over an 18-category taxonomy of physical-security co...
+- `zhang2026guardianbench` | GuardianBench | 2026 | [S] Latent contextual risk recognition: distinguishing safe from unsafe instructions given identical scenes.
+- `zhao2026realm` | REALM (red-teaming physical-world VLMs) | 2026 | [S] Comparative attack effectiveness against VLMs used for physical-world tasks.
+- `zhou2024mssbench` | MSSBench (Multimodal Situational Safety) | 2024 | [CVS] Whether a VLM's safety judgement depends correctly on the visual situation rather than the query alone.
+- `zhu2024earbench` | EARBench (EAIRiskBench) | 2024 | [VS] Physical-risk awareness of foundation-model task planners in generated risk-prone scenes.
+
+### Level 2: video / temporal QA (3)
+
+- `geminirobotics2026agentic` | ASIMOV-Agentic (Gemini Robotics 2: Safety Evaluations) | 2026 | [VS] Whether an agent orchestrating a VLA refuses unsafe tool calls, stops for nearby humans, shields the VLA from infeasible tasks, and asks for clarification under...
+- `gu2025accidentbench` | AccidentBench | 2025 | [VS] Safety-critical video understanding and reasoning of foundation models in accident scenarios.
+- `tian2026badbehavior` | Position: embodied reward models need bad behavior data (RoboArena reward-model audit) | 2026 | [VS] How well embodied reward models agree with human judgments of real robot behavior, and where they over-reward unsafe, poorly executed, or shortcut behaviors; th...
+
+### Level 3: generated or synthetic adversarial scenes, scored open-loop (24)
+
+- `banerjee2022lifecycle` | Data lifecycle benchmark for aerospace ML | 2022 | Cost-vs-performance of labelling strategies under evolving input distributions (open-source benchmark).
+- `cao2022advdo` | AdvDO (realistic adversarial attacks on trajectory prediction) | 2022 | [S] Adversarial robustness of trajectory predictors and its downstream planning consequences.
+- `cao2022robust` | Robust trajectory prediction against adversarial attacks | 2022 | [S] Robustness gains vs clean-data cost, and downstream collision/off-road rates.
+- `chakraborty2025frs` | FORCE-OPT (predictor-based forward reachable sets for plan safety) | 2025 | [CS] Soundness and completeness of a plan-level safety monitor for end-to-end stacks.
+- `chen2025safemind` | SafeMind / SafeMindBench | 2025 | [CVS] Safety of embodied LLM agents across task understanding, environment perception and action ordering under sabotage/harm/privacy/illegal scenarios.
+- `chen2026crashtwin` | CrashTwin (physics-grounded world-model benchmark) | 2026 | [S] Physical trustworthiness of generative world models used as AV simulators in collision scenarios.
+- `ding2023realgen` | RealGen (retrieval-augmented scenario generation) | 2023 | [S] Flexibility and controllability of generated safety-critical scenarios.
+- `dyro2024extreme` | Realistic Extreme Behavior Generation for AV Testing | 2024 | [CVS] Interpretable failure modes of an AV collision-avoidance policy under realistic adversarial counterfactual collisions.
+- `geminirobotics2025report` | Gemini Robotics tech report, safety section (ASIMOV evals) | 2025 | [S] Semantic action safety of the ER model before and after post-training on ASIMOV data, and refusal of bias-inducing pointing queries.
+- `geminirobotics2025report15` | Gemini Robotics 1.5 tech report: ASIMOV-2.0 + Auto-Red-Teaming (ART) | 2025 | [S] Adversarial robustness of the robot foundation model to prompt, scene and environment attacks, and semantic safety on ASIMOV-2.0 (risk recognition, consequence ...
+- `hu2026vlesa` | VLESA | 2026 | [S] Real-time intervention triggering from egocentric video of human activity.
+- `jindal2025danger` | ASIMOV-2.0 (Can AI Perceive Physical Danger and Intervene?) | 2025 | [CVS] Whether frontier models can perceive latent physical danger, judge injury severity, decide when to intervene, and respect embodiment-specific constraints (paylo...
+- `lai2026icat` | ICAT (incident-case-grounded adaptive testing of world models) | 2026 | [VS] Physical-risk fidelity of generative world models used as neural simulators.
+- `majumdar2025predictive` | Predictive Red Teaming (RoboART) | 2025 | [CVS] Which off-nominal environmental conditions (lighting, background, distractors, table height) break an imitation-learned policy, predicted without running the ro...
+- `panpatil2026egosafetybench` | EgoSafetyBench | 2026 | [CVS] Runtime hazard detection and over-intervention of VLMs on temporally evolving egocentric scenes.
+- `peng2025ldscene` | LD-Scene | 2025 | [S] User-controllable generation of adversarial driving scenarios without expert knowledge.
+- `pu2026homesafebench` | HomeSafe-Bench (unsafe action detection) | 2026 | [S] Detection and temporal localisation of embodied-agent-specific unsafe actions in household video.
+- `ronecker2025vfm` | Vision-foundation-model embedding semantic anomaly detection | 2025 | [S] Detection and localisation of semantic anomalies for driving.
+- `seo2026stressdream` | StressDream (steered world-model policy evaluation) | 2026 | [CVS] Whether a policy's actions admit plausible failure futures under a video world model, used for robust offline policy evaluation and for weighting fine-tuning da...
+- `sermanet2025asimov` | ASIMOV Benchmark v1 + generated robot constitutions | 2025 | [CVS] Whether a VLM judges robot actions as safe/unsafe the way humans do (semantic safety), and how much auto-generated constitutions raise that alignment versus no-...
+- `tan2023lctgen` | LCTGen (language-conditioned traffic generation) | 2023 | Realism/fidelity of generated traffic scenes conditioned on language.
+- `yin2026roboshackles` | ROBOSHACKLES | 2026 | [S] Whether embodied foundation models refuse actions that would injure humans in edited real scenes.
+- `zhong2022ctg` | CTG (guided conditional diffusion traffic sim) | 2022 | [S] Controllability-realism trade-off of generated traffic for testing.
+- `zhong2023ctgpp` | CTG++ (language-guided scene-level diffusion) | 2023 | [S] Realism and query compliance of language-specified traffic scenarios.
+
+### Level 4: closed-loop physics simulation (77)
+
+- `an2026flowhijack` | FlowHijack (backdoor on flow-matching VLAs) | 2026 | [S] Backdoor feasibility on pi0-style flow-matching policies where prior triggers failed.
+- `anthropic2026claudeplaysrobotics` | Claude Plays Robotics | 2026 | [CS] How embodiment capability of frontier models depends on control-interface abstraction; argues isolated model evals understate capability once embedded in a robo...
+- `balaji2026oopsieverse` | OopsieVerse / DamageSim | 2026 | [S] Physically grounded, task-agnostic damage measurement for manipulation/navigation policies.
+- `chen2024dpattacker` | DP-Attacker (attacks on diffusion policies) | 2024 | [S] Vulnerability of diffusion policies (chained denoising, stochastic) to digital and patch attacks.
+- `chen2025robotwin2` | RoboTwin 2.0 | 2025 | [V] Robust bimanual manipulation and the training value of randomized synthetic data.
+- `chen2026hazardarena` | HazardArena | 2026 | [VS] Whether VLAs recognise when an otherwise valid action becomes hazardous, isolating safety judgement from motor skill.
+- `chen2026vilta` | VILTA (VLM-in-the-loop adversary) | 2026 | [S] Whether a VLM adversary in the loop improves long-tail robustness of driving policies.
+- `choi2026vlaeval` | vla-eval harness | 2026 | [C] Reproducibility and throughput of simulated VLA evaluation.
+- `cui2026liberosafety` | LIBERO-Safety | 2026 | [CS] Physical and semantic safety of VLA policies and the effect of training-data diversity on safe trajectories.
+- `euroncap2025virtual` | Euro NCAP Safe Driving & Crash Avoidance Virtual Testing protocol v1.00 | 2025 | [VS] Whether an OEM's virtual test results may substitute for physical Euro NCAP track tests (level 8) in rating predictions.
+- `euroncap2026vta` | Euro NCAP 2026 Virtual Test Assessment (VTA) and test-grid growth | 2026 | [CVS] Same AEB/LSS grid as the physical protocol, but the bulk of cells scored in simulation with physical spot checks.
+- `fan2026safevlabench` | SafeVLA-Bench | 2026 | [VS] The success-safety gap: how often nominally successful VLA episodes violate physical safety requirements.
+- `fei2025liberoplus` | LIBERO-Plus | 2025 | Robustness of 10 VLAs to non-adversarial but out-of-distribution perturbations; reveals language is largely ignored.
+- `feng2021nade` | NADE: Naturalistic and Adversarial Driving Environment | 2021 | [CVS] Unbiased estimate of the AV crash rate per mile with far fewer simulated miles than naturalistic testing.
+- `feng2023dense` | Dense deep reinforcement learning (D2RL) for AV safety validation | 2023 | [CS] Accelerated, unbiased crash-rate estimation of an AV in an intelligent testing environment.
+- `gao2026isaacsim` | NVIDIA Isaac Sim survey | 2026 | Characterises architecture and usability constraints of the simulator used by REALM, RoboLab, JoyAI-Sim.
+- `geng2025roboverse` | RoboVerse / MetaSim | 2025 | [V] Unified platform, dataset and benchmark protocol; claims improved sim-to-real transfer.
+- `hanselmann2022king` | KING | 2022 | [S] Efficiency of scenario generation and usefulness of generated scenarios for robust imitation learning.
+- `huang2025safebeal` | Safe-BeAl / SafePlan-Bench | 2025 | [CVS] Task-planning safety of LLM embodied agents over 8 hazard categories and the gain from Safe-Align fine-tuning.
+- `huang2026coordination` | Communication attacks in LLM multi-robot systems | 2026 | [S] Propagation of unsafe actions through LLM-mediated robot coordination and the effect of a provenance-verification gate.
+- `huang2026safemanip` | SafeManip | 2026 | [S] Temporal safety compliance of VLA policies independent of success.
+- `hundt2022stereotypes` | Robots Enact Malignant Stereotypes | 2022 | [S] Whether pretrained vision-language robot policies act out gender/race stereotypes and physiognomy.
+- `james2019rlbench` | RLBench | 2019 | Multi-task manipulation learning; base of COLOSSEUM and PerAct-style evaluation.
+- `jeong2025salt` | SALT runtime monitor evaluation (Robots that Suggest Safe Alternatives) | 2025 | [CVS] Whether a closed-loop reachability monitor predicts execution failures better than open-loop uncertainty quantification (ensemble disagreement), and whether sug...
+- `jia2024bench2drive` | Bench2Drive | 2024 | [S] Multi-ability closed-loop driving performance; alternative to open-loop L2/collision metrics.
+- `jones2025adversarial` | RoboGCG (textual attacks on VLAs) | 2025 | [CS] Reachability of the full action space and persistence of control via textual jailbreak-style attacks.
+- `kanwal2026fatevla` | FATE-VLA (failure-aware test generation) | 2026 | [S] How many and how diverse the failures found per test budget for VLAs (OpenVLA-7b, pi0, GR00T-N1.6, EO-1) versus random/ART baselines.
+- `karnik2024ert` | Embodied Red Teaming (ERT) | 2024 | [C] Robustness of language-conditioned robot policies to instruction phrasing and whether benchmark instruction sets overstate performance.
+- `li2024behavior1k` | BEHAVIOR-1K / OmniGibson | 2024 | [CV] Long-horizon household activity completion; includes a sim-to-real calibration study.
+- `li2024rigorous` | Rigorous simulation-based testing of four open autopilots | 2024 | [S] Defects missed by random simulation testing.
+- `li2025shawshank` | SHAWSHANK-BENCH (indirect environmental jailbreaks) | 2025 | [S] Vulnerability of embodied VLM agents to environment-borne injections.
+- `li2026besafebench` | BeSafe-Bench | 2026 | [S] Behavioural safety of situated agents while completing tasks.
+- `liu2023libero` | LIBERO | 2023 | [CV] Knowledge transfer in lifelong robot learning; de-facto VLA leaderboard.
+- `liu2026jailwam` | JailWAM | 2026 | [S] Jailbreak success against world-action robot models.
+- `lu2025isbench` | IS-Bench | 2025 | [CVS] Interactive safety: whether an embodied VLM agent perceives emergent risks during execution and orders mitigation steps correctly, not just post-hoc plan safety...
+- `luo2021conformal` | Sample-efficient safety assurances via conformal prediction | 2021 | [VS] Guaranteed false-negative rate of unsafe-situation warning systems using as few as 1/epsilon calibration samples.
+- `luo2026safestage` | SafeStage | 2026 | [S] Stage-resolved safety failure profiles of VLA and world-model policies.
+- `lyu2026foresightsafetyvla` | ForesightSafety-VLA | 2026 | [VS] Process-level physical, instruction-side and perception-side safety of VLA policies under a 13-category taxonomy (Safe-Core, Safe-Lang, Safe-Vis).
+- `makoviychuk2021isaacgym` | Isaac Gym | 2021 | Throughput for RL policy training in simulation.
+- `mei2025llmattacker` | LLM-attacker | 2025 | [S] Closed-loop adversarial scenario generation with LLM attacker identification.
+- `mittal2025isaaclab` | Isaac Lab | 2025 | Simulation infrastructure; used by RoboLab and REALM-style evaluations.
+- `myers2020passfail` | Pass-fail criteria for scenario-based ADS testing | 2020 | [S] How to turn scenario test outputs into automated type-approval decisions.
+- `nasiriany2024robocasa` | RoboCasa | 2024 | [CV] Scaling of imitation learning with synthetic data; sim data usefulness for real deployment.
+- `nasiriany2026robocasa365` | RoboCasa365 | 2026 | Reproducible large-scale benchmark for generalist household robots; effect of task diversity, data scale, environment variation.
+- `obidov2026silent` | Silent Sabotage (history-triggered backdoors on LLM robot controllers) | 2026 | [S] Stealth and effectiveness of internal-state-triggered backdoors in LLM-powered robots.
+- `pandya2025reguard` | ReGuard control-theoretic guardrail evaluation (From Refusal to Recovery) | 2025 | [CS] Whether predictive guardrails prevent catastrophic downstream outcomes of agentic AI while preserving task performance, compared with refusal-based guardrails.
+- `pegasus2019` | PEGASUS project (scenario-based validation of highly automated driving) | 2019 | [VS] Generally accepted quality criteria, tools and methods to approve a highway-pilot function; replaces distance-based release.
+- `puig2023habitat3` | Habitat 3.0 | 2023 | [S] Human-robot collaboration in homes, including safe following of humans; human-in-the-loop evaluation of learned policies.
+- `pumacay2024colosseum` | THE COLOSSEUM | 2024 | [C] Generalization degradation under controlled environmental perturbations, with a real-world check of perturbation effects.
+- `ruan2026x2real` | X2Real | 2026 | [V] Extensive simulated benchmark aiming to predict real-world generalist policy performance.
+- `sharrock2026dronebench` | Drone-Bench | 2026 | [CVS] Whether frontier models can autonomously write code for a simple surveillance stack (reconstruction, localisation, navigation, detection, following) on a USD 12...
+- `stoler2024seal` | SEAL | 2024 | [S] Realism of adversary behaviour and downstream ego-policy robustness.
+- `szot2021habitat2` | Habitat 2.0 / Home Assistant Benchmark | 2021 | Rearrangement capability; throughput of physics-enabled sim.
+- `tan2024prosim` | ProSim (promptable closed-loop traffic simulation) | 2024 | Prompt controllability and realism of reactive traffic agents for closed-loop testing.
+- `tao2024maniskill3` | ManiSkill3 | 2024 | Simulation throughput and breadth; not itself a validity study.
+- `tayal2026shieldvla` | ShieldVLA | 2026 | [S] Safety-cost reduction of VLAs via feasibility-aware alignment.
+- `tong2026daert` | DAERT (Diversity-Aware Embodied Red Teaming) | 2026 | [S] Linguistic fragility of VLAs (pi0, OpenVLA, 3D-Diffuser Actor) under diverse adversarial paraphrases.
+- `torresfonseca2026safetyalfred` | SafetyALFRED | 2026 | [S] Gap between recognising a hazard in QA and mitigating it in embodied planning.
+- `unece2021r157` | UN Regulation No. 157 (ALKS) validation regime | 2021 | [VS] Regulatory conformity of an L3 highway function; first regulation to admit simulation as type-approval evidence.
+- `wang2025diffusionvalidation` | Diffusion models for AV safety validation | 2025 | [S] Sample-efficient black-box failure generation without prior knowledge of the system under test.
+- `wang2025freezevla` | FreezeVLA (action-freezing attacks) | 2025 | [S] Denial-of-action vulnerability: probability an adversarial image freezes the robot.
+- `wang2025madra` | MADRA / SafeAware-VH | 2025 | [S] Training-free risk-aware planning with low false rejection.
+- `wang2026openloop` | Do open-loop metrics predict closed-loop driving? NAVSIM vs Bench2Drive | 2026 | [S] Predictive validity of an open-loop safety score for closed-loop outcomes.
+- `wu2025dowhatyousay` | LIBERO-100-R / LIBERO-10-R OOD evaluation suite (Do What You Say) | 2025 | [C] Embodied chain-of-thought faithfulness: whether executed actions match the VLA's own textual plan under semantic and visual distribution shift; also behavior-co...
+- `wu2025rvsg` | RVSG (VLM-based testing of industrial AMRs) | 2025 | [S] Scenario generation for safety testing of industrial mobile robots.
+- `xu2022bits` | BITS (bi-level imitation for traffic simulation) + tbsim | 2022 | Behaviour realism of learned traffic agents; introduces evaluation metrics for traffic simulation.
+- `xu2025edpa` | EDPA (model-agnostic embedding disruption patch) | 2025 | [S] Black-box transferability of a single visual patch across VLA architectures and effectiveness of encoder adversarial training.
+- `yang2022sparse` | Adaptive safety evaluation with sparse control variates | 2022 | [S] Variance of the crash-rate estimate for a given number of simulated tests.
+- `yang2026saferelbench` | SafeRelBench | 2026 | [S] Whether embodied VLM agents respect spatial-relation-dependent safety constraints during execution.
+- `yao2025homesafebench` | HomeSafeBench | 2025 | [CVS] Active home-safety inspection: finding hazards through exploration rather than answering about a fixed image.
+- `yin2024safeagentbench` | SafeAgentBench | 2024 | [CVS] Whether LLM task planners recognise and refuse explicitly and implicitly hazardous household tasks while still completing safe ones.
+- `zhan2025sentinel` | SENTINEL | 2025 | [S] Formal multi-level safety verification of foundation-model embodied agents.
+- `zhang2024chatscene` | ChatScene | 2024 | [S] Collision-inducing power of LLM-generated safety-critical scenarios and their training value.
+- `zhang2025responsiblerobotbench` | ResponsibleRobotBench | 2025 | [VS] Responsible manipulation: completing tasks while avoiding hazards and escalating to humans when needed.
+- `zhang2025safevla` | SafeVLA + Safety-CHORES | 2025 | [CVS] Safety-performance trade-off of VLA policies under fine-grained physical constraints in long-horizon mobile manipulation.
+- `zhou2025badvla` | BadVLA (objective-decoupled backdoor) | 2025 | [S] Backdoor ASR vs clean-task accuracy for VLAs.
+- `zhou2025liberopro` | LIBERO-PRO | 2025 | Whether high LIBERO scores reflect task understanding or memorized trajectories.
+
+### Level 5: photoreal / digital-twin simulation or real-data replay (54)
+
+- `alsinglawi2026mulrobbench` | MulRobBench (UAV agents) | 2026 | [S] Safe, policy-compliant decision-making of multimodal UAV agents.
+- `antonante2023taskaware` | Task-aware risk estimation of perception failures | 2023 | [S] Whether a perception error matters for the plan (system-level risk), and how well the estimator triggers safety maneuvers.
+- `caesar2021nuplan` | nuPlan | 2021 | [S] Closed-loop planning quality on real-world scenario distribution.
+- `cao2025pseudosim` | Pseudo-Simulation (NAVSIM v2) | 2025 | [CVS] Error recovery and causal-confusion robustness of end-to-end planners without interactive simulation; correlation with closed-loop outcomes.
+- `chakraborty2024sparq` | SPARQ (system-level perception-failure safety Q-network) | 2024 | [CS] Runtime safety assessment of motion plans against overlooked perception failures.
+- `chang2024safesim` | SAFE-SIM | 2024 | [S] Realistic, controllable closed-loop safety-critical traffic for planner evaluation.
+- `dauner2023parting` | Parting with Misconceptions (nuPlan open-loop vs closed-loop) | 2023 | [S] Alignment between ego-forecasting accuracy and closed-loop driving safety.
+- `dauner2024navsim` | NAVSIM | 2024 | [VS] Whether open-loop-style evaluation on real logs can predict closed-loop driving quality; ranks vision-based end-to-end planners on collision/progress/comfort su...
+- `deglurkar2024uq` | System-level analysis of module uncertainty quantification | 2024 | [S] Whether a module's uncertainty estimate is useful to the system and how uncertainty-aware designs compare.
+- `diller2026rebar` | REBAR (ethical benchmark for autonomy readiness) | 2026 | [S] Ethical/safety readiness of autonomous systems via at-scale generated scenarios.
+- `ding2025surprise` | Surprise Potential (interactive scenario mining) | 2025 | [VS] Which logged scenarios are interactive enough to be worth including in an AV benchmark; alignment with human judgement of interactivity.
+- `farid2022taskrelevant` | Task-relevant failure detection for trajectory predictors | 2022 | [S] Detection of prediction failures that actually harm the plan, with bounds on false-positive and false-negative rates.
+- `geminirobotics2025veo` | Evaluating Gemini Robotics policies in a Veo world simulator | 2025 | [CVS] Whether a generative video world model can rank and score robot policies for nominal performance, OOD generalization and physical/semantic safety as well as rea...
+- `gigaworld2026roadmap` | GigaWorld-1 / WMBench | 2026 | [CV] How well world models rank policies vs real, and what drives evaluator quality (long-horizon action-faithful consistency over visual realism).
+- `glasmacher2023acquire` | Cost-optimal scenario acquisition framework | 2023 | [S] Cost-optimal mix of real and generated scenarios for scenario-based testing.
+- `guo2025ctrlworld` | Ctrl-World | 2025 | [V] Policy ranking without real rollouts; data synthesis for policy improvement.
+- `han2024euvs` | EUVS (Extrapolated Urban View Synthesis Benchmark) | 2024 | [C] How much sensor-simulation fidelity degrades when rendering viewpoints outside the training trajectory, i.e.
+- `han2026wildcity` | WildCity (city-scale real-world testbed) | 2026 | Feasibility of simulation-ready city-scale digital twins for closed-loop testing.
+- `huang2026cimse` | Critical Interval MSE | 2026 | [V] Whether an offline metric can rank checkpoints without rollouts.
+- `ivanovic2021planningaware` | Planning-aware prediction and detection metrics | 2021 | [S] Task-aware metrics for perception and prediction that better estimate closed-loop performance and outcome asymmetry.
+- `jain2025polaris` | PolaRiS | 2025 | [CV] Whether real-to-sim environments plus a light co-training recipe give simulated scores that track real-world generalist policy performance across unseen scenes.
+- `jangir2025robotarenainf` | RobotArena Infinity | 2025 | [V] Scalable ranking of generalist policies via real-to-sim translation, with VLM progress scores validated against human preferences.
+- `jeon2026roboworld` | RoboWorld (neural simulator eval) | 2026 | [CV] Fast, learned-simulator evaluation of generalist policies that preserves real-world rankings.
+- `kadian2020sim2real` | Sim2Real Predictivity (Habitat, SRCC) | 2020 | [CV] Introduces the Sim-vs-Real Correlation Coefficient (SRCC): how well ranking of navigation agents in simulation predicts their real-robot ranking.
+- `kusano2022collision` | Waymo Collision Avoidance Testing (CAT) | 2022 | [CVS] Whether the ADS meets or exceeds a competent human reference in urgent collision-avoidance scenarios, aggregated by scenario safety group and road-user group.
+- `lekeufack2024conformal` | Conformal Decision Theory pedestrian-navigation risk evaluation | 2024 | [S] Whether decisions calibrated directly by conformal risk control achieve a target long-run risk without distributional assumptions, and at what efficiency cost.
+- `leung2022safetyconcepts` | Learning AV safety concepts from demonstrations | 2022 | [S] Which logged interactions violate a data-derived safety concept; comparison with hand-designed concepts (e.g.
+- `li2024simpler` | SIMPLER (SimplerEnv) | 2024 | [CV] Whether simulated success rates and rankings of real-world manipulation policies track their real-robot success rates on Google Robot and WidowX/Bridge tasks.
+- `li2025worldeval` | WorldEval (world model as real-world policy evaluator) | 2025 | [V] Whether a video world model ranks real robot policies correctly and flags dangerous actions before deployment.
+- `li2026dworldeval` | dWorldEval | 2026 | Scalable policy evaluation across LIBERO, RoboTwin and real tasks; claims to outperform WorldEval, Ctrl-World, WorldGym.
+- `liu2026inspecsafe` | InspecSafe-V1 (industrial inspection safety) | 2026 | [S] Multimodal safety-level assessment in real industrial inspection scenes.
+- `liu2026joyaisim` | JoyAI-Sim | 2026 | [CV] Sim-real consistency of digital-twin evaluation for long-horizon tidy-up tasks and a bidirectional robot-sim-human data pipeline.
+- `ljungbergh2024neuroncap` | NeuroNCAP: photorealistic closed-loop safety testing | 2024 | [S] Collision avoidance of end-to-end planners in NCAP-style critical scenarios with realistic sensor input.
+- `lu2026seeing` | From Seeing to Simulating (digital cousins, WorldComposer) | 2026 | [CV] Sim-to-real correlation of generated scenes and value of cousin-scene data for generalization.
+- `ma2025safevl` | SafeVL (VLM driving-safety evaluator) | 2025 | [S] Whether a VLM can serve as a learned safety evaluator of driving scenes and reduce closed-loop collisions when used as a critic.
+- `mcity2024digitaltwin` | Mcity open-source digital twin and TeraSim | 2024 | [CS] Enables millions of simulated miles in a twin of a real track before physical runs.
+- `montali2023wosac` | Waymo Open Sim Agents Challenge (WOSAC) | 2023 | [V] Realism of simulated traffic agents relative to logged real behaviour (a validity metric for the simulator itself).
+- `quevedo2025worldgym` | WorldGym | 2025 | [CV] Whether success in a learned world model predicts real success and preserves policy rankings.
+- `ranawaka2026simfoundry` | SimFoundry | 2026 | [V] Fidelity of automatically generated digital twins as evaluation proxies and as training data.
+- `rempe2022strive` | STRIVE | 2022 | [S] Generation of plausible accident-prone scenarios that are useful (solvable) for planner improvement.
+- `sarva2023adv3d` | Adv3D | 2023 | [S] Effect of realistic actor-shape variation on the full autonomy stack; closed-loop vs open-loop search.
+- `scanlon2021waymo` | Waymo counterfactual simulation of reconstructed fatal crashes (Chandler) | 2021 | [CS] Counterfactual collision-avoidance effectiveness of the ADS in every fatal crash in its ODD over 2008-2017.
+- `sedlacek2025realm` | REALM | 2025 | [CV] Generalization and robustness of VLAs under controlled perturbations, with real-to-sim validation of the simulator as a proxy.
+- `tenbrock2021conscend` | ConScenD: concrete R157 scenarios from highD | 2021 | [S] Parameterised, real-data-derived test cases for ALKS system-level simulation.
+- `tian2022confidence` | Confidence-aware game-theoretic safety monitor evaluated on INTERACTION dataset | 2022 | [S] How conservative a runtime safety monitor is relative to real human driving, and whether confidence-aware models cut interventions without collisions.
+- `topan2022perceptionzones` | Interaction-dynamics-aware perception safety zones | 2022 | [S] A safety-aware evaluation metric for obstacle detection: which perception errors matter.
+- `wang2021advsim` | AdvSim | 2021 | [S] Discovery of safety-critical scenarios for LiDAR-based autonomy stacks from real data replay.
+- `wang2026interactive` | Interactive World Simulator | 2026 | [C] Whether world-model evaluation preserves policy ordering; training value of generated data.
+- `wang2026r2seval` | R2S-Eval | 2026 | [CV] Whether VLM pairwise judgment of calibrated-sim rollouts reproduces hardware policy rankings while cutting hardware effort.
+- `wang2026recipe` | Sim-and-real correlation recipe for VLA evaluation | 2026 | [CV] Which simulators and which simulated signals preserve real-world policy rankings, and whether simulator co-training improves correlation.
+- `yang2025benchmarking` | Robot Policy Evaluation for Sim-to-Real Transfer: A Benchmarking Perspective | 2025 | Argues how sim benchmarks should be built so that scores align with real deployment.
+- `yang2026robolab` | RoboLab / RoboLab-120 | 2026 | [V] Competency-axis analysis of generalist policies and whether sim scores proxy real-world quality (compared to RoboArena Elo).
+- `yu2025drivee2e` | DriveE2E | 2025 | [S] Closed-loop driving on real-derived scenario distributions instead of hand-authored CARLA scenarios.
+- `zhang2025gaussian` | Real-to-sim eval with Gaussian splatting (soft bodies) | 2025 | [CV] Whether simulated success on deformable-object tasks (toy packing, rope routing, T-block pushing) predicts real success across policy architectures.
+
+### Level 6: hardware-in-the-loop (11)
+
+- `abouchakra2025realissim` | Real-is-Sim | 2025 | [V] Whether checkpoint rankings from virtual-only rollouts in a dynamic digital twin match real-world rankings.
+- `cao2021invisible` | MSF-ADV (adversarial 3D objects vs camera+LiDAR fusion) | 2021 | [S] Whether multi-sensor fusion provides security against a single physical adversarial object.
+- `cui2025vpautotest` | VP-AutoTest virtual-physical fusion testing platform | 2025 | [VS] ADS performance in interactive scenarios that are unsafe or infeasible to stage purely physically.
+- `kaiser2025coupled` | Coupled cyclist-in-the-loop and vehicle-in-the-loop test environment | 2025 | [S] AV-cyclist interaction behaviour without exposing a human to a moving vehicle.
+- `novickineto2023twice` | TWICE dataset: digital twin of test-track scenarios in a HIL lab | 2023 | [S] Sensor-level sim-to-real gap for the same scenario executed physically and in HIL.
+- `sato2021dirty` | Dirty Road Patch attack on Automated Lane Centering | 2021 | [VS] Whether a physically printable road patch can steer a production ALC out of lane within the driver's reaction time.
+- `son2022pgvil` | Proving-ground-based Vehicle-in-the-Loop simulation with consistency validation | 2022 | [S] Whether VIL reproduces real-test vehicle behaviour (longitudinal KPIs) closely enough to substitute for physical scenario reproduction.
+- `winkelmann2022transfer` | Transfer Importance Sampling across test setups | 2022 | [CS] Failure-probability estimate that trades bias of the cheap setup against variance of the expensive one.
+- `wu2026fromcode` | From Code to Road: VIL and digital-twin framework for central car server testing | 2026 | [S] Safe, reproducible, realistic end-to-end validation of centralised vehicle software before road tests.
+- `zhang2025combined` | Combined virtual-real (digital twin) AEB testing: field experiments | 2025 | [VS] Efficiency, cost and scenario-coverage gains of virtual-real AEB testing versus proving-ground testing.
+- `zhang2025vilsim` | Vehicle-in-the-loop simulator with AI digital twins | 2025 | [S] Cheap hardware-in-the-loop validation of automated driving controllers.
+
+### Level 7: real robot, controlled lab, no humans at risk (86)
+
+- `agarwal2026cobalt` | COBALT crowdsourced cloud teleoperation | 2026 | [C] Throughput of crowdsourced demonstration collection.
+- `agia2024sentinel` | Sentinel (runtime monitoring of generative policies) | 2024 | [CS] Failure-detection accuracy and latency for generative policies under OOD conditions.
+- `agibot2025world` | AgiBot World Colosseo | 2025 | Company-scale real-robot data throughput.
+- `anthropic2025projectfetch` | Project Fetch (robot dog) | 2025 | [CS] AI-uplift for non-expert humans programming a physical robot; tracked as a Responsible Scaling Policy capability indicator.
+- `anthropic2026projectpilot` | Project Pilot (Anthropic x Andon Labs) | 2026 | [CVS] Whether 15 frontier models across three developers can recreate an aerial person-finding-and-following surveillance demo; frames the result as a dual-use capabi...
+- `arkhangelskiy2026phail` | PhAIL | 2026 | [C] Distributional (time-to-success) evaluation of VLAs versus a human baseline, and adequacy of standard N<=25 practice.
+- `atreya2025roboarena` | RoboArena | 2025 | [CV] Distributed, crowd-sourced real-world ranking of generalist robot policies across diverse tasks and environments.
+- `badithela2025suresim` | SureSim | 2025 | [C] How much real hardware testing an imperfect simulator can replace while keeping valid CIs on real success.
+- `bansal2020hjhuman` | HJ reachability analysis of prior misspecification in human motion prediction | 2020 | [S] The effect of incorrect priors/observation models on future human-state predictions and on the safety of the resulting robot plan.
+- `brunke2024semanticsafe` | Semantically Safe Robot Manipulation | 2024 | [S] Runtime semantic safety filtering beyond geometric collision avoidance.
+- `caluwaerts2023barkour` | Barkour agility benchmark | 2023 | [C] Agility (speed and versatility) of legged-robot controllers and hardware on a standardized real course.
+- `chen2026robodojo` | RoboDojo | 2026 | [V] Unified sim-and-real evaluation of generalist manipulation policies.
+- `chi2024umi` | Universal Manipulation Interface (UMI) | 2024 | Robot-free demonstration collection to cut data cost.
+- `dasari2022rb2` | RB2: Ranking-Based Robotics Benchmark | 2022 | [CV] Reproducible local real-robot benchmarking with a global ranking so labs can show statistically significant improvement over shared baselines.
+- `ding2026failpassive` | Certified functional safety for industrial humanoids: fail-passive gap | 2026 | [S] Where the certification gap sits for actively balancing robots that cannot be de-energised safely.
+- `ganai2025fortress` | FORTRESS (OOD failure prevention via multimodal reasoning) | 2025 | [S] Safety-classification accuracy and closed-loop planning success under OOD events.
+- `gervet2023navigating` | Navigating to Objects in the Real World | 2023 | [V] Whether sim ObjectNav rankings hold in real homes.
+- `goel2025geometric` | Geometric Red-Teaming (CrashShapes) | 2025 | [VS] Robustness of pre-trained manipulation policies to plausible object-geometry variation, and recovery via fine-tuning (blue-teaming).
+- `guo2026statebackdoor` | State Backdoor (initial-state trigger) | 2026 | [S] Stealthy non-visual backdoor triggers robust to environmental variability.
+- `han2026dura` | DURA (diffusion-based natural adversarial patches) | 2026 | [S] Targeted action hijacking via visually natural patches, including black-box query access.
+- `hartmann2026biofidelic` | Systematic review of biofidelic instrumentation for PFL cobot testing | 2026 | [S] Metrological limits and trends of the instruments that produce the pass/fail numbers for ISO/TS 15066 and ISO 10218:2025.
+- `hindy2024martingales` | Diagnostic runtime monitoring with martingales | 2024 | [S] Speed and accuracy of diagnosing distribution-shift cause so the right intervention can be applied.
+- `huang2025annie` | ANNIE / ANNIEBench | 2025 | [S] Attack success in inducing physically unsafe behaviour of embodied models.
+- `huang2026blindfold` | Blindfold (action-level jailbreak) | 2026 | [S] Attack success for semantically disguised harmful action plans.
+- `huang2026vlareplica` | VLA-REPLICA | 2026 | [C] Reproducible, low-cost real-world VLA evaluation that can be replicated across labs.
+- `iso2025iso10218` | ISO 10218-1/-2:2025 industrial robot safety (absorbs ISO/TS 15066) | 2025 | [CS] Conformity of an industrial robot and its application; for PFL, measured transient and quasi-static contact forces and pressures versus biomechanical limits.
+- `iso2025iso25785` | ISO/CD 25785-1 dynamically stable industrial mobile robots | 2025 | [S] Whether a humanoid/quadruped meets stability, fall and contact requirements in controlled tests.
+- `jeong2026languagepolicy` | Conformalized language steering with LIBERO-OOD harmlessness evaluation | 2026 | [CV] Whether a runtime steering intervention improves a VLA without harming it OOD; conformal guarantee P(intervene | steering harmful) <= alpha.
+- `jin2026grounding` | Grounding Sim-to-Real Generalization (VLA empirical study) | 2026 | [C] Which simulation design factors actually move real-world success.
+- `khan2025safer` | SAFER (Safety Aware Task Planning) | 2025 | [CVS] Reduction of safety violations in long-horizon multi-robot LLM planning.
+- `khazatsky2024droid` | DROID | 2024 | [C] Cost structure of real-robot demonstration collection at scale (the same rig later used for RoboArena evaluation).
+- `kim2025multisafe` | Safety observability / predictability diagnostics for latent world models (MultiSafe) | 2025 | [CVS] Whether a world model's latent state carries the information needed to detect and anticipate safety violations under partial observability (estimation gaps vs p...
+- `kirschner2022iso15066` | ISO/TS 15066: how different interpretations affect risk assessment | 2022 | [S] Whether the standard yields a unique safe/unsafe verdict for the same measured contact.
+- `kressgazit2024empirical` | Robot Learning as an Empirical Science | 2024 | [C] Argues success-rate point estimates without conditions, CIs and failure analysis are uninformative.
+- `lee2026beyond` | Beyond the Patch (viewpoint-consistent 3D adversarial objects) | 2026 | [S] Effectiveness of 3D adversarial objects against visuomotor policies under dynamic viewpoints where 2D patches fail.
+- `li2025attackvla` | AttackVLA (+BackdoorVLA) | 2025 | [CVS] Comparable attack effectiveness across VLA architectures and tokenisers, sim and real.
+- `liao2026active` | Active Real-World Factor-Based Evaluation | 2026 | Sample-efficient characterization of a policy's performance distribution and failure regions in real hardware evaluation.
+- `lou2026safeloop` | SafeLoop | 2026 | [CS] Whether a runtime safety wrapper reduces hazards without hurting success.
+- `lu2024poex` | POEX / Harmful-RLbench | 2024 | [VS] Policy-executable jailbreak success against LLM-based robots (executability as a distinct requirement).
+- `lu2025phantommenace` | Phantom Menace: physical sensor attacks on VLAs | 2025 | [S] Robustness of VLA models to physical sensor attacks.
+- `lu2025uparfas` | UPA-RFAS (universal transferable patch) | 2025 | [VS] Cross-model, cross-task, cross-viewpoint transfer of a single physical patch.
+- `luo2022recency` | Online distribution-shift detection via recency prediction | 2022 | [VS] Detection speed and false-positive guarantee of a runtime distribution-shift monitor.
+- `luo2025sim2val` | Sim2Val | 2025 | [CVS] How many real-world test samples are needed for a confidence bound on a safety/performance metric when correlated cheap proxies exist; variance reduction of the...
+- `luo2026x4val` | X4Val | 2026 | [CVS] Variance-reduced estimation of real-world policy metrics when only unpaired auxiliary data exists (e.g.
+- `nahian2025mutrap` | MuTRAP / Robo-Troj (multi-trigger backdoor on LLM task planners) | 2025 | [CS] Backdoor vulnerability of LLM-based robot task planners: ASR when triggered, benign accuracy otherwise, and false-trigger rate.
+- `nakamura2024regret` | Regret metric for system-level prediction failures (Not All Errors Are Made Equal) | 2024 | [CVS] Which trajectory-prediction errors actually degraded closed-loop robot behavior (system-level failures), and whether mining high-regret interactions is predicti...
+- `nakamura2025latentsafety` | Latent Safety Filters (latent-space HJ reachability) hardware protocol | 2025 | [VS] Whether a learned latent reachability filter prevents hard-to-specify failures on a real manipulator while preserving task completion.
+- `obi2026safegate` | SafeGate: ISO 13482-grounded pre-execution safety gate for LLM-controlled robots | 2026 | [VS] Rejection rate of unsafe commands and acceptance rate of benign ones before any physical execution.
+- `oxe2023openx` | Open X-Embodiment | 2023 | [C] Scale of multi-lab real-robot data pooling and cross-embodiment transfer.
+- `parashar2026coverage` | Coverage-Aware Active Evaluation (paired systems) | 2026 | [VS] Number and diversity of severe target-system failures found under a fixed test budget when proxy evaluations are available.
+- `peng2026maniguard` | MANIGUARD | 2026 | [CVS] Specification-grounded safety of manipulation policies, independent of task success.
+- `qian2026liberovifo` | LIBERO-VIFO | 2026 | [S] Whether VLAs execute tasks indicated by unauthorised visual cues (a prompt-injection-like risk).
+- `ravichandran2025roboguard` | RoboGuard | 2025 | [CVS] Reduction in executed unsafe plans under worst-case jailbreaks without loss of safe-plan performance.
+- `ravichandran2026core` | CORE (contextual safety reasoning and grounding) | 2026 | [S] Runtime enforcement of semantically derived safety constraints on a real robot.
+- `robey2024robopair` | RoboPAIR (Jailbreaking LLM-Controlled Robots) | 2024 | [CS] Attack success rate (ASR) of eliciting harmful physical actions (block emergency exit, find weapons, collide with people) from LLM-controlled robots under white...
+- `selvaraj2026armnetbench` | ArmnetBench v0.1 | 2026 | [CV] Parallel, low-cost real-world evaluation of manipulation policies with released labelled rollouts.
+- `seo2025unisafe` | UNISafe OOD-failure evaluation of latent safety filters | 2025 | [CVS] Whether a latent safety filter detects both known and unseen (OOD) hazards, and the safety/conservativeness tradeoff versus baselines (LatentSafe, SafeOnly, CQL...
+- `sharrock2025butterbench` | Butter-Bench | 2025 | [CVS] Practical intelligence of frontier LLMs embodied in a real mobile robot: search, visual inference, social interaction, multi-step spatial planning, end-to-end '...
+- `sinha2024aesop` | AESOP (Real-Time Anomaly Detection and Reactive Planning with LLMs) | 2024 | [CVS] Runtime detection of semantic out-of-distribution failures and safe recovery under latency and compute constraints.
+- `snyder2025stopping` | Policy comparison with near-optimal stopping | 2025 | [C] Minimal number of real trials to decide which of two policies is better with controlled error.
+- `snyder2026beyond` | Beyond Binary Success (SAVI policy comparison) | 2026 | [C] Evaluation burden reduction from fine-grained metrics and sequential testing.
+- `srikanth2026qdig` | Q-DIG (quality-diversity red teaming of VLAs) | 2026 | Instruction-space fragility of VLAs and fine-tuning gains from adversarial prompts.
+- `sun2026safestoppability` | Safe-stoppability monitors for humanoids (PRISM) | 2026 | [CS] Certifiable fail-safe (emergency stop) behaviour for actively balancing robots.
+- `svarny2020collisionforcemap` | 3D collision-force map for safe human-robot collaboration | 2020 | [S] Spatial variation of impact force and accuracy of the standard's predictive formula.
+- `svarny2022skins` | Effect of protective soft skins on collision forces (2,250 measurements) | 2022 | [CS] Transient collision force reduction from passive padding and active skin stops, relative to ISO/TS 15066 limits.
+- `therobotstudio2024soarm100` | SO-100 / SO-101 arm bill of materials | 2024 | [C] Hardware cost floor for a real-robot evaluation cell (used by ArmnetBench and SO-101 VLA benchmark).
+- `tri2025lbm` | TRI Large Behavior Models: careful examination | 2025 | [C] Whether multitask pretraining helps, with enough trials to make statistically defensible claims.
+- `vincent2024generalizable` | Statistical lower bounds for BC policy performance | 2024 | [CV] How many rollouts are needed for trustworthy, worst-case performance bounds and OOD comparisons.
+- `wang2024exploring` | Adversarial vulnerabilities of VLAs (UADA/UPA/TMA patches) | 2024 | [VS] Degradation of VLA task success under visual patch attacks in sim and on hardware.
+- `wang2024trojanrobot` | TrojanRobot / Robot Collapse (supply-chain backdoor in modular VLM policies) | 2024 | [S] Physical-world stealth and effectiveness of supply-chain backdoors in modular LLM/VLM robot stacks.
+- `wang2025robosafe` | RoboSafe | 2025 | [S] Runtime safeguarding of embodied agents.
+- `wang2026partially` | Partially observable patch attacks on VLAs | 2026 | [S] Attack effectiveness under a realistic threat model where the attacker sees only the start of the episode.
+- `wang2026xrzero` | XRZero-G0 (VR data collection economics) | 2026 | Cost and validity trade-off of robot-free vs real-robot demonstration data.
+- `wang2026zero2skill` | Zero2Skill autonomous data collection | 2026 | How much human time autonomous collection/verification removes.
+- `xing2022ontology` | Ontology-based identification of perception triggering conditions (SOTIF) | 2022 | [VS] Yield of a systematic triggering-condition search in producing real perception insufficiencies.
+- `xu2025dropvla` | DropVLA (action-level backdoor) | 2025 | [VS] Fine-grained action-level backdoor ASR, clean retention, trigger latency and cross-suite transfer under minimal poisoning.
+- `yakefu2025robochallenge` | RoboChallenge (Table30) | 2025 | [CV] Large-scale online real-robot evaluation of embodied policies with reproducibility controls.
+- `yin2026tako` | TAKO (test-time adversarial takeover of diffusion policies) | 2026 | [S] Whether an attacker can convert a deployed visuomotor policy into a remotely piloted instrument.
+- `ying2025roboinspector` | RoboInspector | 2025 | [C] Reliability (not explicitly safety) of LLM-generated robot policy code across task complexity and instruction granularity.
+- `yu2026so101bench` | VLA benchmark on SO-101 (failure/recovery) | 2026 | [C] Failure modes and recovery of VLAs under embodiment uncertainty on cheap hardware.
+- `zhang2024badrobot` | BadRobot | 2024 | [VS] Whether embodied LLM agents can be jailbroken into harmful physical manipulation via three vulnerabilities: contextual jailbreak, safety misalignment (say no, d...
+- `zhang2025experiences` | Experiences from Benchmarking VLA Models | 2025 | Practical trade-offs and recurring failure modes (near-miss grasps, premature release, state drift).
+- `zhang2026redvla` | RedVLA (Physical Red Teaming for VLAs) | 2026 | [VS] Physical-safety attack success rate of VLAs (knife contact, collisions) elicited by scene manipulation, and a mitigation (SimpleVLA-Guard) trained on the found ...
+- `zhao2023aloha` | ALOHA low-cost bimanual teleoperation | 2023 | [C] Hardware cost floor for a research-grade bimanual real-robot rig.
+- `zhou2025autoeval` | AutoEval | 2025 | [CV] Around-the-clock autonomous real-robot evaluation with near-zero human supervision.
+- `zhou2025goba` | GoBA / BadLIBERO (physical-object backdoors) | 2025 | [S] Goal-oriented backdoor success when a physical trigger is visible, with zero clean-task degradation; sensitivity to trigger colour, size, trajectory.
+
+### Level 8: real robot, field or track test with humans or human surrogates (13)
+
+- `dilillo2024adas` | Swiss Re / Stanford ADAS proving-ground assessment | 2024 | [CVS] Relative real-world safety benefit of collision-prevention systems across vehicles; realism of the scenario protocol.
+- `euroncap2023aebc2c` | Euro NCAP AEB Car-to-Car test protocol v4.3 | 2023 | [CVS] AEB/FCW avoidance and mitigation performance over a speed x overlap grid (CCRs 10-50 km/h AEB, 55-80 km/h FCW; CCRm 30-80 km/h).
+- `euroncap2024aebvru` | Euro NCAP AEB/LSS VRU test protocol | 2024 | [VS] Vulnerable-road-user crash avoidance on a proving ground with human surrogates.
+- `eykholt2018robust` | RP2 stop-sign stickers (Robust Physical-World Attacks) | 2018 | [VS] Physical realisability of adversarial examples for road-sign classifiers with an explicit two-stage lab + field protocol.
+- `han2024painthresholds` | Force pain thresholds for ISO/TS 15066 collision limits | 2024 | [S] Empirical basis for power-and-force-limiting collision limits used in cobot collision tests.
+- `iihs2024fcp2` | IIHS Vehicle-to-Vehicle Front Crash Prevention 2.0 test protocol | 2024 | [CS] Higher-speed and non-passenger-vehicle front crash prevention, replacing the 2013-2022 test at 20 and 40 km/h.
+- `iihs2024paeb` | IIHS Pedestrian AEB test protocol (Version IV) | 2024 | [CVS] Pedestrian AEB crash avoidance/mitigation on a closed track with human surrogates.
+- `izquierdo2022testing` | Testing predictive ADS on proving grounds: lessons learned (BRAVE) | 2022 | [S] Whether classical certification-style track tests can evaluate predictive behaviour in critical and edge cases.
+- `kidd2023characteristics` | AEB response characteristics in IIHS FCP-rated vehicles | 2023 | [VS] Mechanistic differences (earlier TTC, greater speed-dependent deceleration) behind rating levels.
+- `mcity2022rates` | Mcity Test Facility recharge rates | 2022 | [CS] Direct dollar cost of level-8 track time.
+- `nassi2020phantom` | Phantom of the ADAS | 2020 | [S] Whether depthless projected objects trigger unsafe ADAS reactions in production vehicles, and how well a camera-only detector rejects them.
+- `nhtsa2024fmvss127` | FMVSS No. 127 Automatic Emergency Braking rule (May 2024, amended Nov 2024) | 2024 | [CVS] Regulatory minimum AEB/PAEB/FCW performance for all new light vehicles from 1 Sept 2029.
+- `varley2024twoarms` | Embodied AI with Two Arms: zero-shot learning, safety and modularity | 2024 | [S] Task success of a modular zero-shot bimanual system and its safe operation near humans via constrained trajectory optimization and compliance.
+
+### Level 9: deployment monitoring / operational data (30)
+
+- `becker2025productivity` | METR developer productivity RCT | 2025 | Real-world impact of AI tools on expert developer productivity (a level-9 ground truth against which benchmark claims can be checked).
+- `betschinske2025towards` | Efficient quantitative validation of residual risk (FOT reduction approaches) | 2025 | [S] Whether any method can replace on-road exposure for demonstrating residual risk at higher automation levels.
+- `chen2024initial` | Initial Indications of Safety of Driverless ADS (SF crash rates) | 2024 | [S] Independent (non-company) comparison of driverless and supervised AV crash rates to a human ride-hail baseline.
+- `chen2026ciimportance` | Confidence intervals for rare-event rate estimation with importance sampling (AV) | 2026 | [CS] How to put valid confidence intervals on rare-event rates (collisions per million miles) when data are sampled non-uniformly.
+- `cicchino2018gm` | Real-world effects of GM Forward Collision Alert and Front Automatic Braking | 2018 | [VS] Crash-rate reduction attributable to FCW alone and FCW+AEB.
+- `cicchino2019characteristics` | Characteristics of rear-end crashes involving AEB-equipped vehicles | 2019 | [VS] Residual crash scenarios that AEB fails to prevent.
+- `cicchino2022pedestrian` | Effects of pedestrian AEB on pedestrian crash risk | 2022 | [S] Real-world effectiveness of pedestrian AEB by lighting, speed limit and manoeuvre.
+- `cruise2023incident` | Cruise Oct 2023 pedestrian incident and aftermath | 2023 | [VS] A single rare deployment event and its regulatory consequence; demonstrates the asymmetric value of level-9 evidence.
+- `dilillo2023comparative` | Waymo vs human liability claims (Swiss Re, 3.8M rider-only miles) | 2023 | [VS] Claims per million miles as a third-party safety outcome metric.
+- `dilillo2024swissre` | Waymo vs latest-generation human-driven vehicles: liability claims at 25.3M miles | 2024 | [VS] Property-damage and bodily-injury claim reductions vs overall population and vs new ADAS-equipped vehicles.
+- `favaro2018disengagements` | AV disengagements: trends, triggers and regulatory limitations | 2018 | [S] Reliability trends of supervised AV testing and the limits of disengagement reporting as a safety metric.
+- `favaro2023interpreting` | Interpreting Safety Outcomes (Waymo credibility paradox) | 2023 | [S] How much confidence lagging outcome statistics can carry early in deployment and why they must be complemented by other estimation techniques.
+- `flannagan2023cruiseumtri` | Cruise/UMTRI human ridehail crash benchmark (San Francisco) | 2023 | [VS] Human benchmark for urban ridehail crashes and an ADS comparison.
+- `fu2024insufficiencies` | Characterization and mitigation of functional insufficiencies in ADS | 2024 | [VS] Share of field disengagements due to SOTIF-type insufficiencies vs ISO 26262-type faults.
+- `iihs2023trucks` | IIHS: front crash prevention less effective against trucks and motorcycles | 2023 | [VS] Gap between a top track rating and field effectiveness by partner type.
+- `kalra2016driving` | RAND Driving to Safety (miles to demonstrate reliability) | 2016 | [VS] Miles of failure-free or observed driving needed to demonstrate fatality, injury and crash rates relative to human baselines at given confidence and precision.
+- `koopman2019safety` | Safety argument for public-road testing of AVs | 2019 | [S] Conditions under which level-9 data collection with safety drivers is itself acceptably safe.
+- `koopman2020positive` | Positive Trust Balance for self-driving car deployment | 2020 | [S] How to decide deployment when lagging outcome metrics are statistically insufficient.
+- `kullgren2010comparison` | Euro NCAP star ratings vs real-world crash data | 2010 | [VS] Whether the crash-test star rating predicts real injury and fatality risk.
+- `kusano2023comparison` | Waymo rider-only crash rates vs human benchmarks (7.1M miles) | 2023 | [CVS] Incidents per million miles (IPMM) for any-injury-reported and police-reported crashes, ADS vs human.
+- `kusano2025comparison` | Waymo rider-only crash rates by crash type (56.7M miles) | 2025 | [CS] Crashed-vehicle rates for injury-reported and airbag-deployment crashes by crash type versus matched human benchmarks.
+- `nhtsa2021sgo` | NHTSA Standing General Order 2021-01 crash reporting | 2021 | [S] Fleet-level crash incidence for deployed automated vehicles; the data source behind Waymo's studies and third-party trackers.
+- `salvini2021safety` | On the safety of mobile robots in public spaces: gaps in EN ISO 13482 | 2021 | [S] Adequacy of the ISO 13482 certification regime for public-space deployment.
+- `sindhwani2020anomaly` | Unsupervised anomaly detection for self-flying delivery drones | 2020 | [S] Whether a runtime/offline monitor can flag abnormal missions in a real drone fleet without labelled failures, under heavy training-set contamination.
+- `singh2023diversity` | Diversity analysis of lead-vehicle safety metrics | 2023 | [S] Whether surrogate safety metrics agree on ranking vehicle performance in lead-vehicle interactions.
+- `soc2022amazonprimed` | Amazon robotic vs non-robotic warehouse serious injury rates (SOC report) | 2022 | [S] Human injury incidence in robotised warehouses vs conventional ones.
+- `waymo2026impacthub` | Waymo Safety Impact data hub | 2026 | [CS] Ongoing deployment safety monitoring of an L4 fleet.
+- `winfield2020accident` | Robot accident investigation as responsible robotics | 2020 | [S] Argues the infrastructure needed to learn from deployed-robot incidents.
+- `zhang2021disengagement` | Disengagement cause-and-effect extraction with an NLP pipeline | 2021 | [S] Who initiates disengagements and which subsystem causes them.
+- `zheng2023planning` | Planning Reliability Assurance Tests for AVs | 2023 | [CS] Required test fleet size, mileage and pass/fail rule for a reliability demonstration test given disengagement-rate priors.
+
+### Level n/a: not on the ladder (57)
+
+- `anthropic2026rsp` | Anthropic Responsible Scaling Policy (v3.4) | 2026 | [S] Deployment gate: thresholds trigger safeguards; comprehensive assessment every 6 months (was 3) to allow higher-quality elicitation.
+- `bajcsy2021analyzing` | Reachability-based analysis of online-adapting human models | 2021 | [S] Safety-relevant properties of a human predictor: what it could learn online, how fast (worst/best case), and which initializations guarantee finite-time converg...
+- `bajcsy2024humanai` | Human-AI Safety: control-systems view of AI safety (position) | 2024 | [S] Nothing empirically; argues safety assurances must reason about closed-loop human-AI dynamics rather than fine-tuning outputs in isolation.
+- `barrett2024benchmarkearly` | Benchmark early and red team often | 2024 | [VS] Two-tier evaluation economics: cheap open benchmarks screen; costly closed expert red teams confirm; assumes correlation between tiers.
+- `bean2025constructvalidity` | Measuring what matters: construct validity in LLM benchmarks | 2025 | [S] Prevalence of construct-validity failures (vague phenomena, unrepresentative tasks, weak statistics).
+- `bengio2025intlreport` | International AI Safety Report 2025 | 2025 | [S] State of evidence on capabilities, risks and evaluation limits.
+- `biecek2026model` | The Case for Model Science (Verify, Explore, Steer, Refine) | 2026 | Argues benchmarking is insufficient and proposes a discipline of per-model analysis organised as Verify / Explore / Steer / Refine, with shared catalogues of da...
+- `bohacek2025blindspots` | Conceptual blindspot audit of generative image models via SAEs | 2025 | Systematic audit of which training-data concepts a generative model under- or over-produces, plus memorisation artefacts at the datapoint level.
+- `buhl2024safetycases` | Safety cases for frontier AI | 2024 | [S] Proposes structured safety cases (as in aviation, nuclear) with evaluations as evidence; notes current evals are not yet mature enough to drive decisions.
+- `colin2021what` | Human-centered utility benchmark for attribution methods (Meta-predictor) | 2022 | Whether explanation methods actually help humans understand a model in three scenarios (bias detection, expert strategy, failure cases), and whether standard fa...
+- `colin2024choosing` | Psychophysical comparison of neuron vs dictionary bases | 2024 | [C] Which representational basis yields explanations humans find coherent; dictionary-based bases win, especially in deep layers, and expose model differences neuro...
+- `costa2025evaluating` | Controlled evaluation of SAE architectures (MP-SAE) | 2025 | [V] Whether shallow SAE designs can recover correlated features; shows quasi-orthogonality assumption fails and proposes Matching-Pursuit SAE.
+- `deepmind2026fsf` | Google DeepMind Frontier Safety Framework (v3.1) | 2026 | [S] Deployment gate keyed to alert thresholds reached before CCLs.
+- `fel2020how` | MeGe / ReCo stability measures for explanation quality | 2022 | Whether explanations are stable across retrainings on data subsets; argues fidelity metrics alone are insufficient for trustworthy explanations.
+- `fel2022xplique` | Xplique explainability toolbox (methods + evaluation metrics) | 2022 | Provides a standard implementation for benchmarking explanation methods; developed inside the DEEL certifiable-AI program (aerospace/rail partners).
+- `fel2023holistic` | Unified concept-extraction framework with new evaluation metrics (Lens) | 2023 | Frames concept-based explainability as dictionary learning and introduces evaluation metrics for concept extraction and importance methods, with optimality guar...
+- `fel2025archetypal` | Archetypal SAE with plausibility and identifiability benchmarks | 2025 | [V] Stability and correctness of concept dictionaries extracted by sparse autoencoders; introduces two benchmarks with known ground truth.
+- `fraadeblanar2018measuring` | RAND Measuring Automated Vehicle Safety: Forging a Framework | 2018 | [S] Which measures (leading vs lagging, proxies) are usable at each stage.
+- `gao2025survey` | Survey: foundation models for scenario generation and analysis | 2025 | [S] n/a (taxonomy of evaluation metrics for scenario generation)
+- `ghosh2026evalcards` | Evaluation Cards | 2026 | Gaps in evaluation reporting.
+- `ghosh2026evalcosts` | AI evals are becoming the new compute bottleneck | 2026 | Dollar and GPU-hour cost of running benchmarks; reliability multipliers.
+- `hartmann2026evolution` | Evolution of ISO 10218 (2011 vs 2025) and integration of ISO/TS 15066 | 2026 | [S] What the 2025 revision changes for robot safety verification.
+- `hoss2022review` | Review of testing object-based environment perception | 2022 | [S] State of safety-aware perception testing; concludes it remains an open issue.
+- `huang2025trust` | Trust in LLM-controlled Robotics (survey) | 2025 | [S] n/a (survey)
+- `ieee2025humanoidpathway` | IEEE/ASTM Pathway Study for Future Humanoid Standards | 2025 | [S] Gaps in humanoid standards: classification, stability (identified as the critical bottleneck), human-robot interaction.
+- `iso2022iso34502` | ISO 34502:2022 scenario-based safety evaluation framework | 2022 | [S] Whether an ADS is free of unreasonable risk across a systematically derived critical-scenario set; does not itself define pass thresholds.
+- `ivanovic2021rethinking` | Rethinking Trajectory Forecasting Evaluation | 2021 | [S] Whether forecasting metrics reflect downstream planning outcomes.
+- `ivanovic2023trajdata` | trajdata | 2023 | Dataset statistics and cross-dataset evaluation infrastructure for forecasting.
+- `joseph2026interpreting` | Physics Emergence Zone in video world models | 2026 | Where and how physical variables become linearly accessible inside video encoders (a sharp intermediate-depth transition); direction is encoded on a circular ma...
+- `kim2026crosslayer` | Safe Embodied AI for Long-horizon Tasks (cross-layer survey) | 2026 | [S] Identifies weak evidence for policy-time safety and a lack of manipulation-specific safety benchmarks.
+- `kim2026modularguardrails` | Modular Safety Guardrails Are Necessary (position) | 2026 | [S] Argues static verification, monolithic controllers and end-to-end policies are insufficient for FM-enabled robots.
+- `koopman2022ul4600` | UL 4600 safety case standard (Koopman overview) | 2022 | [S] Completeness and well-formedness of a safety case for a fully autonomous product; SPIs measure behaviour rates (e.g.
+- `leung2021safetyconcepts` | Unifying AV safety concepts via HJ reachability (RSS, SFF comparison) | 2021 | [S] No empirical evaluation; a framework for comparing what different AV safety concepts flag as unsafe, plus research directions on safety-critical dataset constru...
+- `li2026embodiedsafetysurvey` | Safety in Embodied AI: survey of risks, attacks, defenses | 2026 | [S] Consolidates attack/defense literature; highlights fragile multimodal fusion and planning instability under jailbreaks.
+- `li2026vlasafetysurvey` | VLA Safety survey (Threats, Challenges, Evaluations, Mechanisms) | 2026 | [S] Maps VLA attack/defense/evaluation literature; flags lack of standardised evaluation and certified robustness for embodied trajectories.
+- `liu2026security` | Trust-boundary survey of embodied-agent security | 2026 | [S] n/a (survey); finds attacks concentrate on perception and action interfaces and that closed-loop, long-horizon evaluation is rare.
+- `mahboob2026betting` | Betting for Sim-to-Real Performance Evaluation | 2026 | Sample-efficiency of sim-assisted estimation of real performance under a testing budget.
+- `mccaslin2025stream` | STREAM (ChemBio) reporting standard | 2025 | [S] Transparency of eval reporting so third parties can judge rigor.
+- `miller2024errorbars` | Adding error bars to evals | 2024 | How to report uncertainty and size evals; enables sample-size (cost) planning.
+- `nist2025aml` | NIST AI 100-2e2025 (Adversarial ML taxonomy) | 2025 | [S] Nothing directly; provides the vocabulary standards and audits use for adversarial robustness claims.
+- `openai2025preparedness` | OpenAI Preparedness Framework v2 | 2025 | [S] Deployment gate: High capability requires sufficient safeguards before deployment; Critical during development.
+- `picard2025baseline` | Baseline effects on explainability fidelity metrics | 2025 | Shows that the ranking of attribution methods under standard fidelity metrics flips with the choice of baseline, even for linear models; proposes a model-depend...
+- `putze2023quantification` | On quantification for SOTIF (ISO 21448) validation | 2023 | [S] How residual risk from functional insufficiencies can be quantified and validated.
+- `qin2026embodiedgovbench` | EmbodiedGovBench | 2026 | [S] Governability of embodied agent systems and fleets rather than per-episode safety.
+- `reuel2024betterbench` | BetterBench | 2024 | Benchmark quality (design, implementation, documentation, maintenance).
+- `riedmaier2020survey` | Survey on scenario-based safety assessment of automated vehicles | 2020 | [S] Landscape of methods; does not measure a system.
+- `salay2018using` | ISO 26262 process requirements assessed for ML | 2018 | [S] Applicability of the functional-safety lifecycle to learned components.
+- `shevlane2023extreme` | Model evaluation for extreme risks | 2023 | [S] Frames dangerous-capability and alignment evaluations as inputs to training/deployment decisions; origin of the RSP/Preparedness paradigm.
+- `singh2025leaderboard` | The Leaderboard Illusion | 2025 | Selection and overfitting distortions in a human-preference leaderboard.
+- `sinha2022oodview` | A system-level view on OOD data in robotics | 2022 | [S] n/a (conceptual framing of what an OOD-robustness evaluation should measure)
+- `sinha2026rethinking` | Rethinking Safety for Generalist Robots (embodied AI safety agenda) | 2026 | [CS] Nothing empirically.
+- `tang2023survey` | Survey on ADS testing: landscapes and trends | 2023 | [S] Map of testing approaches and open problems.
+- `topan2023maneuverzones` | Maneuver-based perception safety zones | 2023 | [S] Size of the perception safety-critical region conditioned on ego maneuver.
+- `wan2026nofreechecker` | No Free Checker (survey of verifiers) | 2026 | [VS] Frames verifier choice as a credibility-vs-availability trade-off; catalogues how verifiers are validated (human agreement, downstream policy performance, rewar...
+- `webb2020waymo` | Waymo Safety Methodologies and Safety Readiness Determinations | 2020 | [CVS] Framework for deciding safety readiness of an L4 ADS across hardware, ADS behaviour and operations layers; ODD-specific.
+- `weidinger2025evalscience` | Toward an evaluation science for generative AI | 2025 | [VS] Argues static benchmarks lack validity, audits do not scale; borrows from transport, aerospace and pharma safety evaluation.
+- `westhofen2021criticality` | Criticality metrics for automated driving: review and suitability analysis | 2021 | [VS] Which surrogate-safety metrics are fit for scenario filtering, risk assessment or pass/fail.
+
+## (b) Safety-focused robotics evaluations (249)
+
+- `bajrami2026robotignores` | LLM-orchestrator safety benchmark for human-humanoid collaboration | 2026 | [S] Compliance spectrum of LLM orchestrators (over-refusal vs violation) against industrial safety invariants over long sessions.
+- `fan2024crashevent` | CrashEvent / CrashLLM | 2024 | [VS] Whether LLMs can predict crash outcomes from contextual factors and support what-if traffic-safety analyses.
+- `hundt2024llmrobots` | LLM-Driven Robots Risk Enacting Discrimination, Violence, and Unlawful Actions | 2024 | [S] Whether LLMs used as robot decision-makers produce discriminatory or unsafe action choices across protected characteristics and accept dangerous open-vocabulary...
+- `jia2026mishear` | When Robots Mishear Us (ASR errors and embodied safety) | 2026 | [S] Effect of speech-recognition noise on acceptance of harmful instructions by embodied LLM agents.
+- `kim2026spoc` | SPOC | 2026 | [S] Safety-aware planning under implicit constraints (fire, fluid, injury, damage, pollution).
+- `korpan2025caregiving` | Encoding Inequity (LLM caregiving bias) | 2025 | [S] Demographic bias in LLM-generated robot caregiving behaviour.
+- `lu2026simmer` | SIMMER | 2026 | [CS] Latent (delayed) failures in LLM executable plans.
+- `marchiori2025jdapt` | J-DAPT (robotic jailbreak detection) | 2025 | [S] Detection accuracy of jailbreak attempts against robot-embedded VLMs across domains.
+- `nakao2026healthattendant` | LLM safety for robotic health attendant control | 2026 | [S] Refusal of ethically prohibited instructions by LLMs controlling a care robot.
+- `obi2025safeplan` | SafePlan (+ SafePlan benchmark) | 2025 | [CS] Ability of an LLM robotic task planner to reject harmful task prompts while accepting safe ones.
+- `patrikar2025negative` | Crash-report precedents for reasonable driving | 2025 | [S] Whether negative data (crash reports) improves calibration of driving decisions near safety boundaries.
+- `sermanet2025scifi` | SciFi-Benchmark | 2025 | [VS] Alignment of LLM decisions with human values in robot/AI decision moments drawn from fiction, and the effect of auto-generated constitutions on alignment and ja...
+- `son2025embodyguard` | EmbodyGuard (Subtle Risks, Critical Failures) | 2025 | [S] Whether LLM planners anticipate subtle situational physical risks, beyond refusing overt commands.
+- `tang2024physicalsafetyllm` | Defining and Evaluating Physical Safety for LLMs (drones) | 2024 | [S] Trade-off between code-generation capability and physical safety in LLM drone control.
+- `wang2026physicaljailbreak` | PhysicalJailbreakBench-2K / PRISM | 2026 | [S] Whether physical-harm risk is separable from textual jailbreak risk in model internals.
+- `andeol2023confident` | Conformal risk control for railway signal detection (SNCF dataset) | 2023 | [CVS] Whether split conformal prediction and conformal risk control give formally guaranteed miscoverage (<=10%) on detected railway signals, and the price in box siz...
+- `christensen2025maritime` | Semantic Lookout (maritime VLM hazard detection) | 2025 | [VS] Whether VLMs give usable semantic hazard awareness in the IMO MASS alert-to-takeover window.
+- `elhafsi2023semantic` | Semantic anomaly detection with LLMs | 2023 | [VS] Whether an LLM monitor catches system-level semantic edge cases (stop signs on billboards, traffic lights on trucks) that component-level OOD detectors miss.
+- `foutter2026faithfulness` | Pinocchio (faithfulness of embodied CoT) | 2026 | [VS] Whether verbalized reasoning of a driving VLA faithfully reflects its decisions, and whether faithfulness improves long-tail robustness.
+- `indukuri2026hazardanomaly` | Hazard or Anomaly? (VLM danger vs discrepancy) | 2026 | [S] Whether VLMs conflate unusualness with danger (false-alarm behaviour).
+- `lu2026homeguard` | HomeGuard | 2026 | [S] Contextual risk identification for household tasks with reduced over-refusal.
+- `samarakoon2026paperhijack` | Hijacking Robots with a Piece of Paper (physical prompt injection) | 2026 | [CS] Susceptibility of VLM robot controllers to visual text injection and the efficacy of mitigations.
+- `steinberg2026semanticdos` | Semantic Denial of Service in LLM-controlled robots | 2026 | [S] Availability attacks that exploit safety refusals (false-alarm exploitation).
+- `wang2026touchsafebench` | TouchSafeBench (collision grounding for HRC) | 2026 | [VS] Whether VLMs can ground physical contact risk between humans and robots from visual input.
+- `yeke2026robojailbench` | RoboJailBench | 2026 | [CVS] Standardised jailbreak attack/defense comparison for embodied VLM agents with a security-utility trade-off, over an 18-category taxonomy of physical-security co...
+- `zhang2026guardianbench` | GuardianBench | 2026 | [S] Latent contextual risk recognition: distinguishing safe from unsafe instructions given identical scenes.
+- `zhao2026realm` | REALM (red-teaming physical-world VLMs) | 2026 | [S] Comparative attack effectiveness against VLMs used for physical-world tasks.
+- `zhou2024mssbench` | MSSBench (Multimodal Situational Safety) | 2024 | [CVS] Whether a VLM's safety judgement depends correctly on the visual situation rather than the query alone.
+- `zhu2024earbench` | EARBench (EAIRiskBench) | 2024 | [VS] Physical-risk awareness of foundation-model task planners in generated risk-prone scenes.
+- `geminirobotics2026agentic` | ASIMOV-Agentic (Gemini Robotics 2: Safety Evaluations) | 2026 | [VS] Whether an agent orchestrating a VLA refuses unsafe tool calls, stops for nearby humans, shields the VLA from infeasible tasks, and asks for clarification under...
+- `gu2025accidentbench` | AccidentBench | 2025 | [VS] Safety-critical video understanding and reasoning of foundation models in accident scenarios.
+- `cao2022advdo` | AdvDO (realistic adversarial attacks on trajectory prediction) | 2022 | [S] Adversarial robustness of trajectory predictors and its downstream planning consequences.
+- `cao2022robust` | Robust trajectory prediction against adversarial attacks | 2022 | [S] Robustness gains vs clean-data cost, and downstream collision/off-road rates.
+- `chakraborty2025frs` | FORCE-OPT (predictor-based forward reachable sets for plan safety) | 2025 | [CS] Soundness and completeness of a plan-level safety monitor for end-to-end stacks.
+- `chen2025safemind` | SafeMind / SafeMindBench | 2025 | [CVS] Safety of embodied LLM agents across task understanding, environment perception and action ordering under sabotage/harm/privacy/illegal scenarios.
+- `chen2026crashtwin` | CrashTwin (physics-grounded world-model benchmark) | 2026 | [S] Physical trustworthiness of generative world models used as AV simulators in collision scenarios.
+- `ding2023realgen` | RealGen (retrieval-augmented scenario generation) | 2023 | [S] Flexibility and controllability of generated safety-critical scenarios.
+- `dyro2024extreme` | Realistic Extreme Behavior Generation for AV Testing | 2024 | [CVS] Interpretable failure modes of an AV collision-avoidance policy under realistic adversarial counterfactual collisions.
+- `geminirobotics2025report` | Gemini Robotics tech report, safety section (ASIMOV evals) | 2025 | [S] Semantic action safety of the ER model before and after post-training on ASIMOV data, and refusal of bias-inducing pointing queries.
+- `geminirobotics2025report15` | Gemini Robotics 1.5 tech report: ASIMOV-2.0 + Auto-Red-Teaming (ART) | 2025 | [S] Adversarial robustness of the robot foundation model to prompt, scene and environment attacks, and semantic safety on ASIMOV-2.0 (risk recognition, consequence ...
+- `hu2026vlesa` | VLESA | 2026 | [S] Real-time intervention triggering from egocentric video of human activity.
+- `jindal2025danger` | ASIMOV-2.0 (Can AI Perceive Physical Danger and Intervene?) | 2025 | [CVS] Whether frontier models can perceive latent physical danger, judge injury severity, decide when to intervene, and respect embodiment-specific constraints (paylo...
+- `lai2026icat` | ICAT (incident-case-grounded adaptive testing of world models) | 2026 | [VS] Physical-risk fidelity of generative world models used as neural simulators.
+- `majumdar2025predictive` | Predictive Red Teaming (RoboART) | 2025 | [CVS] Which off-nominal environmental conditions (lighting, background, distractors, table height) break an imitation-learned policy, predicted without running the ro...
+- `panpatil2026egosafetybench` | EgoSafetyBench | 2026 | [CVS] Runtime hazard detection and over-intervention of VLMs on temporally evolving egocentric scenes.
+- `peng2025ldscene` | LD-Scene | 2025 | [S] User-controllable generation of adversarial driving scenarios without expert knowledge.
+- `pu2026homesafebench` | HomeSafe-Bench (unsafe action detection) | 2026 | [S] Detection and temporal localisation of embodied-agent-specific unsafe actions in household video.
+- `ronecker2025vfm` | Vision-foundation-model embedding semantic anomaly detection | 2025 | [S] Detection and localisation of semantic anomalies for driving.
+- `seo2026stressdream` | StressDream (steered world-model policy evaluation) | 2026 | [CVS] Whether a policy's actions admit plausible failure futures under a video world model, used for robust offline policy evaluation and for weighting fine-tuning da...
+- `sermanet2025asimov` | ASIMOV Benchmark v1 + generated robot constitutions | 2025 | [CVS] Whether a VLM judges robot actions as safe/unsafe the way humans do (semantic safety), and how much auto-generated constitutions raise that alignment versus no-...
+- `yin2026roboshackles` | ROBOSHACKLES | 2026 | [S] Whether embodied foundation models refuse actions that would injure humans in edited real scenes.
+- `zhong2022ctg` | CTG (guided conditional diffusion traffic sim) | 2022 | [S] Controllability-realism trade-off of generated traffic for testing.
+- `zhong2023ctgpp` | CTG++ (language-guided scene-level diffusion) | 2023 | [S] Realism and query compliance of language-specified traffic scenarios.
+- `an2026flowhijack` | FlowHijack (backdoor on flow-matching VLAs) | 2026 | [S] Backdoor feasibility on pi0-style flow-matching policies where prior triggers failed.
+- `anthropic2026claudeplaysrobotics` | Claude Plays Robotics | 2026 | [CS] How embodiment capability of frontier models depends on control-interface abstraction; argues isolated model evals understate capability once embedded in a robo...
+- `balaji2026oopsieverse` | OopsieVerse / DamageSim | 2026 | [S] Physically grounded, task-agnostic damage measurement for manipulation/navigation policies.
+- `chen2024dpattacker` | DP-Attacker (attacks on diffusion policies) | 2024 | [S] Vulnerability of diffusion policies (chained denoising, stochastic) to digital and patch attacks.
+- `chen2026hazardarena` | HazardArena | 2026 | [VS] Whether VLAs recognise when an otherwise valid action becomes hazardous, isolating safety judgement from motor skill.
+- `chen2026vilta` | VILTA (VLM-in-the-loop adversary) | 2026 | [S] Whether a VLM adversary in the loop improves long-tail robustness of driving policies.
+- `cui2026liberosafety` | LIBERO-Safety | 2026 | [CS] Physical and semantic safety of VLA policies and the effect of training-data diversity on safe trajectories.
+- `euroncap2025virtual` | Euro NCAP Safe Driving & Crash Avoidance Virtual Testing protocol v1.00 | 2025 | [VS] Whether an OEM's virtual test results may substitute for physical Euro NCAP track tests (level 8) in rating predictions.
+- `euroncap2026vta` | Euro NCAP 2026 Virtual Test Assessment (VTA) and test-grid growth | 2026 | [CVS] Same AEB/LSS grid as the physical protocol, but the bulk of cells scored in simulation with physical spot checks.
+- `fan2026safevlabench` | SafeVLA-Bench | 2026 | [VS] The success-safety gap: how often nominally successful VLA episodes violate physical safety requirements.
+- `feng2021nade` | NADE: Naturalistic and Adversarial Driving Environment | 2021 | [CVS] Unbiased estimate of the AV crash rate per mile with far fewer simulated miles than naturalistic testing.
+- `feng2023dense` | Dense deep reinforcement learning (D2RL) for AV safety validation | 2023 | [CS] Accelerated, unbiased crash-rate estimation of an AV in an intelligent testing environment.
+- `hanselmann2022king` | KING | 2022 | [S] Efficiency of scenario generation and usefulness of generated scenarios for robust imitation learning.
+- `huang2025safebeal` | Safe-BeAl / SafePlan-Bench | 2025 | [CVS] Task-planning safety of LLM embodied agents over 8 hazard categories and the gain from Safe-Align fine-tuning.
+- `huang2026coordination` | Communication attacks in LLM multi-robot systems | 2026 | [S] Propagation of unsafe actions through LLM-mediated robot coordination and the effect of a provenance-verification gate.
+- `huang2026safemanip` | SafeManip | 2026 | [S] Temporal safety compliance of VLA policies independent of success.
+- `hundt2022stereotypes` | Robots Enact Malignant Stereotypes | 2022 | [S] Whether pretrained vision-language robot policies act out gender/race stereotypes and physiognomy.
+- `jeong2025salt` | SALT runtime monitor evaluation (Robots that Suggest Safe Alternatives) | 2025 | [CVS] Whether a closed-loop reachability monitor predicts execution failures better than open-loop uncertainty quantification (ensemble disagreement), and whether sug...
+- `jia2024bench2drive` | Bench2Drive | 2024 | [S] Multi-ability closed-loop driving performance; alternative to open-loop L2/collision metrics.
+- `jones2025adversarial` | RoboGCG (textual attacks on VLAs) | 2025 | [CS] Reachability of the full action space and persistence of control via textual jailbreak-style attacks.
+- `kanwal2026fatevla` | FATE-VLA (failure-aware test generation) | 2026 | [S] How many and how diverse the failures found per test budget for VLAs (OpenVLA-7b, pi0, GR00T-N1.6, EO-1) versus random/ART baselines.
+- `li2024rigorous` | Rigorous simulation-based testing of four open autopilots | 2024 | [S] Defects missed by random simulation testing.
+- `li2025shawshank` | SHAWSHANK-BENCH (indirect environmental jailbreaks) | 2025 | [S] Vulnerability of embodied VLM agents to environment-borne injections.
+- `li2026besafebench` | BeSafe-Bench | 2026 | [S] Behavioural safety of situated agents while completing tasks.
+- `liu2026jailwam` | JailWAM | 2026 | [S] Jailbreak success against world-action robot models.
+- `lu2025isbench` | IS-Bench | 2025 | [CVS] Interactive safety: whether an embodied VLM agent perceives emergent risks during execution and orders mitigation steps correctly, not just post-hoc plan safety...
+- `luo2021conformal` | Sample-efficient safety assurances via conformal prediction | 2021 | [VS] Guaranteed false-negative rate of unsafe-situation warning systems using as few as 1/epsilon calibration samples.
+- `luo2026safestage` | SafeStage | 2026 | [S] Stage-resolved safety failure profiles of VLA and world-model policies.
+- `lyu2026foresightsafetyvla` | ForesightSafety-VLA | 2026 | [VS] Process-level physical, instruction-side and perception-side safety of VLA policies under a 13-category taxonomy (Safe-Core, Safe-Lang, Safe-Vis).
+- `mei2025llmattacker` | LLM-attacker | 2025 | [S] Closed-loop adversarial scenario generation with LLM attacker identification.
+- `obidov2026silent` | Silent Sabotage (history-triggered backdoors on LLM robot controllers) | 2026 | [S] Stealth and effectiveness of internal-state-triggered backdoors in LLM-powered robots.
+- `pandya2025reguard` | ReGuard control-theoretic guardrail evaluation (From Refusal to Recovery) | 2025 | [CS] Whether predictive guardrails prevent catastrophic downstream outcomes of agentic AI while preserving task performance, compared with refusal-based guardrails.
+- `pegasus2019` | PEGASUS project (scenario-based validation of highly automated driving) | 2019 | [VS] Generally accepted quality criteria, tools and methods to approve a highway-pilot function; replaces distance-based release.
+- `puig2023habitat3` | Habitat 3.0 | 2023 | [S] Human-robot collaboration in homes, including safe following of humans; human-in-the-loop evaluation of learned policies.
+- `sharrock2026dronebench` | Drone-Bench | 2026 | [CVS] Whether frontier models can autonomously write code for a simple surveillance stack (reconstruction, localisation, navigation, detection, following) on a USD 12...
+- `stoler2024seal` | SEAL | 2024 | [S] Realism of adversary behaviour and downstream ego-policy robustness.
+- `tayal2026shieldvla` | ShieldVLA | 2026 | [S] Safety-cost reduction of VLAs via feasibility-aware alignment.
+- `tong2026daert` | DAERT (Diversity-Aware Embodied Red Teaming) | 2026 | [S] Linguistic fragility of VLAs (pi0, OpenVLA, 3D-Diffuser Actor) under diverse adversarial paraphrases.
+- `torresfonseca2026safetyalfred` | SafetyALFRED | 2026 | [S] Gap between recognising a hazard in QA and mitigating it in embodied planning.
+- `unece2021r157` | UN Regulation No. 157 (ALKS) validation regime | 2021 | [VS] Regulatory conformity of an L3 highway function; first regulation to admit simulation as type-approval evidence.
+- `wang2025diffusionvalidation` | Diffusion models for AV safety validation | 2025 | [S] Sample-efficient black-box failure generation without prior knowledge of the system under test.
+- `wang2025freezevla` | FreezeVLA (action-freezing attacks) | 2025 | [S] Denial-of-action vulnerability: probability an adversarial image freezes the robot.
+- `wang2025madra` | MADRA / SafeAware-VH | 2025 | [S] Training-free risk-aware planning with low false rejection.
+- `wang2026openloop` | Do open-loop metrics predict closed-loop driving? NAVSIM vs Bench2Drive | 2026 | [S] Predictive validity of an open-loop safety score for closed-loop outcomes.
+- `wu2025rvsg` | RVSG (VLM-based testing of industrial AMRs) | 2025 | [S] Scenario generation for safety testing of industrial mobile robots.
+- `xu2025edpa` | EDPA (model-agnostic embedding disruption patch) | 2025 | [S] Black-box transferability of a single visual patch across VLA architectures and effectiveness of encoder adversarial training.
+- `yang2022sparse` | Adaptive safety evaluation with sparse control variates | 2022 | [S] Variance of the crash-rate estimate for a given number of simulated tests.
+- `yang2026saferelbench` | SafeRelBench | 2026 | [S] Whether embodied VLM agents respect spatial-relation-dependent safety constraints during execution.
+- `yao2025homesafebench` | HomeSafeBench | 2025 | [CVS] Active home-safety inspection: finding hazards through exploration rather than answering about a fixed image.
+- `yin2024safeagentbench` | SafeAgentBench | 2024 | [CVS] Whether LLM task planners recognise and refuse explicitly and implicitly hazardous household tasks while still completing safe ones.
+- `zhan2025sentinel` | SENTINEL | 2025 | [S] Formal multi-level safety verification of foundation-model embodied agents.
+- `zhang2024chatscene` | ChatScene | 2024 | [S] Collision-inducing power of LLM-generated safety-critical scenarios and their training value.
+- `zhang2025responsiblerobotbench` | ResponsibleRobotBench | 2025 | [VS] Responsible manipulation: completing tasks while avoiding hazards and escalating to humans when needed.
+- `zhang2025safevla` | SafeVLA + Safety-CHORES | 2025 | [CVS] Safety-performance trade-off of VLA policies under fine-grained physical constraints in long-horizon mobile manipulation.
+- `zhou2025badvla` | BadVLA (objective-decoupled backdoor) | 2025 | [S] Backdoor ASR vs clean-task accuracy for VLAs.
+- `alsinglawi2026mulrobbench` | MulRobBench (UAV agents) | 2026 | [S] Safe, policy-compliant decision-making of multimodal UAV agents.
+- `antonante2023taskaware` | Task-aware risk estimation of perception failures | 2023 | [S] Whether a perception error matters for the plan (system-level risk), and how well the estimator triggers safety maneuvers.
+- `caesar2021nuplan` | nuPlan | 2021 | [S] Closed-loop planning quality on real-world scenario distribution.
+- `cao2025pseudosim` | Pseudo-Simulation (NAVSIM v2) | 2025 | [CVS] Error recovery and causal-confusion robustness of end-to-end planners without interactive simulation; correlation with closed-loop outcomes.
+- `chakraborty2024sparq` | SPARQ (system-level perception-failure safety Q-network) | 2024 | [CS] Runtime safety assessment of motion plans against overlooked perception failures.
+- `chang2024safesim` | SAFE-SIM | 2024 | [S] Realistic, controllable closed-loop safety-critical traffic for planner evaluation.
+- `dauner2023parting` | Parting with Misconceptions (nuPlan open-loop vs closed-loop) | 2023 | [S] Alignment between ego-forecasting accuracy and closed-loop driving safety.
+- `dauner2024navsim` | NAVSIM | 2024 | [VS] Whether open-loop-style evaluation on real logs can predict closed-loop driving quality; ranks vision-based end-to-end planners on collision/progress/comfort su...
+- `deglurkar2024uq` | System-level analysis of module uncertainty quantification | 2024 | [S] Whether a module's uncertainty estimate is useful to the system and how uncertainty-aware designs compare.
+- `diller2026rebar` | REBAR (ethical benchmark for autonomy readiness) | 2026 | [S] Ethical/safety readiness of autonomous systems via at-scale generated scenarios.
+- `ding2025surprise` | Surprise Potential (interactive scenario mining) | 2025 | [VS] Which logged scenarios are interactive enough to be worth including in an AV benchmark; alignment with human judgement of interactivity.
+- `farid2022taskrelevant` | Task-relevant failure detection for trajectory predictors | 2022 | [S] Detection of prediction failures that actually harm the plan, with bounds on false-positive and false-negative rates.
+- `geminirobotics2025veo` | Evaluating Gemini Robotics policies in a Veo world simulator | 2025 | [CVS] Whether a generative video world model can rank and score robot policies for nominal performance, OOD generalization and physical/semantic safety as well as rea...
+- `glasmacher2023acquire` | Cost-optimal scenario acquisition framework | 2023 | [S] Cost-optimal mix of real and generated scenarios for scenario-based testing.
+- `ivanovic2021planningaware` | Planning-aware prediction and detection metrics | 2021 | [S] Task-aware metrics for perception and prediction that better estimate closed-loop performance and outcome asymmetry.
+- `kusano2022collision` | Waymo Collision Avoidance Testing (CAT) | 2022 | [CVS] Whether the ADS meets or exceeds a competent human reference in urgent collision-avoidance scenarios, aggregated by scenario safety group and road-user group.
+- `lekeufack2024conformal` | Conformal Decision Theory pedestrian-navigation risk evaluation | 2024 | [S] Whether decisions calibrated directly by conformal risk control achieve a target long-run risk without distributional assumptions, and at what efficiency cost.
+- `leung2022safetyconcepts` | Learning AV safety concepts from demonstrations | 2022 | [S] Which logged interactions violate a data-derived safety concept; comparison with hand-designed concepts (e.g.
+- `liu2026inspecsafe` | InspecSafe-V1 (industrial inspection safety) | 2026 | [S] Multimodal safety-level assessment in real industrial inspection scenes.
+- `ljungbergh2024neuroncap` | NeuroNCAP: photorealistic closed-loop safety testing | 2024 | [S] Collision avoidance of end-to-end planners in NCAP-style critical scenarios with realistic sensor input.
+- `ma2025safevl` | SafeVL (VLM driving-safety evaluator) | 2025 | [S] Whether a VLM can serve as a learned safety evaluator of driving scenes and reduce closed-loop collisions when used as a critic.
+- `mcity2024digitaltwin` | Mcity open-source digital twin and TeraSim | 2024 | [CS] Enables millions of simulated miles in a twin of a real track before physical runs.
+- `rempe2022strive` | STRIVE | 2022 | [S] Generation of plausible accident-prone scenarios that are useful (solvable) for planner improvement.
+- `sarva2023adv3d` | Adv3D | 2023 | [S] Effect of realistic actor-shape variation on the full autonomy stack; closed-loop vs open-loop search.
+- `scanlon2021waymo` | Waymo counterfactual simulation of reconstructed fatal crashes (Chandler) | 2021 | [CS] Counterfactual collision-avoidance effectiveness of the ADS in every fatal crash in its ODD over 2008-2017.
+- `tenbrock2021conscend` | ConScenD: concrete R157 scenarios from highD | 2021 | [S] Parameterised, real-data-derived test cases for ALKS system-level simulation.
+- `tian2022confidence` | Confidence-aware game-theoretic safety monitor evaluated on INTERACTION dataset | 2022 | [S] How conservative a runtime safety monitor is relative to real human driving, and whether confidence-aware models cut interventions without collisions.
+- `topan2022perceptionzones` | Interaction-dynamics-aware perception safety zones | 2022 | [S] A safety-aware evaluation metric for obstacle detection: which perception errors matter.
+- `wang2021advsim` | AdvSim | 2021 | [S] Discovery of safety-critical scenarios for LiDAR-based autonomy stacks from real data replay.
+- `yu2025drivee2e` | DriveE2E | 2025 | [S] Closed-loop driving on real-derived scenario distributions instead of hand-authored CARLA scenarios.
+- `cao2021invisible` | MSF-ADV (adversarial 3D objects vs camera+LiDAR fusion) | 2021 | [S] Whether multi-sensor fusion provides security against a single physical adversarial object.
+- `cui2025vpautotest` | VP-AutoTest virtual-physical fusion testing platform | 2025 | [VS] ADS performance in interactive scenarios that are unsafe or infeasible to stage purely physically.
+- `kaiser2025coupled` | Coupled cyclist-in-the-loop and vehicle-in-the-loop test environment | 2025 | [S] AV-cyclist interaction behaviour without exposing a human to a moving vehicle.
+- `novickineto2023twice` | TWICE dataset: digital twin of test-track scenarios in a HIL lab | 2023 | [S] Sensor-level sim-to-real gap for the same scenario executed physically and in HIL.
+- `sato2021dirty` | Dirty Road Patch attack on Automated Lane Centering | 2021 | [VS] Whether a physically printable road patch can steer a production ALC out of lane within the driver's reaction time.
+- `son2022pgvil` | Proving-ground-based Vehicle-in-the-Loop simulation with consistency validation | 2022 | [S] Whether VIL reproduces real-test vehicle behaviour (longitudinal KPIs) closely enough to substitute for physical scenario reproduction.
+- `winkelmann2022transfer` | Transfer Importance Sampling across test setups | 2022 | [CS] Failure-probability estimate that trades bias of the cheap setup against variance of the expensive one.
+- `wu2026fromcode` | From Code to Road: VIL and digital-twin framework for central car server testing | 2026 | [S] Safe, reproducible, realistic end-to-end validation of centralised vehicle software before road tests.
+- `zhang2025combined` | Combined virtual-real (digital twin) AEB testing: field experiments | 2025 | [VS] Efficiency, cost and scenario-coverage gains of virtual-real AEB testing versus proving-ground testing.
+- `zhang2025vilsim` | Vehicle-in-the-loop simulator with AI digital twins | 2025 | [S] Cheap hardware-in-the-loop validation of automated driving controllers.
+- `agia2024sentinel` | Sentinel (runtime monitoring of generative policies) | 2024 | [CS] Failure-detection accuracy and latency for generative policies under OOD conditions.
+- `anthropic2025projectfetch` | Project Fetch (robot dog) | 2025 | [CS] AI-uplift for non-expert humans programming a physical robot; tracked as a Responsible Scaling Policy capability indicator.
+- `anthropic2026projectpilot` | Project Pilot (Anthropic x Andon Labs) | 2026 | [CVS] Whether 15 frontier models across three developers can recreate an aerial person-finding-and-following surveillance demo; frames the result as a dual-use capabi...
+- `bansal2020hjhuman` | HJ reachability analysis of prior misspecification in human motion prediction | 2020 | [S] The effect of incorrect priors/observation models on future human-state predictions and on the safety of the resulting robot plan.
+- `brunke2024semanticsafe` | Semantically Safe Robot Manipulation | 2024 | [S] Runtime semantic safety filtering beyond geometric collision avoidance.
+- `ding2026failpassive` | Certified functional safety for industrial humanoids: fail-passive gap | 2026 | [S] Where the certification gap sits for actively balancing robots that cannot be de-energised safely.
+- `ganai2025fortress` | FORTRESS (OOD failure prevention via multimodal reasoning) | 2025 | [S] Safety-classification accuracy and closed-loop planning success under OOD events.
+- `goel2025geometric` | Geometric Red-Teaming (CrashShapes) | 2025 | [VS] Robustness of pre-trained manipulation policies to plausible object-geometry variation, and recovery via fine-tuning (blue-teaming).
+- `guo2026statebackdoor` | State Backdoor (initial-state trigger) | 2026 | [S] Stealthy non-visual backdoor triggers robust to environmental variability.
+- `han2026dura` | DURA (diffusion-based natural adversarial patches) | 2026 | [S] Targeted action hijacking via visually natural patches, including black-box query access.
+- `hartmann2026biofidelic` | Systematic review of biofidelic instrumentation for PFL cobot testing | 2026 | [S] Metrological limits and trends of the instruments that produce the pass/fail numbers for ISO/TS 15066 and ISO 10218:2025.
+- `hindy2024martingales` | Diagnostic runtime monitoring with martingales | 2024 | [S] Speed and accuracy of diagnosing distribution-shift cause so the right intervention can be applied.
+- `huang2025annie` | ANNIE / ANNIEBench | 2025 | [S] Attack success in inducing physically unsafe behaviour of embodied models.
+- `huang2026blindfold` | Blindfold (action-level jailbreak) | 2026 | [S] Attack success for semantically disguised harmful action plans.
+- `iso2025iso10218` | ISO 10218-1/-2:2025 industrial robot safety (absorbs ISO/TS 15066) | 2025 | [CS] Conformity of an industrial robot and its application; for PFL, measured transient and quasi-static contact forces and pressures versus biomechanical limits.
+- `iso2025iso25785` | ISO/CD 25785-1 dynamically stable industrial mobile robots | 2025 | [S] Whether a humanoid/quadruped meets stability, fall and contact requirements in controlled tests.
+- `khan2025safer` | SAFER (Safety Aware Task Planning) | 2025 | [CVS] Reduction of safety violations in long-horizon multi-robot LLM planning.
+- `kim2025multisafe` | Safety observability / predictability diagnostics for latent world models (MultiSafe) | 2025 | [CVS] Whether a world model's latent state carries the information needed to detect and anticipate safety violations under partial observability (estimation gaps vs p...
+- `kirschner2022iso15066` | ISO/TS 15066: how different interpretations affect risk assessment | 2022 | [S] Whether the standard yields a unique safe/unsafe verdict for the same measured contact.
+- `lee2026beyond` | Beyond the Patch (viewpoint-consistent 3D adversarial objects) | 2026 | [S] Effectiveness of 3D adversarial objects against visuomotor policies under dynamic viewpoints where 2D patches fail.
+- `li2025attackvla` | AttackVLA (+BackdoorVLA) | 2025 | [CVS] Comparable attack effectiveness across VLA architectures and tokenisers, sim and real.
+- `lou2026safeloop` | SafeLoop | 2026 | [CS] Whether a runtime safety wrapper reduces hazards without hurting success.
+- `lu2024poex` | POEX / Harmful-RLbench | 2024 | [VS] Policy-executable jailbreak success against LLM-based robots (executability as a distinct requirement).
+- `lu2025phantommenace` | Phantom Menace: physical sensor attacks on VLAs | 2025 | [S] Robustness of VLA models to physical sensor attacks.
+- `lu2025uparfas` | UPA-RFAS (universal transferable patch) | 2025 | [VS] Cross-model, cross-task, cross-viewpoint transfer of a single physical patch.
+- `luo2022recency` | Online distribution-shift detection via recency prediction | 2022 | [VS] Detection speed and false-positive guarantee of a runtime distribution-shift monitor.
+- `luo2025sim2val` | Sim2Val | 2025 | [CVS] How many real-world test samples are needed for a confidence bound on a safety/performance metric when correlated cheap proxies exist; variance reduction of the...
+- `luo2026x4val` | X4Val | 2026 | [CVS] Variance-reduced estimation of real-world policy metrics when only unpaired auxiliary data exists (e.g.
+- `nahian2025mutrap` | MuTRAP / Robo-Troj (multi-trigger backdoor on LLM task planners) | 2025 | [CS] Backdoor vulnerability of LLM-based robot task planners: ASR when triggered, benign accuracy otherwise, and false-trigger rate.
+- `nakamura2024regret` | Regret metric for system-level prediction failures (Not All Errors Are Made Equal) | 2024 | [CVS] Which trajectory-prediction errors actually degraded closed-loop robot behavior (system-level failures), and whether mining high-regret interactions is predicti...
+- `nakamura2025latentsafety` | Latent Safety Filters (latent-space HJ reachability) hardware protocol | 2025 | [VS] Whether a learned latent reachability filter prevents hard-to-specify failures on a real manipulator while preserving task completion.
+- `obi2026safegate` | SafeGate: ISO 13482-grounded pre-execution safety gate for LLM-controlled robots | 2026 | [VS] Rejection rate of unsafe commands and acceptance rate of benign ones before any physical execution.
+- `parashar2026coverage` | Coverage-Aware Active Evaluation (paired systems) | 2026 | [VS] Number and diversity of severe target-system failures found under a fixed test budget when proxy evaluations are available.
+- `peng2026maniguard` | MANIGUARD | 2026 | [CVS] Specification-grounded safety of manipulation policies, independent of task success.
+- `qian2026liberovifo` | LIBERO-VIFO | 2026 | [S] Whether VLAs execute tasks indicated by unauthorised visual cues (a prompt-injection-like risk).
+- `ravichandran2025roboguard` | RoboGuard | 2025 | [CVS] Reduction in executed unsafe plans under worst-case jailbreaks without loss of safe-plan performance.
+- `ravichandran2026core` | CORE (contextual safety reasoning and grounding) | 2026 | [S] Runtime enforcement of semantically derived safety constraints on a real robot.
+- `robey2024robopair` | RoboPAIR (Jailbreaking LLM-Controlled Robots) | 2024 | [CS] Attack success rate (ASR) of eliciting harmful physical actions (block emergency exit, find weapons, collide with people) from LLM-controlled robots under white...
+- `seo2025unisafe` | UNISafe OOD-failure evaluation of latent safety filters | 2025 | [CVS] Whether a latent safety filter detects both known and unseen (OOD) hazards, and the safety/conservativeness tradeoff versus baselines (LatentSafe, SafeOnly, CQL...
+- `sharrock2025butterbench` | Butter-Bench | 2025 | [CVS] Practical intelligence of frontier LLMs embodied in a real mobile robot: search, visual inference, social interaction, multi-step spatial planning, end-to-end '...
+- `sinha2024aesop` | AESOP (Real-Time Anomaly Detection and Reactive Planning with LLMs) | 2024 | [CVS] Runtime detection of semantic out-of-distribution failures and safe recovery under latency and compute constraints.
+- `sun2026safestoppability` | Safe-stoppability monitors for humanoids (PRISM) | 2026 | [CS] Certifiable fail-safe (emergency stop) behaviour for actively balancing robots.
+- `svarny2020collisionforcemap` | 3D collision-force map for safe human-robot collaboration | 2020 | [S] Spatial variation of impact force and accuracy of the standard's predictive formula.
+- `svarny2022skins` | Effect of protective soft skins on collision forces (2,250 measurements) | 2022 | [CS] Transient collision force reduction from passive padding and active skin stops, relative to ISO/TS 15066 limits.
+- `wang2024exploring` | Adversarial vulnerabilities of VLAs (UADA/UPA/TMA patches) | 2024 | [VS] Degradation of VLA task success under visual patch attacks in sim and on hardware.
+- `wang2024trojanrobot` | TrojanRobot / Robot Collapse (supply-chain backdoor in modular VLM policies) | 2024 | [S] Physical-world stealth and effectiveness of supply-chain backdoors in modular LLM/VLM robot stacks.
+- `wang2025robosafe` | RoboSafe | 2025 | [S] Runtime safeguarding of embodied agents.
+- `wang2026partially` | Partially observable patch attacks on VLAs | 2026 | [S] Attack effectiveness under a realistic threat model where the attacker sees only the start of the episode.
+- `xing2022ontology` | Ontology-based identification of perception triggering conditions (SOTIF) | 2022 | [VS] Yield of a systematic triggering-condition search in producing real perception insufficiencies.
+- `xu2025dropvla` | DropVLA (action-level backdoor) | 2025 | [VS] Fine-grained action-level backdoor ASR, clean retention, trigger latency and cross-suite transfer under minimal poisoning.
+- `yin2026tako` | TAKO (test-time adversarial takeover of diffusion policies) | 2026 | [S] Whether an attacker can convert a deployed visuomotor policy into a remotely piloted instrument.
+- `zhang2024badrobot` | BadRobot | 2024 | [VS] Whether embodied LLM agents can be jailbroken into harmful physical manipulation via three vulnerabilities: contextual jailbreak, safety misalignment (say no, d...
+- `zhang2026redvla` | RedVLA (Physical Red Teaming for VLAs) | 2026 | [VS] Physical-safety attack success rate of VLAs (knife contact, collisions) elicited by scene manipulation, and a mitigation (SimpleVLA-Guard) trained on the found ...
+- `zhou2025goba` | GoBA / BadLIBERO (physical-object backdoors) | 2025 | [S] Goal-oriented backdoor success when a physical trigger is visible, with zero clean-task degradation; sensitivity to trigger colour, size, trajectory.
+- `dilillo2024adas` | Swiss Re / Stanford ADAS proving-ground assessment | 2024 | [CVS] Relative real-world safety benefit of collision-prevention systems across vehicles; realism of the scenario protocol.
+- `euroncap2023aebc2c` | Euro NCAP AEB Car-to-Car test protocol v4.3 | 2023 | [CVS] AEB/FCW avoidance and mitigation performance over a speed x overlap grid (CCRs 10-50 km/h AEB, 55-80 km/h FCW; CCRm 30-80 km/h).
+- `euroncap2024aebvru` | Euro NCAP AEB/LSS VRU test protocol | 2024 | [VS] Vulnerable-road-user crash avoidance on a proving ground with human surrogates.
+- `eykholt2018robust` | RP2 stop-sign stickers (Robust Physical-World Attacks) | 2018 | [VS] Physical realisability of adversarial examples for road-sign classifiers with an explicit two-stage lab + field protocol.
+- `han2024painthresholds` | Force pain thresholds for ISO/TS 15066 collision limits | 2024 | [S] Empirical basis for power-and-force-limiting collision limits used in cobot collision tests.
+- `iihs2024fcp2` | IIHS Vehicle-to-Vehicle Front Crash Prevention 2.0 test protocol | 2024 | [CS] Higher-speed and non-passenger-vehicle front crash prevention, replacing the 2013-2022 test at 20 and 40 km/h.
+- `iihs2024paeb` | IIHS Pedestrian AEB test protocol (Version IV) | 2024 | [CVS] Pedestrian AEB crash avoidance/mitigation on a closed track with human surrogates.
+- `kidd2023characteristics` | AEB response characteristics in IIHS FCP-rated vehicles | 2023 | [VS] Mechanistic differences (earlier TTC, greater speed-dependent deceleration) behind rating levels.
+- `mcity2022rates` | Mcity Test Facility recharge rates | 2022 | [CS] Direct dollar cost of level-8 track time.
+- `nassi2020phantom` | Phantom of the ADAS | 2020 | [S] Whether depthless projected objects trigger unsafe ADAS reactions in production vehicles, and how well a camera-only detector rejects them.
+- `nhtsa2024fmvss127` | FMVSS No. 127 Automatic Emergency Braking rule (May 2024, amended Nov 2024) | 2024 | [CVS] Regulatory minimum AEB/PAEB/FCW performance for all new light vehicles from 1 Sept 2029.
+- `varley2024twoarms` | Embodied AI with Two Arms: zero-shot learning, safety and modularity | 2024 | [S] Task success of a modular zero-shot bimanual system and its safe operation near humans via constrained trajectory optimization and compliance.
+- `betschinske2025towards` | Efficient quantitative validation of residual risk (FOT reduction approaches) | 2025 | [S] Whether any method can replace on-road exposure for demonstrating residual risk at higher automation levels.
+- `chen2024initial` | Initial Indications of Safety of Driverless ADS (SF crash rates) | 2024 | [S] Independent (non-company) comparison of driverless and supervised AV crash rates to a human ride-hail baseline.
+- `chen2026ciimportance` | Confidence intervals for rare-event rate estimation with importance sampling (AV) | 2026 | [CS] How to put valid confidence intervals on rare-event rates (collisions per million miles) when data are sampled non-uniformly.
+- `cicchino2018gm` | Real-world effects of GM Forward Collision Alert and Front Automatic Braking | 2018 | [VS] Crash-rate reduction attributable to FCW alone and FCW+AEB.
+- `cicchino2019characteristics` | Characteristics of rear-end crashes involving AEB-equipped vehicles | 2019 | [VS] Residual crash scenarios that AEB fails to prevent.
+- `cicchino2022pedestrian` | Effects of pedestrian AEB on pedestrian crash risk | 2022 | [S] Real-world effectiveness of pedestrian AEB by lighting, speed limit and manoeuvre.
+- `cruise2023incident` | Cruise Oct 2023 pedestrian incident and aftermath | 2023 | [VS] A single rare deployment event and its regulatory consequence; demonstrates the asymmetric value of level-9 evidence.
+- `dilillo2023comparative` | Waymo vs human liability claims (Swiss Re, 3.8M rider-only miles) | 2023 | [VS] Claims per million miles as a third-party safety outcome metric.
+- `dilillo2024swissre` | Waymo vs latest-generation human-driven vehicles: liability claims at 25.3M miles | 2024 | [VS] Property-damage and bodily-injury claim reductions vs overall population and vs new ADAS-equipped vehicles.
+- `favaro2018disengagements` | AV disengagements: trends, triggers and regulatory limitations | 2018 | [S] Reliability trends of supervised AV testing and the limits of disengagement reporting as a safety metric.
+- `flannagan2023cruiseumtri` | Cruise/UMTRI human ridehail crash benchmark (San Francisco) | 2023 | [VS] Human benchmark for urban ridehail crashes and an ADS comparison.
+- `fu2024insufficiencies` | Characterization and mitigation of functional insufficiencies in ADS | 2024 | [VS] Share of field disengagements due to SOTIF-type insufficiencies vs ISO 26262-type faults.
+- `iihs2023trucks` | IIHS: front crash prevention less effective against trucks and motorcycles | 2023 | [VS] Gap between a top track rating and field effectiveness by partner type.
+- `kalra2016driving` | RAND Driving to Safety (miles to demonstrate reliability) | 2016 | [VS] Miles of failure-free or observed driving needed to demonstrate fatality, injury and crash rates relative to human baselines at given confidence and precision.
+- `kullgren2010comparison` | Euro NCAP star ratings vs real-world crash data | 2010 | [VS] Whether the crash-test star rating predicts real injury and fatality risk.
+- `kusano2023comparison` | Waymo rider-only crash rates vs human benchmarks (7.1M miles) | 2023 | [CVS] Incidents per million miles (IPMM) for any-injury-reported and police-reported crashes, ADS vs human.
+- `kusano2025comparison` | Waymo rider-only crash rates by crash type (56.7M miles) | 2025 | [CS] Crashed-vehicle rates for injury-reported and airbag-deployment crashes by crash type versus matched human benchmarks.
+- `nhtsa2021sgo` | NHTSA Standing General Order 2021-01 crash reporting | 2021 | [S] Fleet-level crash incidence for deployed automated vehicles; the data source behind Waymo's studies and third-party trackers.
+- `sindhwani2020anomaly` | Unsupervised anomaly detection for self-flying delivery drones | 2020 | [S] Whether a runtime/offline monitor can flag abnormal missions in a real drone fleet without labelled failures, under heavy training-set contamination.
+- `singh2023diversity` | Diversity analysis of lead-vehicle safety metrics | 2023 | [S] Whether surrogate safety metrics agree on ranking vehicle performance in lead-vehicle interactions.
+- `soc2022amazonprimed` | Amazon robotic vs non-robotic warehouse serious injury rates (SOC report) | 2022 | [S] Human injury incidence in robotised warehouses vs conventional ones.
+- `waymo2026impacthub` | Waymo Safety Impact data hub | 2026 | [CS] Ongoing deployment safety monitoring of an L4 fleet.
+- `zhang2021disengagement` | Disengagement cause-and-effect extraction with an NLP pipeline | 2021 | [S] Who initiates disengagements and which subsystem causes them.
+- `zheng2023planning` | Planning Reliability Assurance Tests for AVs | 2023 | [CS] Required test fleet size, mileage and pass/fail rule for a reliability demonstration test given disengagement-rate priors.
+- `bajcsy2021analyzing` | Reachability-based analysis of online-adapting human models | 2021 | [S] Safety-relevant properties of a human predictor: what it could learn online, how fast (worst/best case), and which initializations guarantee finite-time converg...
+- `hartmann2026evolution` | Evolution of ISO 10218 (2011 vs 2025) and integration of ISO/TS 15066 | 2026 | [S] What the 2025 revision changes for robot safety verification.
+- `hoss2022review` | Review of testing object-based environment perception | 2022 | [S] State of safety-aware perception testing; concludes it remains an open issue.
+- `iso2022iso34502` | ISO 34502:2022 scenario-based safety evaluation framework | 2022 | [S] Whether an ADS is free of unreasonable risk across a systematically derived critical-scenario set; does not itself define pass thresholds.
+- `koopman2022ul4600` | UL 4600 safety case standard (Koopman overview) | 2022 | [S] Completeness and well-formedness of a safety case for a fully autonomous product; SPIs measure behaviour rates (e.g.
+- `nist2025aml` | NIST AI 100-2e2025 (Adversarial ML taxonomy) | 2025 | [S] Nothing directly; provides the vocabulary standards and audits use for adversarial robustness claims.
+- `qin2026embodiedgovbench` | EmbodiedGovBench | 2026 | [S] Governability of embodied agent systems and fleets rather than per-episode safety.
+- `riedmaier2020survey` | Survey on scenario-based safety assessment of automated vehicles | 2020 | [S] Landscape of methods; does not measure a system.
+- `tang2023survey` | Survey on ADS testing: landscapes and trends | 2023 | [S] Map of testing approaches and open problems.
+- `topan2023maneuverzones` | Maneuver-based perception safety zones | 2023 | [S] Size of the perception safety-critical region conditioned on ego maneuver.
+- `westhofen2021criticality` | Criticality metrics for automated driving: review and suitability analysis | 2021 | [VS] Which surrogate-safety metrics are fit for scenario filtering, risk assessment or pass/fail.
+
+## (c) Frontier AI safety evaluations (66)
+
+- `aisi2024inspect` | Inspect AI evaluation framework | 2024 | Infrastructure used by AISI, CAISI and labs to run agentic and QA evaluations reproducibly.
+- `aisi2024o1` | US/UK AISI joint pre-deployment test: OpenAI o1 | 2024 | [CS] Pre-deployment cyber, bio, software/AI development capability of o1.
+- `aisi2024sonnet` | US/UK AISI joint pre-deployment test: Claude 3.5 Sonnet (upgraded) | 2024 | [CS] Pre-deployment capability in bio, cyber, software/AI development and safeguard efficacy.
+- `aisi2025trends` | UK AISI Frontier AI Trends Report | 2025 | [CS] Trends in frontier capability and safeguard robustness across 30+ systems.
+- `andriushchenko2024agentharm` | AgentHarm | 2024 | [S] Harmfulness and jailbreak robustness of LLM agents.
+- `anthropic2025agenticmisalignment` | Agentic misalignment (blackmail scenarios) | 2025 | [S] Propensity for harmful insider-like actions (blackmail, espionage) under contrived pressure.
+- `anthropic2025opus45card` | Claude Opus 4.5 system card: uplift trials, eval awareness, alignment audit effort | 2025 | [CS] ASL-3/4 CBRN and AI R&D threshold checks; alignment and evaluation-awareness assessment.
+- `anthropic2025opus4card` | Claude Opus 4 system card: bioweapons acquisition uplift trial | 2025 | [CVS] Real human uplift for the ASL-3 CBRN threshold (deployment gate).
+- `anthropic2025petri` | Petri: automated alignment auditing tool | 2025 | [CVS] Broad misaligned-behaviour propensity; reused by UK AISI for sabotage case study.
+- `anthropic2025sonnet45card` | Claude Sonnet 4.5 system card: evaluation awareness | 2025 | [CS] Alignment propensities and the confound of evaluation awareness.
+- `anurin2024threecb` | 3CB: Catastrophic Cyber Capabilities Benchmark | 2024 | [S] Offensive cyber capability of agents (reconnaissance, exploitation).
+- `benton2024sabotage` | Anthropic sabotage evaluations | 2024 | [CS] Whether a model could covertly sabotage evaluations, monitoring or deployment decisions.
+- `bergen2026monitoring` | Internal-representation monitors for reward hacking during evaluations | 2026 | [CS] Whether reward hacking has a linear signature in activations that can be used as a runtime monitor during evaluations and to discover new hack types.
+- `bhatt2023cyberseceval` | CyberSecEval (Purple Llama) | 2023 | [S] Insecure code generation rate and compliance with cyberattack assistance requests.
+- `caisi2025deepseek` | CAISI evaluation of DeepSeek models | 2025 | [S] Capability, cost, security and censorship comparison of DeepSeek R1/R1-0528/V3.1 vs GPT-5, GPT-5-mini, gpt-oss, Opus 4.
+- `chan2024mlebench` | MLE-bench | 2024 | [C] ML engineering capability (AI R&D threshold proxy in Preparedness Framework).
+- `chao2024jailbreakbench` | JailbreakBench | 2024 | [VS] Jailbreak attack and defence performance under a standard threat model.
+- `cui2024orbench` | OR-Bench (over-refusal) | 2024 | [S] Over-refusal (false-alarm) rate vs true refusal across 32 LLMs.
+- `debenedetti2024agentdojo` | AgentDojo | 2024 | [S] Prompt-injection robustness of tool-using agents (targeted attack success and utility under attack).
+- `deepmind2025gemini3fsf` | Gemini 3 Pro Frontier Safety Framework report | 2025 | [CS] Whether Gemini 3 Pro reached any CCL.
+- `ghosh2025ailuminate` | AILuminate v1.0 | 2025 | [S] Product-level risk and reliability grade for chat systems (industry standard benchmark).
+- `greenblatt2024alignmentfaking` | Alignment faking | 2024 | [S] Whether a model selectively complies during perceived training (alignment faking).
+- `ivanov2024biolp` | BioLP-bench | 2024 | [S] Understanding of biological lab protocols (a wet-lab tacit-knowledge proxy used in AISI bio evaluations).
+- `kapoor2025hal` | Holistic Agent Leaderboard (HAL) | 2025 | [C] Agent accuracy vs cost; behavioural issues in logs.
+- `kinniment2023ara` | METR ARA evaluations (autonomous replication and adaptation) | 2023 | [S] Autonomous replication and adaptation capability; early template for autonomy thresholds in RSP/Preparedness.
+- `kutasov2025shade` | SHADE-Arena | 2025 | [CVS] Sabotage capability and monitorability of agents.
+- `kwa2025horizon` | METR 50% task-completion time horizon | 2025 | [CV] Length of tasks (in human-expert minutes) an agent completes with 50% reliability; used as a headline autonomy capability metric and as an ASL/CCL autonomy prox...
+- `li2024wmdp` | WMDP (Weapons of Mass Destruction Proxy) | 2024 | [CS] Proxy for hazardous knowledge that could uplift malicious actors; also a target for unlearning (RMU).
+- `li2026evalawaredecomp` | Decomposing and measuring evaluation awareness (EvalAwareBench) | 2026 | [S] Environment-driven vs model-driven evaluation awareness and whether it changes behaviour.
+- `lin2021truthfulqa` | TruthfulQA | 2021 | [VS] Imitative falsehoods; a widely used honesty proxy (MASK shows it does not track lying under pressure).
+- `lindner2026gram` | Gram: automated sabotage-propensity auditing | 2026 | [S] Sabotage propensity of Gemini agents.
+- `marks2025hiddenobjectives` | Auditing for hidden objectives (blind auditing game) | 2025 | [VS] Detectability of hidden objectives by auditing (sensitivity of audits).
+- `meinke2024scheming` | Apollo in-context scheming evaluations | 2024 | [S] Capability for in-context scheming (deception, oversight subversion).
+- `mouton2024randbio` | RAND red-team study: LLMs and biological attack planning | 2024 | [S] Operational uplift from LLM access for bioweapon attack planning.
+- `needham2025evalaware` | LLMs often know when they are being evaluated | 2025 | [S] Evaluation awareness (ability to distinguish test from deployment).
+- `openai2024bioearlywarning` | OpenAI early-warning system for LLM-aided biological threat creation | 2024 | [CS] Uplift from model access on biological threat creation tasks (Preparedness Framework bio category).
+- `parrish2021bbq` | BBQ: Bias Benchmark for QA | 2021 | [S] Reliance on social stereotypes in QA; used in many model cards (e.g.
+- `phuong2024dangerous` | DeepMind dangerous capability evaluations (Gemini 1.0) | 2024 | [CS] Whether a frontier model has dangerous capabilities in four domains; pilot of a 'science of dangerous capability evaluation'.
+- `rein2025hcast` | HCAST: Human-Calibrated Autonomy Software Tasks | 2025 | [CV] Agent success as a function of human task duration (1 min to 8+ h).
+- `ren2024safetywashing` | Safetywashing | 2024 | [S] Whether safety benchmarks measure anything beyond capability.
+- `ren2025mask` | MASK: honesty benchmark | 2025 | [CVS] Propensity to lie under pressure, disentangled from factual accuracy.
+- `rottger2023xstest` | XSTest (exaggerated safety) | 2023 | [S] False-refusal rate (specificity) alongside unsafe compliance (sensitivity).
+- `schoen2025antischeming` | Anti-scheming training stress test (OpenAI/Apollo) | 2025 | [S] Whether deliberative alignment reduces covert actions, and how evaluation awareness confounds the measurement.
+- `souly2024strongreject` | StrongREJECT | 2024 | [CVS] Jailbreak effectiveness measured as useful harmful information, not surface compliance.
+- `souly2026aisicase` | UK AISI alignment evaluation case study | 2026 | [VS] Whether frontier models sabotage safety research as coding assistants; also measures eval-vs-deployment distinguishability.
+- `starace2025paperbench` | PaperBench | 2025 | [C] AI research replication ability (AI R&D threshold proxy).
+- `swebench2024verified` | SWE-bench Verified | 2024 | [C] Real-world software engineering capability; used as capability proxy in RSP/Preparedness autonomy evaluations and CAISI comparisons.
+- `tice2024noise` | Noise injection reveals sandbagging | 2024 | [VS] Model-agnostic detector for sandbagging.
+- `vanderweij2024sandbagging` | AI sandbagging | 2024 | [S] Feasibility of strategic underperformance on dangerous-capability evals (a sensitivity threat).
+- `wijk2024rebench` | RE-Bench | 2024 | [CS] Frontier AI R&D automation capability (an RSP/FSF AI R&D threshold proxy).
+- `xie2024sorrybench` | SORRY-Bench | 2024 | [VS] Fine-grained safety refusal behaviour.
+- `zhang2024cybench` | Cybench | 2024 | [CVS] Offensive cyber capability of LLM agents (vulnerability discovery and exploitation).
+- `zhang2025bountybench` | BountyBench | 2025 | [S] Dollar-denominated offensive and defensive cyber capability on real systems.
+- `gotting2025vct` | Virology Capabilities Test (VCT) | 2025 | [CVS] Tacit and visual practical virology knowledge relevant to bioweapons uplift.
+- `laurent2024labbench` | LAB-Bench | 2024 | Practical biology research assistance capability; used by UK/US AISI as a bio capability probe.
+- `mazeika2024harmbench` | HarmBench | 2024 | [CVS] Robust refusal under automated jailbreaks; standardised comparison of red-teaming methods.
+- `becker2025productivity` | METR developer productivity RCT | 2025 | Real-world impact of AI tools on expert developer productivity (a level-9 ground truth against which benchmark claims can be checked).
+- `anthropic2026rsp` | Anthropic Responsible Scaling Policy (v3.4) | 2026 | [S] Deployment gate: thresholds trigger safeguards; comprehensive assessment every 6 months (was 3) to allow higher-quality elicitation.
+- `bean2025constructvalidity` | Measuring what matters: construct validity in LLM benchmarks | 2025 | [S] Prevalence of construct-validity failures (vague phenomena, unrepresentative tasks, weak statistics).
+- `deepmind2026fsf` | Google DeepMind Frontier Safety Framework (v3.1) | 2026 | [S] Deployment gate keyed to alert thresholds reached before CCLs.
+- `ghosh2026evalcards` | Evaluation Cards | 2026 | Gaps in evaluation reporting.
+- `ghosh2026evalcosts` | AI evals are becoming the new compute bottleneck | 2026 | Dollar and GPU-hour cost of running benchmarks; reliability multipliers.
+- `mccaslin2025stream` | STREAM (ChemBio) reporting standard | 2025 | [S] Transparency of eval reporting so third parties can judge rigor.
+- `openai2025preparedness` | OpenAI Preparedness Framework v2 | 2025 | [S] Deployment gate: High capability requires sufficient safeguards before deployment; Critical during development.
+- `reuel2024betterbench` | BetterBench | 2024 | Benchmark quality (design, implementation, documentation, maintenance).
+- `singh2025leaderboard` | The Leaderboard Illusion | 2025 | Selection and overfitting distortions in a human-preference leaderboard.
+
+## (d) Entries with cost evidence (238)
+
+- `aisi2024inspect` | Inspect AI evaluation framework | 2024 | Infrastructure used by AISI, CAISI and labs to run agentic and QA evaluations reproducibly.
+- `aisi2024o1` | US/UK AISI joint pre-deployment test: OpenAI o1 | 2024 | [CS] Pre-deployment cyber, bio, software/AI development capability of o1.
+- `aisi2024sonnet` | US/UK AISI joint pre-deployment test: Claude 3.5 Sonnet (upgraded) | 2024 | [CS] Pre-deployment capability in bio, cyber, software/AI development and safeguard efficacy.
+- `aisi2025trends` | UK AISI Frontier AI Trends Report | 2025 | [CS] Trends in frontier capability and safeguard robustness across 30+ systems.
+- `anthropic2025opus45card` | Claude Opus 4.5 system card: uplift trials, eval awareness, alignment audit effort | 2025 | [CS] ASL-3/4 CBRN and AI R&D threshold checks; alignment and evaluation-awareness assessment.
+- `anthropic2025opus4card` | Claude Opus 4 system card: bioweapons acquisition uplift trial | 2025 | [CVS] Real human uplift for the ASL-3 CBRN threshold (deployment gate).
+- `anthropic2025petri` | Petri: automated alignment auditing tool | 2025 | [CVS] Broad misaligned-behaviour propensity; reused by UK AISI for sabotage case study.
+- `anthropic2025sonnet45card` | Claude Sonnet 4.5 system card: evaluation awareness | 2025 | [CS] Alignment propensities and the confound of evaluation awareness.
+- `bajrami2026robotignores` | LLM-orchestrator safety benchmark for human-humanoid collaboration | 2026 | [S] Compliance spectrum of LLM orchestrators (over-refusal vs violation) against industrial safety invariants over long sessions.
+- `benton2024sabotage` | Anthropic sabotage evaluations | 2024 | [CS] Whether a model could covertly sabotage evaluations, monitoring or deployment decisions.
+- `bergen2026monitoring` | Internal-representation monitors for reward hacking during evaluations | 2026 | [CS] Whether reward hacking has a linear signature in activations that can be used as a runtime monitor during evaluations and to discover new hack types.
+- `caisi2025deepseek` | CAISI evaluation of DeepSeek models | 2025 | [S] Capability, cost, security and censorship comparison of DeepSeek R1/R1-0528/V3.1 vs GPT-5, GPT-5-mini, gpt-oss, Opus 4.
+- `chan2024mlebench` | MLE-bench | 2024 | [C] ML engineering capability (AI R&D threshold proxy in Preparedness Framework).
+- `deepmind2025gemini3fsf` | Gemini 3 Pro Frontier Safety Framework report | 2025 | [CS] Whether Gemini 3 Pro reached any CCL.
+- `kapoor2025hal` | Holistic Agent Leaderboard (HAL) | 2025 | [C] Agent accuracy vs cost; behavioural issues in logs.
+- `kutasov2025shade` | SHADE-Arena | 2025 | [CVS] Sabotage capability and monitorability of agents.
+- `kwa2025horizon` | METR 50% task-completion time horizon | 2025 | [CV] Length of tasks (in human-expert minutes) an agent completes with 50% reliability; used as a headline autonomy capability metric and as an ASL/CCL autonomy prox...
+- `li2024wmdp` | WMDP (Weapons of Mass Destruction Proxy) | 2024 | [CS] Proxy for hazardous knowledge that could uplift malicious actors; also a target for unlearning (RMU).
+- `lu2026simmer` | SIMMER | 2026 | [CS] Latent (delayed) failures in LLM executable plans.
+- `metr2026horizonlimits` | METR: clarifying limitations of time horizon | 2026 | Stated limits of the time-horizon metric.
+- `mouton2024randbio` | RAND red-team study: LLMs and biological attack planning | 2024 | [S] Operational uplift from LLM access for bioweapon attack planning.
+- `obi2025safeplan` | SafePlan (+ SafePlan benchmark) | 2025 | [CS] Ability of an LLM robotic task planner to reject harmful task prompts while accepting safe ones.
+- `openai2024bioearlywarning` | OpenAI early-warning system for LLM-aided biological threat creation | 2024 | [CS] Uplift from model access on biological threat creation tasks (Preparedness Framework bio category).
+- `parrish2021bbq` | BBQ: Bias Benchmark for QA | 2021 | [S] Reliance on social stereotypes in QA; used in many model cards (e.g.
+- `phuong2024dangerous` | DeepMind dangerous capability evaluations (Gemini 1.0) | 2024 | [CS] Whether a frontier model has dangerous capabilities in four domains; pilot of a 'science of dangerous capability evaluation'.
+- `rein2025hcast` | HCAST: Human-Calibrated Autonomy Software Tasks | 2025 | [CV] Agent success as a function of human task duration (1 min to 8+ h).
+- `ren2025mask` | MASK: honesty benchmark | 2025 | [CVS] Propensity to lie under pressure, disentangled from factual accuracy.
+- `sermanet2025scifi` | SciFi-Benchmark | 2025 | [VS] Alignment of LLM decisions with human values in robot/AI decision moments drawn from fiction, and the effect of auto-generated constitutions on alignment and ja...
+- `souly2024strongreject` | StrongREJECT | 2024 | [CVS] Jailbreak effectiveness measured as useful harmful information, not surface compliance.
+- `starace2025paperbench` | PaperBench | 2025 | [C] AI research replication ability (AI R&D threshold proxy).
+- `swebench2024verified` | SWE-bench Verified | 2024 | [C] Real-world software engineering capability; used as capability proxy in RSP/Preparedness autonomy evaluations and CAISI comparisons.
+- `wijk2024rebench` | RE-Bench | 2024 | [CS] Frontier AI R&D automation capability (an RSP/FSF AI R&D threshold proxy).
+- `xie2024sorrybench` | SORRY-Bench | 2024 | [VS] Fine-grained safety refusal behaviour.
+- `zhang2024cybench` | Cybench | 2024 | [CVS] Offensive cyber capability of LLM agents (vulnerability discovery and exploitation).
+- `zhang2025bountybench` | BountyBench | 2025 | [S] Dollar-denominated offensive and defensive cyber capability on real systems.
+- `andeol2023confident` | Conformal risk control for railway signal detection (SNCF dataset) | 2023 | [CVS] Whether split conformal prediction and conformal risk control give formally guaranteed miscoverage (<=10%) on detected railway signals, and the price in box siz...
+- `christensen2025maritime` | Semantic Lookout (maritime VLM hazard detection) | 2025 | [VS] Whether VLMs give usable semantic hazard awareness in the IMO MASS alert-to-takeover window.
+- `elhafsi2023semantic` | Semantic anomaly detection with LLMs | 2023 | [VS] Whether an LLM monitor catches system-level semantic edge cases (stop signs on billboards, traffic lights on trucks) that component-level OOD detectors miss.
+- `foutter2026faithfulness` | Pinocchio (faithfulness of embodied CoT) | 2026 | [VS] Whether verbalized reasoning of a driving VLA faithfully reflects its decisions, and whether faithfulness improves long-tail robustness.
+- `gotting2025vct` | Virology Capabilities Test (VCT) | 2025 | [CVS] Tacit and visual practical virology knowledge relevant to bioweapons uplift.
+- `mazeika2024harmbench` | HarmBench | 2024 | [CVS] Robust refusal under automated jailbreaks; standardised comparison of red-teaming methods.
+- `samarakoon2026paperhijack` | Hijacking Robots with a Piece of Paper (physical prompt injection) | 2026 | [CS] Susceptibility of VLM robot controllers to visual text injection and the efficacy of mitigations.
+- `wang2026touchsafebench` | TouchSafeBench (collision grounding for HRC) | 2026 | [VS] Whether VLMs can ground physical contact risk between humans and robots from visual input.
+- `yeke2026robojailbench` | RoboJailBench | 2026 | [CVS] Standardised jailbreak attack/defense comparison for embodied VLM agents with a security-utility trade-off, over an 18-category taxonomy of physical-security co...
+- `zhao2026realm` | REALM (red-teaming physical-world VLMs) | 2026 | [S] Comparative attack effectiveness against VLMs used for physical-world tasks.
+- `zhou2024mssbench` | MSSBench (Multimodal Situational Safety) | 2024 | [CVS] Whether a VLM's safety judgement depends correctly on the visual situation rather than the query alone.
+- `zhu2024earbench` | EARBench (EAIRiskBench) | 2024 | [VS] Physical-risk awareness of foundation-model task planners in generated risk-prone scenes.
+- `geminirobotics2026agentic` | ASIMOV-Agentic (Gemini Robotics 2: Safety Evaluations) | 2026 | [VS] Whether an agent orchestrating a VLA refuses unsafe tool calls, stops for nearby humans, shields the VLA from infeasible tasks, and asks for clarification under...
+- `gu2025accidentbench` | AccidentBench | 2025 | [VS] Safety-critical video understanding and reasoning of foundation models in accident scenarios.
+- `tian2026badbehavior` | Position: embodied reward models need bad behavior data (RoboArena reward-model audit) | 2026 | [VS] How well embodied reward models agree with human judgments of real robot behavior, and where they over-reward unsafe, poorly executed, or shortcut behaviors; th...
+- `banerjee2022lifecycle` | Data lifecycle benchmark for aerospace ML | 2022 | Cost-vs-performance of labelling strategies under evolving input distributions (open-source benchmark).
+- `chakraborty2025frs` | FORCE-OPT (predictor-based forward reachable sets for plan safety) | 2025 | [CS] Soundness and completeness of a plan-level safety monitor for end-to-end stacks.
+- `chen2025safemind` | SafeMind / SafeMindBench | 2025 | [CVS] Safety of embodied LLM agents across task understanding, environment perception and action ordering under sabotage/harm/privacy/illegal scenarios.
+- `chen2026crashtwin` | CrashTwin (physics-grounded world-model benchmark) | 2026 | [S] Physical trustworthiness of generative world models used as AV simulators in collision scenarios.
+- `dyro2024extreme` | Realistic Extreme Behavior Generation for AV Testing | 2024 | [CVS] Interpretable failure modes of an AV collision-avoidance policy under realistic adversarial counterfactual collisions.
+- `jindal2025danger` | ASIMOV-2.0 (Can AI Perceive Physical Danger and Intervene?) | 2025 | [CVS] Whether frontier models can perceive latent physical danger, judge injury severity, decide when to intervene, and respect embodiment-specific constraints (paylo...
+- `majumdar2025predictive` | Predictive Red Teaming (RoboART) | 2025 | [CVS] Which off-nominal environmental conditions (lighting, background, distractors, table height) break an imitation-learned policy, predicted without running the ro...
+- `panpatil2026egosafetybench` | EgoSafetyBench | 2026 | [CVS] Runtime hazard detection and over-intervention of VLMs on temporally evolving egocentric scenes.
+- `seo2026stressdream` | StressDream (steered world-model policy evaluation) | 2026 | [CVS] Whether a policy's actions admit plausible failure futures under a video world model, used for robust offline policy evaluation and for weighting fine-tuning da...
+- `sermanet2025asimov` | ASIMOV Benchmark v1 + generated robot constitutions | 2025 | [CVS] Whether a VLM judges robot actions as safe/unsafe the way humans do (semantic safety), and how much auto-generated constitutions raise that alignment versus no-...
+- `yin2026roboshackles` | ROBOSHACKLES | 2026 | [S] Whether embodied foundation models refuse actions that would injure humans in edited real scenes.
+- `anthropic2026claudeplaysrobotics` | Claude Plays Robotics | 2026 | [CS] How embodiment capability of frontier models depends on control-interface abstraction; argues isolated model evals understate capability once embedded in a robo...
+- `chen2024dpattacker` | DP-Attacker (attacks on diffusion policies) | 2024 | [S] Vulnerability of diffusion policies (chained denoising, stochastic) to digital and patch attacks.
+- `choi2026vlaeval` | vla-eval harness | 2026 | [C] Reproducibility and throughput of simulated VLA evaluation.
+- `cui2026liberosafety` | LIBERO-Safety | 2026 | [CS] Physical and semantic safety of VLA policies and the effect of training-data diversity on safe trajectories.
+- `euroncap2025virtual` | Euro NCAP Safe Driving & Crash Avoidance Virtual Testing protocol v1.00 | 2025 | [VS] Whether an OEM's virtual test results may substitute for physical Euro NCAP track tests (level 8) in rating predictions.
+- `euroncap2026vta` | Euro NCAP 2026 Virtual Test Assessment (VTA) and test-grid growth | 2026 | [CVS] Same AEB/LSS grid as the physical protocol, but the bulk of cells scored in simulation with physical spot checks.
+- `fei2025liberoplus` | LIBERO-Plus | 2025 | Robustness of 10 VLAs to non-adversarial but out-of-distribution perturbations; reveals language is largely ignored.
+- `feng2021nade` | NADE: Naturalistic and Adversarial Driving Environment | 2021 | [CVS] Unbiased estimate of the AV crash rate per mile with far fewer simulated miles than naturalistic testing.
+- `feng2023dense` | Dense deep reinforcement learning (D2RL) for AV safety validation | 2023 | [CS] Accelerated, unbiased crash-rate estimation of an AV in an intelligent testing environment.
+- `huang2025safebeal` | Safe-BeAl / SafePlan-Bench | 2025 | [CVS] Task-planning safety of LLM embodied agents over 8 hazard categories and the gain from Safe-Align fine-tuning.
+- `jeong2025salt` | SALT runtime monitor evaluation (Robots that Suggest Safe Alternatives) | 2025 | [CVS] Whether a closed-loop reachability monitor predicts execution failures better than open-loop uncertainty quantification (ensemble disagreement), and whether sug...
+- `jones2025adversarial` | RoboGCG (textual attacks on VLAs) | 2025 | [CS] Reachability of the full action space and persistence of control via textual jailbreak-style attacks.
+- `kanwal2026fatevla` | FATE-VLA (failure-aware test generation) | 2026 | [S] How many and how diverse the failures found per test budget for VLAs (OpenVLA-7b, pi0, GR00T-N1.6, EO-1) versus random/ART baselines.
+- `karnik2024ert` | Embodied Red Teaming (ERT) | 2024 | [C] Robustness of language-conditioned robot policies to instruction phrasing and whether benchmark instruction sets overstate performance.
+- `li2024behavior1k` | BEHAVIOR-1K / OmniGibson | 2024 | [CV] Long-horizon household activity completion; includes a sim-to-real calibration study.
+- `liu2023libero` | LIBERO | 2023 | [CV] Knowledge transfer in lifelong robot learning; de-facto VLA leaderboard.
+- `lu2025isbench` | IS-Bench | 2025 | [CVS] Interactive safety: whether an embodied VLM agent perceives emergent risks during execution and orders mitigation steps correctly, not just post-hoc plan safety...
+- `luo2021conformal` | Sample-efficient safety assurances via conformal prediction | 2021 | [VS] Guaranteed false-negative rate of unsafe-situation warning systems using as few as 1/epsilon calibration samples.
+- `lyu2026foresightsafetyvla` | ForesightSafety-VLA | 2026 | [VS] Process-level physical, instruction-side and perception-side safety of VLA policies under a 13-category taxonomy (Safe-Core, Safe-Lang, Safe-Vis).
+- `makoviychuk2021isaacgym` | Isaac Gym | 2021 | Throughput for RL policy training in simulation.
+- `nasiriany2024robocasa` | RoboCasa | 2024 | [CV] Scaling of imitation learning with synthetic data; sim data usefulness for real deployment.
+- `obidov2026silent` | Silent Sabotage (history-triggered backdoors on LLM robot controllers) | 2026 | [S] Stealth and effectiveness of internal-state-triggered backdoors in LLM-powered robots.
+- `pandya2025reguard` | ReGuard control-theoretic guardrail evaluation (From Refusal to Recovery) | 2025 | [CS] Whether predictive guardrails prevent catastrophic downstream outcomes of agentic AI while preserving task performance, compared with refusal-based guardrails.
+- `pegasus2019` | PEGASUS project (scenario-based validation of highly automated driving) | 2019 | [VS] Generally accepted quality criteria, tools and methods to approve a highway-pilot function; replaces distance-based release.
+- `pumacay2024colosseum` | THE COLOSSEUM | 2024 | [C] Generalization degradation under controlled environmental perturbations, with a real-world check of perturbation effects.
+- `sharrock2026dronebench` | Drone-Bench | 2026 | [CVS] Whether frontier models can autonomously write code for a simple surveillance stack (reconstruction, localisation, navigation, detection, following) on a USD 12...
+- `stoler2024seal` | SEAL | 2024 | [S] Realism of adversary behaviour and downstream ego-policy robustness.
+- `szot2021habitat2` | Habitat 2.0 / Home Assistant Benchmark | 2021 | Rearrangement capability; throughput of physics-enabled sim.
+- `tao2024maniskill3` | ManiSkill3 | 2024 | Simulation throughput and breadth; not itself a validity study.
+- `tayal2026shieldvla` | ShieldVLA | 2026 | [S] Safety-cost reduction of VLAs via feasibility-aware alignment.
+- `tong2026daert` | DAERT (Diversity-Aware Embodied Red Teaming) | 2026 | [S] Linguistic fragility of VLAs (pi0, OpenVLA, 3D-Diffuser Actor) under diverse adversarial paraphrases.
+- `unece2021r157` | UN Regulation No. 157 (ALKS) validation regime | 2021 | [VS] Regulatory conformity of an L3 highway function; first regulation to admit simulation as type-approval evidence.
+- `wang2025diffusionvalidation` | Diffusion models for AV safety validation | 2025 | [S] Sample-efficient black-box failure generation without prior knowledge of the system under test.
+- `wang2025madra` | MADRA / SafeAware-VH | 2025 | [S] Training-free risk-aware planning with low false rejection.
+- `wu2025dowhatyousay` | LIBERO-100-R / LIBERO-10-R OOD evaluation suite (Do What You Say) | 2025 | [C] Embodied chain-of-thought faithfulness: whether executed actions match the VLA's own textual plan under semantic and visual distribution shift; also behavior-co...
+- `xu2025edpa` | EDPA (model-agnostic embedding disruption patch) | 2025 | [S] Black-box transferability of a single visual patch across VLA architectures and effectiveness of encoder adversarial training.
+- `yang2022sparse` | Adaptive safety evaluation with sparse control variates | 2022 | [S] Variance of the crash-rate estimate for a given number of simulated tests.
+- `yao2025homesafebench` | HomeSafeBench | 2025 | [CVS] Active home-safety inspection: finding hazards through exploration rather than answering about a fixed image.
+- `yin2024safeagentbench` | SafeAgentBench | 2024 | [CVS] Whether LLM task planners recognise and refuse explicitly and implicitly hazardous household tasks while still completing safe ones.
+- `zhang2025responsiblerobotbench` | ResponsibleRobotBench | 2025 | [VS] Responsible manipulation: completing tasks while avoiding hazards and escalating to humans when needed.
+- `zhang2025safevla` | SafeVLA + Safety-CHORES | 2025 | [CVS] Safety-performance trade-off of VLA policies under fine-grained physical constraints in long-horizon mobile manipulation.
+- `cao2025pseudosim` | Pseudo-Simulation (NAVSIM v2) | 2025 | [CVS] Error recovery and causal-confusion robustness of end-to-end planners without interactive simulation; correlation with closed-loop outcomes.
+- `chakraborty2024sparq` | SPARQ (system-level perception-failure safety Q-network) | 2024 | [CS] Runtime safety assessment of motion plans against overlooked perception failures.
+- `dauner2023parting` | Parting with Misconceptions (nuPlan open-loop vs closed-loop) | 2023 | [S] Alignment between ego-forecasting accuracy and closed-loop driving safety.
+- `dauner2024navsim` | NAVSIM | 2024 | [VS] Whether open-loop-style evaluation on real logs can predict closed-loop driving quality; ranks vision-based end-to-end planners on collision/progress/comfort su...
+- `ding2025surprise` | Surprise Potential (interactive scenario mining) | 2025 | [VS] Which logged scenarios are interactive enough to be worth including in an AV benchmark; alignment with human judgement of interactivity.
+- `geminirobotics2025veo` | Evaluating Gemini Robotics policies in a Veo world simulator | 2025 | [CVS] Whether a generative video world model can rank and score robot policies for nominal performance, OOD generalization and physical/semantic safety as well as rea...
+- `gigaworld2026roadmap` | GigaWorld-1 / WMBench | 2026 | [CV] How well world models rank policies vs real, and what drives evaluator quality (long-horizon action-faithful consistency over visual realism).
+- `glasmacher2023acquire` | Cost-optimal scenario acquisition framework | 2023 | [S] Cost-optimal mix of real and generated scenarios for scenario-based testing.
+- `han2024euvs` | EUVS (Extrapolated Urban View Synthesis Benchmark) | 2024 | [C] How much sensor-simulation fidelity degrades when rendering viewpoints outside the training trajectory, i.e.
+- `jain2025polaris` | PolaRiS | 2025 | [CV] Whether real-to-sim environments plus a light co-training recipe give simulated scores that track real-world generalist policy performance across unseen scenes.
+- `jangir2025robotarenainf` | RobotArena Infinity | 2025 | [V] Scalable ranking of generalist policies via real-to-sim translation, with VLM progress scores validated against human preferences.
+- `jeon2026roboworld` | RoboWorld (neural simulator eval) | 2026 | [CV] Fast, learned-simulator evaluation of generalist policies that preserves real-world rankings.
+- `kadian2020sim2real` | Sim2Real Predictivity (Habitat, SRCC) | 2020 | [CV] Introduces the Sim-vs-Real Correlation Coefficient (SRCC): how well ranking of navigation agents in simulation predicts their real-robot ranking.
+- `kusano2022collision` | Waymo Collision Avoidance Testing (CAT) | 2022 | [CVS] Whether the ADS meets or exceeds a competent human reference in urgent collision-avoidance scenarios, aggregated by scenario safety group and road-user group.
+- `li2024simpler` | SIMPLER (SimplerEnv) | 2024 | [CV] Whether simulated success rates and rankings of real-world manipulation policies track their real-robot success rates on Google Robot and WidowX/Bridge tasks.
+- `li2025worldeval` | WorldEval (world model as real-world policy evaluator) | 2025 | [V] Whether a video world model ranks real robot policies correctly and flags dangerous actions before deployment.
+- `liu2026inspecsafe` | InspecSafe-V1 (industrial inspection safety) | 2026 | [S] Multimodal safety-level assessment in real industrial inspection scenes.
+- `liu2026joyaisim` | JoyAI-Sim | 2026 | [CV] Sim-real consistency of digital-twin evaluation for long-horizon tidy-up tasks and a bidirectional robot-sim-human data pipeline.
+- `lu2026seeing` | From Seeing to Simulating (digital cousins, WorldComposer) | 2026 | [CV] Sim-to-real correlation of generated scenes and value of cousin-scene data for generalization.
+- `mcity2024digitaltwin` | Mcity open-source digital twin and TeraSim | 2024 | [CS] Enables millions of simulated miles in a twin of a real track before physical runs.
+- `quevedo2025worldgym` | WorldGym | 2025 | [CV] Whether success in a learned world model predicts real success and preserves policy rankings.
+- `scanlon2021waymo` | Waymo counterfactual simulation of reconstructed fatal crashes (Chandler) | 2021 | [CS] Counterfactual collision-avoidance effectiveness of the ADS in every fatal crash in its ODD over 2008-2017.
+- `sedlacek2025realm` | REALM | 2025 | [CV] Generalization and robustness of VLAs under controlled perturbations, with real-to-sim validation of the simulator as a proxy.
+- `topan2022perceptionzones` | Interaction-dynamics-aware perception safety zones | 2022 | [S] A safety-aware evaluation metric for obstacle detection: which perception errors matter.
+- `wang2026interactive` | Interactive World Simulator | 2026 | [C] Whether world-model evaluation preserves policy ordering; training value of generated data.
+- `wang2026r2seval` | R2S-Eval | 2026 | [CV] Whether VLM pairwise judgment of calibrated-sim rollouts reproduces hardware policy rankings while cutting hardware effort.
+- `wang2026recipe` | Sim-and-real correlation recipe for VLA evaluation | 2026 | [CV] Which simulators and which simulated signals preserve real-world policy rankings, and whether simulator co-training improves correlation.
+- `zhang2025gaussian` | Real-to-sim eval with Gaussian splatting (soft bodies) | 2025 | [CV] Whether simulated success on deformable-object tasks (toy packing, rope routing, T-block pushing) predicts real success across policy architectures.
+- `abouchakra2025realissim` | Real-is-Sim | 2025 | [V] Whether checkpoint rankings from virtual-only rollouts in a dynamic digital twin match real-world rankings.
+- `cao2021invisible` | MSF-ADV (adversarial 3D objects vs camera+LiDAR fusion) | 2021 | [S] Whether multi-sensor fusion provides security against a single physical adversarial object.
+- `son2022pgvil` | Proving-ground-based Vehicle-in-the-Loop simulation with consistency validation | 2022 | [S] Whether VIL reproduces real-test vehicle behaviour (longitudinal KPIs) closely enough to substitute for physical scenario reproduction.
+- `winkelmann2022transfer` | Transfer Importance Sampling across test setups | 2022 | [CS] Failure-probability estimate that trades bias of the cheap setup against variance of the expensive one.
+- `wu2026fromcode` | From Code to Road: VIL and digital-twin framework for central car server testing | 2026 | [S] Safe, reproducible, realistic end-to-end validation of centralised vehicle software before road tests.
+- `zhang2025combined` | Combined virtual-real (digital twin) AEB testing: field experiments | 2025 | [VS] Efficiency, cost and scenario-coverage gains of virtual-real AEB testing versus proving-ground testing.
+- `zhang2025vilsim` | Vehicle-in-the-loop simulator with AI digital twins | 2025 | [S] Cheap hardware-in-the-loop validation of automated driving controllers.
+- `agarwal2026cobalt` | COBALT crowdsourced cloud teleoperation | 2026 | [C] Throughput of crowdsourced demonstration collection.
+- `agia2024sentinel` | Sentinel (runtime monitoring of generative policies) | 2024 | [CS] Failure-detection accuracy and latency for generative policies under OOD conditions.
+- `agibot2025world` | AgiBot World Colosseo | 2025 | Company-scale real-robot data throughput.
+- `anthropic2025projectfetch` | Project Fetch (robot dog) | 2025 | [CS] AI-uplift for non-expert humans programming a physical robot; tracked as a Responsible Scaling Policy capability indicator.
+- `anthropic2026projectpilot` | Project Pilot (Anthropic x Andon Labs) | 2026 | [CVS] Whether 15 frontier models across three developers can recreate an aerial person-finding-and-following surveillance demo; frames the result as a dual-use capabi...
+- `arkhangelskiy2026phail` | PhAIL | 2026 | [C] Distributional (time-to-success) evaluation of VLAs versus a human baseline, and adequacy of standard N<=25 practice.
+- `atreya2025roboarena` | RoboArena | 2025 | [CV] Distributed, crowd-sourced real-world ranking of generalist robot policies across diverse tasks and environments.
+- `badithela2025suresim` | SureSim | 2025 | [C] How much real hardware testing an imperfect simulator can replace while keeping valid CIs on real success.
+- `caluwaerts2023barkour` | Barkour agility benchmark | 2023 | [C] Agility (speed and versatility) of legged-robot controllers and hardware on a standardized real course.
+- `chen2026robodojo` | RoboDojo | 2026 | [V] Unified sim-and-real evaluation of generalist manipulation policies.
+- `chi2024umi` | Universal Manipulation Interface (UMI) | 2024 | Robot-free demonstration collection to cut data cost.
+- `dasari2022rb2` | RB2: Ranking-Based Robotics Benchmark | 2022 | [CV] Reproducible local real-robot benchmarking with a global ranking so labs can show statistically significant improvement over shared baselines.
+- `ganai2025fortress` | FORTRESS (OOD failure prevention via multimodal reasoning) | 2025 | [S] Safety-classification accuracy and closed-loop planning success under OOD events.
+- `goel2025geometric` | Geometric Red-Teaming (CrashShapes) | 2025 | [VS] Robustness of pre-trained manipulation policies to plausible object-geometry variation, and recovery via fine-tuning (blue-teaming).
+- `hindy2024martingales` | Diagnostic runtime monitoring with martingales | 2024 | [S] Speed and accuracy of diagnosing distribution-shift cause so the right intervention can be applied.
+- `huang2026vlareplica` | VLA-REPLICA | 2026 | [C] Reproducible, low-cost real-world VLA evaluation that can be replicated across labs.
+- `iso2025iso10218` | ISO 10218-1/-2:2025 industrial robot safety (absorbs ISO/TS 15066) | 2025 | [CS] Conformity of an industrial robot and its application; for PFL, measured transient and quasi-static contact forces and pressures versus biomechanical limits.
+- `jeong2026languagepolicy` | Conformalized language steering with LIBERO-OOD harmlessness evaluation | 2026 | [CV] Whether a runtime steering intervention improves a VLA without harming it OOD; conformal guarantee P(intervene | steering harmful) <= alpha.
+- `jin2026grounding` | Grounding Sim-to-Real Generalization (VLA empirical study) | 2026 | [C] Which simulation design factors actually move real-world success.
+- `khan2025safer` | SAFER (Safety Aware Task Planning) | 2025 | [CVS] Reduction of safety violations in long-horizon multi-robot LLM planning.
+- `khazatsky2024droid` | DROID | 2024 | [C] Cost structure of real-robot demonstration collection at scale (the same rig later used for RoboArena evaluation).
+- `kim2025multisafe` | Safety observability / predictability diagnostics for latent world models (MultiSafe) | 2025 | [CVS] Whether a world model's latent state carries the information needed to detect and anticipate safety violations under partial observability (estimation gaps vs p...
+- `kressgazit2024empirical` | Robot Learning as an Empirical Science | 2024 | [C] Argues success-rate point estimates without conditions, CIs and failure analysis are uninformative.
+- `li2025attackvla` | AttackVLA (+BackdoorVLA) | 2025 | [CVS] Comparable attack effectiveness across VLA architectures and tokenisers, sim and real.
+- `liao2026active` | Active Real-World Factor-Based Evaluation | 2026 | Sample-efficient characterization of a policy's performance distribution and failure regions in real hardware evaluation.
+- `lou2026safeloop` | SafeLoop | 2026 | [CS] Whether a runtime safety wrapper reduces hazards without hurting success.
+- `lu2025uparfas` | UPA-RFAS (universal transferable patch) | 2025 | [VS] Cross-model, cross-task, cross-viewpoint transfer of a single physical patch.
+- `luo2022recency` | Online distribution-shift detection via recency prediction | 2022 | [VS] Detection speed and false-positive guarantee of a runtime distribution-shift monitor.
+- `luo2025sim2val` | Sim2Val | 2025 | [CVS] How many real-world test samples are needed for a confidence bound on a safety/performance metric when correlated cheap proxies exist; variance reduction of the...
+- `luo2026x4val` | X4Val | 2026 | [CVS] Variance-reduced estimation of real-world policy metrics when only unpaired auxiliary data exists (e.g.
+- `nahian2025mutrap` | MuTRAP / Robo-Troj (multi-trigger backdoor on LLM task planners) | 2025 | [CS] Backdoor vulnerability of LLM-based robot task planners: ASR when triggered, benign accuracy otherwise, and false-trigger rate.
+- `nakamura2024regret` | Regret metric for system-level prediction failures (Not All Errors Are Made Equal) | 2024 | [CVS] Which trajectory-prediction errors actually degraded closed-loop robot behavior (system-level failures), and whether mining high-regret interactions is predicti...
+- `oxe2023openx` | Open X-Embodiment | 2023 | [C] Scale of multi-lab real-robot data pooling and cross-embodiment transfer.
+- `parashar2026coverage` | Coverage-Aware Active Evaluation (paired systems) | 2026 | [VS] Number and diversity of severe target-system failures found under a fixed test budget when proxy evaluations are available.
+- `peng2026maniguard` | MANIGUARD | 2026 | [CVS] Specification-grounded safety of manipulation policies, independent of task success.
+- `ravichandran2025roboguard` | RoboGuard | 2025 | [CVS] Reduction in executed unsafe plans under worst-case jailbreaks without loss of safe-plan performance.
+- `robey2024robopair` | RoboPAIR (Jailbreaking LLM-Controlled Robots) | 2024 | [CS] Attack success rate (ASR) of eliciting harmful physical actions (block emergency exit, find weapons, collide with people) from LLM-controlled robots under white...
+- `selvaraj2026armnetbench` | ArmnetBench v0.1 | 2026 | [CV] Parallel, low-cost real-world evaluation of manipulation policies with released labelled rollouts.
+- `seo2025unisafe` | UNISafe OOD-failure evaluation of latent safety filters | 2025 | [CVS] Whether a latent safety filter detects both known and unseen (OOD) hazards, and the safety/conservativeness tradeoff versus baselines (LatentSafe, SafeOnly, CQL...
+- `sharrock2025butterbench` | Butter-Bench | 2025 | [CVS] Practical intelligence of frontier LLMs embodied in a real mobile robot: search, visual inference, social interaction, multi-step spatial planning, end-to-end '...
+- `sinha2024aesop` | AESOP (Real-Time Anomaly Detection and Reactive Planning with LLMs) | 2024 | [CVS] Runtime detection of semantic out-of-distribution failures and safe recovery under latency and compute constraints.
+- `snyder2025stopping` | Policy comparison with near-optimal stopping | 2025 | [C] Minimal number of real trials to decide which of two policies is better with controlled error.
+- `snyder2026beyond` | Beyond Binary Success (SAVI policy comparison) | 2026 | [C] Evaluation burden reduction from fine-grained metrics and sequential testing.
+- `sun2026safestoppability` | Safe-stoppability monitors for humanoids (PRISM) | 2026 | [CS] Certifiable fail-safe (emergency stop) behaviour for actively balancing robots.
+- `svarny2022skins` | Effect of protective soft skins on collision forces (2,250 measurements) | 2022 | [CS] Transient collision force reduction from passive padding and active skin stops, relative to ISO/TS 15066 limits.
+- `therobotstudio2024soarm100` | SO-100 / SO-101 arm bill of materials | 2024 | [C] Hardware cost floor for a real-robot evaluation cell (used by ArmnetBench and SO-101 VLA benchmark).
+- `tri2025lbm` | TRI Large Behavior Models: careful examination | 2025 | [C] Whether multitask pretraining helps, with enough trials to make statistically defensible claims.
+- `vincent2024generalizable` | Statistical lower bounds for BC policy performance | 2024 | [CV] How many rollouts are needed for trustworthy, worst-case performance bounds and OOD comparisons.
+- `wang2024exploring` | Adversarial vulnerabilities of VLAs (UADA/UPA/TMA patches) | 2024 | [VS] Degradation of VLA task success under visual patch attacks in sim and on hardware.
+- `wang2024trojanrobot` | TrojanRobot / Robot Collapse (supply-chain backdoor in modular VLM policies) | 2024 | [S] Physical-world stealth and effectiveness of supply-chain backdoors in modular LLM/VLM robot stacks.
+- `wang2026partially` | Partially observable patch attacks on VLAs | 2026 | [S] Attack effectiveness under a realistic threat model where the attacker sees only the start of the episode.
+- `wang2026xrzero` | XRZero-G0 (VR data collection economics) | 2026 | Cost and validity trade-off of robot-free vs real-robot demonstration data.
+- `wang2026zero2skill` | Zero2Skill autonomous data collection | 2026 | How much human time autonomous collection/verification removes.
+- `xing2022ontology` | Ontology-based identification of perception triggering conditions (SOTIF) | 2022 | [VS] Yield of a systematic triggering-condition search in producing real perception insufficiencies.
+- `xu2025dropvla` | DropVLA (action-level backdoor) | 2025 | [VS] Fine-grained action-level backdoor ASR, clean retention, trigger latency and cross-suite transfer under minimal poisoning.
+- `yakefu2025robochallenge` | RoboChallenge (Table30) | 2025 | [CV] Large-scale online real-robot evaluation of embodied policies with reproducibility controls.
+- `ying2025roboinspector` | RoboInspector | 2025 | [C] Reliability (not explicitly safety) of LLM-generated robot policy code across task complexity and instruction granularity.
+- `yu2026so101bench` | VLA benchmark on SO-101 (failure/recovery) | 2026 | [C] Failure modes and recovery of VLAs under embodiment uncertainty on cheap hardware.
+- `zhang2024badrobot` | BadRobot | 2024 | [VS] Whether embodied LLM agents can be jailbroken into harmful physical manipulation via three vulnerabilities: contextual jailbreak, safety misalignment (say no, d...
+- `zhang2026redvla` | RedVLA (Physical Red Teaming for VLAs) | 2026 | [VS] Physical-safety attack success rate of VLAs (knife contact, collisions) elicited by scene manipulation, and a mitigation (SimpleVLA-Guard) trained on the found ...
+- `zhao2023aloha` | ALOHA low-cost bimanual teleoperation | 2023 | [C] Hardware cost floor for a research-grade bimanual real-robot rig.
+- `zhou2025autoeval` | AutoEval | 2025 | [CV] Around-the-clock autonomous real-robot evaluation with near-zero human supervision.
+- `dilillo2024adas` | Swiss Re / Stanford ADAS proving-ground assessment | 2024 | [CVS] Relative real-world safety benefit of collision-prevention systems across vehicles; realism of the scenario protocol.
+- `euroncap2023aebc2c` | Euro NCAP AEB Car-to-Car test protocol v4.3 | 2023 | [CVS] AEB/FCW avoidance and mitigation performance over a speed x overlap grid (CCRs 10-50 km/h AEB, 55-80 km/h FCW; CCRm 30-80 km/h).
+- `euroncap2024aebvru` | Euro NCAP AEB/LSS VRU test protocol | 2024 | [VS] Vulnerable-road-user crash avoidance on a proving ground with human surrogates.
+- `eykholt2018robust` | RP2 stop-sign stickers (Robust Physical-World Attacks) | 2018 | [VS] Physical realisability of adversarial examples for road-sign classifiers with an explicit two-stage lab + field protocol.
+- `han2024painthresholds` | Force pain thresholds for ISO/TS 15066 collision limits | 2024 | [S] Empirical basis for power-and-force-limiting collision limits used in cobot collision tests.
+- `iihs2024fcp2` | IIHS Vehicle-to-Vehicle Front Crash Prevention 2.0 test protocol | 2024 | [CS] Higher-speed and non-passenger-vehicle front crash prevention, replacing the 2013-2022 test at 20 and 40 km/h.
+- `iihs2024paeb` | IIHS Pedestrian AEB test protocol (Version IV) | 2024 | [CVS] Pedestrian AEB crash avoidance/mitigation on a closed track with human surrogates.
+- `mcity2022rates` | Mcity Test Facility recharge rates | 2022 | [CS] Direct dollar cost of level-8 track time.
+- `nassi2020phantom` | Phantom of the ADAS | 2020 | [S] Whether depthless projected objects trigger unsafe ADAS reactions in production vehicles, and how well a camera-only detector rejects them.
+- `nhtsa2024fmvss127` | FMVSS No. 127 Automatic Emergency Braking rule (May 2024, amended Nov 2024) | 2024 | [CVS] Regulatory minimum AEB/PAEB/FCW performance for all new light vehicles from 1 Sept 2029.
+- `becker2025productivity` | METR developer productivity RCT | 2025 | Real-world impact of AI tools on expert developer productivity (a level-9 ground truth against which benchmark claims can be checked).
+- `betschinske2025towards` | Efficient quantitative validation of residual risk (FOT reduction approaches) | 2025 | [S] Whether any method can replace on-road exposure for demonstrating residual risk at higher automation levels.
+- `chen2026ciimportance` | Confidence intervals for rare-event rate estimation with importance sampling (AV) | 2026 | [CS] How to put valid confidence intervals on rare-event rates (collisions per million miles) when data are sampled non-uniformly.
+- `cruise2023incident` | Cruise Oct 2023 pedestrian incident and aftermath | 2023 | [VS] A single rare deployment event and its regulatory consequence; demonstrates the asymmetric value of level-9 evidence.
+- `dilillo2023comparative` | Waymo vs human liability claims (Swiss Re, 3.8M rider-only miles) | 2023 | [VS] Claims per million miles as a third-party safety outcome metric.
+- `flannagan2023cruiseumtri` | Cruise/UMTRI human ridehail crash benchmark (San Francisco) | 2023 | [VS] Human benchmark for urban ridehail crashes and an ADS comparison.
+- `kalra2016driving` | RAND Driving to Safety (miles to demonstrate reliability) | 2016 | [VS] Miles of failure-free or observed driving needed to demonstrate fatality, injury and crash rates relative to human baselines at given confidence and precision.
+- `kusano2023comparison` | Waymo rider-only crash rates vs human benchmarks (7.1M miles) | 2023 | [CVS] Incidents per million miles (IPMM) for any-injury-reported and police-reported crashes, ADS vs human.
+- `kusano2025comparison` | Waymo rider-only crash rates by crash type (56.7M miles) | 2025 | [CS] Crashed-vehicle rates for injury-reported and airbag-deployment crashes by crash type versus matched human benchmarks.
+- `nhtsa2021sgo` | NHTSA Standing General Order 2021-01 crash reporting | 2021 | [S] Fleet-level crash incidence for deployed automated vehicles; the data source behind Waymo's studies and third-party trackers.
+- `sindhwani2020anomaly` | Unsupervised anomaly detection for self-flying delivery drones | 2020 | [S] Whether a runtime/offline monitor can flag abnormal missions in a real drone fleet without labelled failures, under heavy training-set contamination.
+- `soc2022amazonprimed` | Amazon robotic vs non-robotic warehouse serious injury rates (SOC report) | 2022 | [S] Human injury incidence in robotised warehouses vs conventional ones.
+- `waymo2026impacthub` | Waymo Safety Impact data hub | 2026 | [CS] Ongoing deployment safety monitoring of an L4 fleet.
+- `zheng2023planning` | Planning Reliability Assurance Tests for AVs | 2023 | [CS] Required test fleet size, mileage and pass/fail rule for a reliability demonstration test given disengagement-rate priors.
+- `anthropic2026rsp` | Anthropic Responsible Scaling Policy (v3.4) | 2026 | [S] Deployment gate: thresholds trigger safeguards; comprehensive assessment every 6 months (was 3) to allow higher-quality elicitation.
+- `bajcsy2021analyzing` | Reachability-based analysis of online-adapting human models | 2021 | [S] Safety-relevant properties of a human predictor: what it could learn online, how fast (worst/best case), and which initializations guarantee finite-time converg...
+- `barrett2024benchmarkearly` | Benchmark early and red team often | 2024 | [VS] Two-tier evaluation economics: cheap open benchmarks screen; costly closed expert red teams confirm; assumes correlation between tiers.
+- `bohacek2025blindspots` | Conceptual blindspot audit of generative image models via SAEs | 2025 | Systematic audit of which training-data concepts a generative model under- or over-produces, plus memorisation artefacts at the datapoint level.
+- `colin2021what` | Human-centered utility benchmark for attribution methods (Meta-predictor) | 2022 | Whether explanation methods actually help humans understand a model in three scenarios (bias detection, expert strategy, failure cases), and whether standard fa...
+- `colin2024choosing` | Psychophysical comparison of neuron vs dictionary bases | 2024 | [C] Which representational basis yields explanations humans find coherent; dictionary-based bases win, especially in deep layers, and expose model differences neuro...
+- `fel2020how` | MeGe / ReCo stability measures for explanation quality | 2022 | Whether explanations are stable across retrainings on data subsets; argues fidelity metrics alone are insufficient for trustworthy explanations.
+- `ghosh2026evalcosts` | AI evals are becoming the new compute bottleneck | 2026 | Dollar and GPU-hour cost of running benchmarks; reliability multipliers.
+- `hoss2022review` | Review of testing object-based environment perception | 2022 | [S] State of safety-aware perception testing; concludes it remains an open issue.
+- `ieee2025humanoidpathway` | IEEE/ASTM Pathway Study for Future Humanoid Standards | 2025 | [S] Gaps in humanoid standards: classification, stability (identified as the critical bottleneck), human-robot interaction.
+- `leung2021safetyconcepts` | Unifying AV safety concepts via HJ reachability (RSS, SFF comparison) | 2021 | [S] No empirical evaluation; a framework for comparing what different AV safety concepts flag as unsafe, plus research directions on safety-critical dataset constru...
+- `openai2025preparedness` | OpenAI Preparedness Framework v2 | 2025 | [S] Deployment gate: High capability requires sufficient safeguards before deployment; Critical during development.
+- `sinha2026rethinking` | Rethinking Safety for Generalist Robots (embodied AI safety agenda) | 2026 | [CS] Nothing empirically.
+- `wan2026nofreechecker` | No Free Checker (survey of verifiers) | 2026 | [VS] Frames verifier choice as a credibility-vs-availability trade-off; catalogues how verifiers are validated (human agreement, downstream policy performance, rewar...
+- `webb2020waymo` | Waymo Safety Methodologies and Safety Readiness Determinations | 2020 | [CVS] Framework for deciding safety readiness of an L4 ADS across hardware, ADS behaviour and operations layers; ODD-specific.
+
+## (e) Entries with validity evidence (266)
+
+- `aisi2024o1` | US/UK AISI joint pre-deployment test: OpenAI o1 | 2024 | [CS] Pre-deployment cyber, bio, software/AI development capability of o1.
+- `aisi2024sonnet` | US/UK AISI joint pre-deployment test: Claude 3.5 Sonnet (upgraded) | 2024 | [CS] Pre-deployment capability in bio, cyber, software/AI development and safeguard efficacy.
+- `aisi2025trends` | UK AISI Frontier AI Trends Report | 2025 | [CS] Trends in frontier capability and safeguard robustness across 30+ systems.
+- `anthropic2025agenticmisalignment` | Agentic misalignment (blackmail scenarios) | 2025 | [S] Propensity for harmful insider-like actions (blackmail, espionage) under contrived pressure.
+- `anthropic2025opus45card` | Claude Opus 4.5 system card: uplift trials, eval awareness, alignment audit effort | 2025 | [CS] ASL-3/4 CBRN and AI R&D threshold checks; alignment and evaluation-awareness assessment.
+- `anthropic2025opus4card` | Claude Opus 4 system card: bioweapons acquisition uplift trial | 2025 | [CVS] Real human uplift for the ASL-3 CBRN threshold (deployment gate).
+- `anthropic2025petri` | Petri: automated alignment auditing tool | 2025 | [CVS] Broad misaligned-behaviour propensity; reused by UK AISI for sabotage case study.
+- `anthropic2025sonnet45card` | Claude Sonnet 4.5 system card: evaluation awareness | 2025 | [CS] Alignment propensities and the confound of evaluation awareness.
+- `bajrami2026robotignores` | LLM-orchestrator safety benchmark for human-humanoid collaboration | 2026 | [S] Compliance spectrum of LLM orchestrators (over-refusal vs violation) against industrial safety invariants over long sessions.
+- `benton2024sabotage` | Anthropic sabotage evaluations | 2024 | [CS] Whether a model could covertly sabotage evaluations, monitoring or deployment decisions.
+- `bergen2026monitoring` | Internal-representation monitors for reward hacking during evaluations | 2026 | [CS] Whether reward hacking has a linear signature in activations that can be used as a runtime monitor during evaluations and to discover new hack types.
+- `chan2024mlebench` | MLE-bench | 2024 | [C] ML engineering capability (AI R&D threshold proxy in Preparedness Framework).
+- `chao2024jailbreakbench` | JailbreakBench | 2024 | [VS] Jailbreak attack and defence performance under a standard threat model.
+- `deepmind2025gemini3fsf` | Gemini 3 Pro Frontier Safety Framework report | 2025 | [CS] Whether Gemini 3 Pro reached any CCL.
+- `fan2024crashevent` | CrashEvent / CrashLLM | 2024 | [VS] Whether LLMs can predict crash outcomes from contextual factors and support what-if traffic-safety analyses.
+- `ghosh2025ailuminate` | AILuminate v1.0 | 2025 | [S] Product-level risk and reliability grade for chat systems (industry standard benchmark).
+- `greenblatt2024alignmentfaking` | Alignment faking | 2024 | [S] Whether a model selectively complies during perceived training (alignment faking).
+- `hundt2024llmrobots` | LLM-Driven Robots Risk Enacting Discrimination, Violence, and Unlawful Actions | 2024 | [S] Whether LLMs used as robot decision-makers produce discriminatory or unsafe action choices across protected characteristics and accept dangerous open-vocabulary...
+- `ivanov2024biolp` | BioLP-bench | 2024 | [S] Understanding of biological lab protocols (a wet-lab tacit-knowledge proxy used in AISI bio evaluations).
+- `kutasov2025shade` | SHADE-Arena | 2025 | [CVS] Sabotage capability and monitorability of agents.
+- `kwa2025horizon` | METR 50% task-completion time horizon | 2025 | [CV] Length of tasks (in human-expert minutes) an agent completes with 50% reliability; used as a headline autonomy capability metric and as an ASL/CCL autonomy prox...
+- `li2024wmdp` | WMDP (Weapons of Mass Destruction Proxy) | 2024 | [CS] Proxy for hazardous knowledge that could uplift malicious actors; also a target for unlearning (RMU).
+- `li2026evalawaredecomp` | Decomposing and measuring evaluation awareness (EvalAwareBench) | 2026 | [S] Environment-driven vs model-driven evaluation awareness and whether it changes behaviour.
+- `lin2021truthfulqa` | TruthfulQA | 2021 | [VS] Imitative falsehoods; a widely used honesty proxy (MASK shows it does not track lying under pressure).
+- `lindner2026gram` | Gram: automated sabotage-propensity auditing | 2026 | [S] Sabotage propensity of Gemini agents.
+- `marks2025hiddenobjectives` | Auditing for hidden objectives (blind auditing game) | 2025 | [VS] Detectability of hidden objectives by auditing (sensitivity of audits).
+- `meinke2024scheming` | Apollo in-context scheming evaluations | 2024 | [S] Capability for in-context scheming (deception, oversight subversion).
+- `metr2026horizonlimits` | METR: clarifying limitations of time horizon | 2026 | Stated limits of the time-horizon metric.
+- `mouton2024randbio` | RAND red-team study: LLMs and biological attack planning | 2024 | [S] Operational uplift from LLM access for bioweapon attack planning.
+- `needham2025evalaware` | LLMs often know when they are being evaluated | 2025 | [S] Evaluation awareness (ability to distinguish test from deployment).
+- `obi2025safeplan` | SafePlan (+ SafePlan benchmark) | 2025 | [CS] Ability of an LLM robotic task planner to reject harmful task prompts while accepting safe ones.
+- `openai2024bioearlywarning` | OpenAI early-warning system for LLM-aided biological threat creation | 2024 | [CS] Uplift from model access on biological threat creation tasks (Preparedness Framework bio category).
+- `pan2025evalgaming` | Sonnet 4.5's eval gaming undermines alignment evals (Redwood analysis) | 2025 | [S] How much of measured alignment improvement is attributable to evaluation gaming.
+- `parrish2021bbq` | BBQ: Bias Benchmark for QA | 2021 | [S] Reliance on social stereotypes in QA; used in many model cards (e.g.
+- `rein2025hcast` | HCAST: Human-Calibrated Autonomy Software Tasks | 2025 | [CV] Agent success as a function of human task duration (1 min to 8+ h).
+- `ren2024safetywashing` | Safetywashing | 2024 | [S] Whether safety benchmarks measure anything beyond capability.
+- `ren2025mask` | MASK: honesty benchmark | 2025 | [CVS] Propensity to lie under pressure, disentangled from factual accuracy.
+- `rottger2023xstest` | XSTest (exaggerated safety) | 2023 | [S] False-refusal rate (specificity) alongside unsafe compliance (sensitivity).
+- `schoen2025antischeming` | Anti-scheming training stress test (OpenAI/Apollo) | 2025 | [S] Whether deliberative alignment reduces covert actions, and how evaluation awareness confounds the measurement.
+- `sermanet2025scifi` | SciFi-Benchmark | 2025 | [VS] Alignment of LLM decisions with human values in robot/AI decision moments drawn from fiction, and the effect of auto-generated constitutions on alignment and ja...
+- `souly2024strongreject` | StrongREJECT | 2024 | [CVS] Jailbreak effectiveness measured as useful harmful information, not surface compliance.
+- `souly2026aisicase` | UK AISI alignment evaluation case study | 2026 | [VS] Whether frontier models sabotage safety research as coding assistants; also measures eval-vs-deployment distinguishability.
+- `starace2025paperbench` | PaperBench | 2025 | [C] AI research replication ability (AI R&D threshold proxy).
+- `swebench2024verified` | SWE-bench Verified | 2024 | [C] Real-world software engineering capability; used as capability proxy in RSP/Preparedness autonomy evaluations and CAISI comparisons.
+- `tice2024noise` | Noise injection reveals sandbagging | 2024 | [VS] Model-agnostic detector for sandbagging.
+- `vanderweij2024sandbagging` | AI sandbagging | 2024 | [S] Feasibility of strategic underperformance on dangerous-capability evals (a sensitivity threat).
+- `wang2026physicaljailbreak` | PhysicalJailbreakBench-2K / PRISM | 2026 | [S] Whether physical-harm risk is separable from textual jailbreak risk in model internals.
+- `wijk2024rebench` | RE-Bench | 2024 | [CS] Frontier AI R&D automation capability (an RSP/FSF AI R&D threshold proxy).
+- `xie2024sorrybench` | SORRY-Bench | 2024 | [VS] Fine-grained safety refusal behaviour.
+- `zhang2024cybench` | Cybench | 2024 | [CVS] Offensive cyber capability of LLM agents (vulnerability discovery and exploitation).
+- `zhang2025bountybench` | BountyBench | 2025 | [S] Dollar-denominated offensive and defensive cyber capability on real systems.
+- `andeol2023confident` | Conformal risk control for railway signal detection (SNCF dataset) | 2023 | [CVS] Whether split conformal prediction and conformal risk control give formally guaranteed miscoverage (<=10%) on detected railway signals, and the price in box siz...
+- `christensen2025maritime` | Semantic Lookout (maritime VLM hazard detection) | 2025 | [VS] Whether VLMs give usable semantic hazard awareness in the IMO MASS alert-to-takeover window.
+- `elhafsi2023semantic` | Semantic anomaly detection with LLMs | 2023 | [VS] Whether an LLM monitor catches system-level semantic edge cases (stop signs on billboards, traffic lights on trucks) that component-level OOD detectors miss.
+- `foutter2026faithfulness` | Pinocchio (faithfulness of embodied CoT) | 2026 | [VS] Whether verbalized reasoning of a driving VLA faithfully reflects its decisions, and whether faithfulness improves long-tail robustness.
+- `gotting2025vct` | Virology Capabilities Test (VCT) | 2025 | [CVS] Tacit and visual practical virology knowledge relevant to bioweapons uplift.
+- `laurent2024labbench` | LAB-Bench | 2024 | Practical biology research assistance capability; used by UK/US AISI as a bio capability probe.
+- `mazeika2024harmbench` | HarmBench | 2024 | [CVS] Robust refusal under automated jailbreaks; standardised comparison of red-teaming methods.
+- `wang2026touchsafebench` | TouchSafeBench (collision grounding for HRC) | 2026 | [VS] Whether VLMs can ground physical contact risk between humans and robots from visual input.
+- `yeke2026robojailbench` | RoboJailBench | 2026 | [CVS] Standardised jailbreak attack/defense comparison for embodied VLM agents with a security-utility trade-off, over an 18-category taxonomy of physical-security co...
+- `zhou2024mssbench` | MSSBench (Multimodal Situational Safety) | 2024 | [CVS] Whether a VLM's safety judgement depends correctly on the visual situation rather than the query alone.
+- `zhu2024earbench` | EARBench (EAIRiskBench) | 2024 | [VS] Physical-risk awareness of foundation-model task planners in generated risk-prone scenes.
+- `geminirobotics2026agentic` | ASIMOV-Agentic (Gemini Robotics 2: Safety Evaluations) | 2026 | [VS] Whether an agent orchestrating a VLA refuses unsafe tool calls, stops for nearby humans, shields the VLA from infeasible tasks, and asks for clarification under...
+- `gu2025accidentbench` | AccidentBench | 2025 | [VS] Safety-critical video understanding and reasoning of foundation models in accident scenarios.
+- `tian2026badbehavior` | Position: embodied reward models need bad behavior data (RoboArena reward-model audit) | 2026 | [VS] How well embodied reward models agree with human judgments of real robot behavior, and where they over-reward unsafe, poorly executed, or shortcut behaviors; th...
+- `cao2022advdo` | AdvDO (realistic adversarial attacks on trajectory prediction) | 2022 | [S] Adversarial robustness of trajectory predictors and its downstream planning consequences.
+- `cao2022robust` | Robust trajectory prediction against adversarial attacks | 2022 | [S] Robustness gains vs clean-data cost, and downstream collision/off-road rates.
+- `chakraborty2025frs` | FORCE-OPT (predictor-based forward reachable sets for plan safety) | 2025 | [CS] Soundness and completeness of a plan-level safety monitor for end-to-end stacks.
+- `chen2025safemind` | SafeMind / SafeMindBench | 2025 | [CVS] Safety of embodied LLM agents across task understanding, environment perception and action ordering under sabotage/harm/privacy/illegal scenarios.
+- `chen2026crashtwin` | CrashTwin (physics-grounded world-model benchmark) | 2026 | [S] Physical trustworthiness of generative world models used as AV simulators in collision scenarios.
+- `dyro2024extreme` | Realistic Extreme Behavior Generation for AV Testing | 2024 | [CVS] Interpretable failure modes of an AV collision-avoidance policy under realistic adversarial counterfactual collisions.
+- `geminirobotics2025report` | Gemini Robotics tech report, safety section (ASIMOV evals) | 2025 | [S] Semantic action safety of the ER model before and after post-training on ASIMOV data, and refusal of bias-inducing pointing queries.
+- `geminirobotics2025report15` | Gemini Robotics 1.5 tech report: ASIMOV-2.0 + Auto-Red-Teaming (ART) | 2025 | [S] Adversarial robustness of the robot foundation model to prompt, scene and environment attacks, and semantic safety on ASIMOV-2.0 (risk recognition, consequence ...
+- `hu2026vlesa` | VLESA | 2026 | [S] Real-time intervention triggering from egocentric video of human activity.
+- `jindal2025danger` | ASIMOV-2.0 (Can AI Perceive Physical Danger and Intervene?) | 2025 | [CVS] Whether frontier models can perceive latent physical danger, judge injury severity, decide when to intervene, and respect embodiment-specific constraints (paylo...
+- `lai2026icat` | ICAT (incident-case-grounded adaptive testing of world models) | 2026 | [VS] Physical-risk fidelity of generative world models used as neural simulators.
+- `majumdar2025predictive` | Predictive Red Teaming (RoboART) | 2025 | [CVS] Which off-nominal environmental conditions (lighting, background, distractors, table height) break an imitation-learned policy, predicted without running the ro...
+- `panpatil2026egosafetybench` | EgoSafetyBench | 2026 | [CVS] Runtime hazard detection and over-intervention of VLMs on temporally evolving egocentric scenes.
+- `seo2026stressdream` | StressDream (steered world-model policy evaluation) | 2026 | [CVS] Whether a policy's actions admit plausible failure futures under a video world model, used for robust offline policy evaluation and for weighting fine-tuning da...
+- `sermanet2025asimov` | ASIMOV Benchmark v1 + generated robot constitutions | 2025 | [CVS] Whether a VLM judges robot actions as safe/unsafe the way humans do (semantic safety), and how much auto-generated constitutions raise that alignment versus no-...
+- `chen2025robotwin2` | RoboTwin 2.0 | 2025 | [V] Robust bimanual manipulation and the training value of randomized synthetic data.
+- `chen2026hazardarena` | HazardArena | 2026 | [VS] Whether VLAs recognise when an otherwise valid action becomes hazardous, isolating safety judgement from motor skill.
+- `choi2026vlaeval` | vla-eval harness | 2026 | [C] Reproducibility and throughput of simulated VLA evaluation.
+- `euroncap2025virtual` | Euro NCAP Safe Driving & Crash Avoidance Virtual Testing protocol v1.00 | 2025 | [VS] Whether an OEM's virtual test results may substitute for physical Euro NCAP track tests (level 8) in rating predictions.
+- `euroncap2026vta` | Euro NCAP 2026 Virtual Test Assessment (VTA) and test-grid growth | 2026 | [CVS] Same AEB/LSS grid as the physical protocol, but the bulk of cells scored in simulation with physical spot checks.
+- `fan2026safevlabench` | SafeVLA-Bench | 2026 | [VS] The success-safety gap: how often nominally successful VLA episodes violate physical safety requirements.
+- `fei2025liberoplus` | LIBERO-Plus | 2025 | Robustness of 10 VLAs to non-adversarial but out-of-distribution perturbations; reveals language is largely ignored.
+- `feng2021nade` | NADE: Naturalistic and Adversarial Driving Environment | 2021 | [CVS] Unbiased estimate of the AV crash rate per mile with far fewer simulated miles than naturalistic testing.
+- `feng2023dense` | Dense deep reinforcement learning (D2RL) for AV safety validation | 2023 | [CS] Accelerated, unbiased crash-rate estimation of an AV in an intelligent testing environment.
+- `geng2025roboverse` | RoboVerse / MetaSim | 2025 | [V] Unified platform, dataset and benchmark protocol; claims improved sim-to-real transfer.
+- `huang2025safebeal` | Safe-BeAl / SafePlan-Bench | 2025 | [CVS] Task-planning safety of LLM embodied agents over 8 hazard categories and the gain from Safe-Align fine-tuning.
+- `jeong2025salt` | SALT runtime monitor evaluation (Robots that Suggest Safe Alternatives) | 2025 | [CVS] Whether a closed-loop reachability monitor predicts execution failures better than open-loop uncertainty quantification (ensemble disagreement), and whether sug...
+- `jia2024bench2drive` | Bench2Drive | 2024 | [S] Multi-ability closed-loop driving performance; alternative to open-loop L2/collision metrics.
+- `karnik2024ert` | Embodied Red Teaming (ERT) | 2024 | [C] Robustness of language-conditioned robot policies to instruction phrasing and whether benchmark instruction sets overstate performance.
+- `li2024behavior1k` | BEHAVIOR-1K / OmniGibson | 2024 | [CV] Long-horizon household activity completion; includes a sim-to-real calibration study.
+- `liu2023libero` | LIBERO | 2023 | [CV] Knowledge transfer in lifelong robot learning; de-facto VLA leaderboard.
+- `lu2025isbench` | IS-Bench | 2025 | [CVS] Interactive safety: whether an embodied VLM agent perceives emergent risks during execution and orders mitigation steps correctly, not just post-hoc plan safety...
+- `luo2021conformal` | Sample-efficient safety assurances via conformal prediction | 2021 | [VS] Guaranteed false-negative rate of unsafe-situation warning systems using as few as 1/epsilon calibration samples.
+- `lyu2026foresightsafetyvla` | ForesightSafety-VLA | 2026 | [VS] Process-level physical, instruction-side and perception-side safety of VLA policies under a 13-category taxonomy (Safe-Core, Safe-Lang, Safe-Vis).
+- `myers2020passfail` | Pass-fail criteria for scenario-based ADS testing | 2020 | [S] How to turn scenario test outputs into automated type-approval decisions.
+- `nasiriany2024robocasa` | RoboCasa | 2024 | [CV] Scaling of imitation learning with synthetic data; sim data usefulness for real deployment.
+- `pegasus2019` | PEGASUS project (scenario-based validation of highly automated driving) | 2019 | [VS] Generally accepted quality criteria, tools and methods to approve a highway-pilot function; replaces distance-based release.
+- `puig2023habitat3` | Habitat 3.0 | 2023 | [S] Human-robot collaboration in homes, including safe following of humans; human-in-the-loop evaluation of learned policies.
+- `pumacay2024colosseum` | THE COLOSSEUM | 2024 | [C] Generalization degradation under controlled environmental perturbations, with a real-world check of perturbation effects.
+- `ruan2026x2real` | X2Real | 2026 | [V] Extensive simulated benchmark aiming to predict real-world generalist policy performance.
+- `sharrock2026dronebench` | Drone-Bench | 2026 | [CVS] Whether frontier models can autonomously write code for a simple surveillance stack (reconstruction, localisation, navigation, detection, following) on a USD 12...
+- `tong2026daert` | DAERT (Diversity-Aware Embodied Red Teaming) | 2026 | [S] Linguistic fragility of VLAs (pi0, OpenVLA, 3D-Diffuser Actor) under diverse adversarial paraphrases.
+- `unece2021r157` | UN Regulation No. 157 (ALKS) validation regime | 2021 | [VS] Regulatory conformity of an L3 highway function; first regulation to admit simulation as type-approval evidence.
+- `wang2026openloop` | Do open-loop metrics predict closed-loop driving? NAVSIM vs Bench2Drive | 2026 | [S] Predictive validity of an open-loop safety score for closed-loop outcomes.
+- `yang2022sparse` | Adaptive safety evaluation with sparse control variates | 2022 | [S] Variance of the crash-rate estimate for a given number of simulated tests.
+- `yao2025homesafebench` | HomeSafeBench | 2025 | [CVS] Active home-safety inspection: finding hazards through exploration rather than answering about a fixed image.
+- `yin2024safeagentbench` | SafeAgentBench | 2024 | [CVS] Whether LLM task planners recognise and refuse explicitly and implicitly hazardous household tasks while still completing safe ones.
+- `zhang2025responsiblerobotbench` | ResponsibleRobotBench | 2025 | [VS] Responsible manipulation: completing tasks while avoiding hazards and escalating to humans when needed.
+- `zhang2025safevla` | SafeVLA + Safety-CHORES | 2025 | [CVS] Safety-performance trade-off of VLA policies under fine-grained physical constraints in long-horizon mobile manipulation.
+- `zhou2025liberopro` | LIBERO-PRO | 2025 | Whether high LIBERO scores reflect task understanding or memorized trajectories.
+- `cao2025pseudosim` | Pseudo-Simulation (NAVSIM v2) | 2025 | [CVS] Error recovery and causal-confusion robustness of end-to-end planners without interactive simulation; correlation with closed-loop outcomes.
+- `dauner2023parting` | Parting with Misconceptions (nuPlan open-loop vs closed-loop) | 2023 | [S] Alignment between ego-forecasting accuracy and closed-loop driving safety.
+- `dauner2024navsim` | NAVSIM | 2024 | [VS] Whether open-loop-style evaluation on real logs can predict closed-loop driving quality; ranks vision-based end-to-end planners on collision/progress/comfort su...
+- `ding2025surprise` | Surprise Potential (interactive scenario mining) | 2025 | [VS] Which logged scenarios are interactive enough to be worth including in an AV benchmark; alignment with human judgement of interactivity.
+- `geminirobotics2025veo` | Evaluating Gemini Robotics policies in a Veo world simulator | 2025 | [CVS] Whether a generative video world model can rank and score robot policies for nominal performance, OOD generalization and physical/semantic safety as well as rea...
+- `gigaworld2026roadmap` | GigaWorld-1 / WMBench | 2026 | [CV] How well world models rank policies vs real, and what drives evaluator quality (long-horizon action-faithful consistency over visual realism).
+- `guo2025ctrlworld` | Ctrl-World | 2025 | [V] Policy ranking without real rollouts; data synthesis for policy improvement.
+- `huang2026cimse` | Critical Interval MSE | 2026 | [V] Whether an offline metric can rank checkpoints without rollouts.
+- `ivanovic2021planningaware` | Planning-aware prediction and detection metrics | 2021 | [S] Task-aware metrics for perception and prediction that better estimate closed-loop performance and outcome asymmetry.
+- `jain2025polaris` | PolaRiS | 2025 | [CV] Whether real-to-sim environments plus a light co-training recipe give simulated scores that track real-world generalist policy performance across unseen scenes.
+- `jangir2025robotarenainf` | RobotArena Infinity | 2025 | [V] Scalable ranking of generalist policies via real-to-sim translation, with VLM progress scores validated against human preferences.
+- `jeon2026roboworld` | RoboWorld (neural simulator eval) | 2026 | [CV] Fast, learned-simulator evaluation of generalist policies that preserves real-world rankings.
+- `kadian2020sim2real` | Sim2Real Predictivity (Habitat, SRCC) | 2020 | [CV] Introduces the Sim-vs-Real Correlation Coefficient (SRCC): how well ranking of navigation agents in simulation predicts their real-robot ranking.
+- `kusano2022collision` | Waymo Collision Avoidance Testing (CAT) | 2022 | [CVS] Whether the ADS meets or exceeds a competent human reference in urgent collision-avoidance scenarios, aggregated by scenario safety group and road-user group.
+- `lekeufack2024conformal` | Conformal Decision Theory pedestrian-navigation risk evaluation | 2024 | [S] Whether decisions calibrated directly by conformal risk control achieve a target long-run risk without distributional assumptions, and at what efficiency cost.
+- `li2024simpler` | SIMPLER (SimplerEnv) | 2024 | [CV] Whether simulated success rates and rankings of real-world manipulation policies track their real-robot success rates on Google Robot and WidowX/Bridge tasks.
+- `li2025worldeval` | WorldEval (world model as real-world policy evaluator) | 2025 | [V] Whether a video world model ranks real robot policies correctly and flags dangerous actions before deployment.
+- `liu2026inspecsafe` | InspecSafe-V1 (industrial inspection safety) | 2026 | [S] Multimodal safety-level assessment in real industrial inspection scenes.
+- `liu2026joyaisim` | JoyAI-Sim | 2026 | [CV] Sim-real consistency of digital-twin evaluation for long-horizon tidy-up tasks and a bidirectional robot-sim-human data pipeline.
+- `ljungbergh2024neuroncap` | NeuroNCAP: photorealistic closed-loop safety testing | 2024 | [S] Collision avoidance of end-to-end planners in NCAP-style critical scenarios with realistic sensor input.
+- `lu2026seeing` | From Seeing to Simulating (digital cousins, WorldComposer) | 2026 | [CV] Sim-to-real correlation of generated scenes and value of cousin-scene data for generalization.
+- `ma2025safevl` | SafeVL (VLM driving-safety evaluator) | 2025 | [S] Whether a VLM can serve as a learned safety evaluator of driving scenes and reduce closed-loop collisions when used as a critic.
+- `montali2023wosac` | Waymo Open Sim Agents Challenge (WOSAC) | 2023 | [V] Realism of simulated traffic agents relative to logged real behaviour (a validity metric for the simulator itself).
+- `quevedo2025worldgym` | WorldGym | 2025 | [CV] Whether success in a learned world model predicts real success and preserves policy rankings.
+- `ranawaka2026simfoundry` | SimFoundry | 2026 | [V] Fidelity of automatically generated digital twins as evaluation proxies and as training data.
+- `scanlon2021waymo` | Waymo counterfactual simulation of reconstructed fatal crashes (Chandler) | 2021 | [CS] Counterfactual collision-avoidance effectiveness of the ADS in every fatal crash in its ODD over 2008-2017.
+- `sedlacek2025realm` | REALM | 2025 | [CV] Generalization and robustness of VLAs under controlled perturbations, with real-to-sim validation of the simulator as a proxy.
+- `tenbrock2021conscend` | ConScenD: concrete R157 scenarios from highD | 2021 | [S] Parameterised, real-data-derived test cases for ALKS system-level simulation.
+- `tian2022confidence` | Confidence-aware game-theoretic safety monitor evaluated on INTERACTION dataset | 2022 | [S] How conservative a runtime safety monitor is relative to real human driving, and whether confidence-aware models cut interventions without collisions.
+- `wang2026interactive` | Interactive World Simulator | 2026 | [C] Whether world-model evaluation preserves policy ordering; training value of generated data.
+- `wang2026r2seval` | R2S-Eval | 2026 | [CV] Whether VLM pairwise judgment of calibrated-sim rollouts reproduces hardware policy rankings while cutting hardware effort.
+- `wang2026recipe` | Sim-and-real correlation recipe for VLA evaluation | 2026 | [CV] Which simulators and which simulated signals preserve real-world policy rankings, and whether simulator co-training improves correlation.
+- `yang2026robolab` | RoboLab / RoboLab-120 | 2026 | [V] Competency-axis analysis of generalist policies and whether sim scores proxy real-world quality (compared to RoboArena Elo).
+- `zhang2025gaussian` | Real-to-sim eval with Gaussian splatting (soft bodies) | 2025 | [CV] Whether simulated success on deformable-object tasks (toy packing, rope routing, T-block pushing) predicts real success across policy architectures.
+- `abouchakra2025realissim` | Real-is-Sim | 2025 | [V] Whether checkpoint rankings from virtual-only rollouts in a dynamic digital twin match real-world rankings.
+- `cao2021invisible` | MSF-ADV (adversarial 3D objects vs camera+LiDAR fusion) | 2021 | [S] Whether multi-sensor fusion provides security against a single physical adversarial object.
+- `cui2025vpautotest` | VP-AutoTest virtual-physical fusion testing platform | 2025 | [VS] ADS performance in interactive scenarios that are unsafe or infeasible to stage purely physically.
+- `kaiser2025coupled` | Coupled cyclist-in-the-loop and vehicle-in-the-loop test environment | 2025 | [S] AV-cyclist interaction behaviour without exposing a human to a moving vehicle.
+- `novickineto2023twice` | TWICE dataset: digital twin of test-track scenarios in a HIL lab | 2023 | [S] Sensor-level sim-to-real gap for the same scenario executed physically and in HIL.
+- `sato2021dirty` | Dirty Road Patch attack on Automated Lane Centering | 2021 | [VS] Whether a physically printable road patch can steer a production ALC out of lane within the driver's reaction time.
+- `son2022pgvil` | Proving-ground-based Vehicle-in-the-Loop simulation with consistency validation | 2022 | [S] Whether VIL reproduces real-test vehicle behaviour (longitudinal KPIs) closely enough to substitute for physical scenario reproduction.
+- `winkelmann2022transfer` | Transfer Importance Sampling across test setups | 2022 | [CS] Failure-probability estimate that trades bias of the cheap setup against variance of the expensive one.
+- `zhang2025combined` | Combined virtual-real (digital twin) AEB testing: field experiments | 2025 | [VS] Efficiency, cost and scenario-coverage gains of virtual-real AEB testing versus proving-ground testing.
+- `anthropic2026projectpilot` | Project Pilot (Anthropic x Andon Labs) | 2026 | [CVS] Whether 15 frontier models across three developers can recreate an aerial person-finding-and-following surveillance demo; frames the result as a dual-use capabi...
+- `arkhangelskiy2026phail` | PhAIL | 2026 | [C] Distributional (time-to-success) evaluation of VLAs versus a human baseline, and adequacy of standard N<=25 practice.
+- `atreya2025roboarena` | RoboArena | 2025 | [CV] Distributed, crowd-sourced real-world ranking of generalist robot policies across diverse tasks and environments.
+- `badithela2025suresim` | SureSim | 2025 | [C] How much real hardware testing an imperfect simulator can replace while keeping valid CIs on real success.
+- `chen2026robodojo` | RoboDojo | 2026 | [V] Unified sim-and-real evaluation of generalist manipulation policies.
+- `dasari2022rb2` | RB2: Ranking-Based Robotics Benchmark | 2022 | [CV] Reproducible local real-robot benchmarking with a global ranking so labs can show statistically significant improvement over shared baselines.
+- `gervet2023navigating` | Navigating to Objects in the Real World | 2023 | [V] Whether sim ObjectNav rankings hold in real homes.
+- `goel2025geometric` | Geometric Red-Teaming (CrashShapes) | 2025 | [VS] Robustness of pre-trained manipulation policies to plausible object-geometry variation, and recovery via fine-tuning (blue-teaming).
+- `hartmann2026biofidelic` | Systematic review of biofidelic instrumentation for PFL cobot testing | 2026 | [S] Metrological limits and trends of the instruments that produce the pass/fail numbers for ISO/TS 15066 and ISO 10218:2025.
+- `huang2025annie` | ANNIE / ANNIEBench | 2025 | [S] Attack success in inducing physically unsafe behaviour of embodied models.
+- `huang2026vlareplica` | VLA-REPLICA | 2026 | [C] Reproducible, low-cost real-world VLA evaluation that can be replicated across labs.
+- `iso2025iso10218` | ISO 10218-1/-2:2025 industrial robot safety (absorbs ISO/TS 15066) | 2025 | [CS] Conformity of an industrial robot and its application; for PFL, measured transient and quasi-static contact forces and pressures versus biomechanical limits.
+- `jeong2026languagepolicy` | Conformalized language steering with LIBERO-OOD harmlessness evaluation | 2026 | [CV] Whether a runtime steering intervention improves a VLA without harming it OOD; conformal guarantee P(intervene | steering harmful) <= alpha.
+- `jin2026grounding` | Grounding Sim-to-Real Generalization (VLA empirical study) | 2026 | [C] Which simulation design factors actually move real-world success.
+- `khan2025safer` | SAFER (Safety Aware Task Planning) | 2025 | [CVS] Reduction of safety violations in long-horizon multi-robot LLM planning.
+- `kim2025multisafe` | Safety observability / predictability diagnostics for latent world models (MultiSafe) | 2025 | [CVS] Whether a world model's latent state carries the information needed to detect and anticipate safety violations under partial observability (estimation gaps vs p...
+- `kirschner2022iso15066` | ISO/TS 15066: how different interpretations affect risk assessment | 2022 | [S] Whether the standard yields a unique safe/unsafe verdict for the same measured contact.
+- `kressgazit2024empirical` | Robot Learning as an Empirical Science | 2024 | [C] Argues success-rate point estimates without conditions, CIs and failure analysis are uninformative.
+- `li2025attackvla` | AttackVLA (+BackdoorVLA) | 2025 | [CVS] Comparable attack effectiveness across VLA architectures and tokenisers, sim and real.
+- `lu2024poex` | POEX / Harmful-RLbench | 2024 | [VS] Policy-executable jailbreak success against LLM-based robots (executability as a distinct requirement).
+- `lu2025phantommenace` | Phantom Menace: physical sensor attacks on VLAs | 2025 | [S] Robustness of VLA models to physical sensor attacks.
+- `lu2025uparfas` | UPA-RFAS (universal transferable patch) | 2025 | [VS] Cross-model, cross-task, cross-viewpoint transfer of a single physical patch.
+- `luo2022recency` | Online distribution-shift detection via recency prediction | 2022 | [VS] Detection speed and false-positive guarantee of a runtime distribution-shift monitor.
+- `luo2025sim2val` | Sim2Val | 2025 | [CVS] How many real-world test samples are needed for a confidence bound on a safety/performance metric when correlated cheap proxies exist; variance reduction of the...
+- `luo2026x4val` | X4Val | 2026 | [CVS] Variance-reduced estimation of real-world policy metrics when only unpaired auxiliary data exists (e.g.
+- `nakamura2024regret` | Regret metric for system-level prediction failures (Not All Errors Are Made Equal) | 2024 | [CVS] Which trajectory-prediction errors actually degraded closed-loop robot behavior (system-level failures), and whether mining high-regret interactions is predicti...
+- `nakamura2025latentsafety` | Latent Safety Filters (latent-space HJ reachability) hardware protocol | 2025 | [VS] Whether a learned latent reachability filter prevents hard-to-specify failures on a real manipulator while preserving task completion.
+- `obi2026safegate` | SafeGate: ISO 13482-grounded pre-execution safety gate for LLM-controlled robots | 2026 | [VS] Rejection rate of unsafe commands and acceptance rate of benign ones before any physical execution.
+- `parashar2026coverage` | Coverage-Aware Active Evaluation (paired systems) | 2026 | [VS] Number and diversity of severe target-system failures found under a fixed test budget when proxy evaluations are available.
+- `peng2026maniguard` | MANIGUARD | 2026 | [CVS] Specification-grounded safety of manipulation policies, independent of task success.
+- `qian2026liberovifo` | LIBERO-VIFO | 2026 | [S] Whether VLAs execute tasks indicated by unauthorised visual cues (a prompt-injection-like risk).
+- `ravichandran2025roboguard` | RoboGuard | 2025 | [CVS] Reduction in executed unsafe plans under worst-case jailbreaks without loss of safe-plan performance.
+- `robey2024robopair` | RoboPAIR (Jailbreaking LLM-Controlled Robots) | 2024 | [CS] Attack success rate (ASR) of eliciting harmful physical actions (block emergency exit, find weapons, collide with people) from LLM-controlled robots under white...
+- `selvaraj2026armnetbench` | ArmnetBench v0.1 | 2026 | [CV] Parallel, low-cost real-world evaluation of manipulation policies with released labelled rollouts.
+- `seo2025unisafe` | UNISafe OOD-failure evaluation of latent safety filters | 2025 | [CVS] Whether a latent safety filter detects both known and unseen (OOD) hazards, and the safety/conservativeness tradeoff versus baselines (LatentSafe, SafeOnly, CQL...
+- `sharrock2025butterbench` | Butter-Bench | 2025 | [CVS] Practical intelligence of frontier LLMs embodied in a real mobile robot: search, visual inference, social interaction, multi-step spatial planning, end-to-end '...
+- `sinha2024aesop` | AESOP (Real-Time Anomaly Detection and Reactive Planning with LLMs) | 2024 | [CVS] Runtime detection of semantic out-of-distribution failures and safe recovery under latency and compute constraints.
+- `srikanth2026qdig` | Q-DIG (quality-diversity red teaming of VLAs) | 2026 | Instruction-space fragility of VLAs and fine-tuning gains from adversarial prompts.
+- `sun2026safestoppability` | Safe-stoppability monitors for humanoids (PRISM) | 2026 | [CS] Certifiable fail-safe (emergency stop) behaviour for actively balancing robots.
+- `svarny2020collisionforcemap` | 3D collision-force map for safe human-robot collaboration | 2020 | [S] Spatial variation of impact force and accuracy of the standard's predictive formula.
+- `svarny2022skins` | Effect of protective soft skins on collision forces (2,250 measurements) | 2022 | [CS] Transient collision force reduction from passive padding and active skin stops, relative to ISO/TS 15066 limits.
+- `tri2025lbm` | TRI Large Behavior Models: careful examination | 2025 | [C] Whether multitask pretraining helps, with enough trials to make statistically defensible claims.
+- `vincent2024generalizable` | Statistical lower bounds for BC policy performance | 2024 | [CV] How many rollouts are needed for trustworthy, worst-case performance bounds and OOD comparisons.
+- `wang2024exploring` | Adversarial vulnerabilities of VLAs (UADA/UPA/TMA patches) | 2024 | [VS] Degradation of VLA task success under visual patch attacks in sim and on hardware.
+- `wang2026partially` | Partially observable patch attacks on VLAs | 2026 | [S] Attack effectiveness under a realistic threat model where the attacker sees only the start of the episode.
+- `wang2026xrzero` | XRZero-G0 (VR data collection economics) | 2026 | Cost and validity trade-off of robot-free vs real-robot demonstration data.
+- `xing2022ontology` | Ontology-based identification of perception triggering conditions (SOTIF) | 2022 | [VS] Yield of a systematic triggering-condition search in producing real perception insufficiencies.
+- `xu2025dropvla` | DropVLA (action-level backdoor) | 2025 | [VS] Fine-grained action-level backdoor ASR, clean retention, trigger latency and cross-suite transfer under minimal poisoning.
+- `yakefu2025robochallenge` | RoboChallenge (Table30) | 2025 | [CV] Large-scale online real-robot evaluation of embodied policies with reproducibility controls.
+- `zhang2024badrobot` | BadRobot | 2024 | [VS] Whether embodied LLM agents can be jailbroken into harmful physical manipulation via three vulnerabilities: contextual jailbreak, safety misalignment (say no, d...
+- `zhang2026redvla` | RedVLA (Physical Red Teaming for VLAs) | 2026 | [VS] Physical-safety attack success rate of VLAs (knife contact, collisions) elicited by scene manipulation, and a mitigation (SimpleVLA-Guard) trained on the found ...
+- `zhou2025autoeval` | AutoEval | 2025 | [CV] Around-the-clock autonomous real-robot evaluation with near-zero human supervision.
+- `dilillo2024adas` | Swiss Re / Stanford ADAS proving-ground assessment | 2024 | [CVS] Relative real-world safety benefit of collision-prevention systems across vehicles; realism of the scenario protocol.
+- `euroncap2023aebc2c` | Euro NCAP AEB Car-to-Car test protocol v4.3 | 2023 | [CVS] AEB/FCW avoidance and mitigation performance over a speed x overlap grid (CCRs 10-50 km/h AEB, 55-80 km/h FCW; CCRm 30-80 km/h).
+- `euroncap2024aebvru` | Euro NCAP AEB/LSS VRU test protocol | 2024 | [VS] Vulnerable-road-user crash avoidance on a proving ground with human surrogates.
+- `eykholt2018robust` | RP2 stop-sign stickers (Robust Physical-World Attacks) | 2018 | [VS] Physical realisability of adversarial examples for road-sign classifiers with an explicit two-stage lab + field protocol.
+- `han2024painthresholds` | Force pain thresholds for ISO/TS 15066 collision limits | 2024 | [S] Empirical basis for power-and-force-limiting collision limits used in cobot collision tests.
+- `iihs2024fcp2` | IIHS Vehicle-to-Vehicle Front Crash Prevention 2.0 test protocol | 2024 | [CS] Higher-speed and non-passenger-vehicle front crash prevention, replacing the 2013-2022 test at 20 and 40 km/h.
+- `iihs2024paeb` | IIHS Pedestrian AEB test protocol (Version IV) | 2024 | [CVS] Pedestrian AEB crash avoidance/mitigation on a closed track with human surrogates.
+- `izquierdo2022testing` | Testing predictive ADS on proving grounds: lessons learned (BRAVE) | 2022 | [S] Whether classical certification-style track tests can evaluate predictive behaviour in critical and edge cases.
+- `kidd2023characteristics` | AEB response characteristics in IIHS FCP-rated vehicles | 2023 | [VS] Mechanistic differences (earlier TTC, greater speed-dependent deceleration) behind rating levels.
+- `nassi2020phantom` | Phantom of the ADAS | 2020 | [S] Whether depthless projected objects trigger unsafe ADAS reactions in production vehicles, and how well a camera-only detector rejects them.
+- `nhtsa2024fmvss127` | FMVSS No. 127 Automatic Emergency Braking rule (May 2024, amended Nov 2024) | 2024 | [CVS] Regulatory minimum AEB/PAEB/FCW performance for all new light vehicles from 1 Sept 2029.
+- `becker2025productivity` | METR developer productivity RCT | 2025 | Real-world impact of AI tools on expert developer productivity (a level-9 ground truth against which benchmark claims can be checked).
+- `betschinske2025towards` | Efficient quantitative validation of residual risk (FOT reduction approaches) | 2025 | [S] Whether any method can replace on-road exposure for demonstrating residual risk at higher automation levels.
+- `chen2024initial` | Initial Indications of Safety of Driverless ADS (SF crash rates) | 2024 | [S] Independent (non-company) comparison of driverless and supervised AV crash rates to a human ride-hail baseline.
+- `chen2026ciimportance` | Confidence intervals for rare-event rate estimation with importance sampling (AV) | 2026 | [CS] How to put valid confidence intervals on rare-event rates (collisions per million miles) when data are sampled non-uniformly.
+- `cicchino2018gm` | Real-world effects of GM Forward Collision Alert and Front Automatic Braking | 2018 | [VS] Crash-rate reduction attributable to FCW alone and FCW+AEB.
+- `cicchino2019characteristics` | Characteristics of rear-end crashes involving AEB-equipped vehicles | 2019 | [VS] Residual crash scenarios that AEB fails to prevent.
+- `cicchino2022pedestrian` | Effects of pedestrian AEB on pedestrian crash risk | 2022 | [S] Real-world effectiveness of pedestrian AEB by lighting, speed limit and manoeuvre.
+- `cruise2023incident` | Cruise Oct 2023 pedestrian incident and aftermath | 2023 | [VS] A single rare deployment event and its regulatory consequence; demonstrates the asymmetric value of level-9 evidence.
+- `dilillo2023comparative` | Waymo vs human liability claims (Swiss Re, 3.8M rider-only miles) | 2023 | [VS] Claims per million miles as a third-party safety outcome metric.
+- `dilillo2024swissre` | Waymo vs latest-generation human-driven vehicles: liability claims at 25.3M miles | 2024 | [VS] Property-damage and bodily-injury claim reductions vs overall population and vs new ADAS-equipped vehicles.
+- `favaro2018disengagements` | AV disengagements: trends, triggers and regulatory limitations | 2018 | [S] Reliability trends of supervised AV testing and the limits of disengagement reporting as a safety metric.
+- `flannagan2023cruiseumtri` | Cruise/UMTRI human ridehail crash benchmark (San Francisco) | 2023 | [VS] Human benchmark for urban ridehail crashes and an ADS comparison.
+- `fu2024insufficiencies` | Characterization and mitigation of functional insufficiencies in ADS | 2024 | [VS] Share of field disengagements due to SOTIF-type insufficiencies vs ISO 26262-type faults.
+- `iihs2023trucks` | IIHS: front crash prevention less effective against trucks and motorcycles | 2023 | [VS] Gap between a top track rating and field effectiveness by partner type.
+- `kalra2016driving` | RAND Driving to Safety (miles to demonstrate reliability) | 2016 | [VS] Miles of failure-free or observed driving needed to demonstrate fatality, injury and crash rates relative to human baselines at given confidence and precision.
+- `koopman2019safety` | Safety argument for public-road testing of AVs | 2019 | [S] Conditions under which level-9 data collection with safety drivers is itself acceptably safe.
+- `koopman2020positive` | Positive Trust Balance for self-driving car deployment | 2020 | [S] How to decide deployment when lagging outcome metrics are statistically insufficient.
+- `kullgren2010comparison` | Euro NCAP star ratings vs real-world crash data | 2010 | [VS] Whether the crash-test star rating predicts real injury and fatality risk.
+- `kusano2023comparison` | Waymo rider-only crash rates vs human benchmarks (7.1M miles) | 2023 | [CVS] Incidents per million miles (IPMM) for any-injury-reported and police-reported crashes, ADS vs human.
+- `kusano2025comparison` | Waymo rider-only crash rates by crash type (56.7M miles) | 2025 | [CS] Crashed-vehicle rates for injury-reported and airbag-deployment crashes by crash type versus matched human benchmarks.
+- `nhtsa2021sgo` | NHTSA Standing General Order 2021-01 crash reporting | 2021 | [S] Fleet-level crash incidence for deployed automated vehicles; the data source behind Waymo's studies and third-party trackers.
+- `salvini2021safety` | On the safety of mobile robots in public spaces: gaps in EN ISO 13482 | 2021 | [S] Adequacy of the ISO 13482 certification regime for public-space deployment.
+- `sindhwani2020anomaly` | Unsupervised anomaly detection for self-flying delivery drones | 2020 | [S] Whether a runtime/offline monitor can flag abnormal missions in a real drone fleet without labelled failures, under heavy training-set contamination.
+- `singh2023diversity` | Diversity analysis of lead-vehicle safety metrics | 2023 | [S] Whether surrogate safety metrics agree on ranking vehicle performance in lead-vehicle interactions.
+- `soc2022amazonprimed` | Amazon robotic vs non-robotic warehouse serious injury rates (SOC report) | 2022 | [S] Human injury incidence in robotised warehouses vs conventional ones.
+- `waymo2026impacthub` | Waymo Safety Impact data hub | 2026 | [CS] Ongoing deployment safety monitoring of an L4 fleet.
+- `zhang2021disengagement` | Disengagement cause-and-effect extraction with an NLP pipeline | 2021 | [S] Who initiates disengagements and which subsystem causes them.
+- `zheng2023planning` | Planning Reliability Assurance Tests for AVs | 2023 | [CS] Required test fleet size, mileage and pass/fail rule for a reliability demonstration test given disengagement-rate priors.
+- `anthropic2026rsp` | Anthropic Responsible Scaling Policy (v3.4) | 2026 | [S] Deployment gate: thresholds trigger safeguards; comprehensive assessment every 6 months (was 3) to allow higher-quality elicitation.
+- `barrett2024benchmarkearly` | Benchmark early and red team often | 2024 | [VS] Two-tier evaluation economics: cheap open benchmarks screen; costly closed expert red teams confirm; assumes correlation between tiers.
+- `bean2025constructvalidity` | Measuring what matters: construct validity in LLM benchmarks | 2025 | [S] Prevalence of construct-validity failures (vague phenomena, unrepresentative tasks, weak statistics).
+- `colin2021what` | Human-centered utility benchmark for attribution methods (Meta-predictor) | 2022 | Whether explanation methods actually help humans understand a model in three scenarios (bias detection, expert strategy, failure cases), and whether standard fa...
+- `colin2024choosing` | Psychophysical comparison of neuron vs dictionary bases | 2024 | [C] Which representational basis yields explanations humans find coherent; dictionary-based bases win, especially in deep layers, and expose model differences neuro...
+- `costa2025evaluating` | Controlled evaluation of SAE architectures (MP-SAE) | 2025 | [V] Whether shallow SAE designs can recover correlated features; shows quasi-orthogonality assumption fails and proposes Matching-Pursuit SAE.
+- `fel2025archetypal` | Archetypal SAE with plausibility and identifiability benchmarks | 2025 | [V] Stability and correctness of concept dictionaries extracted by sparse autoencoders; introduces two benchmarks with known ground truth.
+- `fraadeblanar2018measuring` | RAND Measuring Automated Vehicle Safety: Forging a Framework | 2018 | [S] Which measures (leading vs lagging, proxies) are usable at each stage.
+- `koopman2022ul4600` | UL 4600 safety case standard (Koopman overview) | 2022 | [S] Completeness and well-formedness of a safety case for a fully autonomous product; SPIs measure behaviour rates (e.g.
+- `miller2024errorbars` | Adding error bars to evals | 2024 | How to report uncertainty and size evals; enables sample-size (cost) planning.
+- `openai2025preparedness` | OpenAI Preparedness Framework v2 | 2025 | [S] Deployment gate: High capability requires sufficient safeguards before deployment; Critical during development.
+- `putze2023quantification` | On quantification for SOTIF (ISO 21448) validation | 2023 | [S] How residual risk from functional insufficiencies can be quantified and validated.
+- `singh2025leaderboard` | The Leaderboard Illusion | 2025 | Selection and overfitting distortions in a human-preference leaderboard.
+- `wan2026nofreechecker` | No Free Checker (survey of verifiers) | 2026 | [VS] Frames verifier choice as a credibility-vs-availability trade-off; catalogues how verifiers are validated (human agreement, downstream policy performance, rewar...
+- `webb2020waymo` | Waymo Safety Methodologies and Safety Readiness Determinations | 2020 | [CVS] Framework for deciding safety readiness of an L4 ADS across hardware, ADS behaviour and operations layers; ODD-specific.
+- `weidinger2025evalscience` | Toward an evaluation science for generative AI | 2025 | [VS] Argues static benchmarks lack validity, audits do not scale; borrows from transport, aerospace and pharma safety evaluation.
+- `westhofen2021criticality` | Criticality metrics for automated driving: review and suitability analysis | 2021 | [VS] Which surrogate-safety metrics are fit for scenario filtering, risk assessment or pass/fail.
+
+## (f) Speaker-linked entries (89)
+
+- `tian2026badbehavior` | Position: embodied reward models need bad behavior data (RoboArena reward-model audit) | 2026 | [VS] How well embodied reward models agree with human judgments of real robot behavior, and where they over-reward unsafe, poorly executed, or shortcut behaviors; th...
+- `jeong2025salt` | SALT runtime monitor evaluation (Robots that Suggest Safe Alternatives) | 2025 | [CVS] Whether a closed-loop reachability monitor predicts execution failures better than open-loop uncertainty quantification (ensemble disagreement), and whether sug...
+- `pandya2025reguard` | ReGuard control-theoretic guardrail evaluation (From Refusal to Recovery) | 2025 | [CS] Whether predictive guardrails prevent catastrophic downstream outcomes of agentic AI while preserving task performance, compared with refusal-based guardrails.
+- `wu2025dowhatyousay` | LIBERO-100-R / LIBERO-10-R OOD evaluation suite (Do What You Say) | 2025 | [C] Embodied chain-of-thought faithfulness: whether executed actions match the VLA's own textual plan under semantic and visual distribution shift; also behavior-co...
+- `lekeufack2024conformal` | Conformal Decision Theory pedestrian-navigation risk evaluation | 2024 | [S] Whether decisions calibrated directly by conformal risk control achieve a target long-run risk without distributional assumptions, and at what efficiency cost.
+- `tian2022confidence` | Confidence-aware game-theoretic safety monitor evaluated on INTERACTION dataset | 2022 | [S] How conservative a runtime safety monitor is relative to real human driving, and whether confidence-aware models cut interventions without collisions.
+- `bansal2020hjhuman` | HJ reachability analysis of prior misspecification in human motion prediction | 2020 | [S] The effect of incorrect priors/observation models on future human-state predictions and on the safety of the resulting robot plan.
+- `jeong2026languagepolicy` | Conformalized language steering with LIBERO-OOD harmlessness evaluation | 2026 | [CV] Whether a runtime steering intervention improves a VLA without harming it OOD; conformal guarantee P(intervene | steering harmful) <= alpha.
+- `kim2025multisafe` | Safety observability / predictability diagnostics for latent world models (MultiSafe) | 2025 | [CVS] Whether a world model's latent state carries the information needed to detect and anticipate safety violations under partial observability (estimation gaps vs p...
+- `nakamura2024regret` | Regret metric for system-level prediction failures (Not All Errors Are Made Equal) | 2024 | [CVS] Which trajectory-prediction errors actually degraded closed-loop robot behavior (system-level failures), and whether mining high-regret interactions is predicti...
+- `nakamura2025latentsafety` | Latent Safety Filters (latent-space HJ reachability) hardware protocol | 2025 | [VS] Whether a learned latent reachability filter prevents hard-to-specify failures on a real manipulator while preserving task completion.
+- `seo2025unisafe` | UNISafe OOD-failure evaluation of latent safety filters | 2025 | [CVS] Whether a latent safety filter detects both known and unseen (OOD) hazards, and the safety/conservativeness tradeoff versus baselines (LatentSafe, SafeOnly, CQL...
+- `bajcsy2021analyzing` | Reachability-based analysis of online-adapting human models | 2021 | [S] Safety-relevant properties of a human predictor: what it could learn online, how fast (worst/best case), and which initializations guarantee finite-time converg...
+- `bajcsy2024humanai` | Human-AI Safety: control-systems view of AI safety (position) | 2024 | [S] Nothing empirically; argues safety assurances must reason about closed-loop human-AI dynamics rather than fine-tuning outputs in isolation.
+- `sinha2026rethinking` | Rethinking Safety for Generalist Robots (embodied AI safety agenda) | 2026 | [CS] Nothing empirically.
+- `seo2026stressdream` | StressDream (steered world-model policy evaluation) | 2026 | [CVS] Whether a policy's actions admit plausible failure futures under a video world model, used for robust offline policy evaluation and for weighting fine-tuning da...
+- `leung2021safetyconcepts` | Unifying AV safety concepts via HJ reachability (RSS, SFF comparison) | 2021 | [S] No empirical evaluation; a framework for comparing what different AV safety concepts flag as unsafe, plus research directions on safety-critical dataset constru...
+- `bergen2026monitoring` | Internal-representation monitors for reward hacking during evaluations | 2026 | [CS] Whether reward hacking has a linear signature in activations that can be used as a runtime monitor during evaluations and to discover new hack types.
+- `andeol2023confident` | Conformal risk control for railway signal detection (SNCF dataset) | 2023 | [CVS] Whether split conformal prediction and conformal risk control give formally guaranteed miscoverage (<=10%) on detected railway signals, and the price in box siz...
+- `biecek2026model` | The Case for Model Science (Verify, Explore, Steer, Refine) | 2026 | Argues benchmarking is insufficient and proposes a discipline of per-model analysis organised as Verify / Explore / Steer / Refine, with shared catalogues of da...
+- `bohacek2025blindspots` | Conceptual blindspot audit of generative image models via SAEs | 2025 | Systematic audit of which training-data concepts a generative model under- or over-produces, plus memorisation artefacts at the datapoint level.
+- `colin2021what` | Human-centered utility benchmark for attribution methods (Meta-predictor) | 2022 | Whether explanation methods actually help humans understand a model in three scenarios (bias detection, expert strategy, failure cases), and whether standard fa...
+- `colin2024choosing` | Psychophysical comparison of neuron vs dictionary bases | 2024 | [C] Which representational basis yields explanations humans find coherent; dictionary-based bases win, especially in deep layers, and expose model differences neuro...
+- `costa2025evaluating` | Controlled evaluation of SAE architectures (MP-SAE) | 2025 | [V] Whether shallow SAE designs can recover correlated features; shows quasi-orthogonality assumption fails and proposes Matching-Pursuit SAE.
+- `fel2020how` | MeGe / ReCo stability measures for explanation quality | 2022 | Whether explanations are stable across retrainings on data subsets; argues fidelity metrics alone are insufficient for trustworthy explanations.
+- `fel2022xplique` | Xplique explainability toolbox (methods + evaluation metrics) | 2022 | Provides a standard implementation for benchmarking explanation methods; developed inside the DEEL certifiable-AI program (aerospace/rail partners).
+- `fel2023holistic` | Unified concept-extraction framework with new evaluation metrics (Lens) | 2023 | Frames concept-based explainability as dictionary learning and introduces evaluation metrics for concept extraction and importance methods, with optimality guar...
+- `fel2025archetypal` | Archetypal SAE with plausibility and identifiability benchmarks | 2025 | [V] Stability and correctness of concept dictionaries extracted by sparse autoencoders; introduces two benchmarks with known ground truth.
+- `joseph2026interpreting` | Physics Emergence Zone in video world models | 2026 | Where and how physical variables become linearly accessible inside video encoders (a sharp intermediate-depth transition); direction is encoded on a circular ma...
+- `picard2025baseline` | Baseline effects on explainability fidelity metrics | 2025 | Shows that the ranking of attribution methods under standard fidelity metrics flips with the choice of baseline, even for linear models; proposes a model-depend...
+- `fan2024crashevent` | CrashEvent / CrashLLM | 2024 | [VS] Whether LLMs can predict crash outcomes from contextual factors and support what-if traffic-safety analyses.
+- `marchiori2025jdapt` | J-DAPT (robotic jailbreak detection) | 2025 | [S] Detection accuracy of jailbreak attempts against robot-embedded VLMs across domains.
+- `patrikar2025negative` | Crash-report precedents for reasonable driving | 2025 | [S] Whether negative data (crash reports) improves calibration of driving decisions near safety boundaries.
+- `christensen2025maritime` | Semantic Lookout (maritime VLM hazard detection) | 2025 | [VS] Whether VLMs give usable semantic hazard awareness in the IMO MASS alert-to-takeover window.
+- `elhafsi2023semantic` | Semantic anomaly detection with LLMs | 2023 | [VS] Whether an LLM monitor catches system-level semantic edge cases (stop signs on billboards, traffic lights on trucks) that component-level OOD detectors miss.
+- `foutter2026faithfulness` | Pinocchio (faithfulness of embodied CoT) | 2026 | [VS] Whether verbalized reasoning of a driving VLA faithfully reflects its decisions, and whether faithfulness improves long-tail robustness.
+- `gu2025accidentbench` | AccidentBench | 2025 | [VS] Safety-critical video understanding and reasoning of foundation models in accident scenarios.
+- `banerjee2022lifecycle` | Data lifecycle benchmark for aerospace ML | 2022 | Cost-vs-performance of labelling strategies under evolving input distributions (open-source benchmark).
+- `cao2022advdo` | AdvDO (realistic adversarial attacks on trajectory prediction) | 2022 | [S] Adversarial robustness of trajectory predictors and its downstream planning consequences.
+- `cao2022robust` | Robust trajectory prediction against adversarial attacks | 2022 | [S] Robustness gains vs clean-data cost, and downstream collision/off-road rates.
+- `chakraborty2025frs` | FORCE-OPT (predictor-based forward reachable sets for plan safety) | 2025 | [CS] Soundness and completeness of a plan-level safety monitor for end-to-end stacks.
+- `chen2026crashtwin` | CrashTwin (physics-grounded world-model benchmark) | 2026 | [S] Physical trustworthiness of generative world models used as AV simulators in collision scenarios.
+- `ding2023realgen` | RealGen (retrieval-augmented scenario generation) | 2023 | [S] Flexibility and controllability of generated safety-critical scenarios.
+- `dyro2024extreme` | Realistic Extreme Behavior Generation for AV Testing | 2024 | [CVS] Interpretable failure modes of an AV collision-avoidance policy under realistic adversarial counterfactual collisions.
+- `ronecker2025vfm` | Vision-foundation-model embedding semantic anomaly detection | 2025 | [S] Detection and localisation of semantic anomalies for driving.
+- `tan2023lctgen` | LCTGen (language-conditioned traffic generation) | 2023 | Realism/fidelity of generated traffic scenes conditioned on language.
+- `zhong2022ctg` | CTG (guided conditional diffusion traffic sim) | 2022 | [S] Controllability-realism trade-off of generated traffic for testing.
+- `zhong2023ctgpp` | CTG++ (language-guided scene-level diffusion) | 2023 | [S] Realism and query compliance of language-specified traffic scenarios.
+- `luo2021conformal` | Sample-efficient safety assurances via conformal prediction | 2021 | [VS] Guaranteed false-negative rate of unsafe-situation warning systems using as few as 1/epsilon calibration samples.
+- `tan2024prosim` | ProSim (promptable closed-loop traffic simulation) | 2024 | Prompt controllability and realism of reactive traffic agents for closed-loop testing.
+- `xu2022bits` | BITS (bi-level imitation for traffic simulation) + tbsim | 2022 | Behaviour realism of learned traffic agents; introduces evaluation metrics for traffic simulation.
+- `antonante2023taskaware` | Task-aware risk estimation of perception failures | 2023 | [S] Whether a perception error matters for the plan (system-level risk), and how well the estimator triggers safety maneuvers.
+- `cao2025pseudosim` | Pseudo-Simulation (NAVSIM v2) | 2025 | [CVS] Error recovery and causal-confusion robustness of end-to-end planners without interactive simulation; correlation with closed-loop outcomes.
+- `chakraborty2024sparq` | SPARQ (system-level perception-failure safety Q-network) | 2024 | [CS] Runtime safety assessment of motion plans against overlooked perception failures.
+- `dauner2024navsim` | NAVSIM | 2024 | [VS] Whether open-loop-style evaluation on real logs can predict closed-loop driving quality; ranks vision-based end-to-end planners on collision/progress/comfort su...
+- `deglurkar2024uq` | System-level analysis of module uncertainty quantification | 2024 | [S] Whether a module's uncertainty estimate is useful to the system and how uncertainty-aware designs compare.
+- `ding2025surprise` | Surprise Potential (interactive scenario mining) | 2025 | [VS] Which logged scenarios are interactive enough to be worth including in an AV benchmark; alignment with human judgement of interactivity.
+- `farid2022taskrelevant` | Task-relevant failure detection for trajectory predictors | 2022 | [S] Detection of prediction failures that actually harm the plan, with bounds on false-positive and false-negative rates.
+- `han2024euvs` | EUVS (Extrapolated Urban View Synthesis Benchmark) | 2024 | [C] How much sensor-simulation fidelity degrades when rendering viewpoints outside the training trajectory, i.e.
+- `han2026wildcity` | WildCity (city-scale real-world testbed) | 2026 | Feasibility of simulation-ready city-scale digital twins for closed-loop testing.
+- `ivanovic2021planningaware` | Planning-aware prediction and detection metrics | 2021 | [S] Task-aware metrics for perception and prediction that better estimate closed-loop performance and outcome asymmetry.
+- `leung2022safetyconcepts` | Learning AV safety concepts from demonstrations | 2022 | [S] Which logged interactions violate a data-derived safety concept; comparison with hand-designed concepts (e.g.
+- `ma2025safevl` | SafeVL (VLM driving-safety evaluator) | 2025 | [S] Whether a VLM can serve as a learned safety evaluator of driving scenes and reduce closed-loop collisions when used as a critic.
+- `topan2022perceptionzones` | Interaction-dynamics-aware perception safety zones | 2022 | [S] A safety-aware evaluation metric for obstacle detection: which perception errors matter.
+- `agia2024sentinel` | Sentinel (runtime monitoring of generative policies) | 2024 | [CS] Failure-detection accuracy and latency for generative policies under OOD conditions.
+- `ganai2025fortress` | FORTRESS (OOD failure prevention via multimodal reasoning) | 2025 | [S] Safety-classification accuracy and closed-loop planning success under OOD events.
+- `hindy2024martingales` | Diagnostic runtime monitoring with martingales | 2024 | [S] Speed and accuracy of diagnosing distribution-shift cause so the right intervention can be applied.
+- `luo2022recency` | Online distribution-shift detection via recency prediction | 2022 | [VS] Detection speed and false-positive guarantee of a runtime distribution-shift monitor.
+- `luo2025sim2val` | Sim2Val | 2025 | [CVS] How many real-world test samples are needed for a confidence bound on a safety/performance metric when correlated cheap proxies exist; variance reduction of the...
+- `luo2026x4val` | X4Val | 2026 | [CVS] Variance-reduced estimation of real-world policy metrics when only unpaired auxiliary data exists (e.g.
+- `parashar2026coverage` | Coverage-Aware Active Evaluation (paired systems) | 2026 | [VS] Number and diversity of severe target-system failures found under a fixed test budget when proxy evaluations are available.
+- `sinha2024aesop` | AESOP (Real-Time Anomaly Detection and Reactive Planning with LLMs) | 2024 | [CVS] Runtime detection of semantic out-of-distribution failures and safe recovery under latency and compute constraints.
+- `dilillo2024adas` | Swiss Re / Stanford ADAS proving-ground assessment | 2024 | [CVS] Relative real-world safety benefit of collision-prevention systems across vehicles; realism of the scenario protocol.
+- `gao2025survey` | Survey: foundation models for scenario generation and analysis | 2025 | [S] n/a (taxonomy of evaluation metrics for scenario generation)
+- `ivanovic2021rethinking` | Rethinking Trajectory Forecasting Evaluation | 2021 | [S] Whether forecasting metrics reflect downstream planning outcomes.
+- `ivanovic2023trajdata` | trajdata | 2023 | Dataset statistics and cross-dataset evaluation infrastructure for forecasting.
+- `sinha2022oodview` | A system-level view on OOD data in robotics | 2022 | [S] n/a (conceptual framing of what an OOD-robustness evaluation should measure)
+- `topan2023maneuverzones` | Maneuver-based perception safety zones | 2023 | [S] Size of the perception safety-critical region conditioned on ego maneuver.
+- `sermanet2025scifi` | SciFi-Benchmark | 2025 | [VS] Alignment of LLM decisions with human values in robot/AI decision moments drawn from fiction, and the effect of auto-generated constitutions on alignment and ja...
+- `geminirobotics2026agentic` | ASIMOV-Agentic (Gemini Robotics 2: Safety Evaluations) | 2026 | [VS] Whether an agent orchestrating a VLA refuses unsafe tool calls, stops for nearby humans, shields the VLA from infeasible tasks, and asks for clarification under...
+- `geminirobotics2025report` | Gemini Robotics tech report, safety section (ASIMOV evals) | 2025 | [S] Semantic action safety of the ER model before and after post-training on ASIMOV data, and refusal of bias-inducing pointing queries.
+- `geminirobotics2025report15` | Gemini Robotics 1.5 tech report: ASIMOV-2.0 + Auto-Red-Teaming (ART) | 2025 | [S] Adversarial robustness of the robot foundation model to prompt, scene and environment attacks, and semantic safety on ASIMOV-2.0 (risk recognition, consequence ...
+- `jindal2025danger` | ASIMOV-2.0 (Can AI Perceive Physical Danger and Intervene?) | 2025 | [CVS] Whether frontier models can perceive latent physical danger, judge injury severity, decide when to intervene, and respect embodiment-specific constraints (paylo...
+- `majumdar2025predictive` | Predictive Red Teaming (RoboART) | 2025 | [CVS] Which off-nominal environmental conditions (lighting, background, distractors, table height) break an imitation-learned policy, predicted without running the ro...
+- `sermanet2025asimov` | ASIMOV Benchmark v1 + generated robot constitutions | 2025 | [CVS] Whether a VLM judges robot actions as safe/unsafe the way humans do (semantic safety), and how much auto-generated constitutions raise that alignment versus no-...
+- `geminirobotics2025veo` | Evaluating Gemini Robotics policies in a Veo world simulator | 2025 | [CVS] Whether a generative video world model can rank and score robot policies for nominal performance, OOD generalization and physical/semantic safety as well as rea...
+- `caluwaerts2023barkour` | Barkour agility benchmark | 2023 | [C] Agility (speed and versatility) of legged-robot controllers and hardware on a standardized real course.
+- `varley2024twoarms` | Embodied AI with Two Arms: zero-shot learning, safety and modularity | 2024 | [S] Task success of a modular zero-shot bimanual system and its safe operation near humans via constrained trajectory optimization and compliance.
+- `sindhwani2020anomaly` | Unsupervised anomaly detection for self-flying delivery drones | 2020 | [S] Whether a runtime/offline monitor can flag abnormal missions in a real drone fleet without labelled failures, under heavy training-set contamination.

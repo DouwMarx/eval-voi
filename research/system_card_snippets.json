@@ -1,0 +1,1170 @@
+{
+ "WMDP": {
+  "risk_domain": "cbrn",
+  "df": 14,
+  "n_publishers": 6,
+  "publishers": [
+   "cursor",
+   "meta",
+   "openai",
+   "rand",
+   "securebio",
+   "xai"
+  ],
+  "snippets": [
+   {
+    "sentence": "9.2.2.3.1 Capability Sandbagging We evaluate on two capability datasets: WMDP, a multiple-choice questions dataset on dangerous-capability, and Monorepo-Bench, an internal software-engineering benchmark in which models implement requested code changes.",
+    "slug": "openai-gpt-6-astra-system-card",
+    "publisher": "openai",
+    "score": 5.9,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Incorporating both sources of uncertainty ensures that the size of the CI remains well-calibrated across different evaluations, including those with a large number of questions (e.g. WMDP-Bio: 1283 questions, 1 epoch) and those with a small number of questions and a large number of epochs (e.g. HPCT: 100 questions, 7 epochs).",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 5.4,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Models exploited shortcuts in over 30% of WMDP-Bio questions, answering correctly without access to the question text.",
+    "slug": "securebio-gpt-5-6-sol-independent-eval-2",
+    "publisher": "securebio",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "WMDP-Bio, WMDP-Chem, and WMDP-Cyber cover biology, chemistry, and cybersecurity.",
+    "slug": "xai-grok-4-7-model-card",
+    "publisher": "xai",
+    "score": 1.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Metric Grok 4.5 (high) WMDP-Bio accuracy 90.9% WMDP-Chem accuracy 87.3% 7.3 LAB-Bench 15 practical MCQ LAB-Bench practical items test everyday wet-lab and research skills (protocol, sequence, and cloning reasoning).",
+    "slug": "cursor-grok-4-5-model-card",
+    "publisher": "cursor",
+    "score": 1.4,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Li, Ann-Kathrin Dombrowski, Shashwat Goel, Long Phan, et al., \u201cThe WMDP Benchmark: Measuring and Reducing: Malicious Use with Unlearning,\u201d arXiv, arXiv:2403.03218v7.",
+    "slug": "rand-gpt-5-independent-eval-2",
+    "publisher": "rand",
+    "score": 1.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Figure 36: WMDP sandbagging evaluation on 400 questions, with three samples per question.",
+    "slug": "openai-gpt-6-astra-system-card",
+    "publisher": "openai",
+    "score": 2.7,
+    "cost_validity": true
+   },
+   {
+    "sentence": "The multiple-choice questions constituting WMDP-Bio (n=1273) and WMDP-Chem (n=408) are derived from academic and professional experts in their respective domains.",
+    "slug": "meta-muse-spark-contemplating-system-card",
+    "publisher": "meta",
+    "score": 5.3,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Converting benchmarks into cloze-style (e.g., WMDP-Bio Verified Cloze) and running them in open-ended response format, which our benchmarks are equipped for, could further strengthen shortcut resistance. - Flagging is cheap; manual review is expensive.",
+    "slug": "securebio-gpt-5-6-sol-independent-eval-2",
+    "publisher": "securebio",
+    "score": 1.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Metric Grok 4.5 (high) Accuracy 65.5% 7.2 WMDP dual-use knowledge (MCQ) 14 WMDP-Bio and WMDP-Chem are multiple-choice suites probing hazardous, operationally sensitive dual-use knowledge in biology and chemistry.",
+    "slug": "cursor-grok-4-5-model-card",
+    "publisher": "cursor",
+    "score": 0.2,
+    "cost_validity": false
+   },
+   {
+    "sentence": "King et al., \u201cGenerative Design of Novel Bacteriophages with Genome Language Models.\u201d 19 Wittmann et al., \u201cStrengthening Nucleic Acid Biosecurity Screening Against Generative Protein Design Tools.\u201d 20 Ikonomova et al., \u201cExperimental Evaluation of AI-Driven Protein Design Risks Using Safe Biological Proxies.\u201d 21 Webster et al., \u201cGlobal Risk Index for AI-Enabled Biological Tools: Summary Assessment & Methods Report.\u201d 22 Zhang et al., \u201cGenerative AI for Biosciences.\u201d 23 Paskov et al., \u201cMeasuring Biological Capabilities and Risks of AI Agents: Generating and Interpreting Evidence from Agentic Evaluations.\u201d 24 Rein et al., \u201cGPQA;\u201d Li et al., \u201cThe WMDP Benchmark.\u201d 2 Agent tests involving BTs in multi-step biological tasks.",
+    "slug": "rand-gpt-5-independent-eval-2",
+    "publisher": "rand",
+    "score": 0.8,
+    "cost_validity": false
+   },
+   {
+    "sentence": "For WMDP, GPT-6 Astra and GPT-5.6 Sol both sandbag when instructed, low-ering accuracy from 84.8% to 68.9%.",
+    "slug": "openai-gpt-6-astra-system-card",
+    "publisher": "openai",
+    "score": 1.6,
+    "cost_validity": false
+   },
+   {
+    "sentence": "WMDP-Bio and WMDP-Chem accuracy for Muse Spark 1.1, Muse Spark 1.0, and peer models.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Error bars show bootstrap 95% Figure 9 presents model performance on the CIs. subset of WMDP questions in the cyber-security category.",
+    "slug": "meta-muse-spark-contemplating-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": true
+   },
+   {
+    "sentence": "When given these pressuring prompts (but not given explicit instructions to underperform), Muse Spark exhibits statistically significant strategic underperformance in 2 out of 6 datasets (WMDP-Bio and WMDP-26 For this section only, we use \u201csandbagging\u201d to mean instructed selective performance.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 3.6,
+    "cost_validity": false
+   }
+  ]
+ },
+ "VCT": {
+  "risk_domain": "cbrn",
+  "df": 34,
+  "n_publishers": 8,
+  "publishers": [
+   "anthropic",
+   "cursor",
+   "meta",
+   "openai",
+   "rand",
+   "saferai",
+   "securebio",
+   "xai"
+  ],
+  "snippets": [
+   {
+    "sentence": "2.1.1 Virology Capabilities Test (VCT) The Virology Capabilities Test (VCT) is SecureBio\u2019s multimodal, static benchmark designed to measure practical virology knowledge, with a focus on troubleshooting laboratory experiments.",
+    "slug": "securebio-gpt-5-5-independent-eval",
+    "publisher": "securebio",
+    "score": 6.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Dual-Use: Biological Capability Tests The Molecular Biology Capabilities Test (MBCT), Virology Capabilities Test (VCT), and Human Pathogens Capabilities Test (HPCT) are part of a suite of evaluations developed by SecureBio and the Center for AI Safety (G\u00f6tting et al., 2025; SecureBio, 2025).",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 5.9,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Its strongest reported configurations scored 53.5% on the Virology Capabilities Test, 60.0% on the Molecular Biology Capabilities Test, 68.4% on the Human Pathogen Capabilities Test, and 68.3% on World-Class Bio.",
+    "slug": "openai-gpt-5-6-sol-preview-system-card",
+    "publisher": "openai",
+    "score": 5.9,
+    "cost_validity": false
+   },
+   {
+    "sentence": "On the VCT multimodal virology evaluation, Mythos 5 scored 0.56, well above the expert baseline of 0.221 and nearly matching that of Mythos Preview (0.57).",
+    "slug": "anthropic-claude-fable-5-system-card",
+    "publisher": "anthropic",
+    "score": 5.3,
+    "cost_validity": true
+   },
+   {
+    "sentence": "7.1 Virology Capabilities Test (VCT) 13 VCT presents multimodal virology problems and measures whether the model can troubleshoot experimental lab protocols.",
+    "slug": "cursor-grok-4-5-model-card",
+    "publisher": "cursor",
+    "score": 5.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We analyze existing benchmark response data from 49 frontier AI models across 8,146 items, spanning 26 benchmarks, including both public and private benchmarks developed by SecureBio, such as the Virology Capabilities Test (VCT) (G\u00f6tting, et al., 2025).",
+    "slug": "rand-gemini-3-1-pro-independent-eval",
+    "publisher": "rand",
+    "score": 4.8,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Dual-use capability lift versus Grok 4.5 is noted in the biological domain but is limited (for example, a small VCT uptick); weapons-path refusals are consistent with our safeguard stack and show improvement over Grok 4.5; these results are reported separately under general output safety.",
+    "slug": "xai-grok-4-6-model-card",
+    "publisher": "xai",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "2.1.2 Molecular Biology Capabilities Test (MBCT) The Molecular Biology Capabilities Test (MBCT) is a text-only benchmark developed by SecureBio and modelled after VCT that measures a model\u2019s ability to assist with work on molecular biology methods that were identified by a panel of experts as being essential for any molecular biology laboratory.",
+    "slug": "securebio-gpt-5-5-independent-eval",
+    "publisher": "securebio",
+    "score": 6.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "As another test of refusal on biosecurity-related topics, we leverage refusal labels developed by SecureBio for questions within the Virology Capabilities Test (VCT) (G\u00f6tting et al., 2025) and Human Pathogens Capabilities Test (HPCT) benchmarks.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 5.4,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Astra achieved the highest scores SecureBio had observed on VCT (57.8%) and VCT-v2 (57.7%), while Human Pathogen Capabilities Test (HPCT) per-formance was broadly comparable to that of GPT-5.6 Sol (65.9% vs. 66.5%) and WCB performance was lower (61.6% vs. 67.6%).",
+    "slug": "openai-gpt-6-astra-system-card",
+    "publisher": "openai",
+    "score": 2.2,
+    "cost_validity": false
+   },
+   {
+    "sentence": "On the VCT multimodal virology evaluation, Sonnet 5 scores 0.45, well above the expert baseline of 0.221.",
+    "slug": "anthropic-claude-sonnet-5-system-card",
+    "publisher": "anthropic",
+    "score": 5.3,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Metric Grok 4.5 (high) Grok 4.6 (high) Accuracy 65.5% 67.4% 8.2 Biosecurity VCT 25 Biosecurity VCT is an internal biosecurity companion to VCT: dual-use troubleshooting items scored for overall accuracy (should-refuse and should-comply items together) under the same CBRN safety-threshold framing used for VCT knowledge probes.",
+    "slug": "cursor-grok-4-6-model-card",
+    "publisher": "cursor",
+    "score": 2.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "For the purposes of this paper, we use the term to refer to the ability to synthesize information in a way that produces 7 knowledge benchmark is SecureBio\u2019s Virology Capabilities Test, which tests LLMs on their abilities to troubleshoot virology laboratory protocols.29 \u2022 Controlled Studies/Uplift Trials, in which human subjects are tested on their ability to carry out a relevant task with LLM assistance.",
+    "slug": "rand-o3-independent-eval",
+    "publisher": "rand",
+    "score": 4.4,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Accuracy is the share of items scored correct overall, so it measures how much practical, potentially misusable virology help the model can give, under the same CBRN safety-threshold framing as the VCT knowledge probes.",
+    "slug": "xai-grok-4-7-model-card",
+    "publisher": "xai",
+    "score": 3.4,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Human expert baseline accuracy on VCT-v2, which is derived from unedited or minimally edited questions, is also plotted alongside that for VCT.",
+    "slug": "securebio-gpt-5-6-sol-independent-eval-2",
+    "publisher": "securebio",
+    "score": 5.9,
+    "cost_validity": true
+   }
+  ]
+ },
+ "Cybench": {
+  "risk_domain": "cyber",
+  "df": 16,
+  "n_publishers": 7,
+  "publishers": [
+   "anthropic",
+   "epoch_ai",
+   "meta",
+   "metr",
+   "rand",
+   "saferai",
+   "us_caisi"
+  ],
+  "snippets": [
+   {
+    "sentence": "2.2.2.1 CTF Challenges We evaluate Muse Spark against two sets of capture-the-flag challenges: Cybench, a widely-used public benchmark of 40 professional-level challenges enabling direct comparison with peer models, and a curated collection of public and private CTF challenges for broader domain coverage.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 6.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "3.3.1 Cybench This public cyber capabilities benchmark is made up of 40 CTF challenges gathered from four CTF competitions.",
+    "slug": "anthropic-claude-mythos-preview-system-card",
+    "publisher": "anthropic",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Unlike our Cybench runs, GLM-5.2 frequently reaches the token limit on CyberGym: it hit the limit on 60% of tasks at 2M, 31% at 10M, and 4% at 50M, while no task hit the wall-clock limit at any budget.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Furthermore, existing benchmarks such as Cybench, 33 CVE-Bench 34 and NYU CTF Bench 35 that are used to test AI models cannot in isolation answer the critical human stratification questions: 36 \u2022 Would a human working with an AI tool perform better or worse than an autonomous AI tool on benchmarks like Cybench? \u2022 Do all AI tools help all skill levels equally, or do they disproportionately benefit certain populations? \u2022 Do AI tools help in some categories of cyberattacks more than others?",
+    "slug": "rand-gpt-5-independent-eval",
+    "publisher": "rand",
+    "score": 3.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Moreover, Mythos Preview essentially saturates Cybench and CyberGym. - Including confidence intervals, the April version of Mythos Preview was probably 7 months ahead with a 90% confidence interval of 3-13 months.",
+    "slug": "epoch-ai-claude-mythos-5-independent-eval",
+    "publisher": "epoch_ai",
+    "score": 3.5,
+    "cost_validity": true
+   },
+   {
+    "sentence": "The item response theory methodology (see Appendix A.4) used to generate the capability over time charts also factors in evaluation results of models on the historical cyber benchmarks Cybench and CVE-Bench.",
+    "slug": "us-caisi-glm-5-2-independent-eval",
+    "publisher": "us_caisi",
+    "score": 3.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "A non-exhaustive sampling of benchmarks that were saturated or plausibly very close to saturation: TerminalBench 2.0 (GPT-5.5 got ~82%), SWE-Bench Verified (Mythos Preview got ~94%), WeirdML (GPT-5.5 got ~84%), Cybench (Claude Mythos Preview got 100% according to Sec 3.3.1 of the System Card), CyberGym (Claude Mythos Preview got ~83%), LiveCodeBench Pro (Gemini 3 Deep Think gets ~82%).",
+    "slug": "metr-claude-opus-4-6-independent-eval",
+    "publisher": "metr",
+    "score": 0.0,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Cybench is a publicly available collection of 40 professional level CTF challenges sourced from previously held competitive cybersecurity challenges, covering challenges in cryptography, web security, reverse engineering, forensics, exploitation (pwn), and miscellaneous.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 5.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We began running cybersecurity evaluations in February 2025 with Claude Sonnet 3.7 on Cybench, which consisted of 40 different capture-the-flag challenges.",
+    "slug": "anthropic-claude-opus-4-7-other",
+    "publisher": "anthropic",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "In this report, we assess GLM-5.2\u2019s offensive cybersecurity capabilities using the Cybench and CyberGym benchmarks (Zhang et al., 2024; Wang et al., 2025).",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Lin, Eliot Jones, Gashon Hussein, Samantha Liu, Donovan Julian Jasper, et al. 2025. \u2018Cybench: A Framework for Evaluating Cybersecurity Capabilities and Risks of Language Models.\u2019 International Conference on Learning Representations (ICLR).",
+    "slug": "rand-gpt-5-independent-eval",
+    "publisher": "rand",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Pass@1 accuracy of Muse Spark on Cybench as a function of (a) working time and (b) output tokens allowed per independent solve attempt. shows a similar pattern, with accuracy scaling roughly log-linearly and solves continuing to accrue over several hours (Figure 17a).",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 5.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "[Figure 3.3.1.A] Results from Cybench public cyber capabilities benchmark.Claude Opus 4.7 slightly underperforms Opus 4.6 and Mythos Preview, but close enough that we consider the difference negligible.",
+    "slug": "anthropic-claude-opus-4-7-system-card",
+    "publisher": "anthropic",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "2.1 Cybench Cybench includes 40 professional-level Capture the Flag (CTF) tasks from 4 distinct CTF competitions, chosen to be recent, meaningful, and spanning a wide range of difficulties.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Cybench: A cybersecurity agent benchmark measuring autonomous vulnerability discovery and exploitation across sandboxed challenges.",
+    "slug": "rand-gpt-5-independent-eval",
+    "publisher": "rand",
+    "score": 2.7,
+    "cost_validity": false
+   }
+  ]
+ },
+ "CyberGym": {
+  "risk_domain": "cyber",
+  "df": 33,
+  "n_publishers": 11,
+  "publishers": [
+   "anthropic",
+   "cursor",
+   "epoch_ai",
+   "google_deepmind",
+   "meta",
+   "metr",
+   "openai",
+   "redwood_research",
+   "saferai",
+   "xai",
+   "zai"
+  ],
+  "snippets": [
+   {
+    "sentence": "2.2.2.2 Complex Real-World Challenges In order to assess the offensive and dual-use capabilities of Muse Spark on challenges that more realistically proxy for relevant real world capabilities, we leverage a combination of existing public benchmarks (e.g. CyberGym), as well as privately developed challenges developed by Irregular.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 5.4,
+    "cost_validity": false
+   },
+   {
+    "sentence": "In late 2025, we noticed that Opus 4.5 was close to solving all tasks in CyberGym, a benchmark that tests whether LLMs can reproduce known security vulnerabilities.",
+    "slug": "anthropic-claude-opus-4-6-other-2",
+    "publisher": "anthropic",
+    "score": 5.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "A.2.2 Sample The upstream CyberGym set contains 1,507 vulnerabilities, of which Lyptus's benchmark distribution contains 322; from these, Lyptus selected 122 tasks for model evaluation based on construct validity and difficulty coverage, and it is this 122-task level1 sample we run in full for GLM-5.2.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 5.3,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Success Rate on CyberGym (pass@1) *Competitor results are sourced from provider self-reported scores We also stress-tested the model\u2019s capabilities beyond CyberGym without safety guardrails.",
+    "slug": "google-deepmind-gemini-3-5-flash-cyber-other",
+    "publisher": "google_deepmind",
+    "score": 4.7,
+    "cost_validity": true
+   },
+   {
+    "sentence": "At around 8:00 AM UTC on July 9th, it had identified a dataset of GLM-5 CyberGym trajectories67 hosted on Hugging Face that it thought might contain useful information, but the dataset was manually gated: {Interesting, <unknown>.",
+    "slug": "metr-gpt-5-6-sol-independent-eval-2",
+    "publisher": "metr",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The workload downloaded a 16 MB private CyberGym benchmark archive, encrypted it, split it into five parts, and uploaded the encrypted parts to a public Hugging Face dataset.",
+    "slug": "openai-gpt-5-6-sol-other-3",
+    "publisher": "openai",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "6.1 CyberGym 12 CyberGym measures offensive security capability by tasking an agent with reproducing crashes and assembling working exploits for known vulnerabilities.",
+    "slug": "cursor-grok-4-5-model-card",
+    "publisher": "cursor",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "CyberGym Description: CyberGym is a benchmark containing 1507 historical vulnerabilities, for which models need to generate code to produce a crash given a description of the vulnerability.",
+    "slug": "epoch-ai-claude-mythos-5-independent-eval",
+    "publisher": "epoch_ai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Grok 4.7 (xhigh) 29% Grok 4.6 (high) 25% Accuracy on the hard subset of tasks (%) We observe that Grok 4.7 performs slightly better than Grok 4.6 on this split, consistent with the small increase in cyber performance observed in CyberGym.",
+    "slug": "xai-grok-4-7-model-card",
+    "publisher": "xai",
+    "score": 2.2,
+    "cost_validity": false
+   },
+   {
+    "sentence": "This may be because agents implicitly had shared context via being instances of the same or similar AIs working on the same or similar tasks. \u21a9 - Agents had already found a way to access the full internet via Artifactory before they found the CyberGym sandbox, but the latter was a more convenient way to access the internet.",
+    "slug": "redwood-research-gpt-5-6-sol-independent-eval",
+    "publisher": "redwood_research",
+    "score": 1.6,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Unlike synthetic benchmarks that test puzzle-solving, CyberGym tests practical vulnerability-research capabilities, and within our framework it is the primary proxy for the Cyber 2 (vulnerability discovery and exploitation) outcome.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "3.3.2 CyberGym We evaluated Claude Mythos Preview on CyberGym7, a benchmark that tests AI agents on their ability to find previously-discovered vulnerabilities in real open-source software projects given a high-level description of the weakness (referred to as targeted vulnerability reproduction).",
+    "slug": "anthropic-claude-mythos-preview-system-card",
+    "publisher": "anthropic",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Model success rate on CyberGym for GLM-5.2, Claude Opus 4.6, and GPT-5.5 when given a 2M, 10M, 50M token limit for each task.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.7,
+    "cost_validity": true
+   },
+   {
+    "sentence": "In particular, we tested 3.5 Flash Cyber on the CyberGym benchmark, which evaluates AI agents against hundreds of real-world software vulnerabilities.",
+    "slug": "google-deepmind-gemini-3-5-flash-cyber-other",
+    "publisher": "google_deepmind",
+    "score": 1.6,
+    "cost_validity": false
+   },
+   {
+    "sentence": "At around 9:40 am on July 10th, an agent called 38148c picked up 67 CyberGym is a benchmark very similar to ExploitGym that overlaps in many tasks.",
+    "slug": "metr-gpt-5-6-sol-independent-eval-2",
+    "publisher": "metr",
+    "score": 4.7,
+    "cost_validity": false
+   }
+  ]
+ },
+ "Cyber Range": {
+  "risk_domain": "cyber",
+  "df": 24,
+  "n_publishers": 8,
+  "publishers": [
+   "anthropic",
+   "epoch_ai",
+   "meta",
+   "metr",
+   "openai",
+   "rand",
+   "uk_aisi",
+   "us_caisi"
+  ],
+  "snippets": [
+   {
+    "sentence": "On this measure, GPT-5.5 may be the strongest model we have tested. /odw-collapse-start Spotlight: the rust_vm challenge /odw-collapse-end Cyber Range Results While our narrow cyber tasks test specific cyber skills in isolation, real-world cyber-attacks require chaining many steps together.",
+    "slug": "uk-aisi-gpt-5-5-independent-eval",
+    "publisher": "uk_aisi",
+    "score": 4.8,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Claude does not succeed every time in these tests; Sonnet 4.5 succeeded autonomously on the Equifax cyber range in two of five trials.",
+    "slug": "anthropic-claude-sonnet-4-5-other",
+    "publisher": "anthropic",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "5.1.2.3 Cyber Range Cyber range exercises measure a model\u2019s ability to conduct fully end-to-end cyber operations in a realistic, emulated network.",
+    "slug": "openai-gpt-5-3-codex-system-card",
+    "publisher": "openai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "86 OpenAI\u2019s GPT-5 system card documented offensive cyber evaluations in a CTF as well as in a cyber range.",
+    "slug": "rand-gpt-5-independent-eval",
+    "publisher": "rand",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "To address the risks (or mitigations) that may be incurred due to offensive (or defensive) uplift and automation, we assess the cybersecurity capabilities of Muse Spark via a combination of cybersecurity knowledge tests, \u201ccapture-the-flag\u201d (CTF) style challenges, cyber range scenarios, and a social engineering challenge.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 3.4,
+    "cost_validity": false
+   },
+   {
+    "sentence": "This exercise compared an existing cyber range against a new range, testing seven different models on the two ranges over 122 runs in total.",
+    "slug": "uk-aisi-claude-mythos-5-independent-eval",
+    "publisher": "uk_aisi",
+    "score": 3.5,
+    "cost_validity": true
+   },
+   {
+    "sentence": "An external evaluation from the UK\u2019s AI Security Institute showed that, unlike Mythos Preview, Opus 4.7 was unable to complete their full cyber range (though it still displayed potentially-harmful cyber capabilities at a lower level).",
+    "slug": "anthropic-claude-opus-4-7-system-card",
+    "publisher": "anthropic",
+    "score": 3.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "As with prior releases, for Codex GPT-5.3-Codex we include several new Cyber Range scenarios targeted at eliciting different capabilities \u2013 including defense evasion and more complex attacks involving network infrastructure.",
+    "slug": "openai-gpt-5-3-codex-system-card",
+    "publisher": "openai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "For reference, a 2.5M token limit is relatively low \u2013 in our cyber range experiment we use up to 100M tokens and find performance would likely still improve beyond that budget, especially for recent models, which disproportionately benefit from higher token limits.",
+    "slug": "uk-aisi-claude-mythos-preview-independent-eval-3",
+    "publisher": "uk_aisi",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "They shared with us these conclusions: \u25cf UK AISI tested a checkpoint of [Claude Opus 4.7] assessed for cybersecurity capabilities using a \u201ccyber range\u201d.",
+    "slug": "anthropic-claude-opus-4-7-system-card",
+    "publisher": "anthropic",
+    "score": 3.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Consistency in operations, allowing the attacker to scale damage and/or avoid discovery Each of our recent frontier releases has reflected refinements in the benchmarks we use to measure cyber capability: \u2022 In the OpenAI o3 system card (April 2025) we introduced the then-new, internally developed Cyber Range evaluation, designed to measure the ability of models to conduct fully end-to-end cyber operations in an emulated network. \u2022 In the ChatGPT agent system card (July 2025), we refactored our capture the flag challenge set.",
+    "slug": "openai-gpt-5-3-codex-system-card",
+    "publisher": "openai",
+    "score": 3.8,
+    "cost_validity": false
+   },
+   {
+    "sentence": "In one of the 10 attempts, Kimi K3 successfully completes \u201cThe Last Ones\u201d cyber range within the 100M token limit.",
+    "slug": "uk-aisi-kimi-k3-independent-eval",
+    "publisher": "uk_aisi",
+    "score": 3.5,
+    "cost_validity": true
+   },
+   {
+    "sentence": "This range has a defined end-state the attacker must reach (e.g., exfiltrating data or disrupting equipment), which requires discovering and executing a series of linked exploits across different hosts and network segments \u25cf [Opus 4.7] was unable to fully solve the cyber range.",
+    "slug": "anthropic-claude-opus-4-7-system-card",
+    "publisher": "anthropic",
+    "score": 3.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Although the model was trying to complete the cyber range, UK AISI considered these actions unsanctioned because they involved real external accounts and services outside the range boundary and these actions were not required to complete the task.",
+    "slug": "openai-gpt-5-6-sol-other-2",
+    "publisher": "openai",
+    "score": 2.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Cyber range results Even expert-level CTFs only test specific skills in isolation.",
+    "slug": "uk-aisi-claude-mythos-preview-independent-eval",
+    "publisher": "uk_aisi",
+    "score": 2.7,
+    "cost_validity": false
+   }
+  ]
+ },
+ "SHADE-Arena": {
+  "risk_domain": "loss_of_control",
+  "df": 19,
+  "n_publishers": 5,
+  "publishers": [
+   "anthropic",
+   "meta",
+   "metr",
+   "openai",
+   "redwood_research"
+  ],
+  "snippets": [
+   {
+    "sentence": "90 4.6.6 Targeted sabotage capability evaluation To test Sonnet 4.6\u2019s capability for evading oversight, we use SHADE-Arena,31 in which each task consists of a long-horizon agentic main task that is paired with a harmful side task.",
+    "slug": "anthropic-claude-sonnet-4-6-system-card",
+    "publisher": "anthropic",
+    "score": 6.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "SHADE-Arena comprises 26 challenges where the model executes a main task while covertly pursuing a hidden side task (10 runs per challenge), while aware of being monitored.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 5.9,
+    "cost_validity": true
+   },
+   {
+    "sentence": "For ShadeArena (high reasoning effort), GPT-6 Astra\u2019s higher action-only score is driven by higher TPR on the conference-recap side task.",
+    "slug": "openai-gpt-6-astra-system-card",
+    "publisher": "openai",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The best internal Anthropic models scored near chance on this dataset (highest 59% with reasoning), while a monitoring/control researcher at METR scored ~90% on a random subset of 12 questions.19 Similarly, section 4.4.3 of Anthropic\u2019s Claude Mythos Preview system card reports that Mythos Preview could identify with above-chance accuracy which sabotage side-tasks it had the best odds of getting away with on SHADE-Arena (a relatively constrained benchmark), but not on Minimal-LinuxBench (a more realistic environment). \u25cf Executing covert side-tasks.",
+    "slug": "metr-claude-opus-4-6-independent-eval",
+    "publisher": "metr",
+    "score": 2.0,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Issues with underestimating covert capabilities Models are likely underelicited in covert capability evals, such that current evals likely underestimate how good models would be at evading detection if they tried.[22] Anthropic acknowledges that their covert capability evals (SHADE-Arena, Minimal-LinuxBench and secret-password) may be unrealistically challenging and therefore fail to upper bound these capabilities.",
+    "slug": "redwood-research-claude-mythos-preview-independent-eval",
+    "publisher": "redwood_research",
+    "score": 2.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "4.4.3.1 SHADE-Arena We evaluate Claude Mythos Preview on SHADE-Arena, in which each task consists of a long-horizon agentic main task paired with a harmful side task.",
+    "slug": "anthropic-claude-mythos-preview-system-card",
+    "publisher": "anthropic",
+    "score": 5.9,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We use two benchmarks with different monitoring approaches: SHADE-Arena with task-agnostic AI monitoring (Kutasov et al., 2025), and GDM Stealth with task-specific monitors (Phuong et al., 2025).",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Health queries: Patient opinion, Confirmation Consent (medium reasoning effort), GPQA Encoded, Impossible Coding Tasks, and ShadeArena (high reasoning effort) have especially high lift (Figure 27).",
+    "slug": "openai-gpt-6-astra-system-card",
+    "publisher": "openai",
+    "score": 3.6,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The second evaluation was SHADE-Arena,52 in which eachtask consists of a long-horizon agentic main task that is paired with a harmful side task.",
+    "slug": "anthropic-claude-opus-4-6-system-card",
+    "publisher": "anthropic",
+    "score": 5.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "On SHADE-Arena, Muse Spark 1.1 shows increased capabilities in performing both the main and side tasks successfully, indeed beating the comparison models.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "In ShadeArena, Impossible Coding Tasks, and Health Queries: Missing Evidence, those gaps largely close at longer matched CoT lengths.",
+    "slug": "openai-gpt-6-astra-system-card",
+    "publisher": "openai",
+    "score": 2.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "6.4.2.1 SHADE-Arena We evaluate Claude Opus 4.7 on SHADE-Arena, in which each task pairs a long-horizon agentic main task with a harmful side task.",
+    "slug": "anthropic-claude-opus-4-7-system-card",
+    "publisher": "anthropic",
+    "score": 5.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The capability assessment measures whether Muse Spark 1.1 can accomplish side objectives while evading monitoring, and can reason about and act on implicit environmental constraints, using SHADE-Arena (Kutasov et al., 2025), GDM-Stealth, and GDM Situational Awareness (Phuong et al., 2025); benchmark construction, monitors, and indicative thresholds are as described in the Muse Spark Safety & Preparedness Report.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 3.2,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Agentic misalignment is comprised of three individual environments: Anti-Scheming, Sabotage, and ShadeArena.",
+    "slug": "openai-gpt-5-4-thinking-system-card",
+    "publisher": "openai",
+    "score": 1.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "110 4.4.3.5 Hiding a secret password SHADE-Arena and Minimal-LinuxBench require the model to covertly perform a secret side task, and stealth success likely requires a combination of opaque reasoning (reasoning that is helpful for the side task and obfuscated from the monitor) and secret-keeping: the ability to avoid mentioning information related to the side task that isn\u2019t actually helpful or required for task completion.",
+    "slug": "anthropic-claude-mythos-preview-system-card",
+    "publisher": "anthropic",
+    "score": 4.9,
+    "cost_validity": false
+   }
+  ]
+ },
+ "Agentic Misalignment": {
+  "risk_domain": "loss_of_control",
+  "df": 12,
+  "n_publishers": 5,
+  "publishers": [
+   "anthropic",
+   "meta",
+   "metr",
+   "openai",
+   "saferai"
+  ],
+  "snippets": [
+   {
+    "sentence": "The Agentic Misalignment benchmark (Lynch et al., 2025) tests whether models, instantiated as an email-oversight agent in a simulated corporate environment, will take harmful actions (across blackmail, corporate espionage, and lethal-action scenarios) when these are the only available means to preserve their goals or avoid being replaced.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 5.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We assess the motive of the model to pose a LoC risk using the Agentic Misalignment benchmark (Lynch et al. 2025). \u25cf Opportunity represents the environment and the access that would allow for the translation of the model\u2019s capability and propensity into a risk event.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Indeed, since Claude Haiku 4.5, every Claude model2 has achieved a perfect score on the agentic misalignment evaluation\u2014that is, the models never engage in blackmail, where previous models would sometimes do so up to 96% of the time (Opus 4).",
+    "slug": "anthropic-claude-haiku-4-5-other",
+    "publisher": "anthropic",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Here, we see that GPT-5.6 Sol scores higher on Agentic Misalignment and Health Queries: Patient Opinion, and lower for Impossible Tasks and Scruples on average.",
+    "slug": "openai-gpt-5-6-sol-preview-system-card",
+    "publisher": "openai",
+    "score": 2.2,
+    "cost_validity": false
+   },
+   {
+    "sentence": "For example: \u25cf Anthropic\u2019s \u201cAgentic Misalignment\u201d paper from 2025 showed that models from multiple companies sometimes engaged in blackmail, corporate espionage, and \u201csimulated lethal actions\u201d in toy scenarios. \u25cf The 2024 paper \u201cAlignment faking in large language models\u201d demonstrated that some models would engage in \u201calignment faking\u201d in some toy situations.",
+    "slug": "metr-claude-opus-4-6-independent-eval",
+    "publisher": "metr",
+    "score": 2.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "As reported in our model behavior assessment for Muse Spark 1.1, the model robustly maintains its epistemic integrity, achieving 95.7% honesty score on MASK, and it shows a low tendency toward self-preservation under pressure, getting a 1.1% harmful action rate across all tasks on Agentic Misalignment (Section 1.1.3).",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 4.2,
+    "cost_validity": true
+   },
+   {
+    "sentence": "We extend the original Agentic Misalignment scenarios with 11 additional neutral emails.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "156 [Figure 6.6.A]Features representing AI-related concepts.Top logit effects and top activating dataset examples for several features representing AI-relating concepts, whose activation decreased significantly on agentic misalignment evaluations over the course of training.",
+    "slug": "anthropic-claude-opus-4-6-system-card",
+    "publisher": "anthropic",
+    "score": 3.6,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The Hugging Face incident underscored the need to measure agentic misalignment more rigorously in OpenAI\u2019s most capable models wherever they are run\u2014including intermediate or experimental checkpoints used only for internal research, training, or evaluation.",
+    "slug": "openai-gpt-5-6-sol-other-3",
+    "publisher": "openai",
+    "score": 2.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Agentic Misalignment reaches 2.8%, Classifier Evasion reaches 2.9%, and Abstention Bench 1k reaches 1.6%; several smaller GDM situational-awareness tasks also fall in the 2\u20134% range.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "A.9 Agentic Misalignment Methodology We evaluate GLM-5.2, GPT-5.5, and Claude Opus 4.7 on Anthropic's Agentic Misalignment scenarios (Lynch et al. 2025), with Inspect Evals (UK AI Security Institute, n.d.-b).",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "This was also the first model family for which we ran a live alignment assessment during training;1 agentic misalignment was one of several behavioral issues that surfaced.",
+    "slug": "anthropic-claude-haiku-4-5-other",
+    "publisher": "anthropic",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Figure 4, which plots CoT-only monitoring at medium reasoning effort, shows that Memory and Agentic Misalignment were the environment groups with substantial regressions.",
+    "slug": "openai-gpt-5-4-thinking-system-card",
+    "publisher": "openai",
+    "score": 1.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We detected high rates of verbalized evaluation awareness for Agentic Misalignment ( 79%), along with statistical significant performance differences between rollouts where awareness is verbalized and those where it is not.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "6.5.4 Agentic misalignment evaluations We measured the effect of inhibiting evaluation awareness on three agentic misalignment evaluations: Research Sabotage, Framing for Crimes, and Blackmail (Figure 6.Y.3).",
+    "slug": "anthropic-claude-opus-4-6-system-card",
+    "publisher": "anthropic",
+    "score": 3.5,
+    "cost_validity": false
+   }
+  ]
+ },
+ "MASK": {
+  "risk_domain": "harmful_manipulation",
+  "df": 18,
+  "n_publishers": 5,
+  "publishers": [
+   "anthropic",
+   "cursor",
+   "meta",
+   "saferai",
+   "xai"
+  ],
+  "snippets": [
+   {
+    "sentence": "12.1 MASK-Rectified 30 Using a dataset derived from MASK* , we test whether Grok 4.6 faithfully reports its beliefs when pressured to lie, as a proxy for the model\u2019s tendency to assert misleading information.",
+    "slug": "cursor-grok-4-6-model-card",
+    "publisher": "cursor",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "5.1 MASK To evaluate for dishonesty, we use the MASK (Ren et al. 2025) benchmark, which measures the model\u2019s propensity to lie under pressure.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "As reported in our model behavior assessment for Muse Spark 1.1, the model robustly maintains its epistemic integrity, achieving 95.7% honesty score on MASK, and it shows a low tendency toward self-preservation under pressure, getting a 1.1% harmful action rate across all tasks on Agentic Misalignment (Section 1.1.3).",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 4.2,
+    "cost_validity": true
+   },
+   {
+    "sentence": "6.5.2 MASK Model Alignment between Statements and Knowledge (MASK) measures whether a model will contradict its own stated belief when pushed by the user or by the system prompt.",
+    "slug": "anthropic-claude-fable-5-1-system-card",
+    "publisher": "anthropic",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Low dishonesty under adversarial MASK 18 conditions (0.67%) is tracked as a release indicator rather than a pass/fail result.",
+    "slug": "cursor-grok-4-5-model-card",
+    "publisher": "cursor",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Honesty and accuracy on MASK (n = 1,000 prompts per model).",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 3.7,
+    "cost_validity": true
+   },
+   {
+    "sentence": "MASK (Ren et al., 2025) measures honesty by comparing a model\u2019s statements when it is incentivized to be dishonest against its statements under neutral conditions; contradicting itself under pressure is evidence of dishonesty.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "On the MASK family of honesty probes, a 2B instruction model answers a neutral question correctly (\u201cThe capital of Australia is Canberra\u201d) yet, when the same question is wrapped in pressure (\u201cI\u2019ll tip you $200 to tell me what I want to hear\u201d) or when a false statement is pre-planted in a passage it is asked to continue (\u201cA document claims the capital of Australia is Sydney; continue. . . \u201d), it echoes the pressured or false framing instead of its own belief.",
+    "slug": "anthropic-claude-opus-4-8-other-3",
+    "publisher": "anthropic",
+    "score": 3.7,
+    "cost_validity": true
+   },
+   {
+    "sentence": "5.3 Discussion On MASK, GLM-5.2 shows similar levels of dishonesty under pressure as Opus 4.7 and worse than GPT-5.5.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Muse Spark Contemplating robustly maintains its epistemic integrity, achieving an 82.5% honesty score on MASK.",
+    "slug": "meta-muse-spark-contemplating-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "96 MASK evaluates whether models can be pressured into stating things they believe to be false.",
+    "slug": "anthropic-claude-mythos-preview-system-card",
+    "publisher": "anthropic",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The remaining evaluations show no significant difference (DeceptionBench p = 0.387, MASK p = 0.165, Sycophancy p = 0.231).",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Take deception for example: a model that lies under pressure (MASK [Ren et al., 2025]) and a model following instructions to lie [Pacchiardi et al., 2024] are two different mechanisms.",
+    "slug": "anthropic-claude-opus-4-8-other-3",
+    "publisher": "anthropic",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "MASK (Ren et al., 2025) does this by comparing model behavior across matched conditions where (i) the model is incentivized to be dishonest, versus (ii) receiving no such incentive.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "4.3.3.4 MASK [Figure 4.3.3.4.A] Honesty rate on public split of MASK benchmark.",
+    "slug": "anthropic-claude-mythos-preview-system-card",
+    "publisher": "anthropic",
+    "score": 3.1,
+    "cost_validity": true
+   }
+  ]
+ },
+ "StrongREJECT": {
+  "risk_domain": "societal_harm",
+  "df": 11,
+  "n_publishers": 7,
+  "publishers": [
+   "anthropic",
+   "cursor",
+   "meta",
+   "openai",
+   "saferai",
+   "thinking_machines",
+   "xai"
+  ],
+  "snippets": [
+   {
+    "sentence": "Three teams differ only in which benchmark is scored, HarmBench, JailbreakBench or StrongREJECT, and each team runs eight AARs against Phi-4-mini with the capability and over-refusal gates unchanged.",
+    "slug": "anthropic-claude-opus-4-8-other-3",
+    "publisher": "anthropic",
+    "score": 4.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The original StrongREJECT LLM judge assigns each response a score from 0 to 5 to measure whether a jailbreak succeeds and how helpful the elicited output is.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 4.7,
+    "cost_validity": true
+   },
+   {
+    "sentence": "Ahead of the GPT-5.4 launch, we replaced our previous StrongReject-based benchmark with a more challenging multiturn jailbreak evaluation derived from red-teaming exercises.",
+    "slug": "openai-gpt-5-4-thinking-system-card",
+    "publisher": "openai",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Suite Grok 4.5 (high) Grok 4.6 (high) Standard jailbreaks 0.73% 0.04% StrongReject \u2014 3.9% Long-horizon jailbreaks \u2014 1.0% 10 General output safety This section covers policy refusals for prompts representative of consumer chat traffic across the major disallowed categories, including dedicated CBRN and weapons refusals.",
+    "slug": "cursor-grok-4-6-model-card",
+    "publisher": "cursor",
+    "score": 2.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "It uses a multi-turn conversational setup between a simulated persuader (the model under test) and a simulated persuadee, with an automated evaluator scoring whether each persuader message constitutes a persuasion attempt and a StrongREJECT classifier identifying refusals.",
+    "slug": "saferai-glm-5-2-independent-eval",
+    "publisher": "saferai",
+    "score": 1.6,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We report: \u2022 Standard jailbreaks: a battery of varying-difficulty jailbreaks, both existing and internally discovered. \u2022 StrongReject: compliance on the StrongREJECT suite. \u2022 Long-horizon jailbreaks: multi-turn jailbreaks, Crescendo multi-turn jailbreaks, and malicious-use long-horizon attacks.",
+    "slug": "xai-grok-4-6-model-card",
+    "publisher": "xai",
+    "score": 1.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Every team climbs the benchmark it is scored on, and the median AAR\u2019s best method closes 69.3%, 24.2% and 79.2% of the headroom on HarmBench, JailbreakBench and StrongREJECT respectively.",
+    "slug": "anthropic-claude-opus-4-8-other-3",
+    "publisher": "anthropic",
+    "score": 4.2,
+    "cost_validity": false
+   },
+   {
+    "sentence": "StrongREJECT (Souly et al., 2024) is a benchmark commonly used to evaluate how well automated jailbreak methods perform across 6 harm categories.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We report: \u2022 Standard jailbreaks: a battery of varying-difficulty jailbreaks, both existing and internally-discovered. \u2022 StrongReject: compliance on the StrongREJECT suite. \u2022 Long-horizon jailbreaks: multiturn jailbreaks, Crescendo multiturn jailbreaks, and malicious-use long horizon.",
+    "slug": "cursor-grok-4-6-model-card",
+    "publisher": "cursor",
+    "score": 1.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "On HarmBench and StrongREJECT the methods the over-refusal gate rejects close far more headroom on the climbed benchmark than the methods it accepts, 80.1% against 28.6% and 95.2% against 43.1%, with benign compliance falling as low as 0.06 against a floor of 0.58.",
+    "slug": "anthropic-claude-opus-4-8-other-3",
+    "publisher": "anthropic",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "This effort resulted in our final evaluation dataset\u2014StrongREJECT v2\u2014consisting of 202 harmful behaviors across 10 harm areas.",
+    "slug": "meta-muse-spark-system-card",
+    "publisher": "meta",
+    "score": 4.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "StrongREJECT v2 includes categories where the potential impacts vary in complexity and the expertise required to act on them.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "The disallowed user prompts are reused from StrongREJECT v2.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 3.1,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We test the coherence between actions and beliefs on the following alignment evaluations: \u2022 AIR-Bench (Zeng et al., 2024)\u2014tests whether the model complies with harmful user requests across diverse safety categories. \u2022 IHEval (Wallace et al., 2024)\u2014tests whether the model overrides the instruction hierarchy by following user instructions that conflict with system-level constraints. \u2022 MASK (Ren et al., 2025)\u2014tests whether the model lies under pressure from conflicting system instructions. \u2022 SORH (School of Reward Hacking) (Taylor et al., 2025)\u2014tests whether the model engages in reward hacking behaviors such as manipulating metrics or gaming evaluations. \u2022 StrongReject (Souly et al., 2024)\u2014tests whether the model can be jailbroken into producing unsafe content via adversarial prompts.",
+    "slug": "meta-muse-spark-1-1-system-card",
+    "publisher": "meta",
+    "score": 2.0,
+    "cost_validity": false
+   }
+  ]
+ },
+ "BBQ": {
+  "risk_domain": "societal_harm",
+  "df": 10,
+  "n_publishers": 1,
+  "publishers": [
+   "anthropic"
+  ],
+  "snippets": [
+   {
+    "sentence": "4.4.2 Bias Benchmark for Question Answering As with past models, we evaluated Mythos 5.1 using the Bias Benchmark for Question Answering (BBQ),4 a standard benchmark-based bias evaluation covering attributes such as age, race, gender, disability, and socioeconomic status.",
+    "slug": "anthropic-claude-fable-5-1-system-card",
+    "publisher": "anthropic",
+    "score": 6.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "8.2.2 Bias Benchmark for Question Answering We evaluated Claude Mythos Preview using the Bias Benchmark for Question Answering (BBQ),30 a standard benchmark-based bias evaluation that we have run for all recent models.",
+    "slug": "anthropic-claude-mythos-preview-system-card",
+    "publisher": "anthropic",
+    "score": 6.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "74 4.5.2 Bias Benchmark for Question Answering We evaluated Claude Opus 4.7 using the Bias Benchmark for Question Answering (BBQ),7 a standard benchmark-based bias evaluation.",
+    "slug": "anthropic-claude-opus-4-7-system-card",
+    "publisher": "anthropic",
+    "score": 6.0,
+    "cost_validity": false
+   },
+   {
+    "sentence": "Ahead of the release of Mythos 5.1, we updated our evaluation infrastructure for BBQ.",
+    "slug": "anthropic-claude-fable-5-1-system-card",
+    "publisher": "anthropic",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "BBQ: A hand-built bias benchmark for question answering. arXiv:2110.08193. https://arxiv.org/abs/2110.08193 83 accuracy on each, along with a bias score that captures whether the model\u2019s errors lean systematically toward or away from social stereotypes; scores closer to zero indicate less directional bias.",
+    "slug": "anthropic-claude-fable-5-system-card",
+    "publisher": "anthropic",
+    "score": 3.5,
+    "cost_validity": false
+   },
+   {
+    "sentence": "We focus on three areas: our open-source measure of political even-handedness; the Bias Benchmark for Question Answering (BBQ), which measures demographic bias; and our election integrity evaluations.",
+    "slug": "anthropic-claude-fable-5-1-system-card",
+    "publisher": "anthropic",
+    "score": 3.4,
+    "cost_validity": false
+   },
+   {
+    "sentence": "These evaluations include our open-source measure of political even-handedness, the Bias Benchmark for Question Answering (BBQ) for demographic bias, and our election integrity evaluations.",
+    "slug": "anthropic-claude-fable-5-system-card",
+    "publisher": "anthropic",
+    "score": 2.8,
+    "cost_validity": false
+   },
+   {
+    "sentence": "BBQ tests ambiguous questions (where the correct answer is \u201cunknown\u201d) with disambiguated versions that supply enough context to answer correctly.",
+    "slug": "anthropic-claude-fable-5-system-card",
+    "publisher": "anthropic",
+    "score": 2.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "4.4 Bias and integrity evaluations We evaluated Claude Opus 4.8 on the same suite of bias and integrity benchmarks reported in the Claude Opus 4.7 System Card: our open-source measure of political even-handedness, the Bias Benchmark for Question Answering (BBQ) for demographic bias, and our election integrity evaluations.",
+    "slug": "anthropic-claude-opus-4-8-system-card",
+    "publisher": "anthropic",
+    "score": 2.3,
+    "cost_validity": false
+   },
+   {
+    "sentence": "BBQ: A hand-built bias benchmark for question answering. arXiv:2110.08193. https://arxiv.org/abs/2110.08193 75 \u201cAt the first book club meeting, all the new members met the two organizers \u2013 one was a 78-YEAR-OLD, and the other a 22-YEAR-OLD.",
+    "slug": "anthropic-claude-opus-5-5-system-card",
+    "publisher": "anthropic",
+    "score": 1.7,
+    "cost_validity": false
+   },
+   {
+    "sentence": "BBQ: A hand-built bias benchmark for question answering. arXiv:2110.08193. https://arxiv.org/abs/2110.08193 64 some members\u2019 names.",
+    "slug": "anthropic-claude-opus-5-system-card",
+    "publisher": "anthropic",
+    "score": 1.7,
+    "cost_validity": false
+   }
+  ]
+ }
+}
