@@ -23,22 +23,70 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+import numpy as np
 import yaml
 
-from voi_rank.fit import PARAM_NAMES
+from voi_rank.fit import GAUSS_PARAM_NAMES, GAUSS_SPREAD_SCALE, PARAM_NAMES
+from voi_rank.gaussian import METRIC_INPUTS as GAUSS_METRIC_INPUTS
+from voi_rank.sensitivity import repeat_spread
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
-__all__ = ["PARAM_NAMES", "ROOT", "connect"]
+__all__ = ["GAUSS_PARAM_NAMES", "PARAM_NAMES", "ROOT", "connect"]
 
 # columns added after v1; (table -> {column: type}) checked on every connect
 V2_COLUMNS = {
     "scenarios": {"context": "TEXT", "grp": "TEXT", "attributes": "TEXT"},
     "elicitations": {"provider": "TEXT", "model": "TEXT"},
-    "protocols": {"members_json": "TEXT", "scenario_selector": "TEXT"},
+    "protocols": {"members_json": "TEXT", "scenario_selector": "TEXT", "model_kind": "TEXT"},
     "runs": {"data_hash": "TEXT"},
 }
+# protocol model kinds (v2.1): the binary model of spec §2 (parameters
+# PARAM_NAMES, primary metric 'efficiency') and the Gaussian-state family
+# (GAUSS_PARAM_NAMES, primary metric 'eff_step'). A protocol row without a
+# model_kind (registered before the column) is binary.
+BINARY_KIND = "binary"
+GAUSSIAN_KIND = "gaussian"
+MODEL_KINDS = (BINARY_KIND, GAUSSIAN_KIND)
+_PRIMARY_METRIC = {BINARY_KIND: "efficiency", GAUSSIAN_KIND: "eff_step"}
+_EVSI_METRIC = {BINARY_KIND: "EVSI", GAUSSIAN_KIND: "EVSI_step"}
+_PARAM_NAMES = {BINARY_KIND: PARAM_NAMES, GAUSSIAN_KIND: GAUSS_PARAM_NAMES}
+# the stored quantities that enter the primary metric, hence carry a Spearman
+# sensitivity row: every binary parameter; for the Gaussian family all but
+# g_mu0 and g_sigma0, which no action model reads (d and x are in prior-sd
+# units already), so a rho against eff_step would be sampling noise or NULL
+_SENSITIVITY_NAMES = {BINARY_KIND: PARAM_NAMES, GAUSSIAN_KIND: list(GAUSS_METRIC_INPUTS)}
+
+
+def normalize_model_kind(value) -> str:
+    kind = BINARY_KIND if value is None else str(value).strip().lower()
+    if kind not in MODEL_KINDS:
+        raise ValueError(f"unknown protocol model {value!r}; known: {list(MODEL_KINDS)}")
+    return kind
+
+
+def param_names(kind: str) -> list[str]:
+    """The parameter rows a protocol of this model kind stores per elicitation."""
+    return _PARAM_NAMES[normalize_model_kind(kind)]
+
+
+def sensitivity_names(kind: str) -> list[str]:
+    """The parameters a run of this model kind stores sensitivities for: the
+    subset of param_names(kind) that enters its primary metric."""
+    return _SENSITIVITY_NAMES[normalize_model_kind(kind)]
+
+
+def primary_metric(kind: str) -> str:
+    """The stored efficiency metric a run of this kind ranks by."""
+    return _PRIMARY_METRIC[normalize_model_kind(kind)]
+
+
+def evsi_metric(kind: str) -> str:
+    """The stored EVSI metric behind primary_metric (p_positive = P(EVSI > C))."""
+    return _EVSI_METRIC[normalize_model_kind(kind)]
+
+
 # paths whose uncommitted changes make a run's code_hash '-dirty'
 CODE_PATHS = ("voi_rank", "pyproject.toml", "uv.lock")
 LEGACY_PROVIDER = "claude_cli"
@@ -402,6 +450,18 @@ def protocol_selector(row) -> str:
     return row["scenario_selector"] or "all"
 
 
+def protocol_model_kind(row) -> str:
+    """Model kind of a stored protocol row ('binary' for rows registered
+    before the column existed)."""
+    return normalize_model_kind(row["model_kind"])
+
+
+def run_model_kind(con, run) -> str:
+    """Model kind of the protocol a run was made under."""
+    prot = con.execute("SELECT model_kind FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
+    return protocol_model_kind(prot) if prot else BINARY_KIND
+
+
 def manual_hash(scenarios_json: str | Path) -> str:
     """Template hash stored when a manual protocol is registered: the hand
     percentiles of scenarios.json ({title: manual}) at that moment. It is a
@@ -431,10 +491,14 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
     template_path = Path(study_root) / cfg["template_path"]
     members = normalize_members(cfg)
     manual = is_manual_protocol(members)
+    kind = normalize_model_kind(cfg.get("model"))
     if cfg["name"] == MANUAL_PROTOCOL and not manual:
         raise RuntimeError(
             f"protocol {MANUAL_PROTOCOL} is reserved for hand percentiles (model_alias: manual);"
             f" its members {[member_label(m) for m in members]} include a callable provider")
+    if manual and kind != BINARY_KIND:
+        raise RuntimeError(f"protocol {cfg['name']}: hand percentiles are binary-model triples;"
+                           f" model {kind!r} is not supported for a manual protocol")
     if manual:
         template_hash = manual_hash(template_path)
     else:
@@ -446,6 +510,7 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
             ("template_hash", row["template_hash"], row["template_hash"] if manual else template_hash),
             ("members", members_json(protocol_members(row)), members_json(members)),
             ("scenarios", protocol_selector(row), selector),
+            ("model", protocol_model_kind(row), kind),
         ) if got != want]
         if changed:
             raise RuntimeError(
@@ -460,12 +525,12 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
         return row["id"]
     cur = con.execute(
         "INSERT INTO protocols (name, template_path, template_hash, model_alias,"
-        " k_repeats, cli_version, notes, members_json, scenario_selector)"
-        " VALUES (?,?,?,?,?,?,?,?,?)",
+        " k_repeats, cli_version, notes, members_json, scenario_selector, model_kind)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?)",
         (cfg["name"], cfg["template_path"], template_hash,
          ",".join(member_label(m) for m in members),
          sum(m["k_repeats"] for m in members),
-         claude_cli_version(), cfg.get("notes", ""), members_json(members), selector),
+         claude_cli_version(), cfg.get("notes", ""), members_json(members), selector, kind),
     )
     con.commit()
     return cur.lastrowid
@@ -528,13 +593,18 @@ def valid_raw_responses(con, scenario_id: int, protocol_id: int, provider: str,
         (scenario_id, protocol_id, provider, model))]
 
 
-def scenario_param_fits(con, protocol_id: int) -> dict[int, dict[str, list[dict]]]:
+def scenario_param_fits(con, protocol_id: int,
+                        names: list[str] | None = None) -> dict[int, dict[str, list[dict]]]:
     """{scenario_id: {param_name: [fit rows]}} over ALL valid elicitations of
     one protocol, every member and repeat pooled, in (provider, model,
-    repeat_ix, elicitation_id) order. Only names in PARAM_NAMES are returned
-    (stored rows for the retired parameter e are ignored). Each fit row
-    carries elicitation_id, provider, model, family, fit_params (the stored
-    JSON string), params (parsed), p5/p50/p95."""
+    repeat_ix, elicitation_id) order. Only the protocol's parameter names
+    (param_names of its model kind, or `names`) are returned (stored rows
+    for the retired parameter e are ignored). Each fit row carries
+    elicitation_id, provider, model, family, fit_params (the stored JSON
+    string), params (parsed), p5/p50/p95."""
+    if names is None:
+        prot = con.execute("SELECT model_kind FROM protocols WHERE id=?", (protocol_id,)).fetchone()
+        names = param_names(protocol_model_kind(prot) if prot else BINARY_KIND)
     rows = con.execute(
         "SELECT e.scenario_id, e.provider, e.model, e.repeat_ix, e.id AS elicitation_id,"
         " p.name, p.p5, p.p50, p.p95, p.dist_family, p.fit_params"
@@ -543,7 +613,7 @@ def scenario_param_fits(con, protocol_id: int) -> dict[int, dict[str, list[dict]
         " ORDER BY e.scenario_id, e.provider, e.model, e.repeat_ix, e.id", (protocol_id,)).fetchall()
     out: dict[int, dict[str, list[dict]]] = {}
     for r in rows:
-        if r["name"] not in PARAM_NAMES:
+        if r["name"] not in names:
             continue
         out.setdefault(r["scenario_id"], {}).setdefault(r["name"], []).append({
             "elicitation_id": r["elicitation_id"],
@@ -581,6 +651,33 @@ def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,
             taken[(prov, mod)] = taken.get((prov, mod), 0) + 1
             out.append(p50)
     return out
+
+
+def elicited_spread(con, protocol_id: int, scenario_id: int, name: str,
+                    provider: str | None = None, model: str | None = None,
+                    first: int | None = None) -> float | None:
+    """Cross-repeat spread of one stored quantity of one scenario, the one
+    statistic every noise table, figure and macro reports:
+    sensitivity.repeat_spread over elicited_p50s, relative to the quantity's
+    own pooled p50 except for the names in fit.GAUSS_SPREAD_SCALE (d and
+    sigma_b / sigma0 as a plain max - min, mu0 divided by the pooled sigma0,
+    all in prior-sd units). None with fewer than two repeats."""
+    p50s = elicited_p50s(con, protocol_id, scenario_id, name, provider, model, first)
+    if name not in GAUSS_SPREAD_SCALE:
+        return repeat_spread(p50s)
+    by = GAUSS_SPREAD_SCALE[name]
+    if by is None:
+        return repeat_spread(p50s, scale=1.0)
+    ref = elicited_p50s(con, protocol_id, scenario_id, by, provider, model, first)
+    if not ref:
+        return None
+    return repeat_spread(p50s, scale=abs(float(np.median(ref))))
+
+
+def spread_label(name: str) -> str:
+    """Suffix naming the spread statistic of a quantity where it is not the
+    default relative one (tables, health, figures print it after the name)."""
+    return " (max - min, sd units)" if name in GAUSS_SPREAD_SCALE else ""
 
 
 def envelope_cost(raw: str) -> float:

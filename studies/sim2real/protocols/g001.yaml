@@ -1,0 +1,17 @@
+name: g001
+model: gaussian
+template_path: templates/elicitor_gauss.md
+members:
+  - provider: claude_cli
+    model: haiku
+    k_repeats: 5
+notes: >
+  Gaussian-state family (spec v2.1): the elicitor names the continuous state
+  variable behind the binary event (a failure rate, a transfer gap, a score),
+  then answers eight over-determined questions (theta percentiles, threshold
+  and its exceedance probability, three routes to the sensor error, four
+  loss numbers, kappa sigma0, B, K, sigma_b, C). Anchors A1/A2 are the binary
+  anchors re-expressed as Gaussian answers (p = Phi(d) reproduces their p50
+  of p). Background facts block ($context) kept; C = build from scratch and
+  run once, B/K for the deployment decision. Single member, k=5; compared
+  with p001 by compare_models.

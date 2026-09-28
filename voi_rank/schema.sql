@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS protocols (
   id INTEGER PRIMARY KEY, name TEXT, template_path TEXT, template_hash TEXT,
   model_alias TEXT, k_repeats INTEGER, cli_version TEXT, notes TEXT,
   members_json TEXT,                                   -- v2: [{provider, model, k_repeats}]
-  scenario_selector TEXT                               -- v2: 'all' | 'seed' | '1,2,3'
+  scenario_selector TEXT,                              -- v2: 'all' | 'seed' | '1,2,3'
+  model_kind TEXT                                      -- v2.1: 'binary' | 'gaussian' (NULL = binary)
 );
 CREATE TABLE IF NOT EXISTS elicitations (
   id INTEGER PRIMARY KEY, scenario_id INTEGER, protocol_id INTEGER,

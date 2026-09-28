@@ -625,6 +625,12 @@ def test_protocol_noise_first_n_pools_valid_repeats_by_rank(tmp_path, out):
     assert n == 2 and matched["C"] == pytest.approx(float(want)) and matched["C"] > 0
     three, two = [by_repeat[0], by_repeat[2], by_repeat[3]], [by_repeat[0], by_repeat[2]]
     assert repeat_spread(three) != repeat_spread(two)   # the index cap would have pooled two
+    # the scale argument: relative by default, a plain max - min at scale 1, None at scale 0
+    assert repeat_spread([-0.3, 0.0, 0.3]) is None and repeat_spread([-0.3, 0.0, 0.3], scale=1.0) == 0.6
+    assert repeat_spread([-0.05, 0.02, 0.10]) == pytest.approx(7.5)
+    assert repeat_spread([-0.05, 0.02, 0.10], scale=1.0) == pytest.approx(0.15)
+    assert repeat_spread([2.0, 3.0], scale=0.5) == 2.0 and repeat_spread([2.0, 3.0], scale=0.0) is None
+    assert repeat_spread([2.0]) is None and repeat_spread([-4.0, -2.0]) == pytest.approx(2 / 3)
     # the same rule in tables.write_protocol_noise
     assert tables.noise_median(con, pid, "C", first=3, member=five[0]) == pytest.approx(matched["C"])
     con.execute("UPDATE elicitations SET valid=0, error='json: bad' WHERE scenario_id=? AND repeat_ix=4",

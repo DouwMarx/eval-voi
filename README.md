@@ -21,7 +21,8 @@ distributions, and propagated by Monte Carlo. See `spec.md` for the model and
 ```
 voi_rank/                 library: model, fit, mc, sensitivity, db, study, elicit, propose,
                           drop_runs, validate, providers/{claude_cli,openrouter},
-                          analysis/{figures,tables,extra,health}
+                          gaussian, gauss_fit (the Gaussian-state family, see below),
+                          analysis/{figures,tables,extra,health,compare_models}
 tests/
 studies/<name>/           one study = scenarios.json, protocols/, templates/, voi.db, report/
   business/               the original v1 study (68 business scenarios, protocols p000..p004)
@@ -61,8 +62,9 @@ repeat) and slots with a valid response are skipped, so re-running step 5
 only fills what is missing. Before submitting, step 5 checks that every
 selected provider has its credentials (a missing OpenRouter key aborts with
 zero calls made) and prints the plan: pending slots per member and the
-estimated cost (slots times the member's mean stored cost per attempt in
-this study, or `unknown`). Once confirmed, and before `voi.db` is touched, a
+estimated cost (slots times the member's mean stored cost per attempt under
+protocols of the same model kind in this study, or `unknown`; a first `g001`
+batch has no history to quote). Once confirmed, and before `voi.db` is touched, a
 run with a `claude_cli` member checks `claude auth status` (free; a CLI that
 is not logged in aborts with zero calls; the CLI does not verify an
 `ANTHROPIC_API_KEY`, see the timeout rule below) and a run with an
@@ -113,11 +115,13 @@ reports these as `would refresh` / `would be retired` and changes nothing.
 
 ## Protocols and ensembles
 
-A protocol YAML is immutable once registered (template hash and member list
-are checked; change something, make a new file):
+A protocol YAML is immutable once registered (template hash, member list,
+scenario scope and model kind are checked; change something, make a new
+file):
 
 ```yaml
 name: p001
+model: binary                             # optional: binary (default) | gaussian
 template_path: templates/elicitor.md      # relative to the study root
 members:
   - {provider: claude_cli, model: haiku, k_repeats: 5}
@@ -139,6 +143,89 @@ pools every valid (member, repeat) elicitation of a scenario into one
 equal-weight mixture per parameter, so a member with more valid repeats
 carries more weight. `--k N` (N >= 1) overrides every member's `k_repeats`;
 `--members a:b,c:d` restricts a run to those members.
+
+## Gaussian-state family (protocols with `model: gaussian`)
+
+A second framing of the same scenarios, from the chapter sections "The
+linear-Gaussian model", "Action models: one state, one sensor, three
+decisions" and "An elicitation protocol for the Gaussian-state model". The
+state is continuous, `theta ~ N(mu0, sigma0^2)` in the expert's own unit with
+bad-is-high; the instrument reports `y = theta + v`, `v ~ N(0, r)`, so one
+number `x = sqrt(r)/sigma0` replaces `(s, t)` and `R^2 = 1/(1 + x^2)` is the
+fraction of prior variance one measurement removes (a common-mode bias
+`sigma_b` that repeats would not reveal adds `sigma_b^2 (1 - 2/pi)` to `r`).
+A threshold `theta_c` gives `d = (mu0 - theta_c)/sigma0` and `p = Phi(d)`.
+From one elicitation four action models are computed on every MC draw
+(`voi_rank/gaussian.py`, each formula annotated with its chapter equation):
+
+- `quad`: graded response, loss `c |a - theta|^k`: `EVPI = L`,
+  `EVSI = L (1 - (1 - R^2)^(k/2))` (`L R^2` at `k = 2`), with `L = c_k sigma0^k`
+  the minimal expected loss under the prior (the optimal action shifts by a
+  fixed multiple of `sigma0` under asymmetric costs; `gaussian.min_expected_loss`).
+- `kg`: respond or not, payoff linear in `theta - theta_c`:
+  `EVSI = kappa sigtilde Psi(d/R)`, `EVPI = kappa sigma0 Psi(d)`,
+  `Psi(z) = phi(z) - |z| Phi(-|z|)`.
+- `step`: respond or not with the step payoff `B` / `-K`, the agent sees the
+  continuous reading: the chapter's one-dimensional integral, evaluated
+  exactly through the decision-optimal cutoff (the binary closed form at the
+  orthant probabilities of correlation `R`; the 64-node Gauss-Hermite
+  quadrature of the design is kept as `voi_step_gh` for the tests only, it
+  misses up to 1.6% of `B + K` at `R^2 = 0.99` and 4% at `R^2 = 0.999`). The primary ranking metric
+  of a Gaussian run is `eff_step = EVSI_step / C`.
+- `stepfix`: the same decision with a pass/fail report at the fixed mark
+  `theta_c`: `s, t` derived from `(d, R)`, then `voi_rank.model.voi(p, s, t, B, K)`.
+  This is the model that maps one-to-one onto the binary protocol.
+
+The elicitor (`templates/elicitor_gauss.md`, protocol `g001` in every study)
+first names the continuous state variable and its unit, then answers eight
+over-determined questions with reasoning before numbers: the `p5/p50/p95`
+of `theta`; `theta_c` and `P(theta > theta_c)` (must equal `Phi(d)`); three
+routes to `x` (test-retest width `W_rr`, the 90% width after the result
+`W1`, the probability `c` that the result moves the estimate by more than
+half the prior half-width); four loss numbers (under- and over-response by
+one and two `sigma0`, giving the exponent `k` per side and, by minimising
+the expected loss over the action, `L`; `x` pools its routes by the median
+of their logs); `kappa
+sigma0`; `B`, `K`; `sigma_b`; and the `C` triple. The two anchors are the
+binary anchors re-expressed as Gaussian answers (`p = Phi(d)` reproduces
+their `p50` of `p`). `voi_rank/gauss_fit.py` validates the JSON (errors
+`schema:` / `constraint:` / `fit:` as for the binary payload) and stores
+`g_mu0, g_sigma0, g_d, g_x, g_k, g_L, g_kappa_sigma0, g_B, g_K,
+g_sigma_b_rel` as `point` rows (`fit_params {"value": v}`, MC draws them as
+constants, so the mixture over repeats is the empirical distribution of the
+repeat values) and `C` as the usual lognormal; `fit_residual` carries the
+over-determination residual of the questions behind each row (theta
+asymmetry, `d` mismatch, `x` route spread in log units, `k` mismatch) and
+`fit_warning` flags a residual past its threshold (0.25, 0.5 prior sd, 0.5, 1.0) or
+a `c` route too close to the Gaussian bound to resolve `x` (`c > 0.40`; the
+bound is 0.4108). Cross-repeat noise is `(max - min) / pooled p50` per
+quantity except `d`, `sigma_b/sigma0` and `mu0`, which are reported as a
+`max - min` in prior-sd units (`fit.GAUSS_SPREAD_SCALE`), since `d` crosses
+zero exactly where EVSI is largest.
+
+Run order, per study (steps 1, 6 to 9 of the main run order apply unchanged;
+the binary-only analyses of `extra` are skipped with a printed reason):
+
+1. `uv run python -m voi_rank.elicit --study studies/X --protocol g001 --dry-run`
+2. `uv run python -m voi_rank.elicit --study studies/X --protocol g001 --yes`
+3. `uv run python -m voi_rank.mc --study studies/X --protocol g001` (stores
+   `EVSI_<m>`, `EVPI_<m>`, `eff_<m>` for `m` in quad, kg, step, stepfix, plus
+   `R2, d, x, k, p_derived, s_derived, t_derived, C`; `p_positive =
+   P(EVSI_step > C)`; sensitivities against `eff_step` of the quantities
+   that enter the metrics, i.e. all but `g_mu0` and `g_sigma0`; `p_top10`
+   on `eff_step`)
+4. `health`, `figures`, `tables`, `extra` with `--protocol g001`
+5. `uv run python -m voi_rank.analysis.compare_models --study studies/X [--binary p001] [--gaussian g001]`
+   writes `compare_models.tex` (Spearman and Kendall of median efficiency,
+   binary vs each action model and among them, top-10 overlaps, and the
+   gate-agreement confusion table between binary median EVSI = 0 and
+   stepfix median EVSI = 0), `fig_compare_models.pdf` (binary vs stepfix
+   efficiency, log-log, by group), `fig_derived_pst.pdf` (derived vs
+   elicited `p, s, t`), `consistency_gauss.tex` (the residual distributions
+   and their Spearman with the cross-repeat spread of the quantity they
+   check) and `macros_compare.tex` (`\voiGaussRhoQuad`, `\voiGaussRhoKg`,
+   `\voiGaussRhoStep`, `\voiGaussRhoStepfix`, `\voiGaussTopOverlapStepfix`,
+   `\voiGaussRhoP/S/T`, `\voiGaussGateAgree`, `\voiGaussN`).
 
 ## OpenRouter
 

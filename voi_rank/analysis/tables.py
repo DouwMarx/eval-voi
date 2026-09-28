@@ -14,20 +14,44 @@ import numpy as np
 from scipy import stats
 
 from voi_rank import db
-from voi_rank.analysis.figures import add_run_args, c_quantiles, metric_rows, ranked_ids, select_run
-from voi_rank.sensitivity import repeat_spread
+from voi_rank.analysis.figures import (
+    MATH_LABEL,
+    add_run_args,
+    c_quantiles,
+    evsi_metric,
+    metric_rows,
+    primary_metric,
+    ranked_ids,
+    run_kind,
+    run_sensitivity_names,
+    select_run,
+)
 from voi_rank.study import Study, add_study_arg
 
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
                   "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}",
                   "^": r"\textasciicircum{}"}
-PARAM_MACRO = {"p": "P", "s": "S", "t": "T", "B": "B", "K": "K", "C": "C"}
+# macro name suffix per stored parameter (binary and Gaussian names)
+PARAM_MACRO = {"p": "P", "s": "S", "t": "T", "B": "B", "K": "K", "C": "C",
+               "g_mu0": "GMuZero", "g_sigma0": "GSigmaZero", "g_d": "GD", "g_x": "GX",
+               "g_k": "GKexp", "g_L": "GL", "g_kappa_sigma0": "GKappa", "g_B": "GB", "g_K": "GK",
+               "g_sigma_b_rel": "GSigmaB"}
 LEGACY_PARAM = "e"   # v1 parameter, retired in v2; still present in old DB rows
 MEMBER_LETTERS = "ABCDEFGHIJ"
 
 
 def esc(text: str) -> str:
     return "".join(LATEX_SPECIALS.get(ch, ch) for ch in str(text))
+
+
+def tex_param(name: str) -> str:
+    """LaTeX math label of a stored parameter name."""
+    return f"${MATH_LABEL.get(name, esc(name))}$"
+
+
+def protocol_param_names(con, protocol_id: int) -> list[str]:
+    prot = con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone()
+    return db.param_names(db.protocol_model_kind(prot))
 
 
 def money(v: float) -> str:
@@ -49,11 +73,44 @@ def pooled_p50(con, protocol_id: int, sid: int, name: str) -> float | None:
     return float(np.median(p50s)) if p50s else None
 
 
+def write_gauss_catalog(con, run, out: Path):
+    """Gaussian run: pooled medians of the derived quantities d, x, k, L,
+    kappa sigma0, B, K (median of the repeat values) and the run's mixture
+    median for C."""
+    order = ranked_ids(con, run["id"])
+    cols = ["g_d", "g_x", "g_k", "g_L", "g_kappa_sigma0", "g_B", "g_K"]
+    head = " & ".join(tex_param(n) for n in cols)
+    lines = [
+        r"\begin{longtable}{@{}rp{4.6cm}rrrrrrrr@{}}",
+        r"\caption{Scenario catalog (Gaussian-state protocol). $d$, $x$, $k$, $L$,"
+        r" $\kappa\sigma_0$, $B$, $K$: pooled medians of the derived quantities across valid"
+        r" elicitations; $C$: the run's mixture median. $L$, $\kappa\sigma_0$, $B$, $K$, $C$"
+        r" in USD.}\label{tab:catalog}\\",
+        r"\toprule",
+        f"id & scenario & {head} & $C$\\\\",
+        r"\midrule\endfirsthead",
+        f"\\toprule id & scenario & {head} & $C$\\\\" r"\midrule\endhead",
+        r"\bottomrule\endfoot",
+    ]
+    ttl = {r["id"]: r["title"] for r in con.execute("SELECT id, title FROM scenarios")}
+    for sid in order:
+        vals = {n: pooled_p50(con, run["protocol_id"], sid, n) for n in cols}
+        cells = [num(vals["g_d"], "{:.2f}"), num(vals["g_x"], "{:.2f}"), num(vals["g_k"], "{:.1f}"),
+                 money(vals["g_L"]), money(vals["g_kappa_sigma0"]), money(vals["g_B"]),
+                 money(vals["g_K"]), money(c_quantiles(con, run, sid)[1])]
+        lines.append(f"{sid} & {esc(ttl[sid][:60])} & " + " & ".join(cells) + r"\\")
+    lines.append(r"\end{longtable}")
+    (out / "catalog.tex").write_text("\n".join(lines) + "\n")
+
+
 def write_catalog(con, run, out: Path):
     """Scenario catalog: pooled elicited medians for p, s, t, B, K under the
     run's protocol, and the run's mixture median for C (the quantity the
     efficiency column divides by; for a pre-v2 run without a stored C row
-    c_quantiles falls back to the pooled elicited median)."""
+    c_quantiles falls back to the pooled elicited median). A Gaussian run
+    gets the derived-quantity catalog instead."""
+    if run_kind(con, run["id"]) == db.GAUSSIAN_KIND:
+        return write_gauss_catalog(con, run, out)
     order = ranked_ids(con, run["id"])
     lines = [
         r"\begin{longtable}{@{}rp{6.2cm}rrrrrr@{}}",
@@ -81,22 +138,25 @@ def write_catalog(con, run, out: Path):
 
 
 def top_param(con, run_id: int, sid: int) -> str:
+    names = run_sensitivity_names(con, run_id)
     rows = [r for r in con.execute(
         "SELECT param, spearman FROM sensitivities WHERE run_id=? AND scenario_id=?"
-        " AND spearman IS NOT NULL", (run_id, sid)) if r["param"] in db.PARAM_NAMES]
+        " AND spearman IS NOT NULL", (run_id, sid)) if r["param"] in names]
     if not rows:
         return "--"
     best = max(rows, key=lambda r: abs(r["spearman"]))
-    return f"${esc(best['param'])}$"
+    return tex_param(best["param"])
 
 
 def write_ranking(con, run, out: Path, top_n: int = 25):
-    eff = metric_rows(con, run["id"], "efficiency")
+    metric, evsi_name = primary_metric(con, run["id"]), evsi_metric(con, run["id"])
+    eff = metric_rows(con, run["id"], metric)
     order = ranked_ids(con, run["id"])[:top_n]
     ttl = {r["id"]: r["title"] for r in con.execute("SELECT id, title FROM scenarios")}
     lines = [
         r"\begin{longtable}{@{}rrp{6.0cm}rrrrl@{}}",
-        r"\caption{Final ranking by median efficiency (EVSI/C). $P_+$ = P(EVSI $>$ C)"
+        f"\\caption{{Final ranking by median {esc(metric)} ({esc(evsi_name)}/C). $P_+$ ="
+        f" P({esc(evsi_name)} $>$ C)"
         r" across draws; last column = parameter with largest $|\rho|$ vs"
         r" efficiency.}\label{tab:ranking}\\",
         r"\toprule",
@@ -122,7 +182,8 @@ def write_ranking(con, run, out: Path, top_n: int = 25):
 def noise_median(con, protocol_id: int, name: str, first: int | None = None,
                  member: dict | None = None) -> float | None:
     """Median over scenarios of the cross-elicitation p50 spread of one
-    parameter. first truncates to the first `first` valid repeats of each
+    parameter (db.elicited_spread: relative, or max - min in sd units for the
+    signed Gaussian quantities). first truncates to the first `first` valid repeats of each
     member (a count in repeat_ix order, so an invalid middle repeat does not
     shrink the pool; range statistics grow with the count, so cross-protocol
     comparisons need matched k); member restricts to one (provider, model)."""
@@ -131,10 +192,9 @@ def noise_median(con, protocol_id: int, name: str, first: int | None = None,
         (protocol_id,))]
     spreads = []
     for sid in sids:
-        p50s = db.elicited_p50s(con, protocol_id, sid, name,
+        sp = db.elicited_spread(con, protocol_id, sid, name,
                                 provider=member["provider"] if member else None,
                                 model=member["model"] if member else None, first=first)
-        sp = repeat_spread(p50s)
         if sp is not None:
             spreads.append(sp)
     return float(np.median(spreads)) if spreads else None
@@ -142,7 +202,8 @@ def noise_median(con, protocol_id: int, name: str, first: int | None = None,
 
 def noise_medians(con, protocol_id: int, first: int | None = None,
                   member: dict | None = None) -> dict:
-    return {n: noise_median(con, protocol_id, n, first, member) for n in db.PARAM_NAMES}
+    return {n: noise_median(con, protocol_id, n, first, member)
+            for n in protocol_param_names(con, protocol_id)}
 
 
 def global_sensitivity_param(con, run_id: int, name: str) -> float | None:
@@ -158,7 +219,9 @@ def global_sensitivity_param(con, run_id: int, name: str) -> float | None:
 
 
 def global_sensitivity(con, run_id: int) -> dict[str, float | None]:
-    return {n: global_sensitivity_param(con, run_id, n) for n in db.PARAM_NAMES}
+    """Over the parameters the run stores sensitivities for (a Gaussian run
+    emits no voiGlobalGMuZero / voiGlobalGSigmaZero macro: those enter no metric)."""
+    return {n: global_sensitivity_param(con, run_id, n) for n in run_sensitivity_names(con, run_id)}
 
 
 def member_stats(con, protocol_id: int, member: dict) -> dict:
@@ -180,11 +243,14 @@ def elicitation_cost(con, protocol_id: int) -> float:
 
 
 def rank_corr_between_runs(con, run_a: int, run_b: int) -> tuple[float, int] | None:
+    """Spearman of median efficiency over shared scenarios, each run on its
+    own primary metric ('efficiency' or 'eff_step'), so a binary and a
+    Gaussian run compare on their own rankings."""
     med = {}
     for rid in (run_a, run_b):
         med[rid] = {r["scenario_id"]: r["q50"] for r in con.execute(
-            "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric='efficiency'",
-            (rid,))}
+            "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric=?",
+            (rid, primary_metric(con, rid)))}
     shared = sorted(set(med[run_a]) & set(med[run_b]))
     if len(shared) < 3:
         return None
@@ -242,12 +308,15 @@ def full_sweep_runs(con, min_scenarios: int = 60) -> dict[str, int]:
 MATCHED_K = 3   # repeats per member the cross-protocol noise table is truncated to
 
 
-def repeated_members(con) -> list[tuple[str, dict]]:
+def repeated_members(con, kind: str = db.BINARY_KIND) -> list[tuple[str, dict]]:
     """(protocol name, member) for every member with at least two valid
-    repeats of some scenario, in protocol then member order: the columns of
-    the protocol noise table."""
+    repeats of some scenario, in protocol then member order, over the
+    protocols of one model kind (their parameter rows are the table's rows):
+    the columns of the protocol noise table."""
     out = []
     for p in con.execute("SELECT * FROM protocols ORDER BY id"):
+        if db.protocol_model_kind(p) != kind:
+            continue
         repeated = {(r[0], r[1]) for r in con.execute(
             "SELECT provider, model, COUNT(DISTINCT repeat_ix) AS k FROM elicitations"
             " WHERE protocol_id=? AND valid=1 GROUP BY provider, model HAVING k > 1", (p["id"],))}
@@ -256,11 +325,12 @@ def repeated_members(con) -> list[tuple[str, dict]]:
     return out
 
 
-def write_protocol_noise(con, out: Path):
+def write_protocol_noise(con, out: Path, kind: str = db.BINARY_KIND):
     """Median cross-repeat p50 spread per parameter, one column per (protocol,
-    member) with repeats, each truncated to its first MATCHED_K valid repeats
-    so every column pools the same count (range statistics grow with it)."""
-    cols = repeated_members(con)
+    member) with repeats among the protocols of the run's model kind, each
+    truncated to its first MATCHED_K valid repeats so every column pools the
+    same count (range statistics grow with it)."""
+    cols = repeated_members(con, kind)
     if not cols:
         (out / "protocol_noise.tex").write_text("% no multi-repeat protocols yet\n")
         return
@@ -271,9 +341,10 @@ def write_protocol_noise(con, out: Path):
              "member & " + " & ".join(esc(db.member_label(m)) for _, m in cols) + r"\\",
              r"\midrule"]
     per_col = [noise_medians(con, prots[name], first=MATCHED_K, member=m) for name, m in cols]
-    for name in db.PARAM_NAMES:
+    for name in db.param_names(kind):
         cells = [num(col[name], "{:.2f}") for col in per_col]
-        lines.append(f"${esc(name)}$ & " + " & ".join(cells) + r"\\")
+        label = tex_param(name) + esc(db.spread_label(name)).replace(" - ", " $-$ ")
+        lines.append(f"{label} & " + " & ".join(cells) + r"\\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     (out / "protocol_noise.tex").write_text("\n".join(lines) + "\n")
 
@@ -344,8 +415,10 @@ def write_macros(con, run, out: Path):
     att = con.execute(
         "SELECT COUNT(*), SUM(valid) FROM elicitations WHERE protocol_id=?",
         (run["protocol_id"],)).fetchone()
-    eff = metric_rows(con, run["id"], "efficiency")
-    evsi = metric_rows(con, run["id"], "EVSI")
+    kind = run_kind(con, run["id"])
+    names = db.param_names(kind)
+    eff = metric_rows(con, run["id"], db.primary_metric(kind))
+    evsi = metric_rows(con, run["id"], db.evsi_metric(kind))
     order = ranked_ids(con, run["id"])
     top = order[0]
     ttl = {r["id"]: r["title"] for r in con.execute("SELECT id, title FROM scenarios")}
@@ -354,10 +427,11 @@ def write_macros(con, run, out: Path):
     fit_warn = con.execute(
         "SELECT COUNT(*) FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
         " WHERE e.protocol_id=? AND p.fit_warning=1 AND p.name IN"
-        f" ({','.join('?' * len(db.PARAM_NAMES))})",
-        (run["protocol_id"], *db.PARAM_NAMES)).fetchone()[0]
+        f" ({','.join('?' * len(names))})",
+        (run["protocol_id"], *names)).fetchone()[0]
     macros = {
         "voiRunId": run["id"],
+        "voiModelKind": esc(kind),
         "voiSeed": run["seed"],
         "voiNDraws": f"{run['n_draws']:,}".replace(",", r"\,"),
         "voiCodeHash": esc(short_code_hash(run["code_hash"])),
@@ -396,9 +470,8 @@ def write_macros(con, run, out: Path):
     gs = global_sensitivity(con, run["id"])
     for name, val in gs.items():
         macros[f"voiGlobal{PARAM_MACRO[name]}"] = num(val, "{:.2f}")
-    ranked_params = sorted((n for n in db.PARAM_NAMES if gs[n] is not None),
-                           key=lambda n: -gs[n])
-    macros["voiGlobalTopParams"] = ", ".join(f"${esc(n)}$" for n in ranked_params[:3])
+    ranked_params = sorted((n for n in gs if gs[n] is not None), key=lambda n: -gs[n])
+    macros["voiGlobalTopParams"] = ", ".join(tex_param(n) for n in ranked_params[:3])
     macros.update(legacy_e_macros(con, run))
     manual_run = con.execute(
         "SELECT r.id FROM runs r JOIN protocols p ON p.id=r.protocol_id"
@@ -430,7 +503,7 @@ def make_all(con, run, out: Path):
     write_ranking(con, run, out)
     write_macros(con, run, out)
     write_protocol_compare(con, out)
-    write_protocol_noise(con, out)
+    write_protocol_noise(con, out, run_kind(con, run["id"]))
 
 
 def main(argv=None):

@@ -16,7 +16,6 @@ import numpy as np
 from scipy import stats
 
 from voi_rank import db
-from voi_rank.sensitivity import repeat_spread
 from voi_rank.study import Study, add_study_arg
 
 EVSI_ZERO_USD = 1e-6  # "median EVSI ~ 0" threshold, in USD
@@ -28,20 +27,26 @@ def error_class(error: str | None) -> str:
     return error.split(":", 1)[0]  # provider | cli | http | api | json | schema | constraint | fit
 
 
+def protocol_names(con, protocol_id: int) -> list[str]:
+    """The parameter rows a protocol stores (its model kind's names)."""
+    prot = con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone()
+    return db.param_names(db.protocol_model_kind(prot))
+
+
 def noise_table(con, protocol_id: int, member: dict | None = None) -> dict[str, tuple]:
     """{param: (median spread, n scenarios)} over valid elicitations, all
-    members pooled or one member."""
+    members pooled or one member; the spread is db.elicited_spread (relative,
+    or max - min in sd units for the signed Gaussian quantities)."""
     sids = [r[0] for r in con.execute(
         "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
         (protocol_id,))]
     out = {}
-    for name in db.PARAM_NAMES:
+    for name in protocol_names(con, protocol_id):
         spreads = []
         for sid in sids:
-            p50s = db.elicited_p50s(con, protocol_id, sid, name,
+            sp = db.elicited_spread(con, protocol_id, sid, name,
                                     provider=member["provider"] if member else None,
                                     model=member["model"] if member else None)
-            sp = repeat_spread(p50s)
             if sp is not None:
                 spreads.append(sp)
         out[name] = (float(np.median(spreads)) if spreads else float("nan"), len(spreads))
@@ -64,7 +69,7 @@ def cross_member_agreement(con, protocol_id: int, members: list[dict]) -> list[t
     """Spearman of per-scenario pooled p50 between every member pair, per
     parameter, over shared scenarios. Returns (param, a, b, rho, n) rows."""
     rows = []
-    for name in db.PARAM_NAMES:
+    for name in protocol_names(con, protocol_id):
         pooled = {db.member_label(m): member_pooled_p50(con, protocol_id, m, name)
                   for m in members}
         labels = list(pooled)
@@ -121,9 +126,9 @@ def health(con, protocol_name: str):
               f"{valid} valid ({rate}), ${cost:.2f}")
 
     # cross-elicitation spread of p50 per parameter (median over scenarios)
-    print("\ncross-elicitation p50 spread ((max-min)/pooled p50), median over scenarios:")
+    print("\ncross-elicitation p50 spread ((max-min)/pooled p50 unless marked), median over scenarios:")
     for name, (med, cnt) in noise_table(con, prot["id"]).items():
-        print(f"  {name}: {med:.3f}  (n={cnt} scenarios)")
+        print(f"  {name}{db.spread_label(name)}: {med:.3f}  (n={cnt} scenarios)")
     if len(members) > 1:
         print("\nper-member cross-repeat p50 spread (median over scenarios):")
         for m in members:
@@ -134,21 +139,23 @@ def health(con, protocol_name: str):
         for name, a, b, rho, cnt in cross_member_agreement(con, prot["id"], members):
             print(f"  {name}: {a} vs {b}: rho={rho:.3f} (n={cnt})")
 
-    # fit warnings
+    # fit warnings (for a Gaussian protocol: over-determination residuals past their thresholds)
+    names = protocol_names(con, prot["id"])
     fw = con.execute(
         "SELECT COUNT(*) FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
         " WHERE e.protocol_id=? AND p.fit_warning=1 AND p.name IN"
-        f" ({','.join('?' * len(db.PARAM_NAMES))})", (prot["id"], *db.PARAM_NAMES)).fetchone()[0]
+        f" ({','.join('?' * len(names))})", (prot["id"], *names)).fetchone()[0]
     print(f"\nfit warnings: {fw}")
 
     # fraction of scenarios with median EVSI ~ 0, from the latest run
     try:
         run = db.latest_run(con, protocol_name)
+        evsi_name = db.evsi_metric(db.protocol_model_kind(prot))
         evsi = con.execute(
-            "SELECT q50 FROM results WHERE run_id=? AND metric='EVSI'",
-            (run["id"],)).fetchall()
+            "SELECT q50 FROM results WHERE run_id=? AND metric=?",
+            (run["id"], evsi_name)).fetchall()
         zero = sum(1 for r in evsi if r["q50"] is not None and r["q50"] < EVSI_ZERO_USD)
-        print(f"scenarios with median EVSI ~ 0 (run {run['id']}): {zero}/{len(evsi)}")
+        print(f"scenarios with median {evsi_name} ~ 0 (run {run['id']}): {zero}/{len(evsi)}")
     except RuntimeError:
         print("no MC run yet under this protocol")
 
@@ -171,9 +178,10 @@ def compare(con, protocol_a: str, protocol_b: str):
     med = {}
     for name in (protocol_a, protocol_b):
         run = db.latest_run(con, name)
+        metric = db.primary_metric(db.run_model_kind(con, run))   # each run's own efficiency
         med[name] = {r["scenario_id"]: r["q50"] for r in con.execute(
-            "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric='efficiency'",
-            (run["id"],))}
+            "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric=?",
+            (run["id"], metric))}
     shared = sorted(set(med[protocol_a]) & set(med[protocol_b]))
     if len(shared) < 3:
         print(f"compare: only {len(shared)} shared scenarios, skipping")

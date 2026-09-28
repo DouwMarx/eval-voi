@@ -33,14 +33,17 @@ def rank_stability(eff: np.ndarray, top: int = 10) -> np.ndarray:
     return counts / n_draws
 
 
-def repeat_spread(p50s) -> float | None:
-    """Cross-repeat noise for one parameter of one scenario:
-    (max - min) of p50 across repeats, relative to the pooled p50 (median of
-    the repeat p50s). None when fewer than 2 repeats or pooled p50 == 0."""
+def repeat_spread(p50s, scale: float | None = None) -> float | None:
+    """Cross-repeat noise for one parameter of one scenario: (max - min) of
+    p50 across repeats divided by `scale`, by default the absolute pooled p50
+    (median of the repeat p50s), so a relative spread; scale = 1.0 gives the
+    plain max - min for a signed or zero-able quantity (fit.GAUSS_SPREAD_SCALE
+    names them). None when fewer than 2 repeats or the scale is 0."""
     arr = np.asarray(list(p50s), dtype=float)
     if arr.size < 2:
         return None
-    pooled = float(np.median(arr))
-    if pooled == 0.0:
+    if scale is None:
+        scale = abs(float(np.median(arr)))
+    if scale == 0.0:
         return None
-    return float((arr.max() - arr.min()) / abs(pooled))
+    return float((arr.max() - arr.min()) / scale)

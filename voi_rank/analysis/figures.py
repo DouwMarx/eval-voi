@@ -18,8 +18,7 @@ import numpy as np  # noqa: E402
 from scipy.stats import gaussian_kde  # noqa: E402
 
 from voi_rank import db, mc  # noqa: E402
-from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
-from voi_rank.sensitivity import repeat_spread  # noqa: E402
+from voi_rank.fit import FAMILY_BY_PARAM, GAUSS_LOG_PARAMS, GAUSS_USD_PARAMS  # noqa: E402
 from voi_rank.study import Study, add_study_arg  # noqa: E402
 
 ACCENT = "#0072B2"          # single hue for single-series marks
@@ -57,9 +56,56 @@ def titles(con) -> dict[int, str]:
     return {r["id"]: r["title"] for r in con.execute("SELECT id, title FROM scenarios")}
 
 
+def run_kind(con, run_id: int) -> str:
+    """Model kind of the protocol behind a run: 'binary' or 'gaussian'."""
+    return db.run_model_kind(con, db.get_run(con, run_id))
+
+
+def run_param_names(con, run_id: int) -> list[str]:
+    """The parameter rows the run's protocol stores (db.param_names of its kind)."""
+    return db.param_names(run_kind(con, run_id))
+
+
+def run_sensitivity_names(con, run_id: int) -> list[str]:
+    """The parameters the run stores sensitivities for (db.sensitivity_names of
+    its kind: the ones that enter its primary metric)."""
+    return db.sensitivity_names(run_kind(con, run_id))
+
+
+def primary_metric(con, run_id: int) -> str:
+    """The run's ranking metric: 'efficiency' (binary) or 'eff_step' (gaussian)."""
+    return db.primary_metric(run_kind(con, run_id))
+
+
+def evsi_metric(con, run_id: int) -> str:
+    return db.evsi_metric(run_kind(con, run_id))
+
+
+def log_scale(name: str) -> bool:
+    """Parameters plotted on a log axis: USD amounts and the positive
+    Gaussian scales (sigma0, x)."""
+    return FAMILY_BY_PARAM.get(name) == "lognormal" or name in GAUSS_LOG_PARAMS
+
+
+def usd_param(name: str) -> bool:
+    return FAMILY_BY_PARAM.get(name) == "lognormal" or name in GAUSS_USD_PARAMS
+
+
+# mathtext labels of the stored parameter names (the binary names are their own)
+MATH_LABEL = {
+    "g_mu0": r"\mu_0", "g_sigma0": r"\sigma_0", "g_d": "d", "g_x": "x", "g_k": "k", "g_L": "L",
+    "g_kappa_sigma0": r"\kappa\sigma_0", "g_B": "B", "g_K": "K", "g_sigma_b_rel": r"\sigma_b/\sigma_0",
+}
+
+
+def esc_math(name: str) -> str:
+    return MATH_LABEL.get(name, name)
+
+
 def ranked_ids(con, run_id: int) -> list[int]:
-    """Scenario ids ordered by median efficiency (desc), tie-break p_positive."""
-    eff = metric_rows(con, run_id, "efficiency")
+    """Scenario ids ordered by the run's median primary efficiency (desc),
+    tie-break p_positive."""
+    eff = metric_rows(con, run_id, primary_metric(con, run_id))
     return sorted(eff, key=lambda s: (-(eff[s]["q50"] or 0.0),
                                       -(eff[s]["p_positive"] or 0.0), s))
 
@@ -118,7 +164,8 @@ def select_run(con, run_id: int | None, protocol: str):
 # --- figures ----------------------------------------------------------------
 
 def fig_ranking(con, run_id, out: Path):
-    eff = metric_rows(con, run_id, "efficiency")
+    metric = primary_metric(con, run_id)
+    eff = metric_rows(con, run_id, metric)
     order = ranked_ids(con, run_id)[:25]
     ttl = titles(con)
     fig, ax = plt.subplots(figsize=(6.2, 0.26 * len(order) + 1.0))
@@ -138,8 +185,8 @@ def fig_ranking(con, run_id, out: Path):
     ax.set_yticks(range(len(order)))
     ax.set_yticklabels([f"{sid} · {ttl[sid][:52]}" for sid in reversed(order)], fontsize=7)
     ax.set_xscale("log")
-    ax.set_xlabel("efficiency = EVSI / C (log scale)")
-    ax.set_title("Ranking by median efficiency")
+    ax.set_xlabel(f"{metric} = {evsi_metric(con, run_id)} / C (log scale)")
+    ax.set_title(f"Ranking by median {metric}")
     ax.grid(axis="y", visible=False)
     fig.savefig(out / "fig_ranking.pdf")
     plt.close(fig)
@@ -152,7 +199,8 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
     diagonals agree with the ranking table), log-log, with thin q05-q95 EVSI
     bars, points coloured by scenario group when the study has groups,
     iso-efficiency diagonals and the top 10 labelled by id."""
-    evsi = metric_rows(con, run_id, "EVSI")
+    evsi_name = evsi_metric(con, run_id)
+    evsi = metric_rows(con, run_id, evsi_name)
     order = ranked_ids(con, run_id)
     run = db.get_run(con, run_id)
     groups = scenario_groups(con)
@@ -213,8 +261,8 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
         ax.legend(fontsize=6.5, loc="lower right", frameon=False, title="group",
                   title_fontsize=6.5)
     ax.set_xlabel("median C (run mixture, USD)")
-    ax.set_ylabel("median EVSI (USD per measurement)")
-    ax.set_title("Median EVSI vs median cost (bars: q05–q95 EVSI; top 10 labelled by id)")
+    ax.set_ylabel(f"median {evsi_name} (USD per measurement)")
+    ax.set_title(f"Median {evsi_name} vs median cost (bars: q05–q95; top 10 labelled by id)")
     fig.savefig(out / "fig_evsi_vs_cost.pdf")
     plt.close(fig)
     return True
@@ -227,6 +275,7 @@ def fig_param_medians(con, run_id, out: Path):
     members, with a marginal histogram on the right. Reveals round-number
     clustering and cross-model disagreement. USD panels on a log axis."""
     run = db.get_run(con, run_id)
+    names = run_param_names(con, run_id)
     order = ranked_ids(con, run_id)
     rank_of = {sid: i + 1 for i, sid in enumerate(order)}
     members = [db.member_label(m) for m in run_members(con, run)]
@@ -234,32 +283,41 @@ def fig_param_medians(con, run_id, out: Path):
         "SELECT e.scenario_id, e.provider || ':' || e.model AS member, p.name, p.p50"
         " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
         " WHERE e.protocol_id=? AND e.valid=1", (run["protocol_id"],)).fetchall()
-    data: dict[str, dict[str, list]] = {n: {} for n in db.PARAM_NAMES}
+    data: dict[str, dict[str, list]] = {n: {} for n in names}
     for r in rows:
         if r["name"] in data and r["scenario_id"] in rank_of:
             data[r["name"]].setdefault(r["member"], []).append((rank_of[r["scenario_id"]], r["p50"]))
-    present = [m for m in members if any(m in data[n] for n in db.PARAM_NAMES)]
-    present += sorted({m for n in db.PARAM_NAMES for m in data[n]} - set(present))
+    present = [m for m in members if any(m in data[n] for n in names)]
+    present += sorted({m for n in names for m in data[n]} - set(present))
     multi = len(present) > 1
     colors = group_colors(present) if multi else {m: ACCENT for m in present}
     rng = np.random.default_rng(0)
 
-    fig = plt.figure(figsize=(6.2, 6.8))
-    gs = fig.add_gridspec(3, 4, width_ratios=[4, 1.1, 4, 1.1])
-    for i, name in enumerate(db.PARAM_NAMES):
+    n_rows = (len(names) + 1) // 2
+    fig = plt.figure(figsize=(6.2, 2.0 * n_rows + 0.8))
+    gs = fig.add_gridspec(n_rows, 4, width_ratios=[4, 1.1, 4, 1.1])
+    for i, name in enumerate(names):
         r, c = divmod(i, 2)
         ax = fig.add_subplot(gs[r, 2 * c])
         axh = fig.add_subplot(gs[r, 2 * c + 1], sharey=ax)
-        usd = FAMILY_BY_PARAM[name] == "lognormal"
+        usd = log_scale(name)
+        prob = FAMILY_BY_PARAM.get(name) == "beta"
         allv = np.array([v for m in present for _, v in data[name].get(m, [])], dtype=float)
-        if allv.size == 0:
-            ax.set_title(f"${name}$ (no data)")
+        if allv.size == 0 or (usd and allv.min() <= 0.0):
+            ax.set_title(f"${esc_math(name)}$ (no data)")
             continue
         if usd:
             ax.set_yscale("log")
             bins = np.logspace(np.log10(allv.min()) - 0.05, np.log10(allv.max()) + 0.05, 28)
-        else:
+        elif prob:
             bins = np.linspace(0.0, 1.0, 26)
+        else:
+            # a data-driven linear range; near-constant values (repeats that agree) get a
+            # pad of 5% of their magnitude so the axis never falls back to offset notation
+            pad = 0.05 * max(allv.max() - allv.min(), 0.1 * float(np.abs(allv).max()), 1e-3)
+            bins = np.linspace(allv.min() - pad, allv.max() + pad, 26)
+            ax.set_ylim(bins[0], bins[-1])
+            ax.ticklabel_format(axis="y", useOffset=False)
         for m in present:
             pts = data[name].get(m, [])
             if not pts:
@@ -270,11 +328,11 @@ def fig_param_medians(con, run_id, out: Path):
                     label=m if i == 0 else None)
             axh.hist(yv, bins=bins, orientation="horizontal", color=colors[m],
                      alpha=0.45 if multi else 0.8, histtype="stepfilled", lw=0)
-        ax.set_title(f"${name}$" + (" (USD)" if usd else ""), fontsize=9)
+        ax.set_title(f"${esc_math(name)}$" + (" (USD)" if usd_param(name) else ""), fontsize=9)
         ax.set_xlim(0.5, len(order) + 0.5)
-        if not usd:
+        if prob:
             ax.set_ylim(-0.02, 1.02)
-        if r == 2:
+        if r == n_rows - 1:
             ax.set_xlabel("efficiency rank (best = 1)")
         ax.tick_params(labelsize=7)
         axh.tick_params(labelleft=False, labelbottom=False, length=0)
@@ -312,11 +370,14 @@ def fig_by_level(con, run_id, out: Path):
     grp_names = sorted({groups[s] or "(no group)" for s in order})
     colors = group_colors(grp_names)
     offsets = np.linspace(-0.18, 0.18, len(grp_names)) if len(grp_names) > 1 else [0.0]
-    evsi = metric_rows(con, run_id, "EVSI")
-    eff = metric_rows(con, run_id, "efficiency")
+    evsi_name, eff_name = evsi_metric(con, run_id), primary_metric(con, run_id)
+    evsi = metric_rows(con, run_id, evsi_name)
+    eff = metric_rows(con, run_id, eff_name)
     panels = [
-        ("median EVSI (USD)", lambda s: (evsi[s]["q05"], evsi[s]["q50"], evsi[s]["q95"]), EVSI_FLOOR),
-        ("efficiency = EVSI / C", lambda s: (eff[s]["q05"], eff[s]["q50"], eff[s]["q95"]), EFF_FLOOR),
+        (f"median {evsi_name} (USD)", lambda s: (evsi[s]["q05"], evsi[s]["q50"], evsi[s]["q95"]),
+         EVSI_FLOOR),
+        (f"{eff_name} = {evsi_name} / C", lambda s: (eff[s]["q05"], eff[s]["q50"], eff[s]["q95"]),
+         EFF_FLOOR),
         ("cost C (USD)", lambda s: c_quantiles(con, run, s), 1.0),
     ]
     fig, axes = plt.subplots(1, 3, figsize=(6.2, 2.7))
@@ -347,17 +408,17 @@ def fig_by_level(con, run_id, out: Path):
 
 def fig_sensitivity_heatmap(con, run_id, out: Path):
     order = ranked_ids(con, run_id)
-    mat = np.full((len(db.PARAM_NAMES), len(order)), np.nan)
+    names = run_sensitivity_names(con, run_id)
+    mat = np.full((len(names), len(order)), np.nan)
     for r in con.execute("SELECT * FROM sensitivities WHERE run_id=?", (run_id,)):
-        if r["spearman"] is not None and r["scenario_id"] in order and r["param"] in db.PARAM_NAMES:
-            mat[db.PARAM_NAMES.index(r["param"]), order.index(r["scenario_id"])] = \
-                abs(r["spearman"])
+        if r["spearman"] is not None and r["scenario_id"] in order and r["param"] in names:
+            mat[names.index(r["param"]), order.index(r["scenario_id"])] = abs(r["spearman"])
     vmax = max(0.3, float(np.ceil(np.nanmax(mat) * 10) / 10)) if np.isfinite(mat).any() else 1.0
-    fig, ax = plt.subplots(figsize=(6.2, 2.6))
+    fig, ax = plt.subplots(figsize=(6.2, 0.3 * len(names) + 0.9))
     im = ax.imshow(mat, aspect="auto", cmap="Blues", vmin=0, vmax=vmax,
                    interpolation="nearest")
-    ax.set_yticks(range(len(db.PARAM_NAMES)))
-    ax.set_yticklabels(db.PARAM_NAMES)
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels([f"${esc_math(n)}$" for n in names])
     step = max(1, len(order) // 30)
     ax.set_xticks(range(0, len(order), step))
     ax.set_xticklabels([order[i] for i in range(0, len(order), step)], fontsize=5,
@@ -372,7 +433,10 @@ def fig_sensitivity_heatmap(con, run_id, out: Path):
 
 
 def fig_headroom(con, run_id, out: Path):
+    """Binary runs only: a Gaussian run stores no headroom metric (skipped)."""
     head = metric_rows(con, run_id, "headroom")
+    if not head:
+        return False
     order = ranked_ids(con, run_id)
     ys = [head[s]["q50"] if s in head and head[s]["q50"] is not None else np.nan
           for s in order]
@@ -409,25 +473,29 @@ def fig_rank_stability(con, run_id, out: Path):
 
 def fig_elicitation_noise(con, run_id, out: Path):
     run = db.get_run(con, run_id)
-    spreads = {name: [] for name in db.PARAM_NAMES}
+    names = run_param_names(con, run_id)
+    spreads = {name: [] for name in names}
     sids = [r[0] for r in con.execute(
         "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
         (run["protocol_id"],))]
-    for name in db.PARAM_NAMES:
+    for name in names:
         for sid in sids:
-            sp = repeat_spread(db.elicited_p50s(con, run["protocol_id"], sid, name))
+            sp = db.elicited_spread(con, run["protocol_id"], sid, name)
             if sp is not None:
                 spreads[name].append(sp)
     fig, ax = plt.subplots(figsize=(6.2, 3.4))
-    data = [spreads[n] for n in db.PARAM_NAMES]
+    data = [spreads[n] for n in names]
+    sd_units = [n for n in names if db.spread_label(n)]
     if any(len(d) for d in data):
-        ax.boxplot(data, tick_labels=db.PARAM_NAMES, showfliers=True,
+        ticks = [f"${esc_math(n)}$" + ("*" if n in sd_units else "") for n in names]
+        ax.boxplot(data, tick_labels=ticks, showfliers=True,
                    flierprops={"marker": ".", "ms": 3, "mec": INTERVAL},
                    medianprops={"color": ACCENT, "lw": 1.5},
                    boxprops={"color": "#555555"},
                    whiskerprops={"color": "#555555"},
                    capprops={"color": "#555555"})
-        ax.set_ylabel("(max − min) / pooled p50 across elicitations")
+        ax.set_ylabel("(max − min) / pooled p50 across elicitations"
+                      + ("\n* max − min in prior-sd units" if sd_units else ""))
         ax.set_title(f"Cross-elicitation noise per parameter ({len(sids)} scenarios)")
     else:
         ax.text(0.5, 0.5, "protocol has k = 1: no repeat noise", ha="center",
