@@ -23,7 +23,7 @@ from voi_rank.analysis.figures import (
     primary_metric,
     ranked_ids,
     run_kind,
-    run_param_names,
+    run_sensitivity_names,
     select_run,
 )
 from voi_rank.study import Study, add_study_arg
@@ -138,7 +138,7 @@ def write_catalog(con, run, out: Path):
 
 
 def top_param(con, run_id: int, sid: int) -> str:
-    names = run_param_names(con, run_id)
+    names = run_sensitivity_names(con, run_id)
     rows = [r for r in con.execute(
         "SELECT param, spearman FROM sensitivities WHERE run_id=? AND scenario_id=?"
         " AND spearman IS NOT NULL", (run_id, sid)) if r["param"] in names]
@@ -219,7 +219,9 @@ def global_sensitivity_param(con, run_id: int, name: str) -> float | None:
 
 
 def global_sensitivity(con, run_id: int) -> dict[str, float | None]:
-    return {n: global_sensitivity_param(con, run_id, n) for n in run_param_names(con, run_id)}
+    """Over the parameters the run stores sensitivities for (a Gaussian run
+    emits no voiGlobalGMuZero / voiGlobalGSigmaZero macro: those enter no metric)."""
+    return {n: global_sensitivity_param(con, run_id, n) for n in run_sensitivity_names(con, run_id)}
 
 
 def member_stats(con, protocol_id: int, member: dict) -> dict:
@@ -468,7 +470,7 @@ def write_macros(con, run, out: Path):
     gs = global_sensitivity(con, run["id"])
     for name, val in gs.items():
         macros[f"voiGlobal{PARAM_MACRO[name]}"] = num(val, "{:.2f}")
-    ranked_params = sorted((n for n in names if gs[n] is not None), key=lambda n: -gs[n])
+    ranked_params = sorted((n for n in gs if gs[n] is not None), key=lambda n: -gs[n])
     macros["voiGlobalTopParams"] = ", ".join(tex_param(n) for n in ranked_params[:3])
     macros.update(legacy_e_macros(con, run))
     manual_run = con.execute(

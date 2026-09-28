@@ -401,30 +401,40 @@ def preflight(members: list[dict], opener=None) -> None:
           f" limit {'none' if limit is None else f'${limit}'})")
 
 
-def member_mean_cost(con, member: dict) -> tuple[float, int] | None:
+def member_mean_cost(con, member: dict, kind: str = db.BINARY_KIND) -> tuple[float, int] | None:
     """(mean recorded USD cost per stored attempt, attempts) of one member over
-    every protocol in the study; None when the member has no stored attempts."""
-    rows = con.execute("SELECT raw_response FROM elicitations WHERE provider=? AND model=?",
-                       (member["provider"], member["model"])).fetchall()
+    the protocols of the given model kind in the study; None when the member
+    has no stored attempts under that kind. Kinds are not pooled: the Gaussian
+    prompt is twice the binary one and asks for twelve reasoned answers, so a
+    binary mean would understate a first g001 batch by about half."""
+    kind = db.normalize_model_kind(kind)
+    rows = con.execute(
+        "SELECT e.raw_response, p.model_kind FROM elicitations e JOIN protocols p ON p.id=e.protocol_id"
+        " WHERE e.provider=? AND e.model=?", (member["provider"], member["model"])).fetchall()
+    rows = [r for r in rows if db.normalize_model_kind(r["model_kind"]) == kind]
     if not rows:
         return None
-    return sum(db.envelope_cost(r[0]) for r in rows) / len(rows), len(rows)
+    return sum(db.envelope_cost(r["raw_response"]) for r in rows) / len(rows), len(rows)
 
 
 def print_plan(con, prot, members, jobs):
     """Slots per member and the estimated cost (slots x mean stored cost per
-    attempt of that member in this study, 'unknown' without history)."""
+    attempt of that member under protocols of the same model kind in this
+    study, 'unknown' without such history)."""
+    kind = db.protocol_model_kind(prot)
     print(f"plan: protocol {prot['name']}, {len(jobs)} pending slots "
           "(one attempt each; a failed attempt is retried once)")
     total, unknown = 0.0, False
     for m in members:
         n = sum(1 for j in jobs if db.member_label(j["member"]) == db.member_label(m))
-        est = member_mean_cost(con, m)
+        est = member_mean_cost(con, m, kind)
         if est is None:
-            cost, unknown = "unknown (no stored attempts of this member in this study)", True
+            cost, unknown = (f"unknown (no stored attempts of this member under a {kind} protocol"
+                             " in this study)"), True
         else:
             total += n * est[0]
-            cost = f"${n * est[0]:.2f} (mean ${est[0]:.4f}/attempt over {est[1]} stored attempts)"
+            cost = (f"${n * est[0]:.2f} (mean ${est[0]:.4f}/attempt over {est[1]} stored"
+                    f" {kind} attempts)")
         print(f"  {db.member_label(m)}: {n} slots, estimated cost {cost}")
     print(f"  estimated total: ${total:.2f}" + (" + unknown" if unknown else ""))
 

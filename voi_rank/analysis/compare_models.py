@@ -52,7 +52,7 @@ TOP_N = 10
 MODEL_MACRO = {"quad": "Quad", "kg": "Kg", "step": "Step", "stepfix": "Stepfix"}
 # residual-carrying quantities: (stored name, label, spread of which quantity)
 RESIDUALS = (("g_sigma0", r"$\theta$ triple asymmetry", "g_sigma0"),
-             ("g_d", r"$d$ mismatch (probability)", "g_d"),
+             ("g_d", r"$d$ mismatch (sd units)", "g_d"),
              ("g_x", r"$x$ route spread (log units)", "g_x"),
              ("g_k", r"$k$ mismatch", "g_k"))
 OUTPUTS = ("compare_models.tex", "fig_compare_models.pdf", "fig_derived_pst.pdf",

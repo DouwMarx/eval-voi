@@ -27,6 +27,7 @@ import numpy as np
 import yaml
 
 from voi_rank.fit import GAUSS_PARAM_NAMES, GAUSS_SPREAD_SCALE, PARAM_NAMES
+from voi_rank.gaussian import METRIC_INPUTS as GAUSS_METRIC_INPUTS
 from voi_rank.sensitivity import repeat_spread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -51,6 +52,11 @@ MODEL_KINDS = (BINARY_KIND, GAUSSIAN_KIND)
 _PRIMARY_METRIC = {BINARY_KIND: "efficiency", GAUSSIAN_KIND: "eff_step"}
 _EVSI_METRIC = {BINARY_KIND: "EVSI", GAUSSIAN_KIND: "EVSI_step"}
 _PARAM_NAMES = {BINARY_KIND: PARAM_NAMES, GAUSSIAN_KIND: GAUSS_PARAM_NAMES}
+# the stored quantities that enter the primary metric, hence carry a Spearman
+# sensitivity row: every binary parameter; for the Gaussian family all but
+# g_mu0 and g_sigma0, which no action model reads (d and x are in prior-sd
+# units already), so a rho against eff_step would be sampling noise or NULL
+_SENSITIVITY_NAMES = {BINARY_KIND: PARAM_NAMES, GAUSSIAN_KIND: list(GAUSS_METRIC_INPUTS)}
 
 
 def normalize_model_kind(value) -> str:
@@ -63,6 +69,12 @@ def normalize_model_kind(value) -> str:
 def param_names(kind: str) -> list[str]:
     """The parameter rows a protocol of this model kind stores per elicitation."""
     return _PARAM_NAMES[normalize_model_kind(kind)]
+
+
+def sensitivity_names(kind: str) -> list[str]:
+    """The parameters a run of this model kind stores sensitivities for: the
+    subset of param_names(kind) that enters its primary metric."""
+    return _SENSITIVITY_NAMES[normalize_model_kind(kind)]
 
 
 def primary_metric(kind: str) -> str:

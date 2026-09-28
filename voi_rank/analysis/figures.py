@@ -66,6 +66,12 @@ def run_param_names(con, run_id: int) -> list[str]:
     return db.param_names(run_kind(con, run_id))
 
 
+def run_sensitivity_names(con, run_id: int) -> list[str]:
+    """The parameters the run stores sensitivities for (db.sensitivity_names of
+    its kind: the ones that enter its primary metric)."""
+    return db.sensitivity_names(run_kind(con, run_id))
+
+
 def primary_metric(con, run_id: int) -> str:
     """The run's ranking metric: 'efficiency' (binary) or 'eff_step' (gaussian)."""
     return db.primary_metric(run_kind(con, run_id))
@@ -402,7 +408,7 @@ def fig_by_level(con, run_id, out: Path):
 
 def fig_sensitivity_heatmap(con, run_id, out: Path):
     order = ranked_ids(con, run_id)
-    names = run_param_names(con, run_id)
+    names = run_sensitivity_names(con, run_id)
     mat = np.full((len(names), len(order)), np.nan)
     for r in con.execute("SELECT * FROM sensitivities WHERE run_id=?", (run_id,)):
         if r["spearman"] is not None and r["scenario_id"] in order and r["param"] in names:

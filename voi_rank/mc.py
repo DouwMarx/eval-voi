@@ -18,8 +18,10 @@ P(EVSI > C), local Spearman sensitivities against efficiency and P(top 10).
 Gaussian protocol (spec v2.1): the same summaries of EVSI_<m>, EVPI_<m>,
 eff_<m> for the action models m in quad, kg, step, stepfix, plus R2, d, x, k,
 p_derived, s_derived, t_derived and C (voi_rank.gaussian.METRIC_NAMES);
-p_positive = P(EVSI_step > C); sensitivities of every stored quantity
-against eff_step; P(top 10) on eff_step. The primary metric of a run is
+p_positive = P(EVSI_step > C); sensitivities of the quantities that enter
+the metrics (db.sensitivity_names: gaussian.METRIC_INPUTS, i.e. every stored
+quantity but g_mu0 and g_sigma0, which no action model reads) against
+eff_step; P(top 10) on eff_step. The primary metric of a run is
 db.primary_metric(kind): 'efficiency' or 'eff_step'.
 
 Provenance: a run stores code_hash (git HEAD of the code paths, '-dirty' when
@@ -230,7 +232,7 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
         p_positive = float(np.mean(metrics[evsi_name] > draws["C"]))
         for name in metric_names(kind):
             db.insert_result(con, run_id, sid, name, summarize(metrics[name]), p_positive)
-        for name in names:
+        for name in db.sensitivity_names(kind):
             db.insert_sensitivity(con, run_id, sid, name, spearman(draws[name], metrics[metric]))
         eff_rows.append(metrics[metric])
 

@@ -3,6 +3,8 @@ integration, the action-model identities of the chapter, the over-determined
 fit with its residuals and warnings, and the payload validation."""
 
 import copy
+import re
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -14,6 +16,7 @@ from voi_rank.fit import GAUSS_PARAM_NAMES
 
 B, K = 150e3, 10e3
 LAMBDA = B + K
+ROOT = Path(__file__).resolve().parent.parent
 
 
 # --- numerical references ------------------------------------------------------
@@ -34,6 +37,16 @@ def step_bruteforce(d, R2, B, K):
 
     val = integrate.quad(integrand, -12 * sd_y, 12 * sd_y, limit=400, epsabs=1e-10, epsrel=1e-11)[0]
     return val - float(model.value_of_acting(stats.norm.cdf(d), B, K))
+
+
+def s_tail_reference(d, R2, c):
+    """s = P(w > c | u > -d) by the 1-D integral over u with the tail density
+    ratio taken in logs (independent of gaussian._tail_s: no substitution to
+    the excess, plain quad over u on a finite window)."""
+    R, s1 = np.sqrt(R2), np.sqrt(1 - R2)
+    a = -d
+    f = lambda u: np.exp(stats.norm.logpdf(u) - stats.norm.logcdf(-a)) * stats.norm.cdf((R * u - c) / s1)  # noqa: E731
+    return integrate.quad(f, a, a + 60.0 / max(a, 1.0), epsabs=0, epsrel=1e-12, limit=200)[0]
 
 
 def expected_loss_at(m, sigma, k, c_minus, c_plus):
@@ -202,6 +215,29 @@ def test_stepfix_equals_binary_model_at_derived_st():
     assert float(g.derived_st(dd, rr)[0]) == pytest.approx(num / stats.norm.cdf(dd), rel=1e-8)
     num_t = integrate.dblquad(f, -8, -dd, lambda u: -8, lambda u: -dd * R)[0]
     assert float(g.derived_st(dd, rr)[1]) == pytest.approx(num_t / stats.norm.cdf(-dd), rel=1e-8)
+    # far in the tail Owen's T route cancels to nothing (s = 0.045 instead of 0.522 at
+    # R^2 = 0.2, d = -9; 0.000 at 0.5, -12); the stored s, t come from the 1-D tail integral
+    for R2, d in ((0.2, -9.0), (0.5, -12.0), (0.05, -8.0), (0.9, -15.5), (0.2, -7.0)):
+        c = -d * np.sqrt(R2)
+        s, t = g.derived_st(d, R2)
+        assert float(s) == pytest.approx(s_tail_reference(d, R2, c), abs=1e-9)
+        assert float(t) == pytest.approx(s_tail_reference(-d, R2, -c), abs=1e-9)   # t(d, c) = s(-d, -c)
+        s2, t2 = g.derived_st(-d, R2)                                              # the mirror
+        assert float(t2) == pytest.approx(float(s), abs=1e-12)
+        assert float(s2) == pytest.approx(float(t), abs=1e-12)
+        assert float(g.voi_stepfix(d, R2, B, K)[0]) == 0.0 and float(g.voi_step(d, R2, B, K)[0]) == 0.0
+    assert float(g.derived_st(-9.0, 0.2)[0]) == pytest.approx(0.5216, abs=5e-4)
+    assert float(g.derived_st(-12.0, 0.5)[0]) == pytest.approx(0.5326, abs=5e-4)
+    # the two routes agree at the switch, and the vectorised call matches scalar calls
+    for R2 in (0.05, 0.5):
+        lo, hi = g.derived_st(-g.TAIL_D - 1e-9, R2), g.derived_st(-g.TAIL_D + 1e-9, R2)
+        assert float(lo[0]) == pytest.approx(float(hi[0]), abs=1e-8)
+    dv = np.array([-1.4, -9.0, 0.3, 8.0, -9.0, np.inf, -np.inf])
+    sv, tv = g.derived_st(dv, 0.2)
+    for i, di in enumerate(dv):
+        si, ti = g.derived_st(di, 0.2)
+        assert float(sv[i]) == float(si) and float(tv[i]) == float(ti)
+    assert sv.shape == (7,) and np.all(sv + tv >= 1.0)
 
 
 def test_derived_s_plus_t_exceeds_one_whenever_R_positive():
@@ -235,6 +271,8 @@ def test_scenario_metrics_names_and_bias():
     draws = {"g_d": np.full(n, -1.4), "g_x": np.full(n, 0.4), "g_k": np.full(n, 2.0),
              "g_L": np.full(n, 17e3), "g_kappa_sigma0": np.full(n, 150e3), "g_B": np.full(n, B),
              "g_K": np.full(n, K), "g_sigma_b_rel": np.zeros(n), "C": np.full(n, 1e3)}
+    assert set(draws) == set(g.METRIC_INPUTS)                       # the keys the metrics read
+    assert set(g.METRIC_INPUTS) == set(GAUSS_PARAM_NAMES) - {"g_mu0", "g_sigma0"}
     m = g.scenario_metrics(draws)
     assert list(m) == g.METRIC_NAMES and all(v.shape == (n,) for v in m.values())
     assert np.allclose(m["R2"], 1 / (1 + 0.4**2)) and np.allclose(m["p_derived"], stats.norm.cdf(-1.4))
@@ -271,6 +309,28 @@ def anchor_payload():
     }
 
 
+def anchor_a2_payload():
+    """Anchor A2 of the Gaussian template (rapid strep test)."""
+    return {
+        "state": {"reasoning": "r", "variable": "group A streptococcal load", "unit": "log10 copies",
+                  "bad_is_high": True},
+        "answers": {
+            "theta": {"reasoning": "r", "p5": 0.0, "p50": 2.4, "p95": 5.0},
+            "theta_c": {"reasoning": "r", "value": 4.0},
+            "p_above": {"reasoning": "r", "value": 0.15},
+            "W_rr": {"reasoning": "r", "value": 1.25},
+            "W1": {"reasoning": "r", "value": 1.65},
+            "c_move": {"reasoning": "r", "value": 0.38},
+            "loss": {"reasoning": "r", "L1m": 120, "L2m": 480, "L1p": 40, "L2p": 160},
+            "kappa_sigma0": {"reasoning": "r", "value": 300},
+            "B": {"reasoning": "r", "value": 300},
+            "K": {"reasoning": "r", "value": 100},
+            "sigma_b": {"reasoning": "r", "value": 0.3},
+            "C": {"reasoning": "r", "p5": 5, "p50": 15, "p95": 50},
+        },
+    }
+
+
 def set_in(payload, path, value):
     out = copy.deepcopy(payload)
     node = out
@@ -301,7 +361,8 @@ def test_fit_on_consistent_answers_has_small_residuals_and_no_warnings():
     assert v["g_L"] < 0.5 * (30000 + 4000) and der["shift"] == pytest.approx(0.792, abs=0.001)
     assert v["g_sigma_b_rel"] == pytest.approx(0.3 / v["g_sigma0"])
     assert res["g_x"] < 0.05 and res["g_d"] < 0.01 and res["g_k"] == 0.0 and res["g_mu0"] < 0.05
-    assert not any(warn.values()) and der["notes"] == []
+    assert not any(warn.values()) and der["notes"] == {"g_x": [], "g_k": []}
+    assert abs(der["p_mismatch"]) < 0.002
     rows, fits, err = gauss_fit.fit_gauss(gauss_fit.validate_gauss_payload(anchor_payload())[0])
     assert err is None and list(rows) == GAUSS_PARAM_NAMES and list(fits) == GAUSS_PARAM_NAMES
     for name in GAUSS_PARAM_NAMES:
@@ -313,6 +374,8 @@ def test_fit_on_consistent_answers_has_small_residuals_and_no_warnings():
     assert rows["g_mu0"]["unit"] == "mm/s" and rows["g_d"]["unit"] == "dimensionless"
     assert rows["g_L"]["unit"] == "USD" and "state: bearing-fault" in rows["g_sigma0"]["reasoning"]
     assert rows["g_L"]["reasoning"].startswith("optimal action shift +0.79 sigma0 | loss:")
+    assert rows["g_d"]["reasoning"].startswith("Q2b - Phi(d from Q2a) ")
+    assert "| theta_c:" in rows["g_d"]["reasoning"]
     assert gauss_fit.consistency_score({n: fits[n].residual for n in fits if n != "C"}) < 0.25
 
 
@@ -322,12 +385,13 @@ def test_fit_residuals_and_warnings_on_inconsistent_answers():
     der = derive(set_in(base, ("answers", "theta", "p50"), 2.0))
     assert der["residuals"]["g_mu0"] == pytest.approx(abs(2.8 - 0.5) / 3.3)
     assert der["warnings"]["g_mu0"] and der["warnings"]["g_sigma0"]
-    # Q2b disagrees with the triple and theta_c: d is the mean of the two implied d's
+    # Q2b disagrees with the triple and theta_c: d is the mean of the two implied d's and the
+    # residual is their distance in prior-sd units
     der = derive(set_in(base, ("answers", "p_above", "value"), 0.40))
     d_a = (3.1 - 4.5) / (3.3 / g.W90)
-    assert der["residuals"]["g_d"] == pytest.approx(abs(0.40 - stats.norm.cdf(d_a)))
+    assert der["residuals"]["g_d"] == pytest.approx(abs(d_a - stats.norm.ppf(0.40)))
     assert der["values"]["g_d"] == pytest.approx(0.5 * (d_a + stats.norm.ppf(0.40)))
-    assert der["warnings"]["g_d"]
+    assert der["warnings"]["g_d"] and der["p_mismatch"] == pytest.approx(0.40 - stats.norm.cdf(d_a))
     # Q3 routes disagree: x is the median of the three log routes, so the outlier route a
     # does not move it; the std of the logs is the residual
     der = derive(set_in(base, ("answers", "W_rr", "value"), 3.0))
@@ -340,7 +404,13 @@ def test_fit_residuals_and_warnings_on_inconsistent_answers():
     # drop point is 0.40 (0.4108 is the bound, and the last 0.01 no longer resolves x)
     der = derive(set_in(base, ("answers", "c_move", "value"), 0.6))
     assert set(der["routes"]) == {"a", "b"} and der["warnings"]["g_x"]
-    assert any("Q3c dropped" in n and "0.4108" in n for n in der["notes"])
+    assert any("Q3c dropped" in n and "0.4108" in n for n in der["notes"]["g_x"])
+    assert der["notes"]["g_k"] == []                    # a sensor note is not a loss note
+    rows, _, _ = gauss_fit.fit_gauss(gauss_fit.validate_gauss_payload(
+        set_in(base, ("answers", "c_move", "value"), 0.6))[0])
+    assert rows["g_x"]["reasoning"].startswith("Q3c dropped")
+    assert "Q3c dropped" not in rows["g_k"]["reasoning"]
+    assert rows["g_k"]["reasoning"].startswith("loss:")
     assert der["values"]["g_x"] == pytest.approx(float(np.exp(np.mean(list(der["routes"].values())))))
     assert gauss_fit.C_MOVE_MAX == pytest.approx(2 * (1 - stats.norm.cdf(g.Z95 / 2)))
     assert "c" not in gauss_fit.x_routes(1.0, 0.95, 1.25, 0.405)
@@ -355,8 +425,13 @@ def test_fit_residuals_and_warnings_on_inconsistent_answers():
     assert der["values"]["g_k"] == 3.0 and der["residuals"]["g_k"] == 2.0
     assert der["warnings"]["g_k"] and der["warnings"]["g_L"]
     # k clipped to [0.5, 4]
-    der = derive(set_in(set_in(base, ("answers", "loss", "L2m"), 30000), ("answers", "loss", "L2p"), 4000))
-    assert der["values"]["g_k"] == 0.5 and any("clipped" in n for n in der["notes"])
+    clipped = set_in(set_in(base, ("answers", "loss", "L2m"), 30000), ("answers", "loss", "L2p"), 4000)
+    der = derive(clipped)
+    assert der["values"]["g_k"] == 0.5 and any("clipped" in n for n in der["notes"]["g_k"])
+    assert der["notes"]["g_x"] == []
+    rows, _, _ = gauss_fit.fit_gauss(gauss_fit.validate_gauss_payload(clipped)[0])
+    assert rows["g_k"]["reasoning"].startswith("k clipped from 0 to 0.5 | loss:")
+    assert "clipped" not in rows["g_x"]["reasoning"]
     der = derive(set_in(set_in(base, ("answers", "loss", "L2m"), 3e6), ("answers", "loss", "L2p"), 4e5))
     assert der["values"]["g_k"] == 4.0
     # the warning lands on the stored rows
@@ -364,6 +439,69 @@ def test_fit_residuals_and_warnings_on_inconsistent_answers():
         gauss_fit.validate_gauss_payload(set_in(base, ("answers", "loss", "L2p"), 64000))[0])
     assert err is None and fits["g_k"].warning and fits["g_L"].warning and not fits["g_d"].warning
     assert fits["g_k"].residual == 2.0 and "loss:" in rows["g_k"]["reasoning"]
+
+
+def test_d_mismatch_is_measured_in_sd_units_not_probability():
+    """Q2b = 0.05 (d_b = -1.64) against a theta_c six sd above the estimate (d_a = -6,
+    Phi = 1e-9): in probability the answers differ by 0.050, under the old 0.15
+    threshold no warning, while the pooled d = -3.82 gives an EVSI_step orders of
+    magnitude away from either answer's. In sd units the residual is 4.4."""
+    base = anchor_payload()
+    sigma0 = 3.3 / g.W90
+    far = set_in(set_in(base, ("answers", "theta_c", "value"), 3.1 + 6.0 * sigma0),
+                 ("answers", "p_above", "value"), 0.05)
+    der = derive(far)
+    d_a, d_b = -6.0, stats.norm.ppf(0.05)
+    assert der["residuals"]["g_d"] == pytest.approx(abs(d_a - d_b), abs=1e-9)
+    assert der["residuals"]["g_d"] > 4.0 and der["warnings"]["g_d"]
+    assert abs(der["p_mismatch"]) == pytest.approx(0.05, abs=1e-6)     # what the old residual saw
+    assert der["values"]["g_d"] == pytest.approx(0.5 * (d_a + d_b))
+    evsi_at = lambda d: float(g.voi_step(d, 0.83, 150e3, 10e3)[0])  # noqa: E731
+    assert evsi_at(d_b) > 1e3 * evsi_at(der["values"]["g_d"]) > 1e3 * evsi_at(d_a)
+    assert gauss_fit.THRESHOLDS["g_d"] == 0.5
+    # a half-sd disagreement is the threshold; a quarter is not flagged
+    for delta, flagged in ((0.25, False), (0.6, True)):
+        q = float(stats.norm.cdf(-1.4 + delta))
+        der = derive(set_in(set_in(base, ("answers", "theta_c", "value"), 3.1 + 1.4 * sigma0),
+                            ("answers", "p_above", "value"), q))
+        assert der["residuals"]["g_d"] == pytest.approx(delta, abs=1e-9) and der["warnings"]["g_d"] == flagged
+    rows, fits, err = gauss_fit.fit_gauss(gauss_fit.validate_gauss_payload(far)[0])
+    assert err is None and fits["g_d"].warning and fits["g_d"].residual > 4.0
+    assert rows["g_d"]["reasoning"].startswith("Q2b - Phi(d from Q2a) +0.050 |")
+    assert gauss_fit.consistency_score({"g_d": 1.0, "g_x": 0.1, "g_k": 0.0, "g_sigma0": 0.0}) == 2.0
+
+
+@pytest.mark.parametrize("study", ("business", "ai-safety-evals", "sim2real"))
+def test_template_implied_lines_quote_the_fitters_numbers(study):
+    """The anchors' Implied lines state what gauss_fit.derive returns from the
+    listed answers (x, R^2 before and after the sigma_b correction, d, k, L,
+    the shift, s and t at the corrected R^2), not the design values the
+    answers were solved from."""
+    text = (ROOT / "studies" / study / "templates" / "elicitor_gauss.md").read_text()
+    implied = re.findall(r"^- Implied: (.*)$", text, flags=re.M)
+    assert len(implied) == 2
+    anchors = ((implied[0], anchor_payload(), 0.08), (implied[1], anchor_a2_payload(), 0.15))
+    for line, payload, p_binary in anchors:
+        der = derive(payload)
+        v = der["values"]
+        x, sb = v["g_x"], v["g_sigma_b_rel"]
+        r2_raw, r2_eff = 1.0 / (1.0 + x**2), float(g.r2_effective(x, sb))
+        s, t = g.derived_st(v["g_d"], r2_eff)
+        assert f"x = {x:.2f} (R^2 = {r2_raw:.2f} before, {r2_eff:.2f} after the sigma_b correction)" in line
+        assert r2_eff < r2_raw - 0.005                      # the correction is visible at two decimals
+        assert f"d = {v['g_d']:.2f}" in line and f"k = {v['g_k']:g}" in line
+        assert f"sensitivity {float(s):.2f} and specificity {float(t):.2f} (at the corrected R^2)" in line
+        assert f"{der['shift']:.2f} sigma0 above the estimate" in line
+        assert f"mu0 = {v['g_mu0']:g}, sigma0 = {v['g_sigma0']:.1f}" in line
+        assert stats.norm.cdf(v["g_d"]) == pytest.approx(p_binary, abs=0.003)
+        assert not any(der["warnings"].values())
+    assert "L = 9,570 USD" in implied[0]
+    assert derive(anchor_payload())["values"]["g_L"] == pytest.approx(9567.35, abs=0.01)
+    assert "L = 66.5 USD" in implied[1]
+    assert derive(anchor_a2_payload())["values"]["g_L"] == pytest.approx(66.50, abs=0.01)
+    # Q3b and Q3c ask for the random error alone, so sigma_b is not counted twice
+    assert "counting the random error of the result only" in text
+    assert "three routes to the same random error; leave the systematic error out of all three" in text
 
 
 @pytest.mark.parametrize("path, value, expect", [

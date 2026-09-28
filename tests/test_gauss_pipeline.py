@@ -103,16 +103,16 @@ class FakeProvider:
     """Deterministic per (prompt, call index): repeats of one scenario differ,
     scenarios differ, reruns reproduce."""
 
-    def __init__(self, make, override=None):
-        self.make, self.override, self.counts = make, override, {}
+    def __init__(self, make, override=None, cost=0.01):
+        self.make, self.override, self.cost, self.counts = make, override, cost, {}
 
     def __call__(self, prompt, model, system_prompt):
         n = self.counts[prompt] = self.counts.get(prompt, 0) + 1
         rng = np.random.default_rng([int(db.sha256(prompt)[:8], 16), n])
         payload = self.override if self.override is not None else self.make(rng)
         text = json.dumps(payload)
-        raw = json.dumps({"result": text, "total_cost_usd": 0.01})
-        return {"result": text, "total_cost_usd": 0.01}, raw, None
+        raw = json.dumps({"result": text, "total_cost_usd": self.cost})
+        return {"result": text, "total_cost_usd": self.cost}, raw, None
 
 
 def use_providers(monkeypatch, provider):
@@ -239,7 +239,11 @@ def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeyp
     assert metrics == set(gaussian.METRIC_NAMES) | {"p_top10"}
     params = {r[0] for r in con.execute("SELECT DISTINCT param FROM sensitivities WHERE run_id=?",
                                          (run_id,))}
-    assert params == set(GAUSS_PARAM_NAMES)
+    # only the quantities the metrics read carry a sensitivity: g_mu0 and g_sigma0 enter no
+    # action model, so their rho against eff_step would be sampling noise (or NULL)
+    assert params == set(gaussian.METRIC_INPUTS) == set(db.sensitivity_names("gaussian"))
+    assert "g_mu0" not in params and "g_sigma0" not in params and "g_mu0" in GAUSS_PARAM_NAMES
+    assert db.sensitivity_names("binary") == PARAM_NAMES
     run = db.get_run(con, run_id)
     assert run["data_hash"] == mc.data_hash(mc.complete_fits(con, prot["id"])) and len(run["data_hash"]) == 64
     stored_eff = {r["scenario_id"]: r for r in con.execute(
@@ -268,6 +272,13 @@ def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeyp
     macros = (study.generated_dir / "macros.tex").read_text()
     assert r"\newcommand{\voiModelKind}{gaussian}" in macros
     assert r"\voiNoiseGD}" in macros and r"\voiGlobalGX}" in macros and r"\voiNoiseP}" not in macros
+    # the noise table keeps mu0 and sigma0; the global sensitivity has no row for them
+    assert r"\voiNoiseGMuZero}" in macros and r"\voiNoiseGSigmaZero}" in macros
+    assert r"\voiGlobalGMuZero" not in macros and r"\voiGlobalGSigmaZero" not in macros
+    top_params = re.search(r"\\newcommand\{\\voiGlobalTopParams\}\{(.*)\}", macros).group(1)
+    assert top_params and r"\mu_0" not in top_params and r"\sigma_0" not in top_params
+    assert set(tables.global_sensitivity(con, run_id)) == set(gaussian.METRIC_INPUTS)
+    assert figures.run_sensitivity_names(con, run_id) == list(gaussian.METRIC_INPUTS)
     noise = (study.generated_dir / "protocol_noise.tex").read_text()
     assert "protocol & g001" in noise and r"$\sigma_b/\sigma_0$ (max $-$ min, sd units) &" in noise
     assert r"$d$ (max $-$ min, sd units) &" in noise and r"$\mu_0$ (max $-$ min, sd units) &" in noise
@@ -312,6 +323,44 @@ def test_invalid_gauss_answer_is_stored_with_its_error(tmp_path, monkeypatch, ca
     assert err.startswith("schema: state.bad_is_high must be true") and health.error_class(err) == "schema"
     with pytest.raises(RuntimeError, match="no scenarios with complete valid elicitations"):
         mc.run_mc(con, "g001", seed=1, n_draws=100, quiet=True)
+
+
+def test_plan_cost_estimate_pools_only_attempts_of_the_same_model_kind(tmp_path, monkeypatch, capsys):
+    """The Gaussian prompt is twice the binary one, so a first g001 plan must not
+    quote the binary attempts' mean cost: without gaussian attempts the estimate
+    is unknown; with them it is their own mean, the binary attempts left out."""
+    study = copy_study("business", tmp_path)
+    use_providers(monkeypatch, FakeProvider(jittered_binary, cost=0.01))
+    elicit.main(["--study", str(study.root), "--protocol", "p001", "--scenarios", "1,2", "--k", "2", "--yes"])
+    capsys.readouterr()
+    with pytest.raises(SystemExit, match="--yes"):          # stdin is not a TTY under pytest
+        elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2", "--k", "1"])
+    out = capsys.readouterr().out
+    assert ("claude_cli:haiku: 2 slots, estimated cost unknown (no stored attempts of this member"
+            " under a gaussian protocol in this study)") in out
+    assert "estimated total: $0.00 + unknown" in out
+    use_providers(monkeypatch, FakeProvider(jittered_gauss, cost=0.03))
+    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1", "--k", "1", "--yes"])
+    capsys.readouterr()
+    with pytest.raises(SystemExit, match="--yes"):
+        elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2,3", "--k", "1"])
+    out = capsys.readouterr().out
+    assert ("claude_cli:haiku: 2 slots, estimated cost $0.06 (mean $0.0300/attempt over 1 stored"
+            " gaussian attempts)") in out
+    assert "estimated total: $0.06" in out
+    capsys.readouterr()
+    with pytest.raises(SystemExit, match="--yes"):          # and the binary plan ignores the gaussian one
+        elicit.main(["--study", str(study.root), "--protocol", "p001", "--scenarios", "3", "--k", "1"])
+    out = capsys.readouterr().out
+    assert ("claude_cli:haiku: 1 slots, estimated cost $0.01 (mean $0.0100/attempt over 4 stored"
+            " binary attempts)") in out
+    con = study.connect()
+    member = {"provider": "claude_cli", "model": "haiku"}
+    assert elicit.member_mean_cost(con, member, "gaussian") == (pytest.approx(0.03), 1)
+    assert elicit.member_mean_cost(con, member, "binary") == (pytest.approx(0.01), 4)
+    assert elicit.member_mean_cost(con, member) == (pytest.approx(0.01), 4)
+    assert elicit.member_mean_cost(con, {"provider": "openrouter", "model": "none"}, "gaussian") is None
+    assert con.execute("SELECT COUNT(*) FROM elicitations").fetchone()[0] == 5
 
 
 # --- binary vs Gaussian ----------------------------------------------------------------
@@ -401,6 +450,8 @@ def test_dry_run_of_g001_renders_every_scenario(name, tmp_path, monkeypatch, cap
     prompt = out.split("first pending prompt")[1]
     assert scen[0]["title"] in prompt and "Anchor A1" in prompt and "Anchor A2" in prompt
     assert "First step: name the state variable" in prompt and '"bad_is_high": true' in prompt
+    assert "counting the random error of the result only" in prompt      # Q3b: sigma_b is Q7, once
+    assert "R^2 = 0.86 before, 0.83 after the sigma_b correction" in prompt
     assert "$title" not in prompt and "$context" not in prompt and "$theta_definition" not in prompt
     if name == "business":
         assert "Background facts" not in prompt and "produce and deliver ONE measurement" in prompt

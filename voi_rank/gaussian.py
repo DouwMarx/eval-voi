@@ -43,7 +43,7 @@ precision (tests/test_gaussian.py measures both).
 from __future__ import annotations
 
 import numpy as np
-from scipy import optimize, special, stats
+from scipy import integrate, optimize, special, stats
 
 from voi_rank import model
 
@@ -53,10 +53,16 @@ BIAS_VARIANCE_FACTOR = 1.0 - 2.0 / np.pi   # variance of a half-normal with scal
 GH_NODES = 64                          # the design's quadrature order (voi_step_gh)
 LOSS_SHIFT_BOUND = 12.0                # |m*| bound (sd units) for min_expected_loss: the k = 1
                                        # shift is Phi^-1(c_-/(c_- + c_+)), 7.0 at a 1e12 cost ratio
+TAIL_D = 5.0                           # |d| beyond which orthant_st integrates the rare side
+                                       # (Phi(-5) = 2.9e-7; Owen's T route is 1e-10 there, garbage by 8)
 ACTION_MODELS = ("quad", "kg", "step", "stepfix")
 # metrics an MC run stores for a Gaussian protocol, in this order
 METRIC_NAMES = [f"{kind}_{m}" for m in ACTION_MODELS for kind in ("EVSI", "EVPI", "eff")] + [
     "R2", "d", "x", "k", "p_derived", "s_derived", "t_derived", "C"]
+# the drawn quantities scenario_metrics reads: the ones a sensitivity against
+# eff_step is defined for (g_mu0 and g_sigma0 are stored, drawn and reported as
+# noise, but enter no metric: d and x are already in prior-sd units)
+METRIC_INPUTS = ("g_d", "g_x", "g_k", "g_L", "g_kappa_sigma0", "g_B", "g_K", "g_sigma_b_rel", "C")
 PRIMARY_METRIC = "eff_step"
 EVSI_METRIC = "EVSI_step"
 
@@ -173,6 +179,26 @@ def bvn_cdf(h, k, rho):
     return out
 
 
+def _tail_s(a: float, R2: float, c: float) -> float:
+    """s = P(w > c | u > a) for a standard bivariate normal (u, w) of
+    correlation R, by the conditional 1-D integral over the excess v = u - a:
+        s = int_0^inf [phi(a + v) / Phi(-a)] Phi((R (a + v) - c) / sqrt(1 - R^2)) dv,
+    the density ratio taken in logs (scipy's log_ndtr is exact in the far
+    tail), so it is stable however rare the conditioning event u > a is.
+    Scalar; used by orthant_st beyond TAIL_D, where Owen's T route subtracts
+    terms of order Phi(-c) to leave Phi(-a) ~ 1e-20 and loses everything."""
+    R, s1 = np.sqrt(R2), np.sqrt(max(1.0 - R2, 0.0))
+    log_mass = float(_norm.logcdf(-a))
+
+    def integrand(v):
+        z = R * (a + v) - c
+        cond = _norm.cdf(z / s1) if s1 > 0.0 else float(z > 0.0)
+        return np.exp(_norm.logpdf(a + v) - log_mass) * cond
+
+    val = integrate.quad(integrand, 0.0, np.inf, epsabs=0.0, epsrel=1e-12, limit=200)[0]
+    return float(np.clip(val, 0.0, 1.0))
+
+
 def orthant_st(d, R2, cutoff):
     """Sensitivity and specificity of the pass/fail report 1[w > cutoff] on the
     standardised reading w = (y - mu0) R / sigma0 (so Var(w) = 1 and
@@ -181,9 +207,17 @@ def orthant_st(d, R2, cutoff):
         s = P(w > c | u > -d) = Phi2(d, -c; R) / Phi(d)
         t = P(w <= c | u <= -d) = Phi2(-d, c; R) / Phi(-d)
     (P(u > -d, w > c) = P(-u < d, -w < -c) and (-u, -w) has the same
-    correlation.) Where the prior puts no mass on one side the conditional
-    is undefined and 1 is returned (that side's EVSI term vanishes anyway)."""
+    correlation, so t(d, c) = s(-d, -c).) Where the prior puts no mass on
+    one side the conditional is undefined and 1 is returned (that side's
+    EVSI term vanishes anyway). Beyond |d| = TAIL_D the rare side (s for
+    d < -TAIL_D, t for d > TAIL_D) is the ratio of two vanishing numbers,
+    which Owen's T route cannot resolve (s = 0.045 instead of 0.522 at
+    R^2 = 0.2, d = -9); it is evaluated by the stable 1-D integral _tail_s
+    instead, per distinct (d, R^2, c) triple. Both routes agree to 1e-10 at
+    the switch."""
     d, R2, c = np.broadcast_arrays(*_arrays(d, R2, cutoff))
+    shape = d.shape
+    d, R2, c = d.ravel(), R2.ravel(), c.ravel()
     R = np.sqrt(R2)
     p = _norm.cdf(d)
     q = _norm.cdf(-d)
@@ -191,7 +225,18 @@ def orthant_st(d, R2, cutoff):
     num_t = bvn_cdf(-d, c, R)
     s = np.where(p > 0.0, num_s / np.where(p > 0.0, p, 1.0), 1.0)
     t = np.where(q > 0.0, num_t / np.where(q > 0.0, q, 1.0), 1.0)
-    return np.clip(s, 0.0, 1.0), np.clip(t, 0.0, 1.0)
+    s, t = np.clip(s, 0.0, 1.0), np.clip(t, 0.0, 1.0)
+    # the rare side: s conditions on u > -d (mass Phi(d)), t on u < -d (mass Phi(-d)),
+    # and t(d, c) = s(-d, -c)
+    for out, sign in ((s, 1.0), (t, -1.0)):
+        rare = (sign * d < -TAIL_D) & np.isfinite(d) & np.isfinite(c)
+        if not rare.any():
+            continue
+        triples = np.stack([-sign * d[rare], R2[rare], sign * c[rare]], axis=-1)
+        uniq, inv = np.unique(triples, axis=0, return_inverse=True)
+        vals = np.array([_tail_s(a, r2, cc) for a, r2, cc in uniq])
+        out[rare] = vals[inv.ravel()]
+    return s.reshape(shape)[()], t.reshape(shape)[()]
 
 
 def derived_st(d, R2):
@@ -287,7 +332,7 @@ def voi_step_gh(d, R2, B, K, n_nodes: int = GH_NODES):
 
 def scenario_metrics(draws: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """Per-draw metrics of a Gaussian scenario from its drawn quantities
-    (keys g_d, g_x, g_k, g_L, g_kappa_sigma0, g_B, g_K, g_sigma_b_rel, C):
+    (the METRIC_INPUTS keys; g_mu0 and g_sigma0 are not read):
     EVSI_<m>, EVPI_<m>, eff_<m> = EVSI_<m> / C for m in ACTION_MODELS, plus
     R2, d, x, k, p_derived = Phi(d), s_derived, t_derived (the fixed-mark
     orthant probabilities) and C. Returned in METRIC_NAMES order."""

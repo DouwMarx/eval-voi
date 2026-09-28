@@ -62,8 +62,9 @@ repeat) and slots with a valid response are skipped, so re-running step 5
 only fills what is missing. Before submitting, step 5 checks that every
 selected provider has its credentials (a missing OpenRouter key aborts with
 zero calls made) and prints the plan: pending slots per member and the
-estimated cost (slots times the member's mean stored cost per attempt in
-this study, or `unknown`). Once confirmed, and before `voi.db` is touched, a
+estimated cost (slots times the member's mean stored cost per attempt under
+protocols of the same model kind in this study, or `unknown`; a first `g001`
+batch has no history to quote). Once confirmed, and before `voi.db` is touched, a
 run with a `claude_cli` member checks `claude auth status` (free; a CLI that
 is not logged in aborts with zero calls; the CLI does not verify an
 `ANTHROPIC_API_KEY`, see the timeout rule below) and a run with an
@@ -195,7 +196,7 @@ constants, so the mixture over repeats is the empirical distribution of the
 repeat values) and `C` as the usual lognormal; `fit_residual` carries the
 over-determination residual of the questions behind each row (theta
 asymmetry, `d` mismatch, `x` route spread in log units, `k` mismatch) and
-`fit_warning` flags a residual past its threshold (0.25, 0.15, 0.5, 1.0) or
+`fit_warning` flags a residual past its threshold (0.25, 0.5 prior sd, 0.5, 1.0) or
 a `c` route too close to the Gaussian bound to resolve `x` (`c > 0.40`; the
 bound is 0.4108). Cross-repeat noise is `(max - min) / pooled p50` per
 quantity except `d`, `sigma_b/sigma0` and `mu0`, which are reported as a
@@ -210,8 +211,9 @@ the binary-only analyses of `extra` are skipped with a printed reason):
 3. `uv run python -m voi_rank.mc --study studies/X --protocol g001` (stores
    `EVSI_<m>`, `EVPI_<m>`, `eff_<m>` for `m` in quad, kg, step, stepfix, plus
    `R2, d, x, k, p_derived, s_derived, t_derived, C`; `p_positive =
-   P(EVSI_step > C)`; sensitivities of every stored quantity against
-   `eff_step`; `p_top10` on `eff_step`)
+   P(EVSI_step > C)`; sensitivities against `eff_step` of the quantities
+   that enter the metrics, i.e. all but `g_mu0` and `g_sigma0`; `p_top10`
+   on `eff_step`)
 4. `health`, `figures`, `tables`, `extra` with `--protocol g001`
 5. `uv run python -m voi_rank.analysis.compare_models --study studies/X [--binary p001] [--gaussian g001]`
    writes `compare_models.tex` (Spearman and Kendall of median efficiency,

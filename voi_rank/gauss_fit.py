@@ -10,14 +10,19 @@ Questions (all in the expert's own state unit u, bad is high, and USD):
   Q2a theta_c: value of theta at which the correct response changes
   Q2b p_above: P(theta > theta_c)
               -> d_a = (mu0 - theta_c) / sigma0, d_b = Phi^-1(Q2b), d = mean(d_a, d_b)
-                 residual = |Q2b - Phi(d_a)|
+                 residual = |d_a - d_b| in prior-sd units (a probability-scale residual
+                 |Q2b - Phi(d_a)| cannot see a tail disagreement: Q2b = 0.05 against a
+                 theta_c six sd out reads 0.05 in probability but 4.4 sd, and EVSI at
+                 the pooled d differs by orders of magnitude from either answer; the
+                 probability mismatch is written into the g_d reasoning for the spot-read)
   Q3a W_rr:   two runs on the same system differ by less than W_rr in 90% of cases
               -> r_a = (W_rr / (1.645 sqrt 2))^2
-  Q3b W1:     total width of the 90% interval for theta after the result
+  Q3b W1:     total width of the 90% interval for theta after the result, from the
+              RANDOM error of the instrument alone (the systematic error is Q7)
               -> sigma1 = W1 / 3.29, r_b = sigma0^2 sigma1^2 / (sigma0^2 - sigma1^2)
                  (invalid when sigma1 >= sigma0: a measurement cannot widen belief)
-  Q3c c_move: probability that the result moves the estimate by more than half the
-              prior 90% half-width, U/2 with U = 1.645 sigma0
+  Q3c c_move: probability that the random error of the result moves the estimate by
+              more than half the prior 90% half-width, U/2 with U = 1.645 sigma0
               -> sigtilde = (U/2) / Phi^-1(1 - c/2), r_c = sigma0^2 (sigma0^2 / sigtilde^2 - 1)
                  (the preposterior sd cannot exceed the prior sd, which bounds c below
                  C_MOVE_MAX = 2 (1 - Phi(1.645/2)) = 0.4108; the route is dropped with a
@@ -26,6 +31,10 @@ Questions (all in the expert's own state unit u, bad is high, and USD):
               x = exp(median of log(sqrt(r_i) / sigma0) over the valid routes) (the mean
                  when two remain), so one coarse route cannot move x on its own
               residual = std of the log x's
+              All three routes estimate the same random error r; the template asks for
+              W1 and c with the systematic error excluded, so that sigma_b (Q7) enters
+              once, through gaussian.r2_effective, and is not counted again inside r_b
+              and r_c (the chapter notes only that route a is blind to it).
   Q4  loss:   L1m, L2m: cost of under-responding when theta is 1 and 2 sigma0 above the
               estimate; L1p, L2p: cost of over-responding by 1 and 2 sigma0 (USD)
               -> k_side = log2(L2 / L1), k = mean clipped to [0.5, 4], residual = |k_m - k_p|
@@ -48,10 +57,11 @@ applies after the measurement, hence EVSI = L (1 - (1 - R^2)^(k/2)) exactly
 g_L reasoning for the spot-read.
 
 Warnings (fit_warning on the stored rows): asymmetry > 0.25, d mismatch >
-0.15 in probability, x route spread > 0.5 in log units (or a dropped route),
-k mismatch > 1.0. The per-elicitation consistency score is derived at
+0.5 prior sd, x route spread > 0.5 in log units (or a dropped route), k
+mismatch > 1.0. The per-elicitation consistency score is derived at
 analysis time as the largest residual relative to its threshold
-(consistency_score).
+(consistency_score). Notes (a dropped route, a clipped k) are kept per
+stored quantity and prepended to that row's reasoning only.
 """
 
 from __future__ import annotations
@@ -78,7 +88,7 @@ K_RANGE = (0.5, 4.0)
 C_MOVE_MAX = float(2.0 * (1.0 - stats.norm.cdf(gaussian.Z95 / 2.0)))   # 0.4108
 C_MOVE_DROP = 0.40
 # warning thresholds per stored quantity (spec v2.1)
-THRESHOLDS = {"g_mu0": 0.25, "g_sigma0": 0.25, "g_d": 0.15, "g_x": 0.5, "g_k": 1.0, "g_L": 1.0}
+THRESHOLDS = {"g_mu0": 0.25, "g_sigma0": 0.25, "g_d": 0.5, "g_x": 0.5, "g_k": 1.0, "g_L": 1.0}
 DIMENSIONLESS = "dimensionless"
 
 
@@ -186,8 +196,9 @@ def x_routes(sigma0: float, W_rr: float, W1: float, c: float) -> dict[str, float
 def derive(clean: dict) -> dict:
     """The stored quantities from a validated payload: {"values": {name:
     float}, "residuals": {name: float}, "warnings": {name: bool}, "notes":
-    [str], "routes": {route: log x}, "shift": m* of the optimal action in
-    sigma0 units}."""
+    {"g_x": [str], "g_k": [str]} (a dropped route, a clipped k), "routes":
+    {route: log x}, "p_mismatch": Q2b - Phi(d_a), "shift": m* of the optimal
+    action in sigma0 units}."""
     th = clean["theta"]
     mu0 = th["p50"]
     width = th["p95"] - th["p5"]
@@ -197,23 +208,24 @@ def derive(clean: dict) -> dict:
     q = clean["p_above"]["value"]
     d_b = float(stats.norm.ppf(q))
     d = 0.5 * (d_a + d_b)
-    d_res = abs(q - float(stats.norm.cdf(d_a)))
+    d_res = abs(d_a - d_b)                           # prior-sd units
+    p_mismatch = q - float(stats.norm.cdf(d_a))      # for the spot-read only
     routes = x_routes(sigma0, clean["W_rr"]["value"], clean["W1"]["value"], clean["c_move"]["value"])
     logs = np.array(list(routes.values()))
     x = float(np.exp(np.median(logs)))   # the mean of two, the middle of three
     x_res = float(logs.std())
-    notes = []
+    notes: dict[str, list[str]] = {"g_x": [], "g_k": []}
     if "c" not in routes:
-        notes.append(f"Q3c dropped: c > {C_MOVE_DROP:g} (a Gaussian sensor allows at most"
-                     f" {C_MOVE_MAX:.4f}, where the preposterior sd equals the prior sd, and within"
-                     " 0.01 of that bound a two-decimal c no longer resolves x)")
+        notes["g_x"].append(f"Q3c dropped: c > {C_MOVE_DROP:g} (a Gaussian sensor allows at most"
+                            f" {C_MOVE_MAX:.4f}, where the preposterior sd equals the prior sd, and"
+                            " within 0.01 of that bound a two-decimal c no longer resolves x)")
     loss = clean["loss"]
     k_m = float(np.log2(loss["L2m"] / loss["L1m"]))
     k_p = float(np.log2(loss["L2p"] / loss["L1p"]))
     k_raw = 0.5 * (k_m + k_p)
     k = float(np.clip(k_raw, *K_RANGE))
     if k != k_raw:
-        notes.append(f"k clipped from {k_raw:.3g} to {k:g}")
+        notes["g_k"].append(f"k clipped from {k_raw:.3g} to {k:g}")
     k_res = abs(k_m - k_p)
     L, shift = gaussian.min_expected_loss(k, loss["L1m"], loss["L1p"])
     values = {
@@ -226,7 +238,7 @@ def derive(clean: dict) -> dict:
     warnings = {name: residuals[name] > THRESHOLDS[name] for name in residuals}
     warnings["g_x"] = warnings["g_x"] or "c" not in routes
     return {"values": values, "residuals": residuals, "warnings": warnings, "notes": notes,
-            "routes": routes, "shift": shift}
+            "routes": routes, "p_mismatch": p_mismatch, "shift": shift}
 
 
 def _reasoning(clean: dict, *questions: str) -> str:
@@ -249,13 +261,16 @@ def fit_gauss(clean: dict) -> tuple[dict | None, dict | None, str | None]:
              "g_k": DIMENSIONLESS, "g_L": "USD", "g_kappa_sigma0": "USD", "g_B": "USD",
              "g_K": "USD", "g_sigma_b_rel": DIMENSIONLESS}
     state = f"state: {clean['state']['variable']} [{unit}]"
-    notes = ("; ".join(der["notes"]) + " | ") if der["notes"] else ""
+
+    def notes(name: str) -> str:
+        return ("; ".join(der["notes"][name]) + " | ") if der["notes"][name] else ""
+
     reasoning = {
         "g_mu0": f"{state} | {_reasoning(clean, 'theta')}",
         "g_sigma0": f"{state} | {_reasoning(clean, 'theta')}",
-        "g_d": _reasoning(clean, "theta_c", "p_above"),
-        "g_x": notes + _reasoning(clean, "W_rr", "W1", "c_move"),
-        "g_k": notes + _reasoning(clean, "loss"),
+        "g_d": f"Q2b - Phi(d from Q2a) {der['p_mismatch']:+.3f} | " + _reasoning(clean, "theta_c", "p_above"),
+        "g_x": notes("g_x") + _reasoning(clean, "W_rr", "W1", "c_move"),
+        "g_k": notes("g_k") + _reasoning(clean, "loss"),
         "g_L": f"optimal action shift {der['shift']:+.2f} sigma0 | " + _reasoning(clean, "loss"),
         "g_kappa_sigma0": _reasoning(clean, "kappa_sigma0"),
         "g_B": _reasoning(clean, "B"),
