@@ -464,10 +464,12 @@ def plan_jobs(con, study: Study, protocol_id: int, scenarios: str | None, k_over
     return members, jobs
 
 
-def dry_run_staged(prot, stages: list[dict], members, jobs, k_override: int | None = None):
+def dry_run_staged(prot, stages: list[dict], members, jobs, k_override: int | None = None,
+                   stage: str | None = None):
     """The dry run of a staged protocol: pending slots per stage and member
     (over groups for the decision stage, scenarios for the instrument stage)
-    and the first pending prompt of each stage."""
+    and the first pending prompt of each stage; a stage --stage left out is
+    marked as not planned."""
     print(f"DRY RUN: protocol {prot['name']} (model {db.protocol_model_kind(prot)}, "
           f"stages {' + '.join(s['name'] for s in stages)}, hash {prot['template_hash'][:12]}, "
           f"scenarios {db.protocol_selector(prot)})")
@@ -476,6 +478,9 @@ def dry_run_staged(prot, stages: list[dict], members, jobs, k_override: int | No
         sjobs = [j for j in jobs if j["stage"] == st["name"]]
         print(f"  stage {st['name']} (template {st['template_path']}, params {', '.join(st['params'])}"
               + (f", group_key {st['group_key']}" if grouped else "") + "):")
+        if stage is not None and st["name"] != stage:
+            print(f"    not planned (--stage {stage})")
+            continue
         for m in members:
             pending = [j for j in sjobs if db.member_label(j["member"]) == db.member_label(m)]
             if grouped:
@@ -498,11 +503,11 @@ def dry_run_staged(prot, stages: list[dict], members, jobs, k_override: int | No
     print(f"\n{len(jobs)} slots would be elicited; no provider was called.")
 
 
-def dry_run(con, prot, members, jobs, k_override: int | None = None):
+def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str | None = None):
     """Render prompts and list pending slots per member; call nothing."""
     stages = db.protocol_stages(prot)
     if stages is not None:
-        return dry_run_staged(prot, stages, members, jobs, k_override)
+        return dry_run_staged(prot, stages, members, jobs, k_override, stage)
     print(f"DRY RUN: protocol {prot['name']} (model {db.protocol_model_kind(prot)}, "
           f"template {prot['template_path']}, hash {prot['template_hash'][:12]}, "
           f"scenarios {db.protocol_selector(prot)})")
@@ -904,7 +909,7 @@ def main(argv=None):
     plan_con = study.connect_copy()
     _, prot, members, jobs = plan(plan_con, study, args, preview=True)
     if args.dry_run:
-        dry_run(plan_con, prot, members, jobs, args.k)
+        dry_run(plan_con, prot, members, jobs, args.k, args.stage)
         return
     if not jobs:
         print("nothing to do: all requested slots already have valid elicitations (nothing written)")

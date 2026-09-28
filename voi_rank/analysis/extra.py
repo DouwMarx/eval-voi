@@ -96,6 +96,7 @@ this module depends only on db, model, sensitivity and study.
 from __future__ import annotations
 
 import argparse
+import json
 from itertools import combinations
 from pathlib import Path
 
@@ -1309,14 +1310,15 @@ def latest_run_per_protocol(con) -> dict[str, int]:
     correlated against v2 runs."""
     out = {}
     for p in con.execute("SELECT * FROM protocols ORDER BY id"):
-        seen = set()
+        latest: dict[str | None, int] = {}
         for r in con.execute("SELECT * FROM runs WHERE protocol_id=? ORDER BY id DESC", (p["id"],)):
             key = r["members_json"]
-            if key in seen or db.run_predates_v2(con, r) is not None:
-                continue
-            seen.add(key)
-            out[db.run_label(p["name"], db.run_member_labels(r))] = r["id"]
-    return dict(sorted(out.items(), key=lambda kv: kv[1]))
+            if key not in latest and db.run_predates_v2(con, r) is None:
+                latest[key] = r["id"]
+        # protocol order, the all-member run first, then its subsets
+        for key in sorted(latest, key=lambda k: (k is not None, k or "")):
+            out[db.run_label(p["name"], json.loads(key) if key else None)] = latest[key]
+    return out
 
 
 def member_repeat_counts(con, protocol_id: int, member: dict) -> dict[int, int]:
