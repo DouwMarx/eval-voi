@@ -1,8 +1,0 @@
-name: p001
-template_path: elicitation/templates/elicitor.md
-model_alias: haiku
-k_repeats: 3
-notes: >
-  Baseline protocol. Spec 6.3 structure: model definition, anchors A1 (gearbox
-  vibration survey) and A2 (rapid strep test), reasoning-before-numbers,
-  surprise-framed percentiles, strict-JSON output contract.

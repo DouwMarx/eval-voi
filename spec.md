@@ -1,4 +1,20 @@
-# SPEC — `voi-rank` v1
+# SPEC — `voi-rank`
+
+## v2 changes (2026-09-28)
+
+The v1 spec below is kept verbatim as the record of what was built; v2 changes it in five places.
+
+1. **Parameter `e` removed.** The model is `V(pi) = max(0, pi*B - (1-pi)*K)`, `EVPI = min(pB, (1-p)K)`, `voi(p, s, t, B, K)`. Six elicited parameters: `PARAM_NAMES = [p, s, t, B, K, C]`. `e` conflated compliance (part of the decision rule) with efficacy (part of `B`) while discounting only one branch; its global sensitivity in the v1 final run was small (|rho| 0.05 vs 0.40 for `C`). Validation requires exactly the six and silently ignores extra keys, so frozen v1 templates that still emit `e` keep validating; stored `e` rows are ignored by MC and analysis. `B` is now read as the benefit of a response that is actually taken.
+2. **Provider ensembles.** A protocol lists `members: [{provider: claude_cli|openrouter, model, k_repeats}]` (legacy `model_alias` + `k_repeats` = one `claude_cli` member). Elicitation slot identity is (scenario, protocol, provider, model, repeat). Immutability compares the template hash and the member list. MC pools ALL valid (member, repeat) fits of a scenario into one equal-weight mixture per parameter (no per-member reweighting). The OpenRouter provider uses `urllib` only, reads `OPENROUTER_API_KEY` from the environment or the repo-root `.env`, and is never called unless a protocol names it.
+3. **Study layout.** One study per directory under `studies/<name>/`: `scenarios.json`, `protocols/`, `templates/` (paths in protocol YAML are relative to the study root), `voi.db`, `report/`. Every CLI takes `--study PATH` (default `studies/business`); the v1 repository root layout (§11 below) moved to `studies/business/`, the code to the `voi_rank/` package. The schema gains `scenarios.context/grp/attributes`, `elicitations.provider/model`, `protocols.members_json`; `db.connect()` migrates v1 databases in place and back-fills legacy elicitations as `claude_cli` / the protocol's `model_alias`. `results` additionally stores the quantiles of the pooled `C` mixture.
+4. **Context field.** A scenario may carry `context`, a factual background paragraph substituted into the template as `$context` (empty string when absent), plus `group` (figure colouring) and free-form `attributes` (e.g. `level`).
+5. **Cost definition for evaluation studies.** In the eval studies (`ai-safety-evals`, `sim2real`) `C` is the total cost to build the evaluation from scratch (design, data or scene collection, hardware, engineering time) and run it once against the system under test; `B` and `K` are defined for the deployment decision. The business study keeps v1's per-measurement cost.
+
+New figures: `fig_evsi_vs_cost` is the headline (q05-q95 EVSI bars, group colours), `fig_param_medians` (every elicited p50 per parameter vs rank, by member), `fig_by_level` (when scenarios carry `attributes.level`). Macros gain member counts and per-member validity and cost; health reports per-member validity, noise and cross-member Spearman agreement.
+
+---
+
+# SPEC — `voi-rank` v1 (as built)
 
 **Audience:** an implementing agent (Claude Code) building this from scratch.
 **One-line goal:** rank scenarios by the value of a *single measurement* sold to a *single agent* facing a *single decision*, using the canonical Bayesian decision problem, with all parameters elicited by LLM (Large Language Model) calls and all uncertainty propagated by Monte Carlo (MC).
@@ -69,6 +85,7 @@ Guard division by zero (P1 or P0 = 0 → that branch contributes 0).
 - `EVSI` (USD per measurement)
 - `EVPI` (USD per measurement)
 - `efficiency = EVSI / C` (dimensionless; **primary ranking metric**, ranked by median)
+- `evpi_efficiency = EVPI / C` (v2: the simpler perfect-information ranking, summarised by the same per-draw median as `efficiency` so the two rankings compare without an estimator difference)
 - `margin = EVSI - C` (USD)
 - `p_positive = P(EVSI > C)` across draws (report alongside the ranking; a high-efficiency scenario with low p_positive is fragile)
 - `headroom = EVSI / EVPI` where EVPI > 0 (how much of the perfect-information value this instrument delivers; diagnostic for instrument quality)
@@ -135,7 +152,7 @@ CREATE TABLE sensitivities (
 );
 ```
 
-`prompt_hash` = SHA-256 of the fully rendered prompt string. `code_hash` = git commit hash. `cli_version` = output of `claude --version`.
+`prompt_hash` = SHA-256 of the fully rendered prompt string. `code_hash` = git HEAD of the code paths (`voi_rank/`, `pyproject.toml`, `uv.lock`), suffixed `-dirty` when any of them has uncommitted changes (v2: `mc` refuses such a tree unless `--allow-dirty`; a modified `voi.db` does not count, study inputs being frozen by `template_hash` and `prompt_hash`). `data_hash` (v2 column on `runs`) = SHA-256 over the sorted (elicitation id, parameter name, `fit_params`) of the valid elicitations the run drew from. `cli_version` = output of `claude --version`.
 
 ---
 

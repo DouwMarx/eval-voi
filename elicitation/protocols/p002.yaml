@@ -1,9 +1,0 @@
-name: p002
-template_path: elicitation/templates/elicitor_v2.md
-model_alias: haiku
-k_repeats: 3
-notes: >
-  One change vs p001: B, K, C reasoning must end with an explicit anchor-ratio
-  cross-check ("roughly Nx the gearbox B") before percentiles. Hypothesis:
-  pins USD scales, reducing cross-repeat p50 spread of B/K/C (p001 baseline:
-  0.89/1.18/0.73 median relative spread on seeds).
