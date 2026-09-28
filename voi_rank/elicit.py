@@ -38,7 +38,7 @@ import threading
 import time
 from pathlib import Path
 
-from voi_rank import db
+from voi_rank import db, gauss_fit
 from voi_rank.providers import claude_cli, get_provider, openrouter
 from voi_rank.study import Study, add_study_arg
 from voi_rank.validate import fit_all, strip_fences, validate_payload
@@ -117,10 +117,28 @@ def failed_attempt(error: str) -> dict:
     return {"raw": "", "error": error, "clean": None, "fits": None, "cost": 0.0}
 
 
-def attempt_once(call, prompt: str, model: str) -> dict:
-    """One provider call, parsed, validated and fitted. An exception escaping
-    the provider becomes an attempt with error 'provider: <Type>: <msg>', so
-    one bad call never aborts the run or discards completed paid work."""
+def parse_payload(obj, model_kind: str = db.BINARY_KIND) -> tuple[dict | None, dict | None, str | None]:
+    """Validate and fit one parsed JSON answer under the protocol's model
+    kind. Returns (rows, fits, error): rows[name] = {p5, p50, p95, unit,
+    reasoning} and fits[name] a FitResult, one per stored parameter of that
+    kind (db.param_names), in storage order."""
+    if db.normalize_model_kind(model_kind) == db.GAUSSIAN_KIND:
+        clean, err = gauss_fit.validate_gauss_payload(obj)
+        if clean is None:
+            return None, None, err
+        return gauss_fit.fit_gauss(clean)
+    clean, err = validate_payload(obj)
+    if clean is None:
+        return None, None, err
+    fits, err = fit_all(clean)
+    return (clean, fits, None) if fits is not None else (None, None, err)
+
+
+def attempt_once(call, prompt: str, model: str, model_kind: str = db.BINARY_KIND) -> dict:
+    """One provider call, parsed, validated and fitted under the protocol's
+    model kind. An exception escaping the provider becomes an attempt with
+    error 'provider: <Type>: <msg>', so one bad call never aborts the run or
+    discards completed paid work."""
     try:
         envelope, raw, err = call(prompt, model, SYSTEM_PROMPT)
     except Exception as ex:
@@ -133,9 +151,7 @@ def attempt_once(call, prompt: str, model: str) -> dict:
         except json.JSONDecodeError as ex:
             err = f"json: result parse failed: {ex}"
         else:
-            clean, err = validate_payload(obj)
-            if clean is not None:
-                fits, err = fit_all(clean)
+            clean, fits, err = parse_payload(obj, model_kind)
     cost = float(envelope.get("total_cost_usd") or 0.0) if envelope else 0.0
     return {"raw": raw, "error": err, "clean": clean, "fits": fits, "cost": cost}
 
@@ -172,13 +188,14 @@ def retry_delay(error: str | None) -> float | None:
 
 
 def elicit_job(call, prompt: str, model: str, sleep=time.sleep,
-               stop: threading.Event | None = None) -> list[dict]:
+               stop: threading.Event | None = None, model_kind: str = db.BINARY_KIND) -> list[dict]:
     """Up to two attempts through one provider, retried per retry_delay().
     Each attempt dict: raw, error, clean, fits, cost. A clamped Retry-After
     is recorded in the first attempt's error. `stop` (set by run_jobs once
     its main thread is interrupted) skips the retry, and cuts its backoff
-    short, so no call is launched after Ctrl-C."""
-    attempts = [attempt_once(call, prompt, model)]
+    short, so no call is launched after Ctrl-C. model_kind selects the
+    validation and fitting of the answer (binary | gaussian)."""
+    attempts = [attempt_once(call, prompt, model, model_kind)]
     delay = retry_delay(attempts[0]["error"])
     if delay is None:
         return attempts
@@ -192,7 +209,7 @@ def elicit_job(call, prompt: str, model: str, sleep=time.sleep,
             return attempts
     if stop is not None and stop.is_set():
         return attempts
-    attempts.append(attempt_once(call, prompt, model))
+    attempts.append(attempt_once(call, prompt, model, model_kind))
     return attempts
 
 
@@ -208,7 +225,7 @@ def store_attempts(con, scenario_id, protocol_id, member, repeat_ix, phash, atte
                                     member["model"], repeat_ix, phash, att["raw"],
                                     valid, att["error"])
         if valid:
-            for name in db.PARAM_NAMES:
+            for name in att["clean"]:   # the protocol's parameter names, in storage order
                 d = att["clean"][name]
                 db.insert_parameter(con, eid, name, d["p5"], d["p50"], d["p95"],
                                     d["unit"], d["reasoning"], att["fits"][name])
@@ -338,8 +355,9 @@ def plan_jobs(con, study: Study, protocol_id: int, scenarios: str | None, k_over
 
 def dry_run(con, prot, members, jobs, k_override: int | None = None):
     """Render prompts and list pending slots per member; call nothing."""
-    print(f"DRY RUN: protocol {prot['name']} (template {prot['template_path']}, "
-          f"hash {prot['template_hash'][:12]}, scenarios {db.protocol_selector(prot)})")
+    print(f"DRY RUN: protocol {prot['name']} (model {db.protocol_model_kind(prot)}, "
+          f"template {prot['template_path']}, hash {prot['template_hash'][:12]}, "
+          f"scenarios {db.protocol_selector(prot)})")
     by_member = {}
     for j in jobs:
         by_member.setdefault(db.member_label(j["member"]), []).append(j)
@@ -444,10 +462,13 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
     # elicitation ids above this one were written by this run: the salvage
     # uses it to recognise a slot whose commit landed just before an interrupt
     last_id_before = con.execute("SELECT COALESCE(MAX(id), 0) FROM elicitations").fetchone()[0]
+    kind = db.protocol_model_kind(
+        con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone())
     stop = threading.Event()   # set on interrupt: a worker then launches no retry
     pool = cf.ThreadPoolExecutor(workers)
     futures = {pool.submit(elicit_job, get_provider(j["member"]["provider"]),
-                           j["prompt"], j["member"]["model"], stop=stop): j for j in jobs}
+                           j["prompt"], j["member"]["model"], stop=stop, model_kind=kind): j
+               for j in jobs}
     handled: set = set()     # futures whose attempts are in the DB or spilled
     halted: set[str] = set()
     rejected: dict[str, set[int]] = {}   # member -> scenarios whose request was rejected (400/403)

@@ -23,17 +23,40 @@ FAMILY_BY_PARAM = {
     "B": "lognormal", "K": "lognormal", "C": "lognormal",
 }
 PARAM_NAMES = list(FAMILY_BY_PARAM)
+# Gaussian-state family (spec v2.1): the quantities derived from the eight
+# over-determined questions, stored one row each. 'point' rows carry the
+# derived value (fit_params {"value": v}, p5 = p50 = p95 = v) and the
+# over-determination residual of the questions they come from; C is the
+# lognormal triple as in the binary protocol.
+GAUSS_FAMILY_BY_PARAM = {
+    "g_mu0": "point", "g_sigma0": "point", "g_d": "point", "g_x": "point", "g_k": "point",
+    "g_L": "point", "g_kappa_sigma0": "point", "g_B": "point", "g_K": "point",
+    "g_sigma_b_rel": "point", "C": "lognormal",
+}
+GAUSS_PARAM_NAMES = list(GAUSS_FAMILY_BY_PARAM)
+# quantities in USD (log axes in figures); the rest are in state units
+# (g_mu0, g_sigma0) or dimensionless
+GAUSS_USD_PARAMS = ("g_L", "g_kappa_sigma0", "g_B", "g_K", "C")
+GAUSS_LOG_PARAMS = GAUSS_USD_PARAMS + ("g_sigma0", "g_x")
 
 
 @dataclass
 class FitResult:
-    family: str      # "lognormal" | "beta"
-    params: dict     # {"mu", "sigma"} | {"alpha", "beta"}
-    residual: float  # RMS error over the three target quantiles (log space for lognormal)
+    family: str      # "lognormal" | "beta" | "point"
+    params: dict     # {"mu", "sigma"} | {"alpha", "beta"} | {"value"}
+    residual: float  # RMS error over the three target quantiles (log space for lognormal);
+                     # for a point row, the over-determination residual (gauss_fit)
     warning: bool
 
     def params_json(self) -> str:
         return json.dumps(self.params)
+
+
+def fit_point(value: float, residual: float = 0.0, warning: bool = False) -> FitResult:
+    """A derived scalar stored as a degenerate distribution: MC draws it as a
+    constant, and the mixture over repeats is the empirical distribution of
+    the repeat values."""
+    return FitResult("point", {"value": float(value)}, float(residual), bool(warning))
 
 
 def fit_param(name: str, q05: float, q50: float, q95: float) -> FitResult:

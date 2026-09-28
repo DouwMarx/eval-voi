@@ -180,8 +180,20 @@ def titles(con) -> dict[int, str]:
     return {r["id"]: r["title"] for r in con.execute("SELECT id, title FROM scenarios")}
 
 
+def run_kind(con, run_id: int) -> str:
+    return db.run_model_kind(con, db.get_run(con, run_id))
+
+
+def primary_metric(con, run_id: int) -> str:
+    return db.primary_metric(run_kind(con, run_id))
+
+
+def evsi_metric(con, run_id: int) -> str:
+    return db.evsi_metric(run_kind(con, run_id))
+
+
 def ranked_ids(con, run_id: int) -> list[int]:
-    eff = metric_rows(con, run_id, "efficiency")
+    eff = metric_rows(con, run_id, primary_metric(con, run_id))
     return sorted(eff, key=lambda s: (-(eff[s]["q50"] or 0.0), -(eff[s]["p_positive"] or 0.0), s))
 
 
@@ -266,6 +278,8 @@ def _draw(rng, family: str, params: dict, m: int) -> np.ndarray:
         return rng.lognormal(params["mu"], params["sigma"], m)
     if family == "beta":
         return rng.beta(params["alpha"], params["beta"], m)
+    if family == "point":
+        return np.full(m, float(params["value"]))
     raise ValueError(f"unknown family {family!r}")
 
 
@@ -321,7 +335,7 @@ def leveled_rungs(con, run) -> tuple[dict[str, list[tuple[float, int]]], dict[st
     scenarios on one level would make a 'step' between equals, a marginal of
     nothing), restricted to the scenarios ranked in the run; skipped =
     {group: reason} for every other leveled group."""
-    ranked = set(metric_rows(con, run["id"], "efficiency"))
+    ranked = set(metric_rows(con, run["id"], primary_metric(con, run["id"])))
     ladders, skipped = {}, {}
     for g, (rungs, n_text) in leveled_groups(con).items():
         kept = [(lv, sid) for lv, sid in rungs if sid in ranked]
@@ -683,7 +697,8 @@ def fig_domain_map(con, run, out: Path) -> bool:
     order = ranked_ids(con, run["id"])
     if not any(s in domains for s in order):
         return False
-    evsi = metric_rows(con, run["id"], "EVSI")
+    evsi_name = evsi_metric(con, run["id"])
+    evsi = metric_rows(con, run["id"], evsi_name)
     cost = metric_rows(con, run["id"], "C")
     groups = scenario_groups(con)
     xs = np.array([cost[s]["q50"] if s in cost else pooled_c(con, run, s) for s in order], dtype=float)
@@ -722,8 +737,8 @@ def fig_domain_map(con, run, out: Path) -> bool:
     ax.legend(handles=handles, fontsize=6.5, loc="lower right", frameon=False,
               title="colour: risk domain; marker: group", title_fontsize=6.5)
     ax.set_xlabel("median C (run mixture, USD)")
-    ax.set_ylabel("median EVSI (USD per evaluation)")
-    ax.set_title("Median EVSI vs median cost by risk domain and group (bars: q05–q95 EVSI)")
+    ax.set_ylabel(f"median {evsi_name} (USD per evaluation)")
+    ax.set_title(f"Median {evsi_name} vs median cost by risk domain and group (bars: q05–q95)")
     fig.savefig(out / "fig_domain_map.pdf")
     plt.close(fig)
     return True
@@ -736,7 +751,7 @@ def domain_summary(con, run) -> dict:
     order = ranked_ids(con, run["id"])
     if not any(s in domains for s in order):
         return {}
-    eff = metric_rows(con, run["id"], "efficiency")
+    eff = metric_rows(con, run["id"], primary_metric(con, run["id"]))
     med = {s: float(eff[s]["q50"] or 0.0) for s in order}
     grp = scenario_groups(con)
     groups = {s: grp.get(s) or "(no group)" for s in order}
@@ -829,7 +844,8 @@ def member_rankings(con, run) -> dict:
             d = draw_metrics(rng, fits, run["n_draws"])
             meds[sid] = float(np.median(d["EVSI"] / d["C"]))
         medians[label] = meds
-    pooled = {s: float(r["q50"] or 0.0) for s, r in metric_rows(con, run["id"], "efficiency").items()}
+    pooled = {s: float(r["q50"] or 0.0)
+              for s, r in metric_rows(con, run["id"], primary_metric(con, run["id"])).items()}
     series = [medians[label] for label in labels] + [pooled]
     n = len(series)
     matrix = np.full((n, n), np.nan)
@@ -1094,6 +1110,8 @@ def noise_rows(con) -> list[tuple[str, dict, str, int | None]]:
     the nominal k."""
     rows = []
     for p in con.execute("SELECT * FROM protocols ORDER BY id"):
+        if db.protocol_model_kind(p) != db.BINARY_KIND:   # the table's rows are the binary parameters
+            continue
         for m in db.protocol_members(p):
             multi = [c for c in member_repeat_counts(con, p["id"], m).values() if c >= 2]
             if not multi:
@@ -1106,9 +1124,10 @@ def noise_rows(con) -> list[tuple[str, dict, str, int | None]]:
 
 
 def rank_corr_between_runs(con, run_a: int, run_b: int) -> tuple[float | None, int]:
+    """Each run on its own primary metric ('efficiency' or 'eff_step')."""
     med = {rid: {r["scenario_id"]: r["q50"] for r in con.execute(
-        "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric='efficiency'", (rid,))}
-        for rid in (run_a, run_b)}
+        "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric=?",
+        (rid, primary_metric(con, rid)))} for rid in (run_a, run_b)}
     shared = sorted(set(med[run_a]) & set(med[run_b]))
     if len(shared) < 3:
         return None, len(shared)
@@ -1156,8 +1175,20 @@ def write_protocol_noise_matched(con, out: Path) -> bool:
 
 # --- driver -------------------------------------------------------------------
 
+# analyses defined on the binary parameters (p, B, K shared per ladder; p50
+# dispersion of p, s, t, B, K, C; per-member re-draws through model.voi; the
+# EVPI/C ranking): a Gaussian run skips them with a printed reason
+BINARY_ONLY = ("level_uplift", "consistency", "member_agreement", "simplicity")
+
+
 def skip_reasons(con, run, uplift: dict) -> dict[str, str]:
     """Why an analysis (or one of its ladders) does not apply to this run."""
+    if run_kind(con, run["id"]) == db.GAUSSIAN_KIND:
+        reasons = {name: "defined on the binary parameters; the run is a Gaussian-state protocol"
+                   for name in BINARY_ONLY}
+        if not scenario_domains(con):
+            reasons["domain_map"] = "no scenario carries attributes.risk_domain"
+        return reasons
     reasons = {f"level_uplift ({g})": why for g, why in uplift["skipped"].items()}
     if not uplift["steps"]:
         reasons["level_uplift"] = "no ladder (a group of >= 2 ranked levels sharing one decision text)"
@@ -1182,19 +1213,20 @@ def make_all(con, run, out: Path) -> tuple[list[str], list[str]]:
     reason printed (as is every ladder the level uplift leaves out)."""
     out.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(STYLE)
-    uplift = level_uplift_analysis(con, run)
+    binary = run_kind(con, run["id"]) == db.BINARY_KIND
+    uplift = level_uplift_analysis(con, run) if binary else {"steps": {}, "skipped": {}}
     for what, why in skip_reasons(con, run, uplift).items():
         print(f"{what}: skipped: {why}")
-    mr_needed = len(run_members(con, run)) > 1
+    mr_needed = binary and len(run_members(con, run)) > 1
     plan = [
-        ("level_uplift", lambda: fig_level_uplift(con, run, out, uplift)
+        ("level_uplift", lambda: binary and fig_level_uplift(con, run, out, uplift)
          and write_level_uplift(con, run, out, uplift)),
-        ("consistency", lambda: fig_within_group_consistency(con, run, out)
+        ("consistency", lambda: binary and fig_within_group_consistency(con, run, out)
          and write_consistency(con, run, out)),
         ("domain_map", lambda: fig_domain_map(con, run, out) and write_domain_summary(con, run, out)),
         ("member_agreement", lambda: mr_needed and fig_member_agreement(con, run, out)
          and write_member_agreement(con, run, out)),
-        ("simplicity", lambda: write_simplicity(con, run, out)),
+        ("simplicity", lambda: binary and write_simplicity(con, run, out)),
         ("protocol_noise_matched", lambda: write_protocol_noise_matched(con, out)),
     ]
     written, skipped = [], []
