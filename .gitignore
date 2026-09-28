@@ -16,3 +16,4 @@ studies/*/report/*.toc
 studies/*/report/*.bbl
 studies/*/report/*.blg
 studies/*/report/*.png
+.claude/
