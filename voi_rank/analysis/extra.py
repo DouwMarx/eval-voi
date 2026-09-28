@@ -40,13 +40,31 @@ study's voi.db. Outputs land in <study>/report/generated/:
    pooled per scenario, min..max where scenarios differ), plus the Spearman
    compare matrix between the latest v2 runs of every protocol pair (a run
    the v2 analyses refuse, db.run_predates_v2, is skipped).
+7. plugin.tex + fig_plugin.pdf + macros in macros_extra.tex: the plug-in
+   summary next to the Monte Carlo one, a longtable like catalog.tex. Per
+   scenario (in the run's median efficiency order): EVSI, EVPI and
+   efficiency from model.voi at the pooled elicited medians of p, s, t, B, K,
+   C (median of the p50 across valid elicitations, as tables.write_catalog
+   defines them for p, s, t, B, K, whose values the catalog already lists and
+   this table does not repeat; for C too, NOT the catalog's mixture median,
+   so C is printed here), the gate regime at the medians (in gate / always
+   respond / never respond, from the threshold pi* = K / (B + K) against the
+   posteriors pi1, pi0), the run's median and MEAN efficiency (the mean over
+   the run's draws, replayed from the DB and verified against the stored
+   quantiles), P(EVSI > C) and P(EVSI > 0) over the draws. The figure
+   compares the three rankings pairwise (rank scatter, Spearman annotated).
+   The elicited stakes vary several-fold across repeats, so the mixture can
+   close the gate in more than half the draws (median EVSI 0) where the
+   medians sit inside it; this table shows that side by side.
 
 Usage: python -m voi_rank.analysis.extra --study PATH [--protocol p001] [--run ID]
 (default: the latest run of protocol p001; --run overrides; prints
-'run <id> (protocol <name>)' like figures.py). Nothing here replays the
-stored run, so repeats added under the protocol after the run never abort an
-analysis. Analyses whose inputs are absent are skipped with a printed reason
-and their stale outputs removed.
+'run <id> (protocol <name>)' like figures.py). Only the plug-in analysis
+replays the stored run (for the mean over its draws); when repeats added
+under the protocol after the run desynchronise the replay, it is skipped
+with a printed reason and nothing aborts. Every other analysis reads the
+stored results or draws its own mixture. Analyses whose inputs are absent
+are skipped with a printed reason and their stale outputs removed.
 
 Helpers duplicated from figures.py / tables.py / mc.py (style constants, run
 selection, LaTeX escaping, mixture sampling) are copied here on purpose so
@@ -65,6 +83,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.ticker  # noqa: E402
 import numpy as np  # noqa: E402
+from scipy.stats import rankdata  # noqa: E402
 
 from voi_rank import db, model  # noqa: E402
 from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
@@ -105,6 +124,17 @@ REFERENCE_GROUP = "AI safety eval"
 MATCHED_K = 3
 TOP_N_MEMBER = 5
 TOP_N_OVERLAP = 10
+TOP_N_PLUGIN = 5
+# replay verification (mirrors mc.py): the stored efficiency summary a replay must reproduce
+REPLAY_RTOL = 1e-9
+SUMMARY_QS = (0.05, 0.25, 0.50, 0.75, 0.95)
+RESULT_COLUMNS = ("q05", "q25", "q50", "q75", "q95")
+# gate regime at the plug-in medians -> table cell
+REGIME_CELL = {"in gate": "gate", "always respond": "always", "never respond": "never"}
+# scatter panels of fig_plugin: (x ranking, y ranking) keys of plugin_stats rows
+PLUGIN_PANELS = (("plugin", "mc_median"), ("plugin", "mc_mean"), ("mc_median", "mc_mean"))
+PLUGIN_AXIS = {"plugin": "plug-in rank", "mc_median": "MC median rank", "mc_mean": "MC mean rank"}
+PLUGIN_ANNOTATE_MAX = 25
 PARAM_MACRO = {"p": "P", "s": "S", "t": "T", "B": "B", "K": "K", "C": "C"}
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
                   "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}",
@@ -115,8 +145,10 @@ OUTPUTS = {
     "domain_map": ("fig_domain_map.pdf", "domain_summary.tex"),
     "member_agreement": ("fig_member_agreement.pdf", "member_agreement.tex"),
     "simplicity": ("simplicity.tex", "macros_extra.tex"),
+    "plugin": ("fig_plugin.pdf", "plugin.tex", "macros_extra.tex"),
     "protocol_noise_matched": ("protocol_noise_matched.tex",),
 }
+MACROS_FILE = "macros_extra.tex"
 
 
 # --- LaTeX helpers (mirror tables.py) ---------------------------------------
@@ -156,6 +188,19 @@ def tabular(colspec: str, header: str, rows: list[str], caption: str | None = No
     return (f"% {caption}\n" + text) if caption else text
 
 
+def longtable(colspec: str, header: str, rows: list[str], caption: str, label: str) -> str:
+    """A booktabs longtable fragment with the head and foot of
+    tables.write_catalog (rows already joined with &, no \\\\); the caption is
+    part of the fragment, so the report inputs it outside any float."""
+    lines = [r"\begin{longtable}{" + colspec + "}",
+             r"\caption{" + caption + r"}\label{" + label + r"}\\",
+             r"\toprule", header + r"\\", r"\midrule\endfirsthead",
+             r"\toprule " + header + r"\\\midrule\endhead", r"\bottomrule\endfoot"]
+    lines += [r + r"\\" for r in rows]
+    lines.append(r"\end{longtable}")
+    return "\n".join(lines) + "\n"
+
+
 def _write(out: Path, name: str, text: str) -> Path:
     path = out / name
     path.write_text(text)
@@ -167,6 +212,21 @@ def _unlink(out: Path, names) -> None:
         p = out / name
         if p.exists():
             p.unlink()
+
+
+def write_macros(out: Path, macros: dict, merge: bool = False) -> Path:
+    """\\newcommand lines in MACROS_FILE. merge=True keeps the other analyses'
+    macros already in the file and replaces those with the same name, so the
+    file is never left with a duplicate \\newcommand (a LaTeX error)."""
+    path = out / MACROS_FILE
+    keep = []
+    if merge and path.exists():
+        names = {f"\\newcommand{{\\{k}}}" for k in macros}
+        keep = [line for line in path.read_text().splitlines()
+                if line.strip() and not any(line.startswith(n) for n in names)]
+    lines = keep + [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
+    path.write_text("\n".join(lines) + "\n")
+    return path
 
 
 # --- shared readers (mirror figures.py) -------------------------------------
@@ -673,9 +733,16 @@ def iso_efficiency_lines(ax, xlim, ylim) -> None:
                     rotation=angle, rotation_mode="anchor")
 
 
-def pooled_c(con, run, sid: int) -> float:
+def pooled_p50(con, protocol_id: int, sid: int, name: str) -> float | None:
+    """Median of the p50 across the valid elicitations of one scenario under a
+    protocol (tables.write_catalog's pooled elicited median); None without any."""
+    p50s = db.elicited_p50s(con, protocol_id, sid, name)
+    return float(np.median(p50s)) if p50s else None
+
+
+def pooled_c(con, run, sid: int) -> float | None:
     """Median elicited p50 of C (fallback for pre-v2 runs without a stored C row)."""
-    return float(np.median(db.elicited_p50s(con, run["protocol_id"], sid, "C")))
+    return pooled_p50(con, run["protocol_id"], sid, "C")
 
 
 def fig_domain_map(con, run, out: Path) -> bool:
@@ -1022,8 +1089,7 @@ def write_simplicity(con, run, out: Path) -> bool:
     }
     for n in db.PARAM_NAMES:
         macros[f"voiGlobalAll{PARAM_MACRO[n]}"] = num(st["global_all"][n], "{:.2f}")
-    _write(out, "macros_extra.tex",
-           "\n".join(f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()) + "\n")
+    write_macros(out, macros)
     return True
 
 
@@ -1154,10 +1220,218 @@ def write_protocol_noise_matched(con, out: Path) -> bool:
     return True
 
 
+# --- 7. plug-in vs Monte Carlo ------------------------------------------------
+
+def gate_regime(p: float, s: float, t: float, B: float, K: float) -> str:
+    """Where the decision sits at one parameter point: 'in gate' when the
+    threshold pi* = K / (B + K) lies strictly between the two posteriors
+    pi1 = P(theta=1 | x=1) and pi0 = P(theta=1 | x=0), so the signal can flip
+    the action and EVSI > 0; 'always respond' when both posteriors are at or
+    above pi*; 'never respond' when both are at or below it. A signal value
+    of probability zero leaves the belief at the prior p."""
+    P1 = p * s + (1.0 - p) * (1.0 - t)
+    P0 = 1.0 - P1
+    pi1 = p * s / P1 if P1 > 0.0 else p
+    pi0 = p * (1.0 - s) / P0 if P0 > 0.0 else p
+    pi_star = K / (B + K)
+    lo, hi = min(pi0, pi1), max(pi0, pi1)
+    if pi_star <= lo:
+        return "always respond"
+    if pi_star >= hi:
+        return "never respond"
+    return "in gate"
+
+
+def plugin_point(con, run, sid: int) -> dict | None:
+    """model.voi at the pooled elicited medians of one scenario: {"medians":
+    {p, s, t, B, K, C}, "EVSI", "EVPI", "eff", "regime"}; None when a
+    parameter has no valid elicitation under the run's protocol."""
+    med = {name: pooled_p50(con, run["protocol_id"], sid, name) for name in db.PARAM_NAMES}
+    if any(v is None for v in med.values()):
+        return None
+    evsi, evpi = model.voi(med["p"], med["s"], med["t"], med["B"], med["K"])
+    return {"medians": med, "EVSI": float(evsi), "EVPI": float(evpi),
+            "eff": float(evsi) / med["C"],
+            "regime": gate_regime(med["p"], med["s"], med["t"], med["B"], med["K"])}
+
+
+def replay_run(con, run) -> tuple[dict[int, dict[str, float]] | None, str | None]:
+    """The stored run's draws, re-drawn from the DB alone (seed, n_draws and
+    fits are persisted; one rng consumed in scenario-id, PARAM_NAMES order as
+    mc.iter_scenario_draws does) and verified per scenario against the stored
+    efficiency quantiles and P(EVSI > C) within REPLAY_RTOL, as
+    mc.replay_efficiency does. Only the two scalars the plug-in table needs
+    are kept per scenario, never the draw arrays: ({sid: {"mc_mean": mean
+    efficiency, "p_gate": P(EVSI > 0)}}, None), or (None, reason) when the
+    valid-elicitation set changed since the run (a scenario added or dropped,
+    repeats added under the same protocol)."""
+    fits = complete_fits(db.scenario_param_fits(con, run["protocol_id"]))
+    stored = metric_rows(con, run["id"], "efficiency")
+    if set(fits) != set(stored):
+        return None, (f"elicitations changed since run {run['id']}: {len(fits)} scenarios hold"
+                      f" complete valid elicitations now vs {len(stored)} ranked")
+    rng = np.random.default_rng(run["seed"])
+    replay = {}
+    for sid, f in fits.items():
+        d = draw_metrics(rng, f, run["n_draws"])
+        eff = d["EVSI"] / d["C"]
+        if not np.all(np.isfinite(eff)):
+            return None, f"replay of run {run['id']} gives a non-finite efficiency draw on scenario {sid}"
+        got = dict(zip(RESULT_COLUMNS, (float(v) for v in np.quantile(eff, SUMMARY_QS)), strict=True))
+        got["p_positive"] = float(np.mean(d["EVSI"] > d["C"]))
+        for col, want in ((c, stored[sid][c]) for c in (*RESULT_COLUMNS, "p_positive")):
+            if want is None or abs(got[col] - want) > REPLAY_RTOL * max(1.0, abs(want)):
+                return None, (f"replay of run {run['id']} mismatches on scenario {sid}: efficiency"
+                              f" {col} {got[col]} vs stored {want}: valid elicitations changed since"
+                              " the run (e.g. repeats added under the same protocol)")
+        replay[sid] = {"mc_mean": float(np.mean(eff)), "p_gate": float(np.mean(d["EVSI"] > 0.0))}
+    return replay, None
+
+
+def plugin_analysis(con, run) -> tuple[dict | None, str | None]:
+    """(stats, None) or (None, reason). stats: {"rows": [per scenario in the
+    run's ranking order: sid, rank, medians, EVSI, EVPI, eff (plug-in),
+    regime, mc_median, mc_mean, p_positive, p_gate], "rho_plugin_median",
+    "rho_plugin_mean", "rho_median_mean" (Spearman over the efficiencies,
+    None with fewer than 3 scenarios or a constant ranking), "n_gate"
+    (scenarios in gate at the medians), "n_zero_median" (stored median EVSI
+    exactly 0), "top_k", "top_overlap" (top-k ids by plug-in efficiency shared
+    with the run's top-k)}. mc_mean and p_gate come from the replayed draws
+    (replay_run), mc_median and p_positive from the stored results."""
+    replay, why = replay_run(con, run)
+    if replay is None:
+        return None, why
+    order = ranked_ids(con, run["id"])
+    eff = metric_rows(con, run["id"], "efficiency")
+    evsi = metric_rows(con, run["id"], "EVSI")
+    rows = []
+    for rank, sid in enumerate(order, 1):
+        # a verified replay means every ranked scenario has a valid elicitation
+        # of every parameter, so plugin_point is never None here
+        rows.append({"sid": sid, "rank": rank, **plugin_point(con, run, sid),
+                     "mc_median": float(eff[sid]["q50"] or 0.0),
+                     "p_positive": float(eff[sid]["p_positive"] or 0.0), **replay[sid]})
+    series = {key: [r[key] for r in rows] for key in ("eff", "mc_median", "mc_mean")}
+
+    def rho(a, b):
+        return spearman(series[a], series[b]) if len(rows) >= 3 else None
+
+    k = min(TOP_N_PLUGIN, len(rows))
+    plug = {r["sid"]: r["eff"] for r in rows}
+    top_plugin = sorted(plug, key=lambda s: (-plug[s], s))[:k]
+    return {
+        "rows": rows,
+        "rho_plugin_median": rho("eff", "mc_median"),
+        "rho_plugin_mean": rho("eff", "mc_mean"),
+        "rho_median_mean": rho("mc_median", "mc_mean"),
+        "n_gate": sum(1 for r in rows if r["regime"] == "in gate"),
+        "n_zero_median": sum(1 for s in order if float(evsi[s]["q50"] or 0.0) == 0.0),
+        "top_k": k, "top_overlap": len(set(order[:k]) & set(top_plugin)),
+    }, None
+
+
+def plugin_stats(con, run) -> dict | None:
+    return plugin_analysis(con, run)[0]
+
+
+def average_ranks(values) -> np.ndarray:
+    """Rank 1 = largest; ties share their average rank (what Spearman uses)."""
+    return rankdata(-np.asarray(values, dtype=float), method="average")
+
+
+def fig_plugin(con, run, out: Path, st: dict | None = None) -> bool:
+    st = st or plugin_stats(con, run)
+    if st is None:
+        return False
+    rows = st["rows"]
+    n = len(rows)
+    ranks = {"plugin": average_ranks([r["eff"] for r in rows]),
+             "mc_median": average_ranks([r["mc_median"] for r in rows]),
+             "mc_mean": average_ranks([r["mc_mean"] for r in rows])}
+    rhos = {("plugin", "mc_median"): st["rho_plugin_median"],
+            ("plugin", "mc_mean"): st["rho_plugin_mean"],
+            ("mc_median", "mc_mean"): st["rho_median_mean"]}
+    fig, axes = plt.subplots(1, len(PLUGIN_PANELS), figsize=(6.2, 2.4))
+    for ax, (kx, ky) in zip(axes, PLUGIN_PANELS, strict=True):
+        x, y = ranks[kx], ranks[ky]
+        ax.plot([0.5, n + 0.5], [0.5, n + 0.5], ls="--", lw=0.6, color="#c9c9c9", zorder=0)
+        ax.plot(x, y, "o", color=ACCENT, ms=4, mec="white", mew=0.4, alpha=0.85, zorder=3)
+        if n <= PLUGIN_ANNOTATE_MAX:
+            at: dict[tuple[float, float], list[int]] = {}
+            for r, xi, yi in zip(rows, x, y, strict=True):
+                at.setdefault((float(xi), float(yi)), []).append(r["sid"])
+            for (xi, yi), sids in at.items():
+                parts = [", ".join(map(str, sids[i:i + 4])) for i in range(0, len(sids), 4)]
+                ax.annotate("\n".join(parts), (xi, yi), textcoords="offset points", xytext=(3, 3),
+                            fontsize=5, color="#333333", zorder=4)
+        rho = rhos[(kx, ky)]
+        ax.set_title(f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={n})",
+                     fontsize=7.5)
+        ax.set_xlim(n + 0.7, 0.3)
+        ax.set_ylim(n + 0.7, 0.3)
+        ax.set_xlabel(PLUGIN_AXIS[kx], fontsize=8)
+        ax.set_ylabel(PLUGIN_AXIS[ky], fontsize=8)
+        ax.tick_params(labelsize=7)
+    fig.suptitle("Efficiency rank: plug-in at the pooled medians vs MC median vs MC mean"
+                 " (rank 1 top right; ties averaged)", fontsize=7.5)
+    fig.savefig(out / "fig_plugin.pdf")
+    plt.close(fig)
+    return True
+
+
+def write_plugin(con, run, out: Path, st: dict | None = None) -> bool:
+    st = st or plugin_stats(con, run)
+    if st is None:
+        return False
+    rows = []
+    for r in st["rows"]:
+        rows.append(
+            f"{r['rank']} & {r['sid']} & {money(r['medians']['C'])} & {money(r['EVSI'])} &"
+            f" {money(r['EVPI'])} & {num(r['eff'])} & {REGIME_CELL[r['regime']]} &"
+            f" {num(r['mc_median'])} & {num(r['mc_mean'])} & {pct(r['p_positive'])} & {pct(r['p_gate'])}")
+    header = (r"rank & id & $C$ & EVSI & EVPI & eff & regime & $\mathrm{eff}_{q50}$ &"
+              r" $\overline{\mathrm{eff}}$ & $P_+$ & $P_\mathrm{gate}$")
+    table = longtable(
+        "@{}rrrrrrlrrrr@{}", header, rows,
+        r"Plug-in vs Monte Carlo per scenario, in the order of the run's median efficiency (rank)."
+        r" EVSI, EVPI and eff $=$ EVSI$/C$ are \texttt{model.voi} at the pooled elicited medians"
+        r" of $p$, $s$, $t$, $B$, $K$ (the catalog's values) and $C$ (median of the p50 across"
+        r" valid elicitations, printed here because the catalog's $C$ is the run's mixture"
+        r" median). Regime at the medians from $\pi^* = K/(B+K)$ against the posteriors"
+        r" $\pi_1$, $\pi_0$: gate ($\pi^*$ strictly between them, EVSI $>$ 0), always / never"
+        r" respond (both posteriors at or above / below $\pi^*$, EVSI $=$ 0)."
+        r" $\mathrm{eff}_{q50}$: the run's stored median efficiency; $\overline{\mathrm{eff}}$:"
+        f" the mean over the {run['n_draws']} draws of run {run['id']}, replayed from the DB and"
+        r" verified against the stored quantiles; $P_+ = P(\mathrm{EVSI} > C)$ stored by the run;"
+        r" $P_\mathrm{gate} = P(\mathrm{EVSI} > 0)$ over the replayed draws. USD in $B$, $K$, $C$,"
+        r" EVSI, EVPI.", "tab:plugin")
+    summary = tabular("@{}lr@{}", "statistic & value", [
+        r"Spearman $\rho$(plug-in eff, MC median eff) & " + num(st["rho_plugin_median"], "{:.2f}"),
+        r"Spearman $\rho$(plug-in eff, MC mean eff) & " + num(st["rho_plugin_mean"], "{:.2f}"),
+        r"Spearman $\rho$(MC median eff, MC mean eff) & " + num(st["rho_median_mean"], "{:.2f}"),
+        f"scenarios in gate at the medians & {st['n_gate']} / {len(st['rows'])}",
+        f"scenarios with MC median EVSI $= 0$ & {st['n_zero_median']} / {len(st['rows'])}",
+        f"top-{st['top_k']} overlap, plug-in vs MC median & {st['top_overlap']} / {st['top_k']}",
+    ], "plug-in vs Monte Carlo rankings over the efficiencies of the table above")
+    _write(out, "plugin.tex", table + "\\par\\medskip\n" + summary)
+    write_macros(out, {
+        "voiPluginRhoMedian": num(st["rho_plugin_median"], "{:.2f}"),
+        "voiPluginRhoMean": num(st["rho_plugin_mean"], "{:.2f}"),
+        "voiMedianMeanRho": num(st["rho_median_mean"], "{:.2f}"),
+        "voiPluginInGate": st["n_gate"],
+        "voiMcZeroMedian": st["n_zero_median"],
+        "voiPluginTopK": st["top_k"],
+        "voiPluginTopOverlap": st["top_overlap"],
+    }, merge=True)
+    return True
+
+
 # --- driver -------------------------------------------------------------------
 
-def skip_reasons(con, run, uplift: dict) -> dict[str, str]:
-    """Why an analysis (or one of its ladders) does not apply to this run."""
+def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[str, str]:
+    """Why an analysis (or one of its ladders) does not apply to this run.
+    plugin: the (stats, reason) pair of plugin_analysis, computed here when
+    not passed (the replay behind it is the costliest step of the module)."""
     reasons = {f"level_uplift ({g})": why for g, why in uplift["skipped"].items()}
     if not uplift["steps"]:
         reasons["level_uplift"] = "no ladder (a group of >= 2 ranked levels sharing one decision text)"
@@ -1173,6 +1447,9 @@ def skip_reasons(con, run, uplift: dict) -> dict[str, str]:
     if simplicity_stats(con, run) is None:
         reasons["simplicity"] = (f"run {run['id']} stores no evpi_efficiency metric (made before"
                                  " it existed): re-run voi_rank.mc")
+    _, why = plugin or plugin_analysis(con, run)
+    if why:
+        reasons["plugin"] = why
     return reasons
 
 
@@ -1183,9 +1460,13 @@ def make_all(con, run, out: Path) -> tuple[list[str], list[str]]:
     out.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(STYLE)
     uplift = level_uplift_analysis(con, run)
-    for what, why in skip_reasons(con, run, uplift).items():
+    plugin = plugin_analysis(con, run)
+    for what, why in skip_reasons(con, run, uplift, plugin).items():
         print(f"{what}: skipped: {why}")
     mr_needed = len(run_members(con, run)) > 1
+    # simplicity before plugin: both write MACROS_FILE, the first afresh, the
+    # second merging its macros in (so a skipped simplicity leaves the plugin
+    # macros alone and a skipped plugin never removes the simplicity ones)
     plan = [
         ("level_uplift", lambda: fig_level_uplift(con, run, out, uplift)
          and write_level_uplift(con, run, out, uplift)),
@@ -1195,14 +1476,16 @@ def make_all(con, run, out: Path) -> tuple[list[str], list[str]]:
         ("member_agreement", lambda: mr_needed and fig_member_agreement(con, run, out)
          and write_member_agreement(con, run, out)),
         ("simplicity", lambda: write_simplicity(con, run, out)),
+        ("plugin", lambda: plugin[0] is not None and fig_plugin(con, run, out, plugin[0])
+         and write_plugin(con, run, out, plugin[0])),
         ("protocol_noise_matched", lambda: write_protocol_noise_matched(con, out)),
     ]
     written, skipped = [], []
     for name, make in plan:
         if make():
-            written += [f for f in OUTPUTS[name] if (out / f).exists()]
+            written += [f for f in OUTPUTS[name] if (out / f).exists() and f not in written]
         else:
-            _unlink(out, OUTPUTS[name])
+            _unlink(out, [f for f in OUTPUTS[name] if f not in written])
             skipped.append(name)
     return written, skipped
 

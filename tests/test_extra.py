@@ -329,21 +329,42 @@ def test_level_uplift_skipped_without_levels(tmp_path, out, capsys):
     con.close()
 
 
-def test_extra_never_replays_the_run(tmp_path, out):
+def test_replay_mismatch_skips_only_the_plugin_analysis(tmp_path, out, capsys):
     """Repeats added under the protocol after the run desynchronise a replay
-    (mc.replay_efficiency refuses); no analysis here depends on one."""
+    (mc.replay_efficiency refuses). Only the plug-in analysis replays the
+    run; it is skipped with a printed reason, its stale outputs removed, the
+    simplicity macros kept, and every other analysis is still written."""
     b = build_study(tmp_path / "later", groups={
         "g": {"levels": [0, 1], "risk_domain": "x", "shared": True}}, protocols={"p001": MEMBERS_P001})
     con = b["study"].connect()
     run = db.get_run(con, b["runs"]["p001"])
+    replay, why = extra.replay_run(con, run)
+    assert why is None and set(replay) == set(b["sids"]["g"])
+    assert all(set(v) == {"mc_mean", "p_gate"} for v in replay.values())
     sid = b["sids"]["g"][0]
     add_elicitation(con, sid, run["protocol_id"], MEMBERS_P001[0], 7, synth_percentiles(0, 0, 7, sid))
     with pytest.raises(RuntimeError, match="replay mismatch"):
         mc.replay_efficiency(con, run["id"])
+    replay, why = extra.replay_run(con, run)
+    assert replay is None and why.startswith(f"replay of run {run['id']} mismatches on scenario {sid}")
+    assert extra.plugin_stats(con, run) is None
+    assert extra.fig_plugin(con, run, out) is False and extra.write_plugin(con, run, out) is False
+    for name in ("fig_plugin.pdf", "plugin.tex"):
+        (out / name).write_text("stale")
     written, skipped = extra.make_all(con, run, out)
     assert {"level_uplift.tex", "consistency.tex", "domain_summary.tex", "simplicity.tex",
-            "protocol_noise_matched.tex"} <= set(written)
-    assert skipped == ["member_agreement"]
+            "macros_extra.tex", "protocol_noise_matched.tex"} <= set(written)
+    assert skipped == ["member_agreement", "plugin"]
+    assert f"plugin: skipped: replay of run {run['id']} mismatches" in capsys.readouterr().out
+    assert not (out / "fig_plugin.pdf").exists() and not (out / "plugin.tex").exists()
+    macros = (out / "macros_extra.tex").read_text()
+    assert "\\voiSimpRhoAll" in macros and "voiPlugin" not in macros
+    # a scenario dropped from the run's ranking is caught before any draw
+    con.execute("DELETE FROM results WHERE run_id=? AND scenario_id=?", (run["id"], sid))
+    replay, why = extra.replay_run(con, run)
+    assert replay is None and why == f"elicitations changed since run {run['id']}: 2 scenarios hold" \
+        " complete valid elicitations now vs 1 ranked"
+    con.rollback()
     con.close()
 
 
@@ -529,6 +550,12 @@ def test_simplicity_stats_and_macros(built, con, out):
     reasons = extra.skip_reasons(con, run, extra.level_uplift_analysis(con, run))
     assert reasons["simplicity"] == f"run {run['id']} stores no evpi_efficiency metric (made before" \
                                     " it existed): re-run voi_rank.mc"
+    assert "plugin" not in reasons
+    # the plug-in macros survive a skipped simplicity: the file then holds them alone
+    written, skipped = extra.make_all(con, run, out)
+    assert "simplicity" in skipped and "plugin" not in skipped and "macros_extra.tex" in written
+    macros = (out / "macros_extra.tex").read_text()
+    assert "\\voiPluginRhoMedian}" in macros and "voiSimp" not in macros
     con.rollback()
     assert extra.write_simplicity(con, run, out)
     macros = (out / "macros_extra.tex").read_text()
@@ -671,6 +698,142 @@ def test_protocol_noise_matched_skips_members_without_repeats(tmp_path, out):
     con.close()
 
 
+# --- 7. plug-in vs Monte Carlo ----------------------------------------------------------
+
+def raw_pooled_medians(con, protocol_id: int, sid: int) -> dict[str, float]:
+    """The pooled elicited median recomputed from the tables directly."""
+    out = {}
+    for name in db.PARAM_NAMES:
+        vals = [r[0] for r in con.execute(
+            "SELECT p.p50 FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
+            " WHERE e.scenario_id=? AND e.protocol_id=? AND e.valid=1 AND p.name=?",
+            (sid, protocol_id, name))]
+        out[name] = float(np.median(vals))
+    return out
+
+
+def raw_regime(m: dict) -> str:
+    p, s, t, B, K = (m[n] for n in ("p", "s", "t", "B", "K"))
+    P1 = p * s + (1 - p) * (1 - t)
+    pi1, pi0 = p * s / P1, p * (1 - s) / (1 - P1)
+    pi_star = K / (B + K)
+    if min(pi0, pi1) < pi_star < max(pi0, pi1):
+        return "in gate"
+    return "always respond" if pi_star <= min(pi0, pi1) else "never respond"
+
+
+@pytest.mark.parametrize("protocol", ["p001", "p003"])
+def test_plugin_equals_voi_at_the_pooled_medians(built, con, out, protocol):
+    run = db.get_run(con, built["runs"][protocol])
+    st, why = extra.plugin_analysis(con, run)
+    assert why is None
+    order = extra.ranked_ids(con, run["id"])
+    assert [r["sid"] for r in st["rows"]] == order and [r["rank"] for r in st["rows"]] == list(range(1, 10))
+    eff = extra.metric_rows(con, run["id"], "efficiency")
+    evsi = extra.metric_rows(con, run["id"], "EVSI")
+    control = built["sids"]["control"][0]
+    for r in st["rows"]:
+        med = raw_pooled_medians(con, run["protocol_id"], r["sid"])
+        assert r["medians"] == med   # every member and repeat pooled, C from the elicited p50 too
+        assert med["C"] != pytest.approx(extra.metric_rows(con, run["id"], "C")[r["sid"]]["q50"], rel=1e-6)
+        e, v = model.voi(med["p"], med["s"], med["t"], med["B"], med["K"])
+        assert r["EVSI"] == float(e) and r["EVPI"] == float(v) and r["eff"] == float(e) / med["C"]
+        assert r["regime"] == raw_regime(med) and (r["regime"] == "in gate") == (r["EVSI"] > 0.0)
+        assert r["mc_median"] == eff[r["sid"]]["q50"] and r["p_positive"] == eff[r["sid"]]["p_positive"]
+        lo, hi = eff[r["sid"]]["q05"], eff[r["sid"]]["q95"]
+        if lo < hi:
+            assert lo <= r["mc_mean"] <= hi
+        else:
+            assert r["mc_mean"] == lo == 0.0 and r["sid"] == control
+        assert 0.0 <= r["p_positive"] <= r["p_gate"] <= 1.0
+    regimes = {r["sid"]: r["regime"] for r in st["rows"]}
+    assert regimes[control] == "always respond"   # p = 0.9: the prior already decides
+    assert all(v == "in gate" for s, v in regimes.items() if s != control)
+    assert st["n_gate"] == 8
+    assert st["n_zero_median"] == sum(1 for s in order if evsi[s]["q50"] == 0.0) >= 1
+    # the mean and P(EVSI > 0) come from the run's own draws (mc's replay path agrees)
+    rows = {r["sid"]: r for r in st["rows"]}
+    for sid, draws in mc.iter_scenario_draws(mc.complete_fits(con, run["protocol_id"]), run["seed"],
+                                             run["n_draws"]):
+        m = mc.scenario_metrics(draws)
+        assert rows[sid]["mc_mean"] == pytest.approx(float(np.mean(m["efficiency"])), rel=1e-12)
+        assert rows[sid]["p_gate"] == pytest.approx(float(np.mean(m["EVSI"] > 0.0)))
+    plug = [rows[s]["eff"] for s in order]
+    assert st["rho_plugin_median"] == pytest.approx(spearman(plug, [rows[s]["mc_median"] for s in order]))
+    assert st["rho_plugin_mean"] == pytest.approx(spearman(plug, [rows[s]["mc_mean"] for s in order]))
+    assert st["rho_median_mean"] == pytest.approx(
+        spearman([rows[s]["mc_median"] for s in order], [rows[s]["mc_mean"] for s in order]))
+    top_plugin = sorted(order, key=lambda s: (-rows[s]["eff"], s))[:5]
+    assert st["top_k"] == 5 and st["top_overlap"] == len(set(order[:5]) & set(top_plugin))
+    assert extra.plugin_stats(con, run) == st
+    assert extra.fig_plugin(con, run, out, st) and extra.write_plugin(con, run, out, st)
+    assert (out / "fig_plugin.pdf").stat().st_size > 0
+    tex = (out / "plugin.tex").read_text()
+    table, summary = tex.split(r"\par\medskip")
+    assert table.startswith("\\begin{longtable}{@{}rrrrrrlrrrr@{}}\n\\caption{Plug-in vs Monte Carlo")
+    assert r"\label{tab:plugin}" in table and r"\endfirsthead" in table and r"\endfoot" in table
+    assert table.count(r"\\") == 3 + 9 and table.count("& gate &") == 8 and table.count("& always &") == 1
+    assert f"\n1 & {order[0]} & " in table and f"\n9 & {order[-1]} & " in table
+    assert "the catalog's $C$ is the run's mixture" in table
+    assert "$p$ &" not in table   # the catalog's p, s, t, B, K columns are not repeated
+    assert f"draws of run {run['id']}, replayed from the DB" in table
+    assert table.count(" & ") == 10 * (2 + 9)   # 11 columns in each header and row
+    assert "scenarios in gate at the medians & 8 / 9" in summary
+    assert f"MC median EVSI $= 0$ & {st['n_zero_median']} / 9" in summary
+    assert f"top-5 overlap, plug-in vs MC median & {st['top_overlap']} / 5" in summary
+
+
+def test_gate_regime_rule():
+    # p = 0.1, s = 0.55, t = 0.6: posteriors 0.077 (x=0) and 0.234 (x=1)
+    assert extra.gate_regime(0.1, 0.55, 0.6, 5e6, 5e5) == "in gate"       # pi* = 0.091
+    assert extra.gate_regime(0.1, 0.55, 0.6, 1e6, 5e4) == "always respond"  # pi* = 0.048 below both
+    assert extra.gate_regime(0.1, 0.55, 0.6, 1e6, 5e5) == "never respond"   # pi* = 0.333 above both
+    assert extra.gate_regime(0.9, 0.6, 0.65, 5e6, 5e5) == "always respond"  # the control scenario
+    # an inverted signal (s + t < 1) swaps the posteriors; the rule uses their span
+    assert extra.gate_regime(0.1, 0.4, 0.4, 5e6, 5e5) == "in gate"
+    assert extra.gate_regime(0.1, 0.4, 0.4, 1e6, 5e5) == "never respond"
+    # a signal value of probability zero leaves the belief at the prior
+    assert extra.gate_regime(0.5, 0.0, 1.0, 1e6, 1e6) == "always respond"
+    assert extra.gate_regime(0.4, 0.0, 1.0, 1e6, 1e6) == "never respond"
+    # the label agrees with model.voi's sign on a grid far from the boundary
+    rng = np.random.default_rng(3)
+    for _ in range(200):
+        p, s, t = rng.uniform(0.02, 0.98, 3)
+        B, K = np.exp(rng.uniform(8, 16, 2))
+        evsi, _ = model.voi(p, s, t, B, K)
+        assert (extra.gate_regime(p, s, t, B, K) == "in gate") == (float(evsi) > 0.0), (p, s, t, B, K)
+    assert np.array_equal(extra.average_ranks([3.0, 1.0, 3.0, 2.0]), [1.5, 4.0, 1.5, 3.0])
+
+
+def test_write_macros_merges_by_name(tmp_path):
+    extra.write_macros(tmp_path, {"voiA": 1, "voiB": "x"})
+    extra.write_macros(tmp_path, {"voiB": "y", "voiC": 3}, merge=True)
+    extra.write_macros(tmp_path, {"voiC": 4}, merge=True)   # a second call never duplicates a name
+    assert (tmp_path / "macros_extra.tex").read_text() == \
+        "\\newcommand{\\voiA}{1}\n\\newcommand{\\voiB}{y}\n\\newcommand{\\voiC}{4}\n"
+    extra.write_macros(tmp_path, {"voiD": 5})   # afresh
+    assert (tmp_path / "macros_extra.tex").read_text() == "\\newcommand{\\voiD}{5}\n"
+    (tmp_path / "new").mkdir()
+    extra.write_macros(tmp_path / "new", {"voiE": 6}, merge=True)   # merge into no file: created
+    assert (tmp_path / "new" / "macros_extra.tex").read_text() == "\\newcommand{\\voiE}{6}\n"
+
+
+def test_plugin_macros_join_the_simplicity_macros(built, con, out):
+    run = db.get_run(con, built["runs"]["p001"])
+    assert extra.write_simplicity(con, run, out) and extra.write_plugin(con, run, out)
+    assert extra.write_plugin(con, run, out)   # idempotent
+    macros = (out / "macros_extra.tex").read_text()
+    st = extra.plugin_stats(con, run)
+    for name, value in (("voiPluginRhoMedian", f"{st['rho_plugin_median']:.2f}"),
+                        ("voiPluginRhoMean", f"{st['rho_plugin_mean']:.2f}"),
+                        ("voiMedianMeanRho", f"{st['rho_median_mean']:.2f}"),
+                        ("voiPluginInGate", "8"), ("voiMcZeroMedian", str(st["n_zero_median"])),
+                        ("voiPluginTopK", "5"), ("voiPluginTopOverlap", str(st["top_overlap"])),
+                        ("voiSimpN", "9")):
+        assert macros.count(f"\\newcommand{{\\{name}}}{{{value}}}\n") == 1, name
+    assert len(macros.splitlines()) == 15 + 7
+
+
 # --- driver and LaTeX ------------------------------------------------------------------
 
 def test_cli_writes_everything_and_removes_stale_outputs(built, capsys):
@@ -682,10 +845,12 @@ def test_cli_writes_everything_and_removes_stale_outputs(built, capsys):
     for name in ("fig_level_uplift.pdf", "level_uplift.tex", "fig_within_group_consistency.pdf",
                  "consistency.tex", "fig_domain_map.pdf", "domain_summary.tex",
                  "fig_member_agreement.pdf", "member_agreement.tex", "simplicity.tex",
-                 "macros_extra.tex", "protocol_noise_matched.tex"):
+                 "macros_extra.tex", "fig_plugin.pdf", "plugin.tex", "protocol_noise_matched.tex"):
         assert (gen / name).stat().st_size > 0, name
-        assert f"wrote {gen / name}" in out
+        assert out.count(f"wrote {gen / name}\n") == 1
     assert "skipped" not in out
+    macros = (gen / "macros_extra.tex").read_text()
+    assert macros.count("\\voiSimpRhoAll}") == 1 and macros.count("\\voiPluginRhoMedian}") == 1
     extra.main(["--study", str(study.root), "--run", str(built["runs"]["p001"])])
     out = capsys.readouterr().out
     assert f"run {built['runs']['p001']} (protocol p001)" in out
@@ -704,9 +869,13 @@ def test_fragments_compile_in_corl_template(built, tmp_path):
     written, _ = extra.make_all(con, run, gen)
     con.close()
     tex_files = sorted(f for f in written if f.endswith(".tex") and not f.startswith("macros"))
+    assert "plugin.tex" in tex_files and "fig_plugin.pdf" in written
+    # a longtable fragment carries its own caption and is input outside any float, as catalog.tex is
     body = "\n".join(
+        "\\input{generated/" + f + "}" if r"\begin{longtable}" in (gen / f).read_text() else
         "\\begin{table}[h]\\centering\\caption{" + f.replace("_", " ") + "}"
         "\\input{generated/" + f + "}\\end{table}" for f in tex_files)
+    assert body.count("\\begin{table}") == len(tex_files) - 1
     macros = " ".join(
         "\\" + line.split("{")[1].lstrip("\\").rstrip("}") for line in
         (gen / "macros_extra.tex").read_text().splitlines())
@@ -715,7 +884,7 @@ def test_fragments_compile_in_corl_template(built, tmp_path):
         for f in written if f.endswith(".pdf"))
     (tmp_path / "main.tex").write_text(
         "\\documentclass{article}\\usepackage[final]{corl_2026}\\usepackage{graphicx}"
-        "\\usepackage{booktabs}\\usepackage{amsmath,amssymb}\\graphicspath{{generated/}}"
+        "\\usepackage{booktabs,longtable}\\usepackage{amsmath,amssymb}\\graphicspath{{generated/}}"
         "\\input{generated/macros_extra.tex}"
         "\\title{Fragments}\\author{A}\\begin{document}\\maketitle\n"
         f"Macros: {macros}.\n{body}\n{figs}\n\\end{{document}}\n")
