@@ -4,8 +4,9 @@ new rows under a new protocol.
 
 v2 additions: scenarios.context/grp/attributes, elicitations.provider/model,
 protocols.members_json/scenario_selector, runs.data_hash, a unique index on
-valid slots. connect() migrates pre-v2 databases in place; connect_copy()
-prepares an in-memory copy for dry runs.
+valid slots. v2.2: runs.members_json (the member subset a run pooled, NULL =
+every member of the protocol). connect() migrates pre-v2 databases in place;
+connect_copy() prepares an in-memory copy for dry runs.
 
 Provenance of a run: code_hash is the git HEAD of the CODE_PATHS (suffixed
 '-dirty' when any of them has uncommitted changes; study inputs are frozen
@@ -40,7 +41,7 @@ V2_COLUMNS = {
     "scenarios": {"context": "TEXT", "grp": "TEXT", "attributes": "TEXT"},
     "elicitations": {"provider": "TEXT", "model": "TEXT"},
     "protocols": {"members_json": "TEXT", "scenario_selector": "TEXT", "model_kind": "TEXT"},
-    "runs": {"data_hash": "TEXT"},
+    "runs": {"data_hash": "TEXT", "members_json": "TEXT"},
 }
 # protocol model kinds (v2.1): the binary model of spec §2 (parameters
 # PARAM_NAMES, primary metric 'efficiency') and the Gaussian-state family
@@ -444,6 +445,96 @@ def member_label(m: dict) -> str:
     return f"{m['provider']}:{m['model']}"
 
 
+# --- member subsets (v2.2) ---------------------------------------------------
+# A run may pool a SUBSET of the protocol's members (mc --members); the subset
+# is stored on the run as a sorted JSON list of member labels, NULL meaning
+# every member. Every reader of a run's elicitations (fits, pooled medians,
+# spreads, counts) takes the same `members` argument: a list of labels, or
+# None for all.
+
+def parse_member_labels(spec: str | None) -> list[str] | None:
+    """'a:b,c:d' -> sorted distinct labels; None or '' -> None (all members)."""
+    if not spec:
+        return None
+    labels = sorted({m.strip() for m in spec.split(",") if m.strip()})
+    return labels or None
+
+
+def normalize_run_members(protocol_members: list[dict], labels: list[str] | None) -> list[str] | None:
+    """The stored subset for a run: None when `labels` is None or names every
+    member of the protocol (the canonical 'all members' run), else the sorted
+    labels. A label the protocol does not list raises ValueError."""
+    if labels is None:
+        return None
+    have = [member_label(m) for m in protocol_members]
+    unknown = sorted(set(labels) - set(have))
+    if unknown:
+        raise ValueError(f"members {unknown} are not members of the protocol (it has {have})")
+    labels = sorted(set(labels))
+    return None if set(labels) == set(have) else labels
+
+
+def run_members_json(labels: list[str] | None) -> str | None:
+    return None if labels is None else json.dumps(sorted(labels))
+
+
+def run_member_labels(run) -> list[str] | None:
+    """The member subset a stored run pooled (None = every member)."""
+    try:
+        raw = run["members_json"]
+    except (IndexError, KeyError):
+        return None
+    return json.loads(raw) if raw else None
+
+
+def run_members(con, run) -> list[dict]:
+    """The members a run pooled, as protocol member dicts in protocol order:
+    every member, or the stored subset."""
+    prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
+    members = protocol_members(prot)
+    labels = run_member_labels(run)
+    if labels is None:
+        return members
+    return [m for m in members if member_label(m) in labels]
+
+
+def members_label(labels: list[str] | None) -> str:
+    """Printable form of a subset: 'all members' or the labels joined."""
+    return "all members" if labels is None else ", ".join(labels)
+
+
+def run_label(protocol_name: str, labels: list[str] | None) -> str:
+    """Column label of a run in the cross-protocol tables: the protocol name,
+    suffixed with the subset's model names ('p003[opus+sonnet]') for a
+    subset run."""
+    if labels is None:
+        return protocol_name
+    return f"{protocol_name}[{'+'.join(lab.split(':', 1)[-1] for lab in labels)}]"
+
+
+def latest_runs_by_subset(con) -> list[tuple[str, sqlite3.Row]]:
+    """(run_label, run) for the latest run of every (protocol, member subset)
+    that has one, in protocol then subset order: the all-member run of each
+    protocol first, then its subset runs."""
+    out = []
+    for p in con.execute("SELECT * FROM protocols ORDER BY id"):
+        latest: dict[str | None, sqlite3.Row] = {}
+        for r in con.execute("SELECT * FROM runs WHERE protocol_id=? ORDER BY id", (p["id"],)):
+            latest[r["members_json"]] = r
+        for key in sorted(latest, key=lambda k: (k is not None, k or "")):
+            out.append((run_label(p["name"], run_member_labels(latest[key])), latest[key]))
+    return out
+
+
+def member_filter(labels: list[str] | None, alias: str = "e") -> tuple[str, list]:
+    """SQL fragment (" AND (alias.provider || ':' || alias.model) IN (?,..)", params)
+    restricting elicitation rows to a member subset; ('', []) for all."""
+    if labels is None:
+        return "", []
+    marks = ",".join("?" * len(labels))
+    return f" AND ({alias}.provider || ':' || {alias}.model) IN ({marks})", list(labels)
+
+
 def protocol_selector(row) -> str:
     """Scenario scope of a stored protocol row ('all' for rows registered
     before selectors existed)."""
@@ -593,24 +684,25 @@ def valid_raw_responses(con, scenario_id: int, protocol_id: int, provider: str,
         (scenario_id, protocol_id, provider, model))]
 
 
-def scenario_param_fits(con, protocol_id: int,
-                        names: list[str] | None = None) -> dict[int, dict[str, list[dict]]]:
+def scenario_param_fits(con, protocol_id: int, names: list[str] | None = None,
+                        members: list[str] | None = None) -> dict[int, dict[str, list[dict]]]:
     """{scenario_id: {param_name: [fit rows]}} over ALL valid elicitations of
-    one protocol, every member and repeat pooled, in (provider, model,
-    repeat_ix, elicitation_id) order. Only the protocol's parameter names
-    (param_names of its model kind, or `names`) are returned (stored rows
-    for the retired parameter e are ignored). Each fit row carries
-    elicitation_id, provider, model, family, fit_params (the stored JSON
-    string), params (parsed), p5/p50/p95."""
+    one protocol, every member and repeat pooled (or the `members` subset, a
+    list of labels), in (provider, model, repeat_ix, elicitation_id) order.
+    Only the protocol's parameter names (param_names of its model kind, or
+    `names`) are returned (stored rows for the retired parameter e are
+    ignored). Each fit row carries elicitation_id, provider, model, family,
+    fit_params (the stored JSON string), params (parsed), p5/p50/p95."""
     if names is None:
         prot = con.execute("SELECT model_kind FROM protocols WHERE id=?", (protocol_id,)).fetchone()
         names = param_names(protocol_model_kind(prot) if prot else BINARY_KIND)
+    clause, args = member_filter(members)
     rows = con.execute(
         "SELECT e.scenario_id, e.provider, e.model, e.repeat_ix, e.id AS elicitation_id,"
         " p.name, p.p5, p.p50, p.p95, p.dist_family, p.fit_params"
         " FROM elicitations e JOIN parameters p ON p.elicitation_id = e.id"
-        " WHERE e.protocol_id=? AND e.valid=1"
-        " ORDER BY e.scenario_id, e.provider, e.model, e.repeat_ix, e.id", (protocol_id,)).fetchall()
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}"
+        " ORDER BY e.scenario_id, e.provider, e.model, e.repeat_ix, e.id", (protocol_id, *args)).fetchall()
     out: dict[int, dict[str, list[dict]]] = {}
     for r in rows:
         if r["name"] not in names:
@@ -627,16 +719,18 @@ def scenario_param_fits(con, protocol_id: int,
 
 def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,
                   provider: str | None = None, model: str | None = None,
-                  first: int | None = None) -> list[float]:
+                  first: int | None = None, members: list[str] | None = None) -> list[float]:
     """p50 of one parameter over the valid elicitations of one scenario under
-    a protocol, optionally restricted to one member and/or to the first
-    `first` VALID repeats of each member in repeat_ix order (a count, not an
-    index cap: a member whose repeat 1 ended invalid still contributes its
-    repeats 0, 2, 3 to 'first 3')."""
+    a protocol, optionally restricted to one member (provider, model), to a
+    member subset (`members`, a list of labels) and/or to the first `first`
+    VALID repeats of each member in repeat_ix order (a count, not an index
+    cap: a member whose repeat 1 ended invalid still contributes its repeats
+    0, 2, 3 to 'first 3')."""
+    clause, margs = member_filter(members)
     sql = ("SELECT e.provider, e.model, p.p50 FROM parameters p"
            " JOIN elicitations e ON e.id=p.elicitation_id"
-           " WHERE e.scenario_id=? AND e.protocol_id=? AND e.valid=1 AND p.name=?")
-    args: list = [scenario_id, protocol_id, name]
+           f" WHERE e.scenario_id=? AND e.protocol_id=? AND e.valid=1 AND p.name=?{clause}")
+    args: list = [scenario_id, protocol_id, name, *margs]
     if provider is not None:
         sql += " AND e.provider=? AND e.model=?"
         args += [provider, model]
@@ -655,20 +749,20 @@ def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,
 
 def elicited_spread(con, protocol_id: int, scenario_id: int, name: str,
                     provider: str | None = None, model: str | None = None,
-                    first: int | None = None) -> float | None:
+                    first: int | None = None, members: list[str] | None = None) -> float | None:
     """Cross-repeat spread of one stored quantity of one scenario, the one
     statistic every noise table, figure and macro reports:
     sensitivity.repeat_spread over elicited_p50s, relative to the quantity's
     own pooled p50 except for the names in fit.GAUSS_SPREAD_SCALE (d and
     sigma_b / sigma0 as a plain max - min, mu0 divided by the pooled sigma0,
     all in prior-sd units). None with fewer than two repeats."""
-    p50s = elicited_p50s(con, protocol_id, scenario_id, name, provider, model, first)
+    p50s = elicited_p50s(con, protocol_id, scenario_id, name, provider, model, first, members)
     if name not in GAUSS_SPREAD_SCALE:
         return repeat_spread(p50s)
     by = GAUSS_SPREAD_SCALE[name]
     if by is None:
         return repeat_spread(p50s, scale=1.0)
-    ref = elicited_p50s(con, protocol_id, scenario_id, by, provider, model, first)
+    ref = elicited_p50s(con, protocol_id, scenario_id, by, provider, model, first, members)
     if not ref:
         return None
     return repeat_spread(p50s, scale=abs(float(np.median(ref))))
@@ -701,14 +795,16 @@ def envelope_cost(raw: str) -> float:
 # --- runs, results, sensitivities ------------------------------------------
 
 def insert_run(con, seed: int, n_draws: int, protocol_id: int, data_hash: str | None = None,
-               code_hash: str | None = None) -> int:
+               code_hash: str | None = None, members: list[str] | None = None) -> int:
     """No commit here: the runs row commits together with its results and
     sensitivities at the end of the MC run, so an interrupted run cannot
-    become the (empty) latest run. code_hash defaults to git_hash()."""
+    become the (empty) latest run. code_hash defaults to git_hash(); members
+    is the pooled subset (labels), None for every member."""
     cur = con.execute(
-        "INSERT INTO runs (created_at, seed, n_draws, code_hash, protocol_id, data_hash)"
-        " VALUES (?,?,?,?,?,?)",
-        (now_iso(), seed, n_draws, code_hash or git_hash(), protocol_id, data_hash))
+        "INSERT INTO runs (created_at, seed, n_draws, code_hash, protocol_id, data_hash, members_json)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (now_iso(), seed, n_draws, code_hash or git_hash(), protocol_id, data_hash,
+         run_members_json(members)))
     return cur.lastrowid
 
 
@@ -728,15 +824,33 @@ def insert_sensitivity(con, run_id: int, scenario_id: int, param: str,
         " VALUES (?,?,?,?)", (run_id, scenario_id, param, rho))
 
 
-def latest_run(con, protocol_name: str | None = None) -> sqlite3.Row:
+def latest_run(con, protocol_name: str | None = None,
+               members: list[str] | None = None) -> sqlite3.Row:
+    """The latest run, of one protocol when named, that pooled exactly the
+    member subset `members` (labels; None = every member, which is also what
+    a subset naming every protocol member means). A run is never selected
+    across subsets: a subset run is not 'the latest p003 run'."""
+    if protocol_name:
+        prot = protocol_by_name(con, protocol_name)
+        try:
+            members = normalize_run_members(protocol_members(prot), members)
+        except ValueError as ex:
+            raise RuntimeError(f"protocol {protocol_name!r}: {ex}") from None
+    elif members is not None:
+        members = sorted(set(members))
+    want = run_members_json(members)
+    clause = " AND r.members_json IS NULL" if want is None else " AND r.members_json=?"
+    args: list = [] if want is None else [want]
     if protocol_name:
         row = con.execute(
             "SELECT r.* FROM runs r JOIN protocols p ON p.id = r.protocol_id"
-            " WHERE p.name=? ORDER BY r.id DESC LIMIT 1", (protocol_name,)).fetchone()
+            f" WHERE p.name=?{clause} ORDER BY r.id DESC LIMIT 1", (protocol_name, *args)).fetchone()
     else:
-        row = con.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone()
+        row = con.execute(f"SELECT r.* FROM runs r WHERE 1=1{clause} ORDER BY r.id DESC LIMIT 1",
+                          args).fetchone()
     if row is None:
-        raise RuntimeError("no runs in DB" + (f" under protocol {protocol_name!r}" if protocol_name else ""))
+        raise RuntimeError("no runs in DB" + (f" under protocol {protocol_name!r}" if protocol_name else "")
+                           + (f" with members [{members_label(members)}]" if members is not None else ""))
     return row
 
 

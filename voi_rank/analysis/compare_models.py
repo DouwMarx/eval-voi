@@ -24,6 +24,11 @@ protocol, writes to <study>/report/generated/:
   \\voiGaussRhoT, \\voiGaussGateAgree, \\voiGaussN (+ the run ids).
 
 Usage: python -m voi_rank.analysis.compare_models --study PATH [--binary p001] [--gaussian g001]
+       [--members claude_cli:sonnet,claude_cli:opus]
+(--members selects, for BOTH protocols, the latest run that pooled exactly
+that member subset, so the two framings are compared on the same elicitors;
+the derived-vs-elicited panel pools the binary protocol's medians over the
+same subset)
 """
 
 from __future__ import annotations
@@ -76,11 +81,12 @@ def top_ids(med: dict[int, float], sids: list[int], k: int) -> set[int]:
     return set(sorted(sids, key=lambda s: (-med[s], s))[:k])
 
 
-def select_runs(con, binary: str, gaussian: str):
-    """(binary run, gaussian run): the latest run of each protocol, refused
-    when a protocol is not of the expected model kind."""
-    b = figures.select_run(con, None, binary)
-    g = figures.select_run(con, None, gaussian)
+def select_runs(con, binary: str, gaussian: str, members: list[str] | None = None):
+    """(binary run, gaussian run): the latest run of each protocol (of the
+    `members` subset when given), refused when a protocol is not of the
+    expected model kind."""
+    b = figures.select_run(con, None, binary, members)
+    g = figures.select_run(con, None, gaussian, members)
     for run, want, name in ((b, db.BINARY_KIND, binary), (g, db.GAUSSIAN_KIND, gaussian)):
         kind = db.run_model_kind(con, run)
         if kind != want:
@@ -125,9 +131,10 @@ def derived_vs_elicited(con, b_run, g_run, shared: list[int]) -> dict:
     """{name: {"x": elicited pooled p50 (binary protocol), "y": derived median
     (Gaussian run), "rho", "mad"}} for p, s, t."""
     out = {}
+    labels = db.run_member_labels(b_run)
     for name in ("p", "s", "t"):
         der = medians(con, g_run["id"], f"{name}_derived")
-        pts = [(pooled_p50(con, b_run["protocol_id"], s, name), der[s]) for s in shared if s in der]
+        pts = [(pooled_p50(con, b_run["protocol_id"], s, name, labels), der[s]) for s in shared if s in der]
         pts = [(x, y) for x, y in pts if x is not None]
         x = np.array([p[0] for p in pts], dtype=float)
         y = np.array([p[1] for p in pts], dtype=float)
@@ -321,10 +328,13 @@ def main(argv=None):
     add_study_arg(ap)
     ap.add_argument("--binary", default="p001", help="binary protocol (latest run; default p001)")
     ap.add_argument("--gaussian", default="g001", help="Gaussian protocol (latest run; default g001)")
+    ap.add_argument("--members", default=None,
+                    help="comma-separated provider:model subset: the latest run of each protocol"
+                         " that pooled exactly these members")
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    b_run, g_run = select_runs(con, args.binary, args.gaussian)
+    b_run, g_run = select_runs(con, args.binary, args.gaussian, db.parse_member_labels(args.members))
     result = make_all(con, b_run, g_run, study.generated_dir)
     ag = result["rank"]["agreement"]
     print(f"{len(result['rank']['shared'])} shared scenarios; Spearman binary vs "

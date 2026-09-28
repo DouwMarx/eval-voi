@@ -2,7 +2,11 @@
 voi.db. Writes to <study>/report/generated/.
 
 Usage: python -m voi_rank.analysis.tables --study studies/business [--protocol p001] [--run ID]
-(default: the latest run of protocol p001; --run overrides)
+       [--members claude_cli:sonnet,claude_cli:opus]
+(default: the latest all-member run of protocol p001; --members selects the
+latest run that pooled exactly that subset; --run overrides. The catalog's
+pooled medians, the member table, the attempt, validity, cost and noise
+macros describe the run's members; \voiRunMembers names them.)
 """
 
 from __future__ import annotations
@@ -68,8 +72,11 @@ def num(v: float, fmt: str = "{:.3g}") -> str:
     return "--" if v is None else fmt.format(v)
 
 
-def pooled_p50(con, protocol_id: int, sid: int, name: str) -> float | None:
-    p50s = db.elicited_p50s(con, protocol_id, sid, name)
+def pooled_p50(con, protocol_id: int, sid: int, name: str,
+               members: list[str] | None = None) -> float | None:
+    """Median of the p50 over the valid elicitations of one scenario (every
+    member, or the `members` subset)."""
+    p50s = db.elicited_p50s(con, protocol_id, sid, name, members=members)
     return float(np.median(p50s)) if p50s else None
 
 
@@ -93,8 +100,9 @@ def write_gauss_catalog(con, run, out: Path):
         r"\bottomrule\endfoot",
     ]
     ttl = {r["id"]: r["title"] for r in con.execute("SELECT id, title FROM scenarios")}
+    labels = db.run_member_labels(run)
     for sid in order:
-        vals = {n: pooled_p50(con, run["protocol_id"], sid, n) for n in cols}
+        vals = {n: pooled_p50(con, run["protocol_id"], sid, n, labels) for n in cols}
         cells = [num(vals["g_d"], "{:.2f}"), num(vals["g_x"], "{:.2f}"), num(vals["g_k"], "{:.1f}"),
                  money(vals["g_L"]), money(vals["g_kappa_sigma0"]), money(vals["g_B"]),
                  money(vals["g_K"]), money(c_quantiles(con, run, sid)[1])]
@@ -126,8 +134,9 @@ def write_catalog(con, run, out: Path):
         r"\bottomrule\endfoot",
     ]
     ttl = {r["id"]: r["title"] for r in con.execute("SELECT id, title FROM scenarios")}
+    labels = db.run_member_labels(run)
     for sid in order:
-        vals = {n: pooled_p50(con, run["protocol_id"], sid, n) for n in db.PARAM_NAMES}
+        vals = {n: pooled_p50(con, run["protocol_id"], sid, n, labels) for n in db.PARAM_NAMES}
         vals["C"] = c_quantiles(con, run, sid)[1]
         lines.append(
             f"{sid} & {esc(ttl[sid][:70])} & {num(vals['p'], '{:.2f}')} &"
@@ -180,29 +189,32 @@ def write_ranking(con, run, out: Path, top_n: int = 25):
 # --- statistics behind macros ----------------------------------------------
 
 def noise_median(con, protocol_id: int, name: str, first: int | None = None,
-                 member: dict | None = None) -> float | None:
+                 member: dict | None = None, members: list[str] | None = None) -> float | None:
     """Median over scenarios of the cross-elicitation p50 spread of one
     parameter (db.elicited_spread: relative, or max - min in sd units for the
     signed Gaussian quantities). first truncates to the first `first` valid repeats of each
     member (a count in repeat_ix order, so an invalid middle repeat does not
     shrink the pool; range statistics grow with the count, so cross-protocol
-    comparisons need matched k); member restricts to one (provider, model)."""
+    comparisons need matched k); member restricts to one (provider, model),
+    members to a subset (labels)."""
+    clause, margs = db.member_filter(members)
     sids = [r[0] for r in con.execute(
-        "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
-        (protocol_id,))]
+        f"SELECT DISTINCT scenario_id FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
+        (protocol_id, *margs))]
     spreads = []
     for sid in sids:
         sp = db.elicited_spread(con, protocol_id, sid, name,
                                 provider=member["provider"] if member else None,
-                                model=member["model"] if member else None, first=first)
+                                model=member["model"] if member else None, first=first,
+                                members=members)
         if sp is not None:
             spreads.append(sp)
     return float(np.median(spreads)) if spreads else None
 
 
 def noise_medians(con, protocol_id: int, first: int | None = None,
-                  member: dict | None = None) -> dict:
-    return {n: noise_median(con, protocol_id, n, first, member)
+                  member: dict | None = None, members: list[str] | None = None) -> dict:
+    return {n: noise_median(con, protocol_id, n, first, member, members)
             for n in protocol_param_names(con, protocol_id)}
 
 
@@ -236,10 +248,12 @@ def member_stats(con, protocol_id: int, member: dict) -> dict:
     }
 
 
-def elicitation_cost(con, protocol_id: int) -> float:
-    """Sum of the recorded per-call cost over every stored response of a protocol."""
+def elicitation_cost(con, protocol_id: int, members: list[str] | None = None) -> float:
+    """Sum of the recorded per-call cost over every stored response of a
+    protocol (every member, or the subset)."""
+    clause, margs = db.member_filter(members)
     return sum(db.envelope_cost(r[0]) for r in con.execute(
-        "SELECT raw_response FROM elicitations WHERE protocol_id=?", (protocol_id,)))
+        f"SELECT raw_response FROM elicitations e WHERE protocol_id=?{clause}", (protocol_id, *margs)))
 
 
 def rank_corr_between_runs(con, run_a: int, run_b: int) -> tuple[float, int] | None:
@@ -256,22 +270,26 @@ def rank_corr_between_runs(con, run_a: int, run_b: int) -> tuple[float, int] | N
         return None
     rho = stats.spearmanr([med[run_a][s] for s in shared],
                           [med[run_b][s] for s in shared]).statistic
+    if np.isnan(rho):   # a constant ranking (every median EVSI zero): undefined, printed as n/a
+        return None
     return float(rho), len(shared)
 
 
-def latest_run_per_protocol(con) -> dict[str, int]:
+def latest_run_per_protocol(con, subsets: bool = True) -> dict[str, int]:
+    """{label: run id}: the latest all-member run of every protocol that has
+    one (label = the protocol name) and, with subsets, the latest run of
+    every member subset scored under it (label 'p003[opus+sonnet]')."""
     out = {}
-    for p in con.execute("SELECT * FROM protocols ORDER BY id"):
-        r = con.execute("SELECT id FROM runs WHERE protocol_id=? ORDER BY id DESC LIMIT 1",
-                        (p["id"],)).fetchone()
-        if r:
-            out[p["name"]] = r["id"]
+    for label, run in db.latest_runs_by_subset(con):
+        if subsets or db.run_member_labels(run) is None:
+            out[label] = run["id"]
     return out
 
 
 def write_protocol_compare(con, out: Path):
     """Pairwise Spearman rank correlation of median efficiency between the
-    latest runs of every protocol that has one."""
+    latest runs of every protocol that has one, subset runs as their own
+    columns."""
     runs = latest_run_per_protocol(con)
     names = list(runs)
     if len(names) < 2:
@@ -297,7 +315,7 @@ def full_sweep_runs(con, min_scenarios: int = 60) -> dict[str, int]:
     min_scenarios ranked scenarios; excludes the manual baseline and focused
     subset protocols)."""
     out = {}
-    for name, rid in latest_run_per_protocol(con).items():
+    for name, rid in latest_run_per_protocol(con, subsets=False).items():
         n = con.execute("SELECT COUNT(DISTINCT scenario_id) FROM results WHERE run_id=?",
                         (rid,)).fetchone()[0]
         if n >= min_scenarios:
@@ -362,12 +380,14 @@ def write_members(con, run, out: Path, members: list[dict]):
     (out / "members.tex").write_text("\n".join(lines) + "\n")
 
 
-def _k_used(con, protocol_id: int):
-    """Median number of valid elicitations pooled per scenario (all members
-    and repeats; can exceed the nominal k when elicitation ran with --k)."""
+def _k_used(con, protocol_id: int, members: list[str] | None = None):
+    """Median number of valid elicitations pooled per scenario (the run's
+    members and all repeats; can exceed the nominal k when elicitation ran
+    with --k)."""
+    clause, margs = db.member_filter(members)
     counts = [r[0] for r in con.execute(
-        "SELECT COUNT(*) FROM elicitations WHERE protocol_id=?"
-        " AND valid=1 GROUP BY scenario_id", (protocol_id,))]
+        f"SELECT COUNT(*) FROM elicitations e WHERE protocol_id=? AND valid=1{clause}"
+        " GROUP BY scenario_id", (protocol_id, *margs))]
     return int(np.median(counts)) if counts else "--"
 
 
@@ -406,15 +426,20 @@ def short_code_hash(code_hash: str) -> str:
 
 
 def write_macros(con, run, out: Path):
+    """The run's macros. Members, attempts, validity, cost, k used, fit
+    warnings and noise describe the members the run pooled (every member of
+    the protocol, or its stored subset; \voiRunMembers says which)."""
     prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
-    members = db.protocol_members(prot)
+    labels = db.run_member_labels(run)
+    members = db.run_members(con, run)
+    clause, margs = db.member_filter(labels)
     n_scen = con.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0]
     n_ranked = con.execute(
         "SELECT COUNT(DISTINCT scenario_id) FROM results WHERE run_id=?",
         (run["id"],)).fetchone()[0]
     att = con.execute(
-        "SELECT COUNT(*), SUM(valid) FROM elicitations WHERE protocol_id=?",
-        (run["protocol_id"],)).fetchone()
+        f"SELECT COUNT(*), SUM(valid) FROM elicitations e WHERE protocol_id=?{clause}",
+        (run["protocol_id"], *margs)).fetchone()
     kind = run_kind(con, run["id"])
     names = db.param_names(kind)
     eff = metric_rows(con, run["id"], db.primary_metric(kind))
@@ -427,10 +452,11 @@ def write_macros(con, run, out: Path):
     fit_warn = con.execute(
         "SELECT COUNT(*) FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
         " WHERE e.protocol_id=? AND p.fit_warning=1 AND p.name IN"
-        f" ({','.join('?' * len(names))})",
-        (run["protocol_id"], *names)).fetchone()[0]
+        f" ({','.join('?' * len(names))}){clause}",
+        (run["protocol_id"], *names, *margs)).fetchone()[0]
     macros = {
         "voiRunId": run["id"],
+        "voiRunMembers": esc(db.members_label(labels)),
         "voiModelKind": esc(kind),
         "voiSeed": run["seed"],
         "voiNDraws": f"{run['n_draws']:,}".replace(",", r"\,"),
@@ -438,7 +464,7 @@ def write_macros(con, run, out: Path):
         "voiDataHash": esc(run["data_hash"][:12]) if run["data_hash"] else "--",
         "voiProtocol": esc(prot["name"]),
         "voiKRepeats": prot["k_repeats"],
-        "voiKUsed": _k_used(con, run["protocol_id"]),
+        "voiKUsed": _k_used(con, run["protocol_id"], labels),
         "voiNMembers": len(members),
         "voiMembers": ", ".join(esc(db.member_label(m)) for m in members),
         "voiCliVersion": esc(prot["cli_version"]),
@@ -454,7 +480,7 @@ def write_macros(con, run, out: Path):
         "voiZeroEvsiCount": zero,
         "voiAboveOneQloCount": above_one_q05,
         "voiFitWarnings": fit_warn,
-        "voiElicitCost": f"{elicitation_cost(con, run['protocol_id']):.2f}",
+        "voiElicitCost": f"{elicitation_cost(con, run['protocol_id'], labels):.2f}",
     }
     for i, m in enumerate(members[:len(MEMBER_LETTERS)]):
         st = member_stats(con, run["protocol_id"], m)
@@ -465,7 +491,7 @@ def write_macros(con, run, out: Path):
         macros[f"voiMemberValidity{L}"] = (f"{100.0 * st['valid'] / st['attempts']:.1f}\\%"
                                            if st["attempts"] else "--")
         macros[f"voiMemberCost{L}"] = f"{st['cost']:.2f}"
-    for name, val in noise_medians(con, run["protocol_id"]).items():
+    for name, val in noise_medians(con, run["protocol_id"], members=labels).items():
         macros[f"voiNoise{PARAM_MACRO[name]}"] = num(val, "{:.2f}")
     gs = global_sensitivity(con, run["id"])
     for name, val in gs.items():
@@ -513,7 +539,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    run = select_run(con, args.run, args.protocol)
+    run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
     make_all(con, run, study.generated_dir)
     print(f"wrote catalog.tex, ranking.tex, macros.tex, members.tex, protocol_compare.tex,"
           f" protocol_noise.tex for run {run['id']} in {study.generated_dir}")

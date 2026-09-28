@@ -58,8 +58,12 @@ study's voi.db. Outputs land in <study>/report/generated/:
    medians sit inside it; this table shows that side by side.
 
 Usage: python -m voi_rank.analysis.extra --study PATH [--protocol p001] [--run ID]
-(default: the latest run of protocol p001; --run overrides; prints
-'run <id> (protocol <name>)' like figures.py). Only the plug-in analysis
+       [--members claude_cli:sonnet,claude_cli:opus]
+(default: the latest all-member run of protocol p001; --members selects the
+latest run that pooled exactly that subset; --run overrides; prints
+'run <id> (protocol <name>[, members ...])' like figures.py. Every analysis
+of the run reads its members only: the pooled medians, the ladder and
+per-member re-draws, the replay, the member agreement.) Only the plug-in analysis
 replays the stored run (for the mean over its draws); when repeats added
 under the protocol after the run desynchronise the replay, it is skipped
 with a printed reason and nothing aborts. Every other analysis reads the
@@ -266,27 +270,36 @@ def group_colors(groups: list[str]) -> dict[str, str]:
 
 
 def run_members(con, run) -> list[dict]:
-    prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
-    return db.protocol_members(prot)
+    """The members the run pooled (the protocol's, or the stored subset)."""
+    return db.run_members(con, run)
+
+
+def run_fits(con, run) -> dict[int, dict[str, list[dict]]]:
+    """complete_fits over the run's members (mc.complete_fits of the run)."""
+    return complete_fits(db.scenario_param_fits(con, run["protocol_id"], members=db.run_member_labels(run)))
 
 
 def add_run_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--protocol", default="p001",
                     help="use the latest run of this protocol (default: p001)")
     ap.add_argument("--run", type=int, default=None, help="explicit run id (overrides --protocol)")
+    ap.add_argument("--members", default=None,
+                    help="comma-separated provider:model subset: use the latest run of the protocol"
+                         " that pooled exactly these members (default: the all-member run)")
 
 
-def select_run(con, run_id: int | None, protocol: str):
+def select_run(con, run_id: int | None, protocol: str, members: list[str] | None = None):
     """As figures.select_run: a v1 run (no data_hash, or sensitivities for
     the retired parameter e) is refused."""
-    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol)
+    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol, members)
     prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     name = prot["name"] if prot else "unknown"
     reason = db.run_predates_v2(con, run)
     if reason:
         raise RuntimeError(f"run {run['id']} (protocol {name}) predates the v2 model: {reason};"
                            f" run `python -m voi_rank.mc --protocol {name}` first")
-    print(f"run {run['id']} (protocol {name})")
+    labels = db.run_member_labels(run)
+    print(f"run {run['id']} (protocol {name}" + (f", members {', '.join(labels)}" if labels else "") + ")")
     return run
 
 
@@ -429,7 +442,7 @@ def ladder_draws(con, run, rungs: list[tuple[float, int]]) -> dict | None:
     and draw count: these are NOT the stored run's draws. Returns {"shared":
     {p, B, K}, "rungs": {sid: {EVSI, EVPI, C, s, t}}}, or None when a rung
     has no complete valid elicitations under the run's protocol."""
-    fits_all = complete_fits(db.scenario_param_fits(con, run["protocol_id"]))
+    fits_all = run_fits(con, run)
     sids = [sid for _, sid in rungs]
     if any(sid not in fits_all for sid in sids):
         return None
@@ -575,15 +588,18 @@ def consistent_groups(con) -> dict[str, list[tuple[float, int]]]:
             if n_text == 1 and len({lv for lv, _ in rungs}) >= 2}
 
 
-def elicited_points(con, protocol_id: int, sids: list[int]) -> dict[str, dict[int, list]]:
-    """{param: {sid: [(member label, p50), ...]}} over valid elicitations."""
+def elicited_points(con, protocol_id: int, sids: list[int],
+                    members: list[str] | None = None) -> dict[str, dict[int, list]]:
+    """{param: {sid: [(member label, p50), ...]}} over valid elicitations (of
+    the `members` subset when given)."""
     marks = ",".join("?" * len(sids))
+    clause, margs = db.member_filter(members)
     rows = con.execute(
         "SELECT e.scenario_id, e.provider || ':' || e.model AS member, p.name, p.p50"
         " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-        f" WHERE e.protocol_id=? AND e.valid=1 AND e.scenario_id IN ({marks})"
+        f" WHERE e.protocol_id=? AND e.valid=1 AND e.scenario_id IN ({marks}){clause}"
         " ORDER BY e.scenario_id, e.provider, e.model, e.repeat_ix, e.id",
-        (protocol_id, *sids)).fetchall()
+        (protocol_id, *sids, *margs)).fetchall()
     out: dict[str, dict[int, list]] = {n: {} for n in db.PARAM_NAMES}
     for r in rows:
         if r["name"] in out:
@@ -614,7 +630,7 @@ def consistency_analysis(con, run) -> tuple[dict[str, dict], dict[str, str]]:
     out, skipped = {}, {}
     for g, rungs in consistent_groups(con).items():
         sids = [sid for _, sid in rungs]
-        pts = elicited_points(con, run["protocol_id"], sids)
+        pts = elicited_points(con, run["protocol_id"], sids, db.run_member_labels(run))
         levels = sorted({lv for lv, _ in rungs})
         pooled: dict[str, list[float]] = {name: [] for name in db.PARAM_NAMES}
         empty = []
@@ -659,7 +675,7 @@ def fig_within_group_consistency(con, run, out: Path) -> bool:
     for i, (g, rungs) in enumerate(groups.items()):
         sids = [sid for _, sid in rungs]
         level_of = {sid: lv for lv, sid in rungs}
-        pts = elicited_points(con, run["protocol_id"], sids)
+        pts = elicited_points(con, run["protocol_id"], sids, db.run_member_labels(run))
         levels = sorted({lv for lv, _ in rungs})
         for j, name in enumerate(db.PARAM_NAMES):
             ax = axes[i][j]
@@ -747,16 +763,18 @@ def iso_efficiency_lines(ax, xlim, ylim) -> None:
                     rotation=angle, rotation_mode="anchor")
 
 
-def pooled_p50(con, protocol_id: int, sid: int, name: str) -> float | None:
+def pooled_p50(con, protocol_id: int, sid: int, name: str,
+               members: list[str] | None = None) -> float | None:
     """Median of the p50 across the valid elicitations of one scenario under a
-    protocol (tables.write_catalog's pooled elicited median); None without any."""
-    p50s = db.elicited_p50s(con, protocol_id, sid, name)
+    protocol (tables.write_catalog's pooled elicited median), every member or
+    the `members` subset; None without any."""
+    p50s = db.elicited_p50s(con, protocol_id, sid, name, members=members)
     return float(np.median(p50s)) if p50s else None
 
 
 def pooled_c(con, run, sid: int) -> float | None:
     """Median elicited p50 of C (fallback for pre-v2 runs without a stored C row)."""
-    return pooled_p50(con, run["protocol_id"], sid, "C")
+    return pooled_p50(con, run["protocol_id"], sid, "C", db.run_member_labels(run))
 
 
 def fig_domain_map(con, run, out: Path) -> bool:
@@ -901,7 +919,7 @@ def member_rankings(con, run) -> dict:
     "medians": {label: {sid: eff_q50}}, "pooled": {sid: eff_q50 (stored)},
     "matrix": (M+1)x(M+1) Spearman (members then pooled), "top": {label: ids}}."""
     members = run_members(con, run)
-    fits_all = complete_fits(db.scenario_param_fits(con, run["protocol_id"]))
+    fits_all = run_fits(con, run)
     labels = [db.member_label(m) for m in members]
     medians: dict[str, dict[int, float]] = {}
     for m, label in zip(members, labels, strict=True):
@@ -1112,17 +1130,21 @@ def write_simplicity(con, run, out: Path) -> bool:
 # --- 6. protocol noise at matched k --------------------------------------------
 
 def latest_run_per_protocol(con) -> dict[str, int]:
-    """The latest run of every protocol that the v2 analyses accept
-    (db.run_predates_v2 is None, the gate select_run applies); a protocol
-    whose runs all predate the v2 model is left out rather than correlated
-    against v2 runs."""
+    """{label: run id}: the latest run of every protocol, and of every member
+    subset scored under it (label 'p003[opus+sonnet]'), that the v2 analyses
+    accept (db.run_predates_v2 is None, the gate select_run applies); a
+    protocol whose runs all predate the v2 model is left out rather than
+    correlated against v2 runs."""
     out = {}
     for p in con.execute("SELECT * FROM protocols ORDER BY id"):
+        seen = set()
         for r in con.execute("SELECT * FROM runs WHERE protocol_id=? ORDER BY id DESC", (p["id"],)):
-            if db.run_predates_v2(con, r) is None:
-                out[p["name"]] = r["id"]
-                break
-    return out
+            key = r["members_json"]
+            if key in seen or db.run_predates_v2(con, r) is not None:
+                continue
+            seen.add(key)
+            out[db.run_label(p["name"], db.run_member_labels(r))] = r["id"]
+    return dict(sorted(out.items(), key=lambda kv: kv[1]))
 
 
 def member_repeat_counts(con, protocol_id: int, member: dict) -> dict[int, int]:
@@ -1264,7 +1286,8 @@ def plugin_point(con, run, sid: int) -> dict | None:
     """model.voi at the pooled elicited medians of one scenario: {"medians":
     {p, s, t, B, K, C}, "EVSI", "EVPI", "eff", "regime"}; None when a
     parameter has no valid elicitation under the run's protocol."""
-    med = {name: pooled_p50(con, run["protocol_id"], sid, name) for name in db.PARAM_NAMES}
+    labels = db.run_member_labels(run)
+    med = {name: pooled_p50(con, run["protocol_id"], sid, name, labels) for name in db.PARAM_NAMES}
     if any(v is None for v in med.values()):
         return None
     evsi, evpi = model.voi(med["p"], med["s"], med["t"], med["B"], med["K"])
@@ -1283,7 +1306,7 @@ def replay_run(con, run) -> tuple[dict[int, dict[str, float]] | None, str | None
     efficiency, "p_gate": P(EVSI > 0)}}, None), or (None, reason) when the
     valid-elicitation set changed since the run (a scenario added or dropped,
     repeats added under the same protocol)."""
-    fits = complete_fits(db.scenario_param_fits(con, run["protocol_id"]))
+    fits = run_fits(con, run)
     stored = metric_rows(con, run["id"], "efficiency")
     if set(fits) != set(stored):
         return None, (f"elicitations changed since run {run['id']}: {len(fits)} scenarios hold"
@@ -1474,7 +1497,7 @@ def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[st
     if not scenario_domains(con):
         reasons["domain_map"] = "no scenario carries attributes.risk_domain"
     if len(run_members(con, run)) < 2:
-        reasons["member_agreement"] = "the protocol has one member"
+        reasons["member_agreement"] = "the run has one member"
     if simplicity_stats(con, run) is None:
         reasons["simplicity"] = (f"run {run['id']} stores no evpi_efficiency metric (made before"
                                  " it existed): re-run voi_rank.mc")
@@ -1531,7 +1554,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    run = select_run(con, args.run, args.protocol)
+    run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
     written, skipped = make_all(con, run, study.generated_dir)
     for name in written:
         print(f"wrote {study.generated_dir / name}")

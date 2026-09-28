@@ -2,7 +2,10 @@
 in <study>/report/generated/.
 
 Usage: python -m voi_rank.analysis.figures --study studies/business [--protocol p001] [--run ID]
-(default: the latest run of protocol p001; --run overrides)
+       [--members claude_cli:sonnet,claude_cli:opus]
+(default: the latest all-member run of protocol p001; --members selects the
+latest run of the protocol that pooled exactly that member subset; --run
+overrides both. Every figure reads the run's members only.)
 """
 
 from __future__ import annotations
@@ -135,29 +138,41 @@ def c_quantiles(con, run, sid) -> tuple[float, float, float]:
 
 
 def run_members(con, run) -> list[dict]:
-    prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
-    return db.protocol_members(prot)
+    """The members the run pooled (the protocol's, or the stored subset)."""
+    return db.run_members(con, run)
 
 
 def add_run_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--protocol", default="p001",
                     help="use the latest run of this protocol (default: p001)")
     ap.add_argument("--run", type=int, default=None, help="explicit run id (overrides --protocol)")
+    ap.add_argument("--members", default=None,
+                    help="comma-separated provider:model subset: use the latest run of the protocol"
+                         " that pooled exactly these members (default: the all-member run)")
 
 
-def select_run(con, run_id: int | None, protocol: str):
+def run_description(con, run) -> str:
+    """'run <id> (protocol <name>)', plus ', members a, b' for a subset run."""
+    prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
+    name = prot["name"] if prot else "unknown"
+    labels = db.run_member_labels(run)
+    return f"run {run['id']} (protocol {name}" + (f", members {', '.join(labels)}" if labels else "") + ")"
+
+
+def select_run(con, run_id: int | None, protocol: str, members: list[str] | None = None):
     """The run to analyse: --run when given, else the latest run of the
-    protocol. A run made by the v1 model (no data_hash, or sensitivities for
-    the retired parameter e) is refused: its numbers contradict the v2
-    commentary and its draws do not replay. Prints 'run <id> (protocol <name>)'."""
-    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol)
+    protocol that pooled exactly `members` (labels; None = every member). A
+    run made by the v1 model (no data_hash, or sensitivities for the retired
+    parameter e) is refused: its numbers contradict the v2 commentary and
+    its draws do not replay. Prints 'run <id> (protocol <name>[, members ...])'."""
+    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol, members)
     prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     name = prot["name"] if prot else "unknown"
     reason = db.run_predates_v2(con, run)
     if reason:
         raise RuntimeError(f"run {run['id']} (protocol {name}) predates the v2 model: {reason};"
                            f" run `python -m voi_rank.mc --protocol {name}` first")
-    print(f"run {run['id']} (protocol {name})")
+    print(run_description(con, run))
     return run
 
 
@@ -279,10 +294,11 @@ def fig_param_medians(con, run_id, out: Path):
     order = ranked_ids(con, run_id)
     rank_of = {sid: i + 1 for i, sid in enumerate(order)}
     members = [db.member_label(m) for m in run_members(con, run)]
+    clause, margs = db.member_filter(db.run_member_labels(run))
     rows = con.execute(
         "SELECT e.scenario_id, e.provider || ':' || e.model AS member, p.name, p.p50"
         " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-        " WHERE e.protocol_id=? AND e.valid=1", (run["protocol_id"],)).fetchall()
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (run["protocol_id"], *margs)).fetchall()
     data: dict[str, dict[str, list]] = {n: {} for n in names}
     for r in rows:
         if r["name"] in data and r["scenario_id"] in rank_of:
@@ -344,10 +360,10 @@ def fig_param_medians(con, run_id, out: Path):
                    for m in present]
         fig.legend(handles=handles, loc="outside upper center", ncol=min(len(present), 3),
                    fontsize=7, frameon=False)
-    n_elic = con.execute("SELECT COUNT(*) FROM elicitations WHERE protocol_id=? AND valid=1",
-                         (run["protocol_id"],)).fetchone()[0]
-    fig.suptitle(f"Elicited medians per parameter, every valid elicitation ({n_elic} elicitations)",
-                 fontsize=9)
+    n_elic = con.execute(f"SELECT COUNT(*) FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
+                         (run["protocol_id"], *margs)).fetchone()[0]
+    fig.suptitle(f"Elicited medians per parameter, every valid elicitation of the run's members"
+                 f" ({n_elic} elicitations)", fontsize=9)
     fig.savefig(out / "fig_param_medians.pdf")
     plt.close(fig)
     return True
@@ -474,13 +490,15 @@ def fig_rank_stability(con, run_id, out: Path):
 def fig_elicitation_noise(con, run_id, out: Path):
     run = db.get_run(con, run_id)
     names = run_param_names(con, run_id)
+    labels = db.run_member_labels(run)
+    clause, margs = db.member_filter(labels)
     spreads = {name: [] for name in names}
     sids = [r[0] for r in con.execute(
-        "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
-        (run["protocol_id"],))]
+        f"SELECT DISTINCT scenario_id FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
+        (run["protocol_id"], *margs))]
     for name in names:
         for sid in sids:
-            sp = db.elicited_spread(con, run["protocol_id"], sid, name)
+            sp = db.elicited_spread(con, run["protocol_id"], sid, name, members=labels)
             if sp is not None:
                 spreads[name].append(sp)
     fig, ax = plt.subplots(figsize=(6.2, 3.4))
@@ -555,7 +573,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    run_id = select_run(con, args.run, args.protocol)["id"]
+    run_id = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))["id"]
     for name in make_all(con, run_id, study.generated_dir):
         print(f"wrote {study.generated_dir / (name + '.pdf')}")
 

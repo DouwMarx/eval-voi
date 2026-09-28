@@ -51,10 +51,10 @@ optionally `manual` (hand percentiles for the `p000_manual` protocol).
 3. `uv run python -m voi_rank.propose --study studies/X --n 6 --yes [--dry-run]` (optional: generate scenarios via claude_cli; needs `templates/proposer.md` in the study, else it exits with a message; prints the plan, calls and estimated cost first and needs `--yes` or a TTY confirmation like step 5; the plan is made on an in-memory copy, so a declined plan or `--dry-run` creates nothing, not even `voi.db`)
 4. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --dry-run` (plan on an in-memory copy of the DB: render prompts, list pending slots per member with the effective k, call nothing, write nothing, not even `voi.db`)
 5. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --yes [--k 5] [--members claude_cli:haiku]` (prints the plan and estimated cost, then submits; without `--yes` it asks for confirmation on a TTY and aborts otherwise; the plan is made on an in-memory copy, so a declined plan writes nothing, not even `voi.db`, and registers no protocol; only a confirmed run whose preflight passed opens the real DB)
-6. `uv run python -m voi_rank.mc --study studies/X --protocol p001 --seed 42 --draws 100000` (refuses to run with uncommitted changes under `voi_rank/`, `pyproject.toml` or `uv.lock`, or when git cannot report the revision at all, unless `--allow-dirty`, which stores `code_hash` as `<hash>-dirty` or `unknown`)
-7. `uv run python -m voi_rank.analysis.health --study studies/X --protocol p001 [--compare p002]`
-8. `uv run python -m voi_rank.analysis.figures --study studies/X --protocol p001` and `uv run python -m voi_rank.analysis.tables --study studies/X --protocol p001` (the latest run of that protocol, default `p001`; `--run ID` overrides; both print `run <id> (protocol <name>)`; a run made by the v1 model, without a `data_hash` or with sensitivities for the retired parameter `e`, is refused: re-run step 6)
-9. `uv run python -m voi_rank.analysis.extra --study studies/X --protocol p001` (same run selection; the eval-study analyses, each skipped with a printed reason when its inputs are absent and its stale outputs removed): `fig_level_uplift.pdf` + `level_uplift.tex` (adjacent-rung marginals within one decision, for groups whose leveled scenarios share the agent, decision and theta text: common-random-number draws, p, B, K once per ladder, s, t, C per rung, marginal efficiency as median dEVSI / median dC with P(dC > 0), P(dEVSI > 0) and P(dEVSI > dC)), `fig_within_group_consistency.pdf` + `consistency.tex` (same groups: is the elicited p, B, K flat across levels while s, t, C move), `fig_domain_map.pdf` + `domain_summary.tex` (needs `attributes.risk_domain`), `fig_member_agreement.pdf` + `member_agreement.tex` (protocols with more than one member), `simplicity.tex` + `macros_extra.tex` (does the EVPI/C ranking reproduce the EVSI/C ranking, both as medians of the per-draw ratio the run stores; needs a run with the `evpi_efficiency` metric; the global |rho| rows count the scenarios with a defined rho) and `protocol_noise_matched.tex` (cross-repeat spread per member over the first 3 valid repeats and, where a member holds more on any scenario, over all of them, labelled with the count pooled per scenario, `min..max` where scenarios differ; the compare matrix takes each protocol's latest run the v2 analyses accept) and `plugin.tex` + `fig_plugin.pdf` + the `\voiPlugin*`, `\voiMedianMeanRho` and `\voiMcZeroMedian` macros in `macros_extra.tex` (the plug-in summary next to the MC one: per scenario, EVSI, EVPI and efficiency from `model.voi` at the pooled elicited medians of the six parameters, `C` included and printed since the catalog's `C` is the mixture median, the gate regime at those medians from `pi* = K/(B+K)` against the posteriors, the run's median and mean efficiency, `P(EVSI > C)` and `P(EVSI > 0)`, with a three-panel rank scatter of plug-in vs MC median vs MC mean; `plugin.tex` is a `longtable` like `catalog.tex`, input outside a float). Only the plug-in analysis replays the stored run, for the mean over its draws, verified against the stored quantiles; repeats added under the protocol after the run make it skip with a printed reason and never abort anything.
+6. `uv run python -m voi_rank.mc --study studies/X --protocol p001 --seed 42 --draws 100000 [--members claude_cli:sonnet,claude_cli:opus]` (refuses to run with uncommitted changes under `voi_rank/`, `pyproject.toml` or `uv.lock`, or when git cannot report the revision at all, unless `--allow-dirty`, which stores `code_hash` as `<hash>-dirty` or `unknown`; `--members` pools only that subset of the protocol's members, see "Member subsets")
+7. `uv run python -m voi_rank.analysis.health --study studies/X --protocol p001 [--compare p002] [--members ...]`
+8. `uv run python -m voi_rank.analysis.figures --study studies/X --protocol p001` and `uv run python -m voi_rank.analysis.tables --study studies/X --protocol p001` (the latest all-member run of that protocol, default `p001`; `--members a:b,c:d` selects the latest run that pooled exactly that subset; `--run ID` overrides both; both print `run <id> (protocol <name>[, members ...])`; a run made by the v1 model, without a `data_hash` or with sensitivities for the retired parameter `e`, is refused: re-run step 6)
+9. `uv run python -m voi_rank.analysis.extra --study studies/X --protocol p001 [--members ...]` (same run selection; the eval-study analyses, each skipped with a printed reason when its inputs are absent and its stale outputs removed): `fig_level_uplift.pdf` + `level_uplift.tex` (adjacent-rung marginals within one decision, for groups whose leveled scenarios share the agent, decision and theta text: common-random-number draws, p, B, K once per ladder, s, t, C per rung, marginal efficiency as median dEVSI / median dC with P(dC > 0), P(dEVSI > 0) and P(dEVSI > dC)), `fig_within_group_consistency.pdf` + `consistency.tex` (same groups: is the elicited p, B, K flat across levels while s, t, C move), `fig_domain_map.pdf` + `domain_summary.tex` (needs `attributes.risk_domain`), `fig_member_agreement.pdf` + `member_agreement.tex` (protocols with more than one member), `simplicity.tex` + `macros_extra.tex` (does the EVPI/C ranking reproduce the EVSI/C ranking, both as medians of the per-draw ratio the run stores; needs a run with the `evpi_efficiency` metric; the global |rho| rows count the scenarios with a defined rho) and `protocol_noise_matched.tex` (cross-repeat spread per member over the first 3 valid repeats and, where a member holds more on any scenario, over all of them, labelled with the count pooled per scenario, `min..max` where scenarios differ; the compare matrix takes each protocol's latest run the v2 analyses accept) and `plugin.tex` + `fig_plugin.pdf` + the `\voiPlugin*`, `\voiMedianMeanRho` and `\voiMcZeroMedian` macros in `macros_extra.tex` (the plug-in summary next to the MC one: per scenario, EVSI, EVPI and efficiency from `model.voi` at the pooled elicited medians of the six parameters, `C` included and printed since the catalog's `C` is the mixture median, the gate regime at those medians from `pi* = K/(B+K)` against the posteriors, the run's median and mean efficiency, `P(EVSI > C)` and `P(EVSI > 0)`, with a three-panel rank scatter of plug-in vs MC median vs MC mean; `plugin.tex` is a `longtable` like `catalog.tex`, input outside a float). Only the plug-in analysis replays the stored run, for the mean over its draws, verified against the stored quantiles; repeats added under the protocol after the run make it skip with a printed reason and never abort anything.
 10. `cd studies/X/report && latexmk -pdf main.tex`
 
 Elicitation resumes: a slot is (scenario, protocol, provider, model,
@@ -142,7 +142,32 @@ step 4/5; `--scenarios` overrides it with a printed warning. Monte Carlo
 pools every valid (member, repeat) elicitation of a scenario into one
 equal-weight mixture per parameter, so a member with more valid repeats
 carries more weight. `--k N` (N >= 1) overrides every member's `k_repeats`;
-`--members a:b,c:d` restricts a run to those members.
+`--members a:b,c:d` restricts an elicitation run to those members.
+
+### Member subsets
+
+Pooling incoherent members yields a ranking that belongs to nobody
+(LEARNINGS, iteration 2: the pooled `p003` ranking correlates 0.3 with any
+member), so `mc --members provider:model,...` scores a subset of a
+protocol's members as its own stored run: only those members' valid fits
+are pooled, the subset (sorted labels) is stored in `runs.members_json`
+(NULL = every member; a subset naming every member is the ordinary run),
+`data_hash` covers exactly the fits drawn, and the replay reads the subset
+back. A label the protocol does not list is refused. `health`, `figures`,
+`tables`, `extra` and `compare_models` take the same `--members` and select
+the latest run of the protocol with exactly that subset (`--run` overrides);
+without it they select the latest all-member run, never a subset run.
+Everything they print about the run is about its members: the catalog's
+pooled medians, the plug-in point, the ladder and per-member re-draws, the
+member table and the attempt, validity, cost, noise and `\voiKUsed` macros;
+`\voiRunMembers` names the subset ("all members" otherwise), `print_ranking`
+and the run summary print it, and `health --members` restricts the
+per-member tables, the pooled spread and the cross-member agreement to it
+(`--compare` then correlates the subset run with the other protocol's
+all-member run). The cross-protocol Spearman matrices
+(`protocol_compare.tex`, `protocol_noise_matched.tex`) carry each subset run
+as its own column, labelled `p003[opus+sonnet]`; a constant ranking (every
+median EVSI zero) prints `n/a`.
 
 ## Gaussian-state family (protocols with `model: gaussian`)
 
@@ -245,7 +270,8 @@ default command reaches the network.
 
 Given a study's committed `voi.db`, steps 6 to 9 reproduce every number,
 figure and table exactly (the stored seed makes the MC deterministic; a rerun
-mints a fresh run id in the report's reproduction appendix). Each run stores
+mints a fresh run id in the report's reproduction appendix; a subset run is
+reproduced with the same `--members`). Each run stores
 two provenance hashes: `code_hash`, the git HEAD of the code paths
 (`voi_rank/`, `pyproject.toml`, `uv.lock`), suffixed `-dirty` when they have
 uncommitted changes (step 6 refuses such a tree unless `--allow-dirty`; a

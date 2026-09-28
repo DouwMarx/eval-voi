@@ -5,6 +5,11 @@ voi.db.
 Usage:
   python -m voi_rank.analysis.health --study studies/business --protocol p001
   python -m voi_rank.analysis.health --study studies/business --protocol p002 --compare p001
+  python -m voi_rank.analysis.health --study studies/X --protocol p003 \
+      --members claude_cli:sonnet,claude_cli:opus
+    (--members restricts the per-member tables, the pooled spread and the
+    cross-member agreement to that subset and reads the subset's latest run;
+    --compare correlates that run with the other protocol's all-member run)
 """
 
 from __future__ import annotations
@@ -33,20 +38,23 @@ def protocol_names(con, protocol_id: int) -> list[str]:
     return db.param_names(db.protocol_model_kind(prot))
 
 
-def noise_table(con, protocol_id: int, member: dict | None = None) -> dict[str, tuple]:
+def noise_table(con, protocol_id: int, member: dict | None = None,
+                members: list[str] | None = None) -> dict[str, tuple]:
     """{param: (median spread, n scenarios)} over valid elicitations, all
-    members pooled or one member; the spread is db.elicited_spread (relative,
-    or max - min in sd units for the signed Gaussian quantities)."""
+    members pooled, a subset (`members`, labels) or one member; the spread is
+    db.elicited_spread (relative, or max - min in sd units for the signed
+    Gaussian quantities)."""
+    clause, margs = db.member_filter(members)
     sids = [r[0] for r in con.execute(
-        "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
-        (protocol_id,))]
+        f"SELECT DISTINCT scenario_id FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
+        (protocol_id, *margs))]
     out = {}
     for name in protocol_names(con, protocol_id):
         spreads = []
         for sid in sids:
             sp = db.elicited_spread(con, protocol_id, sid, name,
                                     provider=member["provider"] if member else None,
-                                    model=member["model"] if member else None)
+                                    model=member["model"] if member else None, members=members)
             if sp is not None:
                 spreads.append(sp)
         out[name] = (float(np.median(spreads)) if spreads else float("nan"), len(spreads))
@@ -85,9 +93,18 @@ def cross_member_agreement(con, protocol_id: int, members: list[dict]) -> list[t
     return rows
 
 
-def health(con, protocol_name: str):
+def health(con, protocol_name: str, members: list[str] | None = None):
+    """The protocol's health checks; `members` (labels) restricts every
+    per-member table, the pooled spread and the cross-member agreement to
+    that subset (a label the protocol does not list exits) and reads the
+    subset's latest run."""
     prot = db.protocol_by_name(con, protocol_name)
-    members = db.protocol_members(prot)
+    all_members = db.protocol_members(prot)
+    try:
+        labels = db.normalize_run_members(all_members, members)
+    except ValueError as ex:
+        raise SystemExit(f"--members: {ex}") from None
+    members = all_members if labels is None else [m for m in all_members if db.member_label(m) in labels]
     rows = con.execute("SELECT * FROM elicitations WHERE protocol_id=?",
                        (prot["id"],)).fetchall()
     if not rows:
@@ -95,7 +112,8 @@ def health(con, protocol_name: str):
         return
 
     print(f"=== health: protocol {protocol_name} ({len(rows)} attempts, "
-          f"{len(members)} member(s)) ===")
+          f"{len(all_members)} member(s)"
+          + (f"; members restricted to {db.members_label(labels)}" if labels else "") + ") ===")
     classes = {}
     for r in rows:
         classes[error_class(r["error"])] = classes.get(error_class(r["error"]), 0) + 1
@@ -126,8 +144,9 @@ def health(con, protocol_name: str):
               f"{valid} valid ({rate}), ${cost:.2f}")
 
     # cross-elicitation spread of p50 per parameter (median over scenarios)
-    print("\ncross-elicitation p50 spread ((max-min)/pooled p50 unless marked), median over scenarios:")
-    for name, (med, cnt) in noise_table(con, prot["id"]).items():
+    print("\ncross-elicitation p50 spread ((max-min)/pooled p50 unless marked), median over scenarios"
+          + (f" (members {db.members_label(labels)})" if labels else "") + ":")
+    for name, (med, cnt) in noise_table(con, prot["id"], members=labels).items():
         print(f"  {name}{db.spread_label(name)}: {med:.3f}  (n={cnt} scenarios)")
     if len(members) > 1:
         print("\nper-member cross-repeat p50 spread (median over scenarios):")
@@ -147,9 +166,9 @@ def health(con, protocol_name: str):
         f" ({','.join('?' * len(names))})", (prot["id"], *names)).fetchone()[0]
     print(f"\nfit warnings: {fw}")
 
-    # fraction of scenarios with median EVSI ~ 0, from the latest run
+    # fraction of scenarios with median EVSI ~ 0, from the latest run (of the subset)
     try:
-        run = db.latest_run(con, protocol_name)
+        run = db.latest_run(con, protocol_name, labels)
         evsi_name = db.evsi_metric(db.protocol_model_kind(prot))
         evsi = con.execute(
             "SELECT q50 FROM results WHERE run_id=? AND metric=?",
@@ -172,12 +191,13 @@ def health(con, protocol_name: str):
             print(f"- [{r['title'][:40]}] {r['name']}={r['p50']} {r['unit']}: {r['reasoning'][:200]}")
 
 
-def compare(con, protocol_a: str, protocol_b: str):
+def compare(con, protocol_a: str, protocol_b: str, members: list[str] | None = None):
     """Spearman rank correlation of median efficiency between the latest runs
-    of two protocols, over shared scenarios."""
+    of two protocols, over shared scenarios (`members`: the subset run of
+    protocol_a; protocol_b's all-member run)."""
     med = {}
     for name in (protocol_a, protocol_b):
-        run = db.latest_run(con, name)
+        run = db.latest_run(con, name, members if name == protocol_a else None)
         metric = db.primary_metric(db.run_model_kind(con, run))   # each run's own efficiency
         med[name] = {r["scenario_id"]: r["q50"] for r in con.execute(
             "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric=?",
@@ -198,12 +218,15 @@ def main(argv=None):
     add_study_arg(ap)
     ap.add_argument("--protocol", required=True)
     ap.add_argument("--compare", default=None, help="second protocol to compare against")
+    ap.add_argument("--members", default=None,
+                    help="comma-separated provider:model subset of the protocol's members")
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    health(con, args.protocol)
+    members = db.parse_member_labels(args.members)
+    health(con, args.protocol, members)
     if args.compare:
-        compare(con, args.protocol, args.compare)
+        compare(con, args.protocol, args.compare, members)
 
 
 if __name__ == "__main__":
