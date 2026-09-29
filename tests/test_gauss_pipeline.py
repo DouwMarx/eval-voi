@@ -291,8 +291,11 @@ def test_fake_gauss_elicitation_mc_figures_tables_extra_health(tmp_path, monkeyp
     capsys.readouterr()
     written, skipped = extra.make_all(con, run, study.generated_dir)
     out = capsys.readouterr().out
-    assert {"level_uplift", "consistency", "member_agreement", "simplicity"} <= set(skipped)
-    assert "the run is a Gaussian-state protocol" in out
+    assert {"level_uplift", "consistency", "member_agreement", "simplicity", "plugin",
+            "plugin_map"} <= set(skipped)
+    assert ("plugin_map: skipped: defined on the binary parameters; the run is a Gaussian-state"
+            " protocol") in out
+    assert not (study.generated_dir / "fig_plugin_map.pdf").exists()
     assert "protocol_noise_matched.tex" in written
     capsys.readouterr()
     health.health(con, "g001")

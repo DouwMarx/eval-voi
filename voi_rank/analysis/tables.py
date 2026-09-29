@@ -1,8 +1,9 @@
 """LaTeX table fragments + macros (spec §8), reading only from a study's
-voi.db. Writes to <study>/report/generated/.
+voi.db. Writes to <study>/report/generated/ (generated/TAG/ with --tag TAG,
+every macro then \\voiTAG...; study.Study.tagged).
 
 Usage: python -m voi_rank.analysis.tables --study studies/business [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus]
+       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
 (default: the latest all-member run of protocol p001; --members selects the
 latest run that pooled exactly that subset; --run overrides. The catalog's
 pooled medians, the member table, the attempt, validity, cost and noise
@@ -31,7 +32,7 @@ from voi_rank.analysis.figures import (
     select_run,
 )
 from voi_rank.providers.claude_cli import is_usage_limit
-from voi_rank.study import Study, add_study_arg
+from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newcommands
 
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
                   "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}",
@@ -458,10 +459,11 @@ def short_code_hash(code_hash: str) -> str:
     return code_hash.removesuffix("-dirty")[:12] + ("-dirty" if db.is_dirty_hash(code_hash) else "")
 
 
-def write_macros(con, run, out: Path):
+def write_macros(con, run, out: Path, prefix: str = MACRO_PREFIX):
     """The run's macros. Members, attempts, validity, cost, k used, fit
     warnings and noise describe the members the run pooled (every member of
-    the protocol, or its stored subset; \voiRunMembers says which)."""
+    the protocol, or its stored subset; \voiRunMembers says which). Written
+    under `prefix` (study.newcommands); returned with their voi names."""
     prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     labels = db.run_member_labels(run)
     members = db.run_members(con, run)
@@ -549,17 +551,16 @@ def write_macros(con, run, out: Path):
     macros["voiRhoProtoMin"] = f"{min(rhos):.2f}" if rhos else "--"
     macros["voiRhoProtoMax"] = f"{max(rhos):.2f}" if rhos else "--"
     macros["voiNProtocols"] = len(names)
-    lines = [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
-    (out / "macros.tex").write_text("\n".join(lines) + "\n")
+    (out / "macros.tex").write_text("\n".join(newcommands(macros, prefix)) + "\n")
     write_members(con, run, out, members)
     return macros
 
 
-def make_all(con, run, out: Path):
+def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX):
     out.mkdir(parents=True, exist_ok=True)
     write_catalog(con, run, out)
     write_ranking(con, run, out)
-    write_macros(con, run, out)
+    write_macros(con, run, out, prefix)
     write_protocol_compare(con, out)
     write_protocol_noise(con, out, run_kind(con, run["id"]))
 
@@ -568,13 +569,16 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     add_study_arg(ap)
     add_run_args(ap)
+    add_tag_arg(ap)
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
+    out, prefix = study.tagged(args.tag)
     con = study.connect()
     run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
-    make_all(con, run, study.generated_dir)
+    make_all(con, run, out, prefix)
     print(f"wrote catalog.tex, ranking.tex, macros.tex, members.tex, protocol_compare.tex,"
-          f" protocol_noise.tex for run {run['id']} in {study.generated_dir}")
+          f" protocol_noise.tex for run {run['id']} in {out}"
+          + (f" (macros \\{prefix}...)" if args.tag else ""))
 
 
 if __name__ == "__main__":

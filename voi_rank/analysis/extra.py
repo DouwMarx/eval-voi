@@ -1,5 +1,6 @@
 """Eval-study analyses beyond figures.py / tables.py, reading only from a
-study's voi.db. Outputs land in <study>/report/generated/:
+study's voi.db. Outputs land in <study>/report/generated/ (generated/TAG/
+with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
 
 1. fig_level_uplift.pdf + level_uplift.tex: ladders = groups whose leveled
    scenarios share one agent / decision / theta text (a step between two
@@ -74,9 +75,15 @@ study's voi.db. Outputs land in <study>/report/generated/:
    stand next to them; \voiFenceRhoPlugin is the Spearman of eff* against
    the plug-in eff over the scenarios with EVSI > 0 and \voiFenceTopOverlap
    the top-k overlap of the two rankings.
+8. fig_plugin_map.pdf: the headline map at the pooled medians, plug-in
+   EVSI against the pooled-median C (log-log), coloured by group, shaped
+   by attributes.risk_domain when present; scenarios outside the gate at
+   the y floor (open), the fence value EVSI* on a thin stem above each
+   point (decision value against fence value), iso-efficiency diagonals.
+   Needs no replay. Binary runs only.
 
 Usage: python -m voi_rank.analysis.extra --study PATH [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus]
+       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
 (default: the latest all-member run of protocol p001; --members selects the
 latest run that pooled exactly that subset; --run overrides; prints
 'run <id> (protocol <name>[, members ...])' like figures.py. Every analysis
@@ -111,7 +118,7 @@ from scipy.stats import rankdata  # noqa: E402
 from voi_rank import db, model  # noqa: E402
 from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
 from voi_rank.sensitivity import spearman  # noqa: E402
-from voi_rank.study import Study, add_study_arg  # noqa: E402
+from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newcommands  # noqa: E402
 
 # --- style (mirrors figures.py) --------------------------------------------
 
@@ -170,6 +177,7 @@ OUTPUTS = {
     "member_agreement": ("fig_member_agreement.pdf", "member_agreement.tex"),
     "simplicity": ("simplicity.tex", "macros_extra.tex"),
     "plugin": ("fig_plugin.pdf", "plugin.tex", "macros_extra.tex"),
+    "plugin_map": ("fig_plugin_map.pdf",),
     "protocol_noise_matched": ("protocol_noise_matched.tex",),
 }
 MACROS_FILE = "macros_extra.tex"
@@ -238,17 +246,19 @@ def _unlink(out: Path, names) -> None:
             p.unlink()
 
 
-def write_macros(out: Path, macros: dict, merge: bool = False) -> Path:
-    """\\newcommand lines in MACROS_FILE. merge=True keeps the other analyses'
+def write_macros(out: Path, macros: dict, merge: bool = False, prefix: str = MACRO_PREFIX) -> Path:
+    """\\newcommand lines in MACROS_FILE, each voi<Name> key written as
+    <prefix><Name> (study.newcommands). merge=True keeps the other analyses'
     macros already in the file and replaces those with the same name, so the
     file is never left with a duplicate \\newcommand (a LaTeX error)."""
     path = out / MACROS_FILE
+    new = newcommands(macros, prefix)
     keep = []
     if merge and path.exists():
-        names = {f"\\newcommand{{\\{k}}}" for k in macros}
+        names = {line.split("}", 1)[0] + "}" for line in new}
         keep = [line for line in path.read_text().splitlines()
                 if line.strip() and not any(line.startswith(n) for n in names)]
-    lines = keep + [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
+    lines = keep + new
     path.write_text("\n".join(lines) + "\n")
     return path
 
@@ -1270,7 +1280,7 @@ def simplicity_stats(con, run) -> dict | None:
     }
 
 
-def write_simplicity(con, run, out: Path) -> bool:
+def write_simplicity(con, run, out: Path, prefix: str = MACRO_PREFIX) -> bool:
     st = simplicity_stats(con, run)
     if st is None:
         return False
@@ -1314,7 +1324,7 @@ def write_simplicity(con, run, out: Path) -> bool:
     }
     for n in db.PARAM_NAMES:
         macros[f"voiGlobalAll{PARAM_MACRO[n]}"] = num(st["global_all"][n], "{:.2f}")
-    write_macros(out, macros)
+    write_macros(out, macros, prefix=prefix)
     return True
 
 
@@ -1664,7 +1674,7 @@ def fig_plugin(con, run, out: Path, st: dict | None = None) -> bool:
     return True
 
 
-def write_plugin(con, run, out: Path, st: dict | None = None) -> bool:
+def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACRO_PREFIX) -> bool:
     st = st or plugin_stats(con, run)
     if st is None:
         return False
@@ -1718,7 +1728,106 @@ def write_plugin(con, run, out: Path, st: dict | None = None) -> bool:
         "voiFenceRhoPlugin": num(st["fence_rho"], "{:.2f}"),
         "voiFenceN": st["fence_n"],
         "voiFenceTopOverlap": st["fence_top_overlap"],
-    }, merge=True)
+    }, merge=True, prefix=prefix)
+    return True
+
+
+# --- 8. the plug-in map --------------------------------------------------------------
+
+def plugin_map_points(con, run) -> list[dict]:
+    """Per ranked scenario with a complete plug-in point, in the run's
+    order: {"sid", "grp", "domain" (attributes.risk_domain or None), "C",
+    "EVSI", "EVSI_star", "regime"}, all from plugin_point (the pooled
+    medians of the run's members)."""
+    groups, domains = scenario_groups(con), scenario_domains(con)
+    rows = []
+    for sid in ranked_ids(con, run["id"]):
+        pt = plugin_point(con, run, sid)
+        if pt is not None:
+            rows.append({"sid": sid, "grp": groups.get(sid), "domain": domains.get(sid),
+                         **{key: pt[key] for key in ("C", "EVSI", "EVSI_star", "regime")}})
+    return rows
+
+
+def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None) -> bool:
+    """fig_plugin_map.pdf, the headline map at the pooled medians: plug-in
+    EVSI (y, log) against the pooled-median C (x, log), one point per
+    scenario, coloured by group and shaped by attributes.risk_domain when
+    any scenario has one. A scenario outside the gate (always / never
+    respond, EVSI = 0) sits at the y floor as an open marker. The fence
+    value EVSI* at the same medians is a small hollow marker on a thin
+    stem from the plug-in point: decision value against fence value.
+    Iso-efficiency diagonals and the 'better' arrow as in
+    figures.fig_evsi_vs_cost; every id labelled. Artists carry gid
+    'plugin' / 'fence' (the test reads the plotted values back)."""
+    rows = plugin_map_points(con, run) if rows is None else rows
+    if not rows:
+        return False
+    xs = np.array([r["C"] for r in rows])
+    evsi = np.array([r["EVSI"] for r in rows])
+    star = np.array([r["EVSI_star"] for r in rows])
+    floored = evsi < EVSI_FLOOR
+    y = np.maximum(evsi, EVSI_FLOOR)
+    ystar = np.maximum(star, EVSI_FLOOR)
+    grp_of = [r["grp"] or "(no group)" for r in rows]
+    grp_names = sorted(set(grp_of))
+    colors = group_colors([g for g in grp_names if g != "(no group)"])
+    colors["(no group)"] = "#7f7f7f" if len(grp_names) > 1 else ACCENT
+    has_domain = any(r["domain"] for r in rows)
+    dom_of = [r["domain"] or "(none)" for r in rows]
+    dom_names = sorted(set(dom_of))
+    marker = {d: MARKERS[i % len(MARKERS)] if has_domain else "o" for i, d in enumerate(dom_names)}
+
+    fig, ax = plt.subplots(figsize=(6.2, 4.6))
+    ax.vlines(xs, y, ystar, color=INTERVAL, lw=0.6, alpha=0.9, zorder=1, gid="stem")
+    for g in grp_names:
+        for d in dom_names:
+            mask = np.array([a == g and b == d for a, b in zip(grp_of, dom_of, strict=True)])
+            if not mask.any():
+                continue
+            c, mk = colors[g], marker[d]
+            ax.plot(xs[mask], ystar[mask], mk, ls="", mfc="white", mec=c, ms=3.2, mew=0.7, zorder=2,
+                    gid="fence")
+            ax.plot(xs[mask & ~floored], y[mask & ~floored], mk, ls="", color=c, ms=5.5, mec="white",
+                    mew=0.5, zorder=3, gid="plugin")
+            ax.plot(xs[mask & floored], y[mask & floored], mk, ls="", mfc="white", mec=c, ms=5.5,
+                    mew=0.9, zorder=3, gid="plugin")
+    for i, r in enumerate(rows):
+        ax.annotate(str(r["sid"]), (xs[i], y[i]), textcoords="offset points",
+                    xytext=(4, 3) if i % 2 == 0 else (-4, -8),
+                    ha="left" if i % 2 == 0 else "right", fontsize=6, color="#333333", zorder=4)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    xlim = np.array([xs.min() / 3, xs.max() * 3])
+    # the floor only when a point sits on it; 1.5 decades of headroom keep the arrow clear
+    ylim = np.array([EVSI_FLOOR / 2 if floored.any() else y.min() / 30, max(ystar.max(), EVSI_FLOOR) * 30])
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+    iso_efficiency_lines(ax, xlim, ylim)
+    ax.annotate("better (more decision value per dollar)",
+                xy=(0.03, 0.97), xytext=(0.13, 0.87),
+                xycoords="axes fraction", textcoords="axes fraction",
+                fontsize=7, color="#333333", ha="left", va="center",
+                arrowprops={"arrowstyle": "-|>", "color": "#333333", "lw": 0.9})
+    handles = []
+    if len(grp_names) > 1:
+        handles += [plt.Line2D([], [], marker="o", ls="", color=colors[g], label=g) for g in grp_names]
+    if has_domain:
+        handles += [plt.Line2D([], [], marker=marker[d], ls="", color="#555555", label=d) for d in dom_names]
+    if floored.any():
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
+                                  label="EVSI = 0 (at floor)"))
+    handles.append(plt.Line2D([], [], marker="o", ls="-", lw=0.6, color=INTERVAL, mfc="white",
+                              mec="#555555", ms=3.2, label="fence EVSI$^\\star$"))
+    title = ("colour: group; marker: risk domain" if len(grp_names) > 1 and has_domain
+             else "colour: group" if len(grp_names) > 1 else "marker: risk domain" if has_domain else None)
+    ax.legend(handles=handles, fontsize=6, loc="lower right", frameon=False, title=title, title_fontsize=6)
+    ax.set_xlabel("pooled median C (USD)")
+    ax.set_ylabel("plug-in EVSI (USD per measurement)")
+    ax.set_title("Plug-in EVSI vs cost at the pooled medians; stems up to the fence value EVSI$^\\star$",
+                 fontsize=9)
+    fig.savefig(out / "fig_plugin_map.pdf")
+    plt.close(fig)
     return True
 
 
@@ -1728,7 +1837,8 @@ def write_plugin(con, run, out: Path, st: dict | None = None) -> bool:
 # dispersion of p, s, t, B, K, C; per-member re-draws through model.voi; the
 # EVPI/C ranking; the plug-in point through model.voi): a Gaussian run skips
 # them with a printed reason
-BINARY_ONLY = ("level_uplift", "level_fence", "consistency", "member_agreement", "simplicity", "plugin")
+BINARY_ONLY = ("level_uplift", "level_fence", "consistency", "member_agreement", "simplicity", "plugin",
+               "plugin_map")
 
 
 def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[str, str]:
@@ -1761,13 +1871,16 @@ def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[st
     _, why = plugin or plugin_analysis(con, run)
     if why:
         reasons["plugin"] = why
+    if not plugin_map_points(con, run):
+        reasons["plugin_map"] = "no ranked scenario has a valid elicitation of every parameter"
     return reasons
 
 
-def make_all(con, run, out: Path) -> tuple[list[str], list[str]]:
-    """Write every analysis that applies. Returns (written file names, skipped
-    analysis names); a skipped analysis has its stale outputs removed and its
-    reason printed (as is every ladder the level uplift leaves out)."""
+def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX) -> tuple[list[str], list[str]]:
+    """Write every analysis that applies, macros under `prefix`. Returns
+    (written file names, skipped analysis names); a skipped analysis has its
+    stale outputs removed and its reason printed (as is every ladder the
+    level uplift leaves out)."""
     out.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(STYLE)
     binary = run_kind(con, run["id"]) == db.BINARY_KIND
@@ -1789,9 +1902,10 @@ def make_all(con, run, out: Path) -> tuple[list[str], list[str]]:
         ("domain_map", lambda: fig_domain_map(con, run, out) and write_domain_summary(con, run, out)),
         ("member_agreement", lambda: mr_needed and fig_member_agreement(con, run, out)
          and write_member_agreement(con, run, out)),
-        ("simplicity", lambda: binary and write_simplicity(con, run, out)),
+        ("simplicity", lambda: binary and write_simplicity(con, run, out, prefix)),
         ("plugin", lambda: binary and plugin[0] is not None
-         and fig_plugin(con, run, out, plugin[0]) and write_plugin(con, run, out, plugin[0])),
+         and fig_plugin(con, run, out, plugin[0]) and write_plugin(con, run, out, plugin[0], prefix)),
+        ("plugin_map", lambda: binary and fig_plugin_map(con, run, out)),
         ("protocol_noise_matched", lambda: write_protocol_noise_matched(con, out)),
     ]
     written, skipped = [], []
@@ -1809,13 +1923,15 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     add_study_arg(ap)
     add_run_args(ap)
+    add_tag_arg(ap)
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
+    out, prefix = study.tagged(args.tag)
     con = study.connect()
     run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
-    written, skipped = make_all(con, run, study.generated_dir)
+    written, skipped = make_all(con, run, out, prefix)
     for name in written:
-        print(f"wrote {study.generated_dir / name}")
+        print(f"wrote {out / name}")
     if skipped:
         print("skipped (inputs absent): " + ", ".join(skipped))
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -24,11 +25,11 @@ from tests.test_gauss_pipeline import (
     use_providers,
 )
 from voi_rank import db, elicit, gaussian, mc, model
-from voi_rank.analysis import compare_models, extra, tables
+from voi_rank.analysis import compare_models, extra, figures, tables
 from voi_rank.analysis.compare_models import ACTION_MODELS
 from voi_rank.fit import GAUSS_PARAM_NAMES
 from voi_rank.sensitivity import spearman
-from voi_rank.study import Study
+from voi_rank.study import Study, check_tag
 
 ROOT = Path(__file__).resolve().parent.parent
 SONNET = "claude_cli:sonnet"
@@ -383,3 +384,85 @@ def test_real_data_smoke_on_a_copy(name, tmp_path, capsys):
     tex = (study.generated_dir / "compare_noise.tex").read_text()
     assert " & $n$ (scenarios) & 15 & 15 & 15\\\\" in tex
     assert (src / "voi.db").stat().st_mtime_ns == before   # the committed database was not touched
+
+
+# --- tagged outputs (--tag NAME) ------------------------------------------------------------
+
+TAGGED_MACRO_FILES = ("macros.tex", "macros_extra.tex", "macros_compare.tex")
+
+
+def macro_names(path: Path) -> list[str]:
+    return re.findall(r"^\\newcommand\{\\(\w+)\}", path.read_text(), flags=re.M)
+
+
+def run_every_analysis(study: Study, extra_args: list[str]) -> None:
+    for cli in (figures, tables, extra):
+        cli.main(["--study", str(study.root), "--protocol", "p003", *extra_args])
+    compare_models.main(["--study", str(study.root), "--binary", "p003", "--gaussian", "g001", *extra_args])
+
+
+def test_tagged_outputs_have_their_own_dir_and_macro_prefix(two_member_study, tmp_path, capsys):
+    """Two tags on one study: the headline (every member) and a baseline
+    (the haiku subset runs). Each CLI writes to generated/<tag>/ and renames
+    every macro \\voiX to \\voi<tag>X; the untagged generated/ is untouched,
+    the default names are unchanged, and both tags' macro files compile in
+    one document."""
+    study, runs = two_member_study["study"], two_member_study["runs"]
+    gen = study.generated_dir
+    gen.mkdir(parents=True, exist_ok=True)
+    before = {p.name: p.stat().st_mtime_ns for p in gen.iterdir() if p.is_file()}
+    run_every_analysis(study, ["--tag", "headline"])
+    run_every_analysis(study, ["--members", HAIKU, "--tag", "baseline"])
+    out = capsys.readouterr().out
+    assert {p.name: p.stat().st_mtime_ns for p in gen.iterdir() if p.is_file()} == before
+    assert f"wrote {gen / 'headline' / 'fig_evsi_vs_cost.pdf'}" in out
+    assert f"wrote {gen / 'baseline' / 'fig_plugin_map.pdf'}" in out
+    assert "(macros \\voibaseline...)" in out
+    # the default names, from an untagged run into a scratch directory
+    con = study.connect()
+    plain = tmp_path / "plain"
+    tables.make_all(con, db.get_run(con, runs["p003"]), plain)
+    extra.make_all(con, db.get_run(con, runs["p003"]), plain)
+    compare_models.make_all(con, db.get_run(con, runs["p003"]), db.get_run(con, runs["g001"]), plain)
+    con.close()
+    for f in TAGGED_MACRO_FILES:
+        names = macro_names(plain / f)
+        assert names and all(n.startswith("voi") and n[3].isupper() for n in names), f
+        tagged = macro_names(gen / "headline" / f)
+        assert tagged == ["voiheadline" + n[3:] for n in names], f
+        assert all(n.startswith("voibaseline") for n in macro_names(gen / "baseline" / f)), f
+    for tag, b_run, g_run in (("headline", runs["p003"], runs["g001"]),
+                              ("baseline", runs["p003_haiku"], runs["g001_haiku"])):
+        text = (gen / tag / "macros.tex").read_text()
+        assert f"\\newcommand{{\\voi{tag}RunId}}{{{b_run}}}" in text
+        text = (gen / tag / "macros_compare.tex").read_text()
+        assert f"\\newcommand{{\\voi{tag}GaussRunId}}{{{g_run}}}" in text
+        for f in ("fig_evsi_vs_cost.pdf", "catalog.tex", "fig_plugin_map.pdf", "plugin.tex",
+                  "compare_plugin.tex", "fig_compare_plugin.pdf", "compare_noise.tex"):
+            assert (gen / tag / f).stat().st_size > 0, (tag, f)
+    assert "claude\\_cli:sonnet" not in (gen / "baseline" / "compare_noise.tex").read_text()
+    # letters only: a tag becomes part of a LaTeX control word
+    for bad in ("head-line", "v2", "run_1", ""):
+        with pytest.raises(SystemExit):
+            tables.main(["--study", str(study.root), "--protocol", "p003", "--tag", bad])
+    assert check_tag("Baseline") == "Baseline"
+    assert capsys.readouterr().err.count("--tag takes letters only") == 4
+    if shutil.which("pdflatex") is None:
+        pytest.skip("pdflatex not installed: the compile half did not run")
+    doc = tmp_path / "doc"
+    shutil.copytree(gen, doc / "generated")
+    inputs = "".join(f"\\input{{generated/{tag}/{f}}}" for tag in ("headline", "baseline")
+                     for f in TAGGED_MACRO_FILES)
+    uses = " ".join("\\" + n for tag in ("headline", "baseline") for f in TAGGED_MACRO_FILES
+                    for n in macro_names(gen / tag / f))
+    tables_tex = "".join(
+        f"\\begin{{table}}[h]\\centering\\input{{generated/{tag}/{f}}}\\end{{table}}\\clearpage"
+        for tag in ("headline", "baseline")
+        for f in ("compare_plugin.tex", "compare_noise.tex", "compare_members.tex"))
+    (doc / "main.tex").write_text(
+        "\\documentclass{article}\\usepackage{booktabs,longtable,amsmath,amssymb,graphicx}"
+        f"{inputs}\\begin{{document}}\n\\sloppy Macros: {uses}.\n{tables_tex}\n\\end{{document}}\n")
+    proc = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main.tex"],
+                          cwd=doc, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert (doc / "main.pdf").stat().st_size > 0

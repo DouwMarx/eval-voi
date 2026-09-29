@@ -1,7 +1,8 @@
 """Binary model vs Gaussian-state family on the same scenarios (spec v2.1 §4),
 reading only from a study's voi.db. Over the scenarios ranked by both the
 latest run of the binary protocol and the latest run of the Gaussian
-protocol, writes to <study>/report/generated/:
+protocol, writes to <study>/report/generated/ (generated/TAG/ with --tag TAG,
+every macro then \\voiTAG...; study.Study.tagged):
 
 - compare_models.tex: Spearman and Kendall rank correlation of median
   efficiency, binary vs each action model (quad, kg, step, stepfix) and among
@@ -85,7 +86,7 @@ runs pooled:
   (macros \\voiGaussNoiseRatio<Member>), K over K and C over C.
 
 Usage: python -m voi_rank.analysis.compare_models --study PATH [--binary p001] [--gaussian g001]
-       [--members claude_cli:sonnet,claude_cli:opus]
+       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
 (--members selects, for BOTH protocols, the latest run that pooled exactly
 that member subset, so the two framings are compared on the same elicitors;
 the derived-vs-elicited panel pools the binary protocol's medians over the
@@ -113,7 +114,7 @@ from voi_rank.fit import GAUSS_PARAM_NAMES  # noqa: E402
 from voi_rank.gauss_fit import THRESHOLDS, consistency_score  # noqa: E402
 from voi_rank.gaussian import ACTION_MODELS  # noqa: E402
 from voi_rank.sensitivity import spearman  # noqa: E402
-from voi_rank.study import Study, add_study_arg  # noqa: E402
+from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newcommands  # noqa: E402
 
 EVSI_ZERO_USD = 1e-6
 TOP_N = 10
@@ -129,7 +130,7 @@ NOISE_GAUSS = ("g_d", "g_x", "g_k", "g_L", "g_kappa_sigma0", "g_B", "g_K", "C")
 # the USD spread ratios of its final rows: (label, Gaussian quantity, binary quantity)
 NOISE_RATIOS = (("L", "g_L", "B"), ("K", "g_K", "K"), ("C", "C", "C"))
 MATCHED_K = extra.MATCHED_K
-# the fence rows of the plug-in table: (plugin_comparison key, macro prefix)
+# the fence rows of the plug-in table: (plugin_comparison key, macro name stem)
 FENCE_PAIRS = (("fence_stepfix", "voiFenceStepfix"), ("fence_stepfix_eff", "voiFenceStepfixEff"),
                ("fence_step", "voiFenceStep"), ("fence_step_eff", "voiFenceStepEff"),
                ("fence_quad", "voiFenceQuad"), ("fence_quad_eff", "voiFenceQuadEff"))
@@ -753,7 +754,9 @@ def write_consistency(res: dict, g_run, out: Path, pst: dict | None = None) -> N
 
 
 def write_macros(rs: dict, pst: dict, b_run, g_run, out: Path, mm: dict | None = None,
-                 pc: dict | None = None, nc: dict | None = None) -> dict:
+                 pc: dict | None = None, nc: dict | None = None, prefix: str = MACRO_PREFIX) -> dict:
+    """macros_compare.tex, written under `prefix` (study.newcommands);
+    returned with their voi names."""
     ag = rs["agreement"]
     macros = {
         "voiGaussBinaryRunId": b_run["id"],
@@ -785,16 +788,15 @@ def write_macros(rs: dict, pst: dict, b_run, g_run, out: Path, mm: dict | None =
             macros[f"voiGaussPluginRho{MODEL_MACRO[m]}"] = num(st["rho"], "{:.2f}")
             macros[f"voiGaussPluginTau{MODEL_MACRO[m]}"] = num(st["tau"], "{:.2f}")
             macros[f"voiGaussPluginTopOverlap{MODEL_MACRO[m]}"] = st["overlap"]
-        for key, prefix in FENCE_PAIRS:
-            macros[f"{prefix}Rho"] = num(pc[key]["rho"], "{:.2f}")
-            macros[f"{prefix}Tau"] = num(pc[key]["tau"], "{:.2f}")
-            macros[f"{prefix}TopOverlap"] = pc[key]["overlap"]
+        for key, stem in FENCE_PAIRS:
+            macros[f"{stem}Rho"] = num(pc[key]["rho"], "{:.2f}")
+            macros[f"{stem}Tau"] = num(pc[key]["tau"], "{:.2f}")
+            macros[f"{stem}TopOverlap"] = pc[key]["overlap"]
     if nc is not None:
         names = member_macro_names(nc["members"])
         for label in nc["members"]:
             macros[f"voiGaussNoiseRatio{names[label]}"] = num(nc["ratios"][label]["L"], "{:.2f}")
-    (out / "macros_compare.tex").write_text(
-        "\n".join(f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()) + "\n")
+    (out / "macros_compare.tex").write_text("\n".join(newcommands(macros, prefix)) + "\n")
     return macros
 
 
@@ -853,7 +855,7 @@ def fig_derived(pst: dict, out: Path) -> None:
     plt.close(fig)
 
 
-def make_all(con, b_run, g_run, out: Path) -> dict:
+def make_all(con, b_run, g_run, out: Path, prefix: str = MACRO_PREFIX) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(figures.STYLE)
     rs = rank_stats(con, b_run, g_run)
@@ -867,7 +869,7 @@ def make_all(con, b_run, g_run, out: Path) -> dict:
     write_members(mm, b_run, g_run, out)
     write_plugin(pc, b_run, g_run, out)
     write_noise(nc, b_run, g_run, out)
-    macros = write_macros(rs, pst, b_run, g_run, out, mm, pc, nc)
+    macros = write_macros(rs, pst, b_run, g_run, out, mm, pc, nc, prefix)
     fig_compare(con, rs, out)
     fig_derived(pst, out)
     fig_plugin(con, pc, out)
@@ -884,11 +886,13 @@ def main(argv=None):
     ap.add_argument("--members", default=None,
                     help="comma-separated provider:model subset: the latest run of each protocol"
                          " that pooled exactly these members")
+    add_tag_arg(ap)
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
+    out, prefix = study.tagged(args.tag)
     con = study.connect()
     b_run, g_run = select_runs(con, args.binary, args.gaussian, db.parse_member_labels(args.members))
-    result = make_all(con, b_run, g_run, study.generated_dir)
+    result = make_all(con, b_run, g_run, out, prefix)
     ag = result["rank"]["agreement"]
     print(f"{len(result['rank']['shared'])} shared scenarios; Spearman binary vs "
           + ", ".join(f"{m} {num(ag[('binary', m)]['rho'], '{:.2f}')}" for m in ACTION_MODELS)
@@ -906,7 +910,7 @@ def main(argv=None):
     for label in result["noise"]["members"]:
         print(f"noise ratio {label}: Gaussian L / binary B spread"
               f" {num(result['noise']['ratios'][label]['L'], '{:.2f}')}")
-    print("wrote " + ", ".join(str(study.generated_dir / f) for f in OUTPUTS))
+    print("wrote " + ", ".join(str(out / f) for f in OUTPUTS))
 
 
 if __name__ == "__main__":

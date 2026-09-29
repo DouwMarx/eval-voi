@@ -997,6 +997,47 @@ def test_fig_level_fence(built, con, out, tmp_path):
 
 # --- driver and LaTeX ------------------------------------------------------------------
 
+@pytest.mark.parametrize("protocol", ["p001", "p003"])
+def test_fig_plugin_map_plots_the_plugin_points(built, con, out, protocol, monkeypatch):
+    """The map's y values are extra.plugin_point's EVSI (floored at
+    EVSI_FLOOR, open markers there), its x the pooled-median C, and each
+    stem runs from the plug-in point up to the fence value EVSI*."""
+    run = db.get_run(con, built["runs"][protocol])
+    figs, real_close = [], extra.plt.close
+    monkeypatch.setattr(extra.plt, "close", figs.append)
+    assert extra.fig_plugin_map(con, run, out)
+    assert (out / "fig_plugin_map.pdf").stat().st_size > 0
+    ax = figs[0].axes[0]
+    pts = {sid: extra.plugin_point(con, run, sid) for sid in extra.ranked_ids(con, run["id"])}
+    assert len(pts) == 9 and all(pt is not None for pt in pts.values())
+
+    def plotted(gid, open_only=None):
+        return sorted((float(x), float(y)) for ln in ax.lines if ln.get_gid() == gid
+                      and (open_only is None or (ln.get_markerfacecolor() == "white") == open_only)
+                      for x, y in zip(ln.get_xdata(), ln.get_ydata(), strict=True))
+
+    floor = extra.EVSI_FLOOR
+    expected = sorted((pt["C"], max(pt["EVSI"], floor)) for pt in pts.values())
+    np.testing.assert_allclose(plotted("plugin"), expected, rtol=1e-12)
+    # the control scenario decides without measuring: EVSI = 0, outside the gate, open at the floor
+    outside = [sid for sid, pt in pts.items() if pt["regime"] != "in gate"]
+    assert outside == built["sids"]["control"] and all(pts[s]["EVSI"] == 0.0 for s in outside)
+    np.testing.assert_allclose(plotted("plugin", open_only=True),
+                               sorted((pts[s]["C"], floor) for s in outside), rtol=1e-12)
+    np.testing.assert_allclose(plotted("fence"),
+                               sorted((pt["C"], max(pt["EVSI_star"], floor)) for pt in pts.values()),
+                               rtol=1e-12)
+    stems = [c for c in ax.collections if c.get_gid() == "stem"][0].get_segments()
+    assert sorted((float(a[0]), float(a[1]), float(b[1])) for a, b in stems) == pytest.approx(sorted(
+        (pt["C"], max(pt["EVSI"], floor), max(pt["EVSI_star"], floor)) for pt in pts.values()))
+    assert all(pt["EVSI_star"] >= pt["EVSI"] for pt in pts.values())   # the fence is the maximum
+    labels = [t.get_text() for t in ax.texts]
+    assert sorted(int(t) for t in labels if t.isdigit()) == sorted(pts)   # every id labelled
+    assert any(t.startswith("better") for t in labels) and any(t.startswith("eff $= 10^") for t in labels)
+    for fig in figs:
+        real_close(fig)
+
+
 def test_cli_writes_everything_and_removes_stale_outputs(built, capsys):
     study = built["study"]
     extra.main(["--study", str(study.root), "--protocol", "p003"])
@@ -1007,7 +1048,8 @@ def test_cli_writes_everything_and_removes_stale_outputs(built, capsys):
                  "fig_within_group_consistency.pdf",
                  "consistency.tex", "fig_domain_map.pdf", "domain_summary.tex",
                  "fig_member_agreement.pdf", "member_agreement.tex", "simplicity.tex",
-                 "macros_extra.tex", "fig_plugin.pdf", "plugin.tex", "protocol_noise_matched.tex"):
+                 "macros_extra.tex", "fig_plugin.pdf", "plugin.tex", "fig_plugin_map.pdf",
+                 "protocol_noise_matched.tex"):
         assert (gen / name).stat().st_size > 0, name
         assert out.count(f"wrote {gen / name}\n") == 1
     assert "skipped" not in out
