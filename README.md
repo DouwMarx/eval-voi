@@ -62,9 +62,11 @@ Tagged outputs: `figures`, `tables`, `extra` and `compare_models` take
 names, and an uppercase tag can recreate an untagged name, `Gauss` +
 `RunId` being `compare_models`' `\voiGaussRunId`).
 Their files then go to `report/generated/NAME/` instead of
-`report/generated/`, and every macro they write is renamed from `\voiX` to
-`\voiNAMEX`, so a paper can input the headline run's macros next to a
-baseline run's:
+`report/generated/`, every macro they write is renamed from `\voiX` to
+`\voiNAMEX` and every table label from `tab:X` to `tab:X-NAME`
+(`tab:catalog`, `tab:ranking`, `tab:plugin`; `study.tex_label`), so a
+paper can input the headline run's macros and tables next to a baseline
+run's:
 
 ```
 uv run python -m voi_rank.analysis.tables --study studies/X --protocol p003 --tag headline
@@ -141,31 +143,38 @@ an outage, not an attempt:
   the outage is stored as usual, and its slot counts as pending) and its
   slot is re-planned; the run summary counts the zero-usage results, the
   pauses and the seconds paused;
-- the job launches no retry for it (`retry_delay` returns `OUTAGE_PAUSE`);
-  `run_jobs` keeps one streak counter across workers and after
-  `OUTAGE_STREAK = 5` consecutive zero-usage results stops dispatching (the
-  not-yet-started slots are held back), lets the running calls finish,
-  pauses, probes with one call and resumes when the probe is billed (its
-  answer is stored like any slot); a zero-usage probe pauses again. A
-  pause lasts until 60 s after the reset time the CLI's message names
-  ("resets 4:30am (Europe/Brussels)") when that is at most one 5-hour
-  session window away, else `VOI_OUTAGE_SLEEP_S` (default 300 s). Once the
-  pauses total `VOI_OUTAGE_MAX_WAIT_S` (default 21,600 s, 6 h: one session
-  window plus margin; the last pause is cut to fit) the run gives up with a
-  clear message, everything completed stored and the rest pending for the
-  next run (re-run to resume once the limit resets). Both settings come
-  from the environment or `.env`, over every outage window of the run.
+- the job launches no retry for it (`retry_delay` returns `OUTAGE_PAUSE`).
+  `run_jobs` tracks outages per member (a model-specific limit holds that
+  model only; a healthy member is never held back or cancelled because
+  another is limited): after `OUTAGE_STREAK = 5` consecutive zero-usage
+  results of one member across workers it stops dispatching that member
+  (its not-yet-started slots are held back) and lets its running calls
+  finish, while the other members go on. Once only held members' slots are
+  left the run pauses, probes each held member with one call and releases
+  a member when its probe is billed (the answer is stored like any slot);
+  a zero-usage probe keeps it held and the run pauses again. A pause lasts
+  until 60 s after the reset time the CLI's message names ("resets 4:30am
+  (Europe/Brussels)") when that is at most one 5-hour session window away,
+  else `VOI_OUTAGE_SLEEP_S` (default 300 s), the shortest over the held
+  members. Once a member has paused `VOI_OUTAGE_MAX_WAIT_S` since its last
+  billed result (default 21,600 s, 6 h: one session window plus margin;
+  the last pause is cut to fit) the run gives up on that member with a
+  clear message, its slots pending for the next run (re-run to resume once
+  the limit resets), everything completed stored and the other members
+  going on. A billed result restarts the member's budget, so an unattended
+  run that spans several windows waits out each (the two 2026-09-29
+  windows needed 8,823 s and 9,312 s: with one budget per run a third
+  window would have had 58 minutes). Both settings come from the
+  environment or `.env`. The run summary reports the time actually paused
+  (a pause cut short by Ctrl-C counts what elapsed).
 - Fewer than 5 in a row (a blip) are re-planned at the end of the batch
-  without a pause. Only a billed result (parsed, or with a recorded cost,
-  a paid CLI exit 1 included) resets the streak; an unbilled failure (http
-  401, a transport error) leaves it. The streak is one counter over every
-  member, so a billed answer of another member resets it too: with members
-  interleaved, a limited member's slots can be re-run (at zero cost) more
-  than four times before a pause. Once a batch is held, a billed answer of
-  a call already in flight no longer resets the streak: a held batch
-  always pauses. A member halted after a hold has its held-back slots
-  cancelled. Ctrl-C during a pause cancels the held-back slots like any
-  interrupt.
+  without a pause. Only a billed result of the member (parsed, or with a
+  recorded cost, a paid CLI exit 1 included) resets its streak; an
+  unbilled failure (http 401, a transport error) leaves it. Once a member
+  is held, a billed answer of its call already in flight no longer resets
+  the streak: a held member always pauses. A member halted after a hold
+  has its held-back slots cancelled. Ctrl-C during a pause cancels the
+  held-back slots like any interrupt.
 - the plan's cost estimate (`elicit.member_mean_cost`) averages over the
   billed attempts only, as the report macros below do.
 - `health` prints rows the old harness stored during an outage (a
@@ -420,12 +429,23 @@ the binary-only analyses of `extra` are skipped with a printed reason):
   elicited both protocols, the Spearman of median efficiency between that
   member's binary ranking and that member's Gaussian ranking, per action
   model, plus a pooled-vs-pooled row for the two selected runs. A member's
-  ranking is read from its stored subset run when one exists
-  (`mc --members provider:model` under each protocol; a single-member
-  protocol's all-member run counts) and otherwise re-drawn locally from that
-  member's fits alone with the selected run's seed and draw count, as the
+  ranking is read from its stored subset run when one exists and still
+  describes the member's valid elicitations (`mc --members provider:model`
+  under each protocol; a single-member protocol's all-member run counts;
+  its `data_hash` must equal that of the member's current fits, and a v1
+  run is never read) and otherwise re-drawn locally from that member's
+  fits alone with the selected run's seed and draw count, as the
   member-agreement analysis of `extra` does; the source column and the
-  caption say which. Macros `\voiGaussRhoMember<Model><Member>` (e.g.
+  caption say which (`re-drawn (run <id> stale)` when a stored run exists
+  but repeats were added or rows invalidated since). Each row also counts
+  the scenarios whose median efficiency is 0 (median EVSI 0), binary and
+  stepfix, as the gate table does, and a Spearman is printed `--` when
+  either ranking has fewer than 3 distinct values: a gated ranking that is
+  a block of zeros plus one or two scenarios records only where those
+  rank (sim2real `p003`: binary zero medians haiku 12, sonnet 14, opus 15
+  of 15). Macros `\voiGaussZeroMemberBinary<Member>`,
+  `\voiGaussZeroMemberStepfix<Member>`, `\voiGaussZeroMemberN<Member>`,
+  `\voiGaussRhoMember<Model><Member>` (e.g.
   `\voiGaussRhoMemberStepfixHaiku`; the member part is the model name's
   letters capitalised with digits spelled out, `claude-3-5-sonnet` ->
   `ClaudeThreeFiveSonnet`, and two members mapping to one name are

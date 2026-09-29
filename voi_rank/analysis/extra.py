@@ -118,7 +118,14 @@ from scipy.stats import rankdata  # noqa: E402
 from voi_rank import db, model  # noqa: E402
 from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
 from voi_rank.sensitivity import spearman  # noqa: E402
-from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newcommands  # noqa: E402
+from voi_rank.study import (  # noqa: E402
+    MACRO_PREFIX,
+    Study,
+    add_study_arg,
+    add_tag_arg,
+    newcommands,
+    tex_label,
+)
 
 # --- style (mirrors figures.py) --------------------------------------------
 
@@ -1704,7 +1711,7 @@ def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACR
         f" the mean over the {run['n_draws']} draws of run {run['id']}, replayed from the DB and"
         r" verified against the stored quantiles; $P_+ = P(\mathrm{EVSI} > C)$ stored by the run;"
         r" $P_\mathrm{gate} = P(\mathrm{EVSI} > 0)$ over the replayed draws. USD in $B$, $K$, $C$,"
-        r" EVSI, EVPI, EVSI$^\star$.", "tab:plugin")
+        r" EVSI, EVPI, EVSI$^\star$.", tex_label("tab:plugin", prefix))
     summary = tabular("@{}lr@{}", "statistic & value", [
         r"Spearman $\rho$(plug-in eff, MC median eff) & " + num(st["rho_plugin_median"], "{:.2f}"),
         r"Spearman $\rho$(plug-in eff, MC mean eff) & " + num(st["rho_plugin_mean"], "{:.2f}"),

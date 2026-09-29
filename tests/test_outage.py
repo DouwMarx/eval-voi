@@ -1,9 +1,11 @@
 """Harness pause on usage-limit outages (spec v2.3, feature E). During a
 claude.ai usage-limit window the CLI exits 1 with a zero-usage envelope
 (no model call, nothing billed): the provider classifies it, the job never
-retries it, run_jobs stores nothing for it, pauses after OUTAGE_STREAK such
-results in a row, probes with one call and resumes, or gives up once its
-pauses total VOI_OUTAGE_MAX_WAIT_S; health and the report macros read
+retries it, run_jobs stores nothing for it, holds a member after
+OUTAGE_STREAK such results of it in a row while the others go on, pauses
+once only held members are left, probes each with one call and resumes it,
+or gives up on it once it has paused VOI_OUTAGE_MAX_WAIT_S since its last
+billed result; health and the report macros read
 legacy rows of that kind as outages. A zero-usage exit of another API
 status (an unknown model id) is an ordinary attempt that halts the member.
 Fake providers, injected sleep and clock, no CLI, no network."""
@@ -14,6 +16,7 @@ import json
 import os
 import re
 import signal
+import string
 import subprocess
 import threading
 import time
@@ -22,7 +25,7 @@ from datetime import UTC, datetime
 import pytest
 
 from tests.test_pipeline import _seed_payload, study  # noqa: F401  (the temporary study fixture)
-from voi_rank import db, dotenv, elicit
+from voi_rank import db, dotenv, elicit, propose
 from voi_rank.analysis import health, tables
 from voi_rank.providers import claude_cli
 
@@ -283,10 +286,11 @@ def test_outage_pauses_after_the_streak_probes_and_resumes(study, monkeypatch, c
     assert len(rows) == 8 and all(r["valid"] == 1 and r["error"] is None for r in rows)
     assert sorted(r["scenario_id"] for r in rows) == list(range(1, 9))
     assert out.count("nothing billed, not stored, re-planned") == summary["results"]
-    assert re.search(r"usage-limit outage: 5 consecutive zero-usage results across workers; dispatching"
-                     r" stopped, [0-3] not-yet-started slot\(s\) held back for the pause", out)
-    assert re.search(r"usage-limit outage: pausing 300s \(pause 1, 300s of 21600s\) with 8 slot\(s\) pending,"
-                     r" then probing with one call", out)
+    assert re.search(r"usage-limit outage: claude_cli:haiku: 5 consecutive zero-usage results across"
+                     r" workers; its dispatching stopped, [0-3] not-yet-started slot\(s\) of it held back for"
+                     r" the pause \(the other members go on\)", out)
+    assert ("usage-limit outage: pausing 300s (pause 1; claude_cli:haiku 300s of 21600s) with 8 slot(s)"
+            " pending, then probing with one call per held member") in out
     assert out.count("usage-limit outage: pausing") == 1 and "giving up" not in out
     assert re.search(r"\[8/8\] scenario \d claude_cli:haiku repeat 0: ok", out) and "[9/8]" not in out
     assert elicit.outage_summary(summary) == (f", {summary['results']} zero-usage usage-limit result(s) not"
@@ -325,9 +329,10 @@ def test_outage_gives_up_after_the_wait_budget_with_everything_stored(study, mon
     assert 5 + 12 <= summary["results"] <= 8 + 12 and len(outage.calls) == summary["results"]
     assert outage.slept == [300.0] * 12
     assert rows_of(con) == []                                              # nothing billed, nothing stored
-    assert re.search(r"usage-limit outage: giving up after 12 pause\(s\), 3600s in total"
-                     r" \(VOI_OUTAGE_MAX_WAIT_S=3600\), with \d+ zero-usage results in a row; 0 slot\(s\) of"
-                     r" this run stored, 8 still pending: re-run to resume once the limit resets", out)
+    assert re.search(r"usage-limit outage: giving up on claude_cli:haiku after 3600s paused since its last"
+                     r" billed result \(VOI_OUTAGE_MAX_WAIT_S=3600\), with \d+ zero-usage results of it in a"
+                     r" row; 0 slot\(s\) of it stored by this run, 8 still pending: re-run to resume once the"
+                     r" limit resets", out)
     assert out.count("usage-limit outage: pausing") == 12
     assert elicit.outage_summary(summary).endswith("; gave up after 12 pauses with 8 slot(s) still pending:"
                                                    " re-run to resume")
@@ -384,11 +389,15 @@ def test_main_summary_counts_the_outage_and_stores_paid_attempts_before_it(study
 
 
 def test_interrupt_during_the_pause_cancels_the_held_slots(study, monkeypatch, capsys):  # noqa: F811
+    """Ctrl-C about 1 s into a 300 s pause. Review round 3 (2): the summary
+    added the planned pause before sleeping and reported '300s paused'; it
+    reports the time that elapsed."""
     outage = Outage(_seed_payload(), ends_on_sleep=False)
     monkeypatch.setattr(elicit, "get_provider", outage.get_provider)
     con, pid, jobs = plan(study)
 
     def ctrl_c(seconds):
+        time.sleep(1.2)
         raise KeyboardInterrupt
 
     with pytest.raises(KeyboardInterrupt):
@@ -396,7 +405,7 @@ def test_interrupt_during_the_pause_cancels_the_held_slots(study, monkeypatch, c
     out = capsys.readouterr().out
     assert "interrupted (KeyboardInterrupt): 8 pending slots cancelled\n" in out
     assert ("0 of 8 slots stored (0 after the interruption); re-run to resume, 8 zero-usage usage-limit"
-            " result(s) not stored as attempts (1 pause(s), 300s paused)") in out
+            " result(s) not stored as attempts (1 pause(s), 1s paused)") in out
     assert rows_of(con) == [] and len(outage.calls) == 8
     con.close()
 
@@ -530,54 +539,38 @@ OR_MEMBER = "openrouter:fake/model"
 
 
 def test_member_halted_after_the_hold_has_its_held_slots_cancelled(study, monkeypatch, capsys):  # noqa: F811
-    """haiku's fifth zero-usage result holds the not-yet-started slots back
-    (openrouter's second among them) while openrouter's first call is in
-    flight; it then returns 401 and halts the member. Its held-back slot is
-    cancelled, not re-submitted with the next batch, and the unbilled 401
-    does not reset the streak (one pause, not two)."""
-    seed = _seed_payload()
-    state = {"active": True}
-    calls = {"claude_cli": [], "openrouter": []}
-    lock = threading.Lock()
+    """haiku's first call is slow and ends in a login error (the member's
+    environment); meanwhile the other worker's calls hit the limit, and
+    the fifth zero-usage result holds haiku's not-yet-started slots back.
+    The login error then halts haiku: its held-back and re-planned slots
+    are cancelled, not re-submitted, and the run never pauses."""
+    calls, lock = [], threading.Lock()
 
     def get_provider(name):
         def call(prompt, model, system_prompt):
             with lock:
-                calls[name].append(prompt)
-            if name == "openrouter":
+                calls.append(prompt)
+                first = len(calls) == 1
+            if first:
                 time.sleep(0.5)   # in flight when the fifth zero-usage result lands
-                return None, "", "http: status 401 unauthorized"
+                return None, "Not logged in", "cli: exit 1: Not logged in"
             time.sleep(0.05)
-            if state["active"]:
-                return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
-            text = json.dumps({"parameters": seed})
-            return {"result": text, "total_cost_usd": 0.01}, text, None
+            return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
         return call
 
-    def sleep(seconds):
-        state["active"] = False   # the window ends during the pause
-
+    slept = []
     monkeypatch.setattr(elicit, "get_provider", get_provider)
-    con = study.connect()
-    db.seed_scenarios(con, study.scenarios_json)
-    pid = db.get_or_create_protocol(con, study.protocol_path("p001"), study.root)
-    _, planned = elicit.plan_jobs(con, study, pid, "1,2,3,4,5,6,7,8", 1, {"claude_cli:haiku", OR_MEMBER})
-    by = {(db.member_label(j["member"]), j["scenario_id"]): j for j in planned}
-    jobs = ([by[("claude_cli:haiku", s)] for s in (1, 2, 3, 4)] + [by[(OR_MEMBER, 1)]]
-            + [by[("claude_cli:haiku", s)] for s in (5, 6, 7, 8)] + [by[(OR_MEMBER, 2)]])
-    n_valid, cost, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=2, sleep=sleep)
+    con, pid, jobs = plan(study)
+    n_valid, cost, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=2,
+                                                          sleep=slept.append)
     out = capsys.readouterr().out
-    assert (n_valid, n_cancelled) == (8, 1) and cost == pytest.approx(0.08)
-    assert summary["pauses"] == 1 and out.count("usage-limit outage: pausing") == 1
-    assert re.search(r"dispatching stopped, [1-4] not-yet-started slot\(s\) held back", out)
-    assert (f"member {OR_MEMBER}: http: status 401 unauthorized: a retry cannot help; cancelled its 1"
-            " pending slots") in out
-    assert out.count(f"{OR_MEMBER} repeat 0: INVALID (http: status 401 unauthorized)") == 1
-    assert len(calls["openrouter"]) == 1, "the halted member's held-back slot was re-submitted"
-    rows = rows_of(con)
-    assert [(r["scenario_id"], r["valid"], r["error"]) for r in rows if r["error"]] == \
-        [(1, 0, "http: status 401 unauthorized")]
-    assert sorted(r["scenario_id"] for r in rows if r["valid"]) == list(range(1, 9))
+    assert (n_valid, n_cancelled, cost) == (0, 7, 0.0) and slept == [] and summary["pauses"] == 0
+    assert re.search(r"its dispatching stopped, [1-3] not-yet-started slot\(s\) of it held back", out)
+    assert re.search(r"member claude_cli:haiku: cli: exit 1: Not logged in: a retry cannot help; cancelled"
+                     r" its 7 pending slots", out)
+    assert len(calls) in (6, 7), "the halted member's held-back slots were re-submitted"
+    assert [(r["scenario_id"], r["valid"], r["error"]) for r in rows_of(con)] == \
+        [(1, 0, "cli: exit 1: Not logged in")]
     # the streak resets on a billed result only
     assert not elicit.billed([elicit.failed_attempt("http: status 401 unauthorized")])
     assert not elicit.billed([elicit.failed_attempt("provider: OSError: unreachable")])
@@ -588,11 +581,13 @@ def test_member_halted_after_the_hold_has_its_held_slots_cancelled(study, monkey
     con.close()
 
 
-def test_the_pause_budget_counts_every_window_of_the_run(study, monkeypatch, capsys):  # noqa: F811
+def test_the_wait_budget_restarts_at_every_billed_result(study, monkeypatch, capsys):  # noqa: F811
     """Two outage windows in one run: the first ends at its pause and its
-    probe is billed; the second never ends. The run gives up once its
-    pauses total VOI_OUTAGE_MAX_WAIT_S (3600 s: 1 + 11 pauses of 300 s),
-    not a budget per window."""
+    probe is billed; the second never ends. Review round 3 (2): the budget
+    was one per run, so two real windows (8,823 s + 9,312 s of the default
+    21,600 s) left 58 minutes for a third. A billed result restarts it: the
+    second window gets the full VOI_OUTAGE_MAX_WAIT_S (3600 s here: 12
+    pauses of 300 s after the first window's one)."""
     seed = _seed_payload()
     state = {"active": True, "billed": 0}
     lock = threading.Lock()
@@ -622,13 +617,135 @@ def test_the_pause_budget_counts_every_window_of_the_run(study, monkeypatch, cap
     n_valid, cost, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=sleep)
     out = capsys.readouterr().out
     assert (n_valid, n_cancelled) == (2, 6) and cost == pytest.approx(0.02)
-    assert summary["pauses"] == 12 and summary["gave_up"] and summary["unresolved"] == 6
-    assert len(slept) == 12
-    assert "usage-limit outage: pausing 300s (pause 1, 300s of 3600s) with 8 slot(s) pending" in out
-    assert "usage-limit outage: pausing 300s (pause 2, 600s of 3600s) with 6 slot(s) pending" in out
-    assert re.search(r"giving up after 12 pause\(s\), 3600s in total \(VOI_OUTAGE_MAX_WAIT_S=3600\), with \d+"
-                     r" zero-usage results in a row; 2 slot\(s\) of this run stored, 6 still pending", out)
+    assert summary["pauses"] == 13 and summary["gave_up"] and summary["unresolved"] == 6
+    assert slept == [300.0] * 13 and summary["waited_s"] == 3900.0
+    assert "usage-limit outage: pausing 300s (pause 1; claude_cli:haiku 300s of 3600s) with 8 slot(s)" in out
+    assert "usage-limit outage: pausing 300s (pause 2; claude_cli:haiku 300s of 3600s) with 6 slot(s)" in out
+    assert "(pause 13; claude_cli:haiku 3600s of 3600s)" in out
+    assert re.search(r"giving up on claude_cli:haiku after 3600s paused since its last billed result"
+                     r" \(VOI_OUTAGE_MAX_WAIT_S=3600\), with \d+ zero-usage results of it in a row;"
+                     r" 2 slot\(s\) of it stored by this run, 6 still pending", out)
     assert len(rows_of(con)) == 2 and all(r["valid"] for r in rows_of(con))
+    con.close()
+
+
+PROTOCOL_3 = {"name": "p007", "template_path": "templates/elicitor.md",
+              "members": [{"provider": "claude_cli", "model": m, "k_repeats": 1}
+                          for m in ("haiku", "sonnet", "opus")]}
+
+
+def test_one_members_limit_never_holds_the_other_members(study, monkeypatch, capsys):  # noqa: F811
+    """Review round 3 (2): the streak, hold and probe were run-wide. With
+    haiku, sonnet and opus at k=5 (plan order per scenario: haiku x5,
+    sonnet x5, opus x5) and only opus limited (a model-specific limit),
+    opus's fifth zero-usage result held every later slot of haiku and
+    sonnet too, the probe was always the same opus slot, and at give-up
+    their slots were cancelled without ever being called (11 of 45 slots
+    stored, 34 cancelled, on the old code). The outage is per member now:
+    haiku and sonnet run every slot before the first pause, the probe is an
+    opus call, and the give-up cancels opus's slots only."""
+    import yaml
+
+    (study.protocols_dir / "p007.yaml").write_text(yaml.safe_dump(PROTOCOL_3))
+    seed = _seed_payload()
+    state = {"opus_limited": True}
+    calls, lock = [], threading.Lock()
+
+    def get_provider(name):
+        def call(prompt, model, system_prompt):
+            with lock:
+                calls.append(model)
+            time.sleep(0.01)   # a call takes time: the hold catches not-yet-started slots
+            if model == "opus" and state["opus_limited"]:
+                return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
+            text = json.dumps({"parameters": seed})
+            return {"result": text, "total_cost_usd": 0.01}, text, None
+        return call
+
+    def plan3():
+        con = study.connect()
+        db.seed_scenarios(con, study.scenarios_json)
+        pid = db.get_or_create_protocol(con, study.protocol_path("p007"), study.root)
+        _, jobs = elicit.plan_jobs(con, study, pid, "1,2,3", 5, None)
+        return con, pid, jobs
+
+    monkeypatch.setattr(elicit, "get_provider", get_provider)
+    con, pid, jobs = plan3()
+    assert len(jobs) == 45
+    assert [j["member"]["model"] for j in jobs[:15]] == ["haiku"] * 5 + ["sonnet"] * 5 + ["opus"] * 5
+    # the window never ends: a 900 s budget (3 pauses), then the run gives up on opus alone
+    monkeypatch.setenv("VOI_OUTAGE_MAX_WAIT_S", "900")
+    at_sleep = []
+    n_valid, cost, n_cancelled, summary = elicit.run_jobs(
+        con, study, pid, jobs, workers=1, sleep=lambda s: at_sleep.append(list(calls)))
+    out = capsys.readouterr().out
+    assert (n_valid, n_cancelled) == (30, 15) and cost == pytest.approx(0.30)
+    assert summary["pauses"] == 3 and summary["gave_up"] and summary["unresolved"] == 15
+    before = at_sleep[0]
+    assert before.count("haiku") == before.count("sonnet") == 15, "a healthy member was held back"
+    # after each pause one call only, opus's probe
+    assert [len(c) for c in at_sleep[1:]] == [len(before) + 1, len(before) + 2]
+    assert calls[len(before):] == ["opus"] * 3
+    assert "usage-limit outage: claude_cli:opus: 5 consecutive zero-usage results" in out
+    assert "(pause 1; claude_cli:opus 300s of 900s) with 15 slot(s) pending" in out
+    assert re.search(r"giving up on claude_cli:opus after 900s paused since its last billed result"
+                     r" \(VOI_OUTAGE_MAX_WAIT_S=900\), with \d+ zero-usage results of it in a row;"
+                     r" 0 slot\(s\) of it stored by this run, 15 still pending", out)
+    rows = con.execute("SELECT model, COUNT(*) AS n FROM elicitations WHERE valid=1"
+                       " GROUP BY model").fetchall()
+    assert {r["model"]: r["n"] for r in rows} == {"haiku": 15, "sonnet": 15}
+    # the limit lifts at the pause: the probe is opus's, and every slot is filled
+    calls.clear()
+    monkeypatch.delenv("VOI_OUTAGE_MAX_WAIT_S")
+    _, _, jobs = plan3()
+    assert len(jobs) == 15
+
+    def lift(seconds):
+        at_sleep.append(list(calls))
+        state["opus_limited"] = False
+
+    at_sleep.clear()
+    state["opus_limited"] = True
+    n_valid, _, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=lift)
+    assert (n_valid, n_cancelled, summary["pauses"]) == (15, 0, 1)
+    assert calls[len(at_sleep[0])] == "opus" and plan3()[2] == []
+    con.close()
+
+
+def test_a_limited_member_never_stalls_a_slower_healthy_one(study, monkeypatch, capsys):  # noqa: F811
+    """The reviewers' second replay: haiku limited, a healthy but slower
+    OpenRouter member, the default 8 workers. Half of OpenRouter's slots
+    were held by haiku's streak and cancelled at give-up without a call;
+    every one is called and stored now."""
+    seed = _seed_payload()
+    calls = {"claude_cli": 0, "openrouter": 0}
+    lock = threading.Lock()
+
+    def get_provider(name):
+        def call(prompt, model, system_prompt):
+            with lock:
+                calls[name] += 1
+            if name == "claude_cli":
+                return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
+            time.sleep(0.2)
+            text = json.dumps({"parameters": seed})
+            return {"choices": [{"message": {"content": text}}], "result": text}, text, None
+        return call
+
+    monkeypatch.setattr(elicit, "get_provider", get_provider)
+    monkeypatch.setenv("VOI_OUTAGE_MAX_WAIT_S", "600")
+    con = study.connect()
+    db.seed_scenarios(con, study.scenarios_json)
+    pid = db.get_or_create_protocol(con, study.protocol_path("p001"), study.root)
+    _, jobs = elicit.plan_jobs(con, study, pid, "1,2,3,4,5,6,7,8", 1, {"claude_cli:haiku", OR_MEMBER})
+    n_valid, _, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=8,
+                                                       sleep=lambda s: None)
+    out = capsys.readouterr().out
+    assert calls["openrouter"] == 8 and (n_valid, n_cancelled) == (8, 8)
+    assert summary["unresolved"] == 8 and "giving up on claude_cli:haiku" in out
+    assert "giving up on openrouter" not in out
+    rows = con.execute("SELECT provider, valid FROM elicitations").fetchall()
+    assert [(r["provider"], r["valid"]) for r in rows] == [("openrouter", 1)] * 8
     con.close()
 
 
@@ -724,7 +841,18 @@ def test_the_pause_lasts_until_the_stated_reset(study, monkeypatch, capsys):  # 
     assert (n_valid, n_cancelled) == (8, 0) and outage.slept == [8825.0]
     assert summary["pauses"] == 1 and summary["waited_s"] == 8825.0 and not summary["gave_up"]
     assert ("usage-limit outage: pausing 8825s until 60s after the stated reset (04:30 Europe/Brussels)"
-            " (pause 1, 8825s of 21600s) with 8 slot(s) pending, then probing with one call") in out
+            " (pause 1; claude_cli:haiku 8825s of 21600s) with 8 slot(s) pending, then probing with one"
+            " call per held member") in out
+    # review round 3 (2): a pause cut to the budget still named the reset it no longer reaches
+    monkeypatch.setenv("VOI_OUTAGE_MAX_WAIT_S", "600")
+    outage = Outage(_seed_payload(), ends_on_sleep=False)
+    monkeypatch.setattr(elicit, "get_provider", outage.get_provider)
+    clock = datetime(2026, 9, 29, 0, 10, tzinfo=UTC)
+    elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=outage.sleep, now=lambda: clock)
+    out = capsys.readouterr().out
+    assert outage.slept == [600.0] and "stated reset" not in out
+    assert ("pausing 600s (cut to what is left of claude_cli:haiku's wait budget) (pause 1;"
+            " claude_cli:haiku 600s of 600s)") in out
     con.close()
 
 
@@ -740,7 +868,10 @@ def test_outage_settings_come_from_the_environment_or_env(study, monkeypatch, tm
     _, _, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=outage.sleep)
     out = capsys.readouterr().out
     assert outage.slept == [600.0, 600.0, 300.0] and summary["waited_s"] == 1500.0 and summary["gave_up"]
-    assert "giving up after 3 pause(s), 1500s in total (VOI_OUTAGE_MAX_WAIT_S=1500)" in out
+    assert "giving up on claude_cli:haiku after 1500s paused since its last billed result" \
+           " (VOI_OUTAGE_MAX_WAIT_S=1500)" in out
+    assert ("pausing 300s (cut to what is left of claude_cli:haiku's wait budget) (pause 3;"
+            " claude_cli:haiku 1500s of 1500s)") in out
     monkeypatch.setenv("VOI_OUTAGE_MAX_WAIT_S", "900")   # the environment wins over .env
     outage = Outage(_seed_payload(), ends_on_sleep=False)
     monkeypatch.setattr(elicit, "get_provider", outage.get_provider)
@@ -824,7 +955,7 @@ def test_a_replanned_slot_is_never_counted_as_stored_and_pending(study, monkeypa
     con, pid, jobs = plan(study)
     _, cost, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=lambda s: None)
     out = capsys.readouterr().out
-    assert "; 0 slot(s) of this run stored, 8 still pending: re-run to resume" in out
+    assert "; 0 slot(s) of it stored by this run, 8 still pending: re-run to resume" in out
     assert summary["unresolved"] == n_cancelled == 8 and cost == pytest.approx(0.03)
     assert [(r["valid"], r["error"][:5]) for r in rows_of(con)] == [(0, "json:")]
     calls.clear()
@@ -852,3 +983,23 @@ def test_a_paid_cli_exit_records_its_cost_and_counts_as_billed():
     assert not claude_cli.is_usage_limit("cli: exit 1: ", raw)
     att = elicit.attempt_once(lambda p, m, s: (None, "Not logged in", "cli: exit 1: Not logged in"), "p", "m")
     assert att["cost"] == 0.0 and not elicit.billed([att])
+
+
+def test_propose_records_the_cost_of_a_paid_cli_exit(monkeypatch):
+    """Review round 3 (2): propose_domain shares call_claude but took cost 0
+    whenever it gave no envelope, so a paid exit 1 (the sim2real rows
+    638/642 case, 32,000 output tokens) was left out of proposer_cost_usd
+    and the plan's mean. The cost is read from the raw response, as
+    attempt_once does."""
+    items = [{"title": "T", "agent": "a", "decision": "d", "theta_definition": "t", "instrument": "i"}]
+    paid = json.dumps({"total_cost_usd": 0.177, "usage": {"input_tokens": 9, "output_tokens": 32000}})
+    script = [(1, paid, ""), (0, json.dumps({"result": json.dumps(items), "total_cost_usd": 0.01}), "")]
+
+    def fake_run(cmd, **kw):
+        code, out, err = script.pop(0)
+        return subprocess.CompletedProcess(cmd, code, out, err)
+
+    monkeypatch.setattr(claude_cli.subprocess, "run", fake_run)
+    scenarios, err, cost = propose.propose_domain(string.Template("$domain $n"), "energy", 1, "haiku")
+    assert err is None and script == [] and cost == pytest.approx(0.187)
+    assert scenarios[0]["attributes"][propose.COST_ATTR] == pytest.approx(0.187)

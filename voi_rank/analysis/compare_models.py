@@ -38,9 +38,14 @@ runs pooled:
   binary ranking and THAT member's Gaussian ranking, per action model, so a
   cross-family agreement is read at one elicitor (the pooled-vs-pooled row
   compares the two selected runs; pooling incoherent members is what
-  LEARNINGS iteration 2 warned about). A member's ranking is read from its
-  stored subset run when one exists (db.latest_run(protocol, [member]); a
-  single-member protocol's all-member run counts) and otherwise re-drawn
+  LEARNINGS iteration 2 warned about). Each row counts the scenarios with
+  median efficiency 0 (binary / stepfix), and a Spearman is '--' when
+  either ranking has fewer than MIN_DISTINCT distinct values (a gated
+  ranking of zeros plus one or two scenarios). A member's ranking is read
+  from its stored subset run when one exists and is current
+  (stored_member_run: db.latest_run(protocol, [member]), a single-member
+  protocol's all-member run counting, whose data_hash still matches the
+  member's fits) and otherwise re-drawn
   locally from that member's fits alone with the selected run's seed and
   draw count, as extra.member_rankings does (not the stored run; the source
   column and the caption say which). Macros
@@ -107,7 +112,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from scipy import stats  # noqa: E402
 
-from voi_rank import db, gaussian, model  # noqa: E402
+from voi_rank import db, gaussian, mc, model  # noqa: E402
 from voi_rank.analysis import extra, figures  # noqa: E402
 from voi_rank.analysis.tables import esc, num, pooled_p50, tex_param  # noqa: E402
 from voi_rank.fit import GAUSS_PARAM_NAMES  # noqa: E402
@@ -118,6 +123,10 @@ from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newc
 
 EVSI_ZERO_USD = 1e-6
 TOP_N = 10
+# a member-matched Spearman needs this many distinct median efficiencies on each
+# side: a gated ranking that is a block of zeros plus one or two scenarios records
+# only where those rank (sim2real p003: sonnet's binary medians are 0 on 14/15)
+MIN_DISTINCT = 3
 MODEL_MACRO = {"quad": "Quad", "kg": "Kg", "step": "Step", "stepfix": "Stepfix"}
 # residual-carrying quantities: (stored name, label, spread of which quantity)
 RESIDUALS = (("g_sigma0", r"$\theta$ triple asymmetry", "g_sigma0"),
@@ -319,14 +328,25 @@ def shared_members(con, b_run, g_run) -> list[dict]:
     return [m for m in db.run_members(con, b_run) if db.member_label(m) in g_labels & have]
 
 
-def stored_member_run(con, protocol_id: int, member: dict):
-    """The latest stored run of the protocol that pooled exactly this member
-    (a single-member protocol's all-member run counts), or None."""
+def stored_member_run(con, protocol_id: int, member: dict) -> tuple:
+    """(run, source) of one member's ranking under a protocol: the latest
+    stored run that pooled exactly this member (a single-member protocol's
+    all-member run counts) and 'run <id>' when that run is current, a v2
+    run (db.run_predates_v2) whose data_hash equals that of the member's
+    valid fits now (mc.data_hash of mc.complete_fits); else (None,
+    're-drawn'), or (None, 're-drawn (run <id> stale)') when a stored run
+    exists but repeats were added or rows invalidated since, whose medians
+    would otherwise be reported under its id next to current data."""
     name = con.execute("SELECT name FROM protocols WHERE id=?", (protocol_id,)).fetchone()["name"]
+    label = db.member_label(member)
     try:
-        return db.latest_run(con, name, [db.member_label(member)])
+        run = db.latest_run(con, name, [label])
     except RuntimeError:
-        return None
+        return None, "re-drawn"
+    if (db.run_predates_v2(con, run) is None
+            and run["data_hash"] == mc.data_hash(mc.complete_fits(con, protocol_id, [label]))):
+        return run, f"run {run['id']}"
+    return None, f"re-drawn (run {run['id']} stale)"
 
 
 def redraw_binary_member(con, run, member: dict) -> dict[int, float]:
@@ -373,31 +393,39 @@ def redraw_gauss_member(con, run, member: dict) -> dict[str, dict[int, float]]:
 def member_series(con, b_run, g_run, member: dict) -> dict:
     """One member's binary ranking and Gaussian rankings (per action model):
     {"binary": {sid: eff}, "gauss": {m: {sid: eff}}, "source": {"binary":
-    'run <id>' | 're-drawn', "gauss": ...}}. Stored subset runs are read when
-    they exist, else the member's fits are re-drawn locally."""
+    'run <id>' | 're-drawn' | 're-drawn (run <id> stale)', "gauss": ...}}.
+    Current stored subset runs are read (stored_member_run), else the
+    member's fits are re-drawn locally."""
     out = {"source": {}}
-    b_stored = stored_member_run(con, b_run["protocol_id"], member)
+    b_stored, out["source"]["binary"] = stored_member_run(con, b_run["protocol_id"], member)
     if b_stored is not None:
         out["binary"] = medians(con, b_stored["id"], "efficiency")
-        out["source"]["binary"] = f"run {b_stored['id']}"
     else:
         out["binary"] = redraw_binary_member(con, b_run, member)
-        out["source"]["binary"] = "re-drawn"
-    g_stored = stored_member_run(con, g_run["protocol_id"], member)
+    g_stored, out["source"]["gauss"] = stored_member_run(con, g_run["protocol_id"], member)
     if g_stored is not None:
         out["gauss"] = {m: medians(con, g_stored["id"], f"eff_{m}") for m in ACTION_MODELS}
-        out["source"]["gauss"] = f"run {g_stored['id']}"
     else:
         out["gauss"] = redraw_gauss_member(con, g_run, member)
-        out["source"]["gauss"] = "re-drawn"
     return out
+
+
+def member_rho(x: list[float], y: list[float]) -> float | None:
+    """Spearman of one member's two rankings; None with fewer than 3 shared
+    scenarios or fewer than MIN_DISTINCT distinct values on either side."""
+    if len(x) < 3 or min(len(set(x)), len(set(y))) < MIN_DISTINCT:
+        return None
+    return spearman(x, y)
 
 
 def member_matrix(con, b_run, g_run, rs: dict) -> dict:
     """{"rows": [{"label", "rho": {m: rho | None}, "n": {m: shared scenarios},
-    "source": {...}}], "pooled": {"rho": {m: rho}, "n": len(shared)}} over
-    shared_members; the pooled row is rank_stats's binary-vs-model agreement
-    of the two selected runs."""
+    "zeros": {"binary", "stepfix": scenarios with median efficiency 0, i.e.
+    median EVSI 0 (C > 0), "n": scenarios both rank}, "source": {...}}],
+    "pooled": {"rho": {m: rho}, "n": len(shared), "zeros": the gate table's
+    counts}} over shared_members; the pooled row is rank_stats's
+    binary-vs-model agreement of the two selected runs. A member's rho is
+    None when either ranking is degenerate (member_rho)."""
     rows = []
     for m in shared_members(con, b_run, g_run):
         ser = member_series(con, b_run, g_run, m)
@@ -405,13 +433,22 @@ def member_matrix(con, b_run, g_run, rs: dict) -> dict:
         for am in ACTION_MODELS:
             shared = sorted(set(ser["binary"]) & set(ser["gauss"][am]))
             n[am] = len(shared)
-            rho[am] = (spearman([ser["binary"][s] for s in shared], [ser["gauss"][am][s] for s in shared])
-                       if len(shared) >= 3 else None)
+            rho[am] = member_rho([ser["binary"][s] for s in shared], [ser["gauss"][am][s] for s in shared])
+        shared = sorted(set(ser["binary"]) & set(ser["gauss"]["stepfix"]))
+        zeros = {"binary": sum(ser["binary"][s] <= 0.0 for s in shared),
+                 "stepfix": sum(ser["gauss"]["stepfix"][s] <= 0.0 for s in shared), "n": len(shared)}
         rows.append({"label": db.member_label(m), "model": m["model"], "rho": rho, "n": n,
-                     "source": ser["source"]})
+                     "zeros": zeros, "source": ser["source"]})
+    g = rs["gate"]
     pooled = {"rho": {am: rs["agreement"][("binary", am)]["rho"] for am in ACTION_MODELS},
-              "n": len(rs["shared"])}
+              "n": len(rs["shared"]),
+              "zeros": {"binary": g["both_zero"] + g["binary_only"],
+                        "stepfix": g["both_zero"] + g["gauss_only"], "n": len(rs["shared"])}}
     return {"rows": rows, "pooled": pooled}
+
+
+def zeros_cell(z: dict) -> str:
+    return f"{z['binary']} / {z['stepfix']}"
 
 
 def write_members(mm: dict, b_run, g_run, out: Path) -> None:
@@ -419,21 +456,22 @@ def write_members(mm: dict, b_run, g_run, out: Path) -> None:
     b_lab, g_lab = (db.members_label(db.run_member_labels(r)) for r in (b_run, g_run))
     pooled_by = b_lab if b_lab == g_lab else f"binary: {b_lab}; Gaussian: {g_lab}"
     head = " & ".join(f"eff\\_{m}" for m in ACTION_MODELS)
-    lines = [r"\begin{tabular}{@{}l" + "r" * len(ACTION_MODELS) + r"rl@{}}", r"\toprule",
-             f"member & {head} & $n$ & source (binary / Gaussian)\\\\", r"\midrule"]
+    lines = [r"\begin{tabular}{@{}l" + "r" * len(ACTION_MODELS) + r"rrl@{}}", r"\toprule",
+             f"member & {head} & $n$ & zero medians (binary / stepfix) & source (binary / Gaussian)\\\\",
+             r"\midrule"]
     for r in mm["rows"]:
         cells = " & ".join(num(r["rho"][m], "{:.2f}") for m in ACTION_MODELS)
         ns = sorted(set(r["n"].values()))
         n_cell = str(ns[0]) if len(ns) == 1 else f"{ns[0]}..{ns[-1]}"
-        lines.append(f"{esc(r['label'])} & {cells} & {n_cell} & {esc(r['source']['binary'])} /"
-                     f" {esc(r['source']['gauss'])}\\\\")
+        lines.append(f"{esc(r['label'])} & {cells} & {n_cell} & {zeros_cell(r['zeros'])} &"
+                     f" {esc(r['source']['binary'])} / {esc(r['source']['gauss'])}\\\\")
     if not mm["rows"]:
-        lines.append(r"\multicolumn{" + str(len(ACTION_MODELS) + 3)
+        lines.append(r"\multicolumn{" + str(len(ACTION_MODELS) + 4)
                      + r"}{@{}l}{(no member elicits both protocols)}\\")
     lines.append(r"\midrule")
     p = mm["pooled"]
     lines.append("pooled & " + " & ".join(num(p["rho"][m], "{:.2f}") for m in ACTION_MODELS)
-                 + f" & {p['n']} & run {b_run['id']} / run {g_run['id']}\\\\")
+                 + f" & {p['n']} & {zeros_cell(p['zeros'])} & run {b_run['id']} / run {g_run['id']}\\\\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\par\medskip",
               r"\noindent\emph{Member-matched rank agreement: Spearman $\rho$ of median efficiency"
               r" between one member's binary ranking (EVSI/C from its fits alone) and the same"
@@ -441,8 +479,14 @@ def write_members(mm: dict, b_run, g_run, out: Path) -> None:
               r" rank ($n$). A ranking marked `run <id>' is that member's stored subset run;"
               r" `re-drawn' means the member's fits were re-drawn locally with the selected run's"
               f" seed and draw count ({b_run['n_draws']:,} binary, {g_run['n_draws']:,} Gaussian), as"
-              r" the member-agreement analysis does, not the stored run. The pooled row is the"
-              f" agreement of the two selected runs ({esc(pooled_by)} pooled).}}"]
+              r" the member-agreement analysis does, not the stored run; `re-drawn (run <id> stale)'"
+              r" means the member's stored run no longer matches its valid elicitations (repeats"
+              r" added or rows invalidated since). Zero medians: the scenarios whose median"
+              r" efficiency is 0 (median EVSI 0, outside the gate in at least half the draws), binary"
+              r" and stepfix, of the $n$ both rank, as in the gate table. A $\rho$ is `--' when"
+              f" either ranking has fewer than {MIN_DISTINCT} distinct values: a ranking made of the"
+              r" zero block and one or two scenarios records only where those rank. The pooled row"
+              f" is the agreement of the two selected runs ({esc(pooled_by)} pooled).}}"]
     (out / "compare_members.tex").write_text("\n".join(lines) + "\n")
 
 
@@ -784,6 +828,9 @@ def write_macros(rs: dict, pst: dict, b_run, g_run, out: Path, mm: dict | None =
             for m in ACTION_MODELS:
                 key = f"voiGaussRhoMember{MODEL_MACRO[m]}{names[r['label']]}"
                 macros[key] = num(r["rho"][m], "{:.2f}")
+            macros[f"voiGaussZeroMemberBinary{names[r['label']]}"] = r["zeros"]["binary"]
+            macros[f"voiGaussZeroMemberStepfix{names[r['label']]}"] = r["zeros"]["stepfix"]
+            macros[f"voiGaussZeroMemberN{names[r['label']]}"] = r["zeros"]["n"]
         macros["voiGaussNMembersMatched"] = len(mm["rows"])
     if pc is not None:
         macros["voiGaussPluginN"] = len(pc["sids"])
@@ -903,8 +950,10 @@ def main(argv=None):
           + ", ".join(f"{m} {num(ag[('binary', m)]['rho'], '{:.2f}')}" for m in ACTION_MODELS)
           + f"; gate agreement {100 * result['rank']['gate']['agree']:.0f}%")
     for r in result["members"]["rows"]:
+        z = r["zeros"]
         print(f"member {r['label']}: Spearman binary vs "
               + ", ".join(f"{m} {num(r['rho'][m], '{:.2f}')}" for m in ACTION_MODELS)
+              + f"; zero medians binary {z['binary']}/{z['n']}, stepfix {z['stepfix']}/{z['n']}"
               + f" (binary {r['source']['binary']}, Gaussian {r['source']['gauss']})")
     pc = result["plugin"]
     print(f"plug-in ({len(pc['sids'])} scenarios): Spearman binary eff vs "

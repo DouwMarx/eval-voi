@@ -113,8 +113,16 @@ def check_tag(text: str) -> str:
 
 def add_tag_arg(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--tag", type=check_tag, default=None,
-                    help="write to report/generated/TAG/ and rename every macro \\voiX to \\voiTAGX"
-                         " (lowercase letters only; default: report/generated/ and \\voiX)")
+                    help="write to report/generated/TAG/, rename every macro \\voiX to \\voiTAGX and"
+                         " every table label tab:X to tab:X-TAG (lowercase letters only; default:"
+                         " report/generated/, \\voiX and tab:X)")
+
+
+def tex_label(name: str, prefix: str = MACRO_PREFIX) -> str:
+    """A LaTeX \\label of a generated fragment under the macro prefix:
+    'tab:catalog' untagged, 'tab:catalog-<tag>' under --tag, so a paper that
+    inputs two tags' tables side by side gets no multiply-defined labels."""
+    return name if prefix == MACRO_PREFIX else f"{name}-{prefix[len(MACRO_PREFIX):]}"
 
 
 def newcommands(macros: dict, prefix: str = MACRO_PREFIX) -> list[str]:

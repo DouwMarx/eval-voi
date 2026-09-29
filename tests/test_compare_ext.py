@@ -124,9 +124,12 @@ def test_member_matrix_reads_stored_runs_and_redraws_the_rest(two_member_study, 
     assert again["gauss"] == compare_models.redraw_gauss_member(con, g_run, member("sonnet"))
     for m in ACTION_MODELS:
         shared = sorted(set(again["binary"]) & set(again["gauss"][m]))
-        want = spearman([again["binary"][s] for s in shared], [again["gauss"][m][s] for s in shared])
-        assert rows[SONNET]["rho"][m] == pytest.approx(want)
-        assert -1.0 <= float(values[f"voiGaussRhoMember{compare_models.MODEL_MACRO[m]}Sonnet"]) <= 1.0
+        x, y = [again["binary"][s] for s in shared], [again["gauss"][m][s] for s in shared]
+        macro = values[f"voiGaussRhoMember{compare_models.MODEL_MACRO[m]}Sonnet"]
+        if min(len(set(x)), len(set(y))) < compare_models.MIN_DISTINCT:   # a degenerate ranking: '--'
+            assert rows[SONNET]["rho"][m] is None and macro == "--"
+        else:
+            assert rows[SONNET]["rho"][m] == pytest.approx(spearman(x, y)) and -1.0 <= float(macro) <= 1.0
     # the pooled row is rank_stats's agreement of the two selected runs
     for m in ACTION_MODELS:
         assert res["members"]["pooled"]["rho"][m] == res["rank"]["agreement"][("binary", m)]["rho"]
@@ -147,6 +150,90 @@ def test_member_matrix_reads_stored_runs_and_redraws_the_rest(two_member_study, 
         for table, col in (("results", "run_id"), ("sensitivities", "run_id"), ("runs", "id")):
             con.execute(f"DELETE FROM {table} WHERE {col}=?", (rid,))
     con.commit()
+    con.close()
+
+
+def test_a_stale_member_run_is_re_drawn(two_member_study):
+    """Review round 3 (2): stored_member_run took the latest subset run
+    without checking it still describes the member's fits, so after a data
+    change the member row kept reporting the old medians as 'run N' next to
+    a pooled row on current data. A run whose data_hash no longer matches
+    (a row invalidated after it) or a v1 run is re-drawn, and the source
+    says which run was stale."""
+    study, runs = two_member_study["study"], two_member_study["runs"]
+    con = study.connect()
+    b_run, g_run = db.get_run(con, runs["p003"]), db.get_run(con, runs["g001"])
+    haiku = member("haiku")
+    fresh = compare_models.member_series(con, b_run, g_run, haiku)
+    assert fresh["source"] == {"binary": f"run {runs['p003_haiku']}", "gauss": f"run {runs['g001_haiku']}"}
+    row = con.execute("SELECT id FROM elicitations WHERE protocol_id=? AND model='haiku' AND valid=1"
+                      " ORDER BY id LIMIT 1", (b_run["protocol_id"],)).fetchone()["id"]
+    try:
+        con.execute("UPDATE elicitations SET valid=0 WHERE id=?", (row,))
+        stale = compare_models.member_series(con, b_run, g_run, haiku)
+        assert stale["source"] == {"binary": f"re-drawn (run {runs['p003_haiku']} stale)",
+                                   "gauss": f"run {runs['g001_haiku']}"}
+        assert stale["binary"] == compare_models.redraw_binary_member(con, b_run, haiku)
+        assert stale["binary"] != fresh["binary"]
+        assert compare_models.stored_member_run(con, b_run["protocol_id"], haiku) == \
+            (None, f"re-drawn (run {runs['p003_haiku']} stale)")
+    finally:
+        con.rollback()
+    assert compare_models.member_series(con, b_run, g_run, haiku)["source"] == fresh["source"]
+    # a v1 run (no data_hash) is never read either
+    try:
+        con.execute("UPDATE runs SET data_hash=NULL WHERE id=?", (runs["g001_haiku"],))
+        assert compare_models.member_series(con, b_run, g_run, haiku)["source"]["gauss"] == \
+            f"re-drawn (run {runs['g001_haiku']} stale)"
+    finally:
+        con.rollback()
+    # no subset run at all
+    assert compare_models.stored_member_run(con, b_run["protocol_id"], member("sonnet")) == (None, "re-drawn")
+    con.close()
+
+
+def test_member_rows_count_zero_medians_and_skip_degenerate_rankings(two_member_study, monkeypatch):
+    """Review round 3 (2): the member-matched Spearman was printed even when
+    one ranking was the gate's zero block plus one scenario (sim2real
+    sonnet: binary medians 0 on 14 of 15, so -0.12 recorded only where
+    scenario 14 ranks), and no count of zero medians was shown. Each row
+    carries the zero-median counts (binary / stepfix, as the gate table)
+    and a rho is '--' below MIN_DISTINCT distinct values on either side."""
+    study, runs = two_member_study["study"], two_member_study["runs"]
+    con = study.connect()
+    b_run, g_run = db.get_run(con, runs["p003"]), db.get_run(con, runs["g001"])
+    sids = list(range(1, 9))
+    gauss = {m: {s: 0.1 * s for s in sids} for m in ACTION_MODELS}
+    gauss["stepfix"] = {s: (0.0 if s < 3 else 0.1 * s) for s in sids}
+    series = {"binary": {s: (0.4 if s == 8 else 0.0) for s in sids}, "gauss": gauss,
+              "source": {"binary": "re-drawn", "gauss": "re-drawn"}}
+    monkeypatch.setattr(compare_models, "member_series", lambda con_, b, g, m: series)
+    rs = compare_models.rank_stats(con, b_run, g_run)
+    mm = compare_models.member_matrix(con, b_run, g_run, rs)
+    row = mm["rows"][0]
+    assert row["rho"] == {m: None for m in ACTION_MODELS}
+    assert spearman([series["binary"][s] for s in sids], [gauss["quad"][s] for s in sids]) is not None
+    assert row["zeros"] == {"binary": 7, "stepfix": 2, "n": 8}
+    g = rs["gate"]
+    assert mm["pooled"]["zeros"] == {"binary": g["both_zero"] + g["binary_only"],
+                                     "stepfix": g["both_zero"] + g["gauss_only"], "n": len(rs["shared"])}
+    out = study.root / "degenerate"
+    out.mkdir(exist_ok=True)
+    compare_models.write_members(mm, b_run, g_run, out)
+    tex = (out / "compare_members.tex").read_text()
+    assert "claude\\_cli:haiku & -- & -- & -- & -- & 8 & 7 / 2 & re-drawn / re-drawn\\\\" in tex
+    assert "zero medians (binary / stepfix)" in tex and "fewer than 3 distinct values" in tex
+    pst = compare_models.derived_vs_elicited(con, b_run, g_run, rs["shared"])
+    macros = compare_models.write_macros(rs, pst, b_run, g_run, out, mm)
+    assert macros["voiGaussZeroMemberBinaryHaiku"] == 7 and macros["voiGaussZeroMemberStepfixHaiku"] == 2
+    assert macros["voiGaussZeroMemberNHaiku"] == 8 and macros["voiGaussRhoMemberQuadHaiku"] == "--"
+    # three distinct values on each side: a number again
+    series["binary"][7] = 0.2
+    row = compare_models.member_matrix(con, b_run, g_run, rs)["rows"][0]
+    assert row["rho"]["quad"] == pytest.approx(
+        spearman([series["binary"][s] for s in sids], [gauss["quad"][s] for s in sids]))
+    assert compare_models.member_rho([0.0, 0.0, 1.0], [1.0, 2.0, 3.0]) is None
+    assert compare_models.member_rho([0.0, 0.5, 1.0], [1.0, 2.0, 3.0]) == pytest.approx(1.0)
     con.close()
 
 
@@ -411,8 +498,7 @@ def test_real_data_smoke_on_a_copy(name, tmp_path, capsys):
     b_id, g_id = (db.protocol_by_name(con, name)["id"] for name in ("p003", "g001"))
     for m in ("haiku", "sonnet", "opus"):
         member = {"provider": "claude_cli", "model": m}
-        source = [f"run {r['id']}" if r is not None else "re-drawn"
-                  for r in (compare_models.stored_member_run(con, pid, member) for pid in (b_id, g_id))]
+        source = [compare_models.stored_member_run(con, pid, member)[1] for pid in (b_id, g_id)]
         line = out.split(f"member claude_cli:{m}: ")[1].split("\n")[0]
         assert line.endswith(f"(binary {source[0]}, Gaussian {source[1]})"), line
     con.close()
@@ -451,7 +537,10 @@ def test_tagged_outputs_have_their_own_dir_and_macro_prefix(two_member_study, tm
     (the haiku subset runs). Each CLI writes to generated/<tag>/ and renames
     every macro \\voiX to \\voi<tag>X; the untagged generated/ is untouched,
     the default names are unchanged, and both tags' macro files compile in
-    one document."""
+    one document with both tags' table fragments (review round 3 (2): the
+    fragments' labels were the same in every tag, so tab:catalog,
+    tab:ranking and tab:plugin were multiply defined and a \\ref resolved
+    to the other run's table)."""
     study, runs = two_member_study["study"], two_member_study["runs"]
     gen = study.generated_dir
     gen.mkdir(parents=True, exist_ok=True)
@@ -486,6 +575,11 @@ def test_tagged_outputs_have_their_own_dir_and_macro_prefix(two_member_study, tm
                   "compare_plugin.tex", "fig_compare_plugin.pdf", "compare_noise.tex"):
             assert (gen / tag / f).stat().st_size > 0, (tag, f)
     assert "claude\\_cli:sonnet" not in (gen / "baseline" / "compare_noise.tex").read_text()
+    for name in ("catalog", "ranking", "plugin"):
+        f, label = f"{name}.tex", f"tab:{name}"
+        assert f"\\label{{{label}}}" in (plain / f).read_text(), f   # untagged: unchanged
+        for tag in ("headline", "baseline"):
+            assert f"\\label{{{label}-{tag}}}" in (gen / tag / f).read_text(), (tag, f)
     # lowercase letters only: a tag becomes part of a LaTeX control word, and an uppercase
     # one can recreate an untagged name (tables --tag Gauss wrote \voiGaussRunId, which
     # macros_compare.tex defines as the Gaussian run id)
@@ -508,10 +602,19 @@ def test_tagged_outputs_have_their_own_dir_and_macro_prefix(two_member_study, tm
         f"\\begin{{table}}[h]\\centering\\input{{generated/{tag}/{f}}}\\end{{table}}\\clearpage"
         for tag in ("headline", "baseline")
         for f in ("compare_plugin.tex", "compare_noise.tex", "compare_members.tex"))
+    # the longtable fragments (catalog, ranking, plugin) are input outside a float
+    longtables = "".join(f"\\input{{generated/{tag}/{f}}}\\clearpage" for tag in ("headline", "baseline")
+                         for f in ("catalog.tex", "ranking.tex", "plugin.tex"))
+    refs = " ".join(f"\\ref{{tab:{t}-{tag}}}" for tag in ("headline", "baseline")
+                    for t in ("catalog", "ranking", "plugin"))
     (doc / "main.tex").write_text(
         "\\documentclass{article}\\usepackage{booktabs,longtable,amsmath,amssymb,graphicx}"
-        f"{inputs}\\begin{{document}}\n\\sloppy Macros: {uses}.\n{tables_tex}\n\\end{{document}}\n")
-    proc = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main.tex"],
-                          cwd=doc, capture_output=True, text=True)
-    assert proc.returncode == 0, proc.stdout[-3000:]
+        f"{inputs}\\begin{{document}}\n\\sloppy Macros: {uses}. Tables {refs}.\n{tables_tex}\n{longtables}\n"
+        "\\end{document}\n")
+    for _ in range(2):   # the second pass resolves the references
+        proc = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main.tex"],
+                              cwd=doc, capture_output=True, text=True)
+        assert proc.returncode == 0, proc.stdout[-3000:]
+    log = (doc / "main.log").read_text(errors="replace")
+    assert "multiply defined" not in log and "undefined references" not in log
     assert (doc / "main.pdf").stat().st_size > 0

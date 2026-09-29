@@ -32,7 +32,7 @@ from voi_rank.analysis.figures import (
     select_run,
 )
 from voi_rank.providers.claude_cli import is_usage_limit
-from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newcommands
+from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newcommands, tex_label
 
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
                   "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}",
@@ -82,7 +82,7 @@ def pooled_p50(con, protocol_id: int, sid: int, name: str,
     return float(np.median(p50s)) if p50s else None
 
 
-def write_gauss_catalog(con, run, out: Path):
+def write_gauss_catalog(con, run, out: Path, prefix: str = MACRO_PREFIX):
     """Gaussian run: pooled medians of the derived quantities d, x, k, L,
     kappa sigma0, B, K (median of the repeat values) and the run's mixture
     median for C."""
@@ -94,7 +94,7 @@ def write_gauss_catalog(con, run, out: Path):
         r"\caption{Scenario catalog (Gaussian-state protocol). $d$, $x$, $k$, $L$,"
         r" $\kappa\sigma_0$, $B$, $K$: pooled medians of the derived quantities across valid"
         r" elicitations; $C$: the run's mixture median. $L$, $\kappa\sigma_0$, $B$, $K$, $C$"
-        r" in USD.}\label{tab:catalog}\\",
+        r" in USD.}\label{" + tex_label("tab:catalog", prefix) + r"}\\",
         r"\toprule",
         f"id & scenario & {head} & $C$\\\\",
         r"\midrule\endfirsthead",
@@ -113,14 +113,15 @@ def write_gauss_catalog(con, run, out: Path):
     (out / "catalog.tex").write_text("\n".join(lines) + "\n")
 
 
-def write_catalog(con, run, out: Path):
+def write_catalog(con, run, out: Path, prefix: str = MACRO_PREFIX):
     """Scenario catalog: pooled elicited medians for p, s, t, B, K under the
     run's protocol, and the run's mixture median for C (the quantity the
     efficiency column divides by; for a pre-v2 run without a stored C row
     c_quantiles falls back to the pooled elicited median). A Gaussian run
-    gets the derived-quantity catalog instead."""
+    gets the derived-quantity catalog instead. Its label is tab:catalog
+    (tab:catalog-<tag> under a tagged prefix, study.tex_label)."""
     if run_kind(con, run["id"]) == db.GAUSSIAN_KIND:
-        return write_gauss_catalog(con, run, out)
+        return write_gauss_catalog(con, run, out, prefix)
     order = ranked_ids(con, run["id"])
     stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
                                             (run["protocol_id"],)).fetchone())
@@ -137,7 +138,7 @@ def write_catalog(con, run, out: Path):
         r"\caption{Scenario catalog. $p$, $s$, $t$, $B$, $K$: pooled elicited medians"
         r" (median of the p50 across valid elicitations); $C$: the run's mixture median"
         r" (q50 of the pooled cost draws), the same $C$ the efficiency column divides by."
-        r" $B$, $K$, $C$ in USD." + staged_note + r"}\label{tab:catalog}\\",
+        r" $B$, $K$, $C$ in USD." + staged_note + r"}\label{" + tex_label("tab:catalog", prefix) + r"}\\",
         r"\toprule",
         f"id & scenario & {head} & $C$\\\\",
         r"\midrule\endfirsthead",
@@ -169,7 +170,7 @@ def top_param(con, run_id: int, sid: int) -> str:
     return tex_param(best["param"])
 
 
-def write_ranking(con, run, out: Path, top_n: int = 25):
+def write_ranking(con, run, out: Path, top_n: int = 25, prefix: str = MACRO_PREFIX):
     metric, evsi_name = primary_metric(con, run["id"]), evsi_metric(con, run["id"])
     eff = metric_rows(con, run["id"], metric)
     order = ranked_ids(con, run["id"])[:top_n]
@@ -179,7 +180,7 @@ def write_ranking(con, run, out: Path, top_n: int = 25):
         f"\\caption{{Final ranking by median {esc(metric)} ({esc(evsi_name)}/C). $P_+$ ="
         f" P({esc(evsi_name)} $>$ C)"
         r" across draws; last column = parameter with largest $|\rho|$ vs"
-        r" efficiency.}\label{tab:ranking}\\",
+        r" efficiency.}\label{" + tex_label("tab:ranking", prefix) + r"}\\",
         r"\toprule",
         r"rank & id & scenario & $\mathrm{eff}_{q05}$ & $\mathrm{eff}_{q50}$ &"
         r" $\mathrm{eff}_{q95}$ & $P_+$ & top\\",
@@ -558,8 +559,8 @@ def write_macros(con, run, out: Path, prefix: str = MACRO_PREFIX):
 
 def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX):
     out.mkdir(parents=True, exist_ok=True)
-    write_catalog(con, run, out)
-    write_ranking(con, run, out)
+    write_catalog(con, run, out, prefix)
+    write_ranking(con, run, out, prefix=prefix)
     write_macros(con, run, out, prefix)
     write_protocol_compare(con, out)
     write_protocol_noise(con, out, run_kind(con, run["id"]))
