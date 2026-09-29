@@ -1,8 +1,10 @@
 """Validation of elicited payloads (spec §6.4) and percentile fitting.
 
-The payload must carry exactly the six v2 parameters (PARAM_NAMES); any other
-key inside "parameters" is silently ignored, so templates that still emit the
-retired v1 parameter e keep validating.
+The payload must carry the six v2 parameters (PARAM_NAMES), or the subset a
+stage of a staged protocol asks for (`names`); any other key inside
+"parameters" is silently ignored, so templates that still emit the retired
+v1 parameter e keep validating. The informativeness check needs both s and
+t, the prior check p: each applies only when its parameters are asked for.
 """
 
 from __future__ import annotations
@@ -22,17 +24,22 @@ def strip_fences(text: str) -> str:
     return m.group(1) if m else text
 
 
-def validate_payload(obj) -> tuple[dict | None, str | None]:
+def validate_payload(obj, names: list[str] | None = None) -> tuple[dict | None, str | None]:
     """Schema + constraint checks. Returns (clean_params, None) or (None, error).
-    clean_params has exactly the PARAM_NAMES keys."""
+    clean_params has exactly the `names` keys (PARAM_NAMES by default, a
+    stage's subset of them otherwise), in that order."""
+    names = list(PARAM_NAMES if names is None else names)
+    unknown = [n for n in names if n not in PARAM_NAMES]
+    if unknown:
+        raise ValueError(f"unknown parameter names {unknown}; known: {PARAM_NAMES}")
     if not isinstance(obj, dict) or not isinstance(obj.get("parameters"), dict):
         return None, "schema: missing 'parameters' object"
     prm = obj["parameters"]
-    missing = [n for n in PARAM_NAMES if n not in prm]
+    missing = [n for n in names if n not in prm]
     if missing:
         return None, f"schema: missing parameters {missing}"
     clean = {}
-    for name in PARAM_NAMES:
+    for name in names:
         d = prm[name]
         if not isinstance(d, dict):
             return None, f"schema: {name} is not an object"
@@ -50,9 +57,9 @@ def validate_payload(obj) -> tuple[dict | None, str | None]:
         clean[name] = {"p5": p5, "p50": p50, "p95": p95,
                        "unit": str(d.get("unit", "")),
                        "reasoning": str(d.get("reasoning", ""))}
-    if clean["s"]["p50"] <= 1.0 - clean["t"]["p50"]:
+    if "s" in clean and "t" in clean and clean["s"]["p50"] <= 1.0 - clean["t"]["p50"]:
         return None, "constraint: informativeness: median s <= 1 - median t"
-    if not (0.001 <= clean["p"]["p50"] <= 0.999):
+    if "p" in clean and not (0.001 <= clean["p"]["p50"] <= 0.999):
         return None, "constraint: degenerate prior: p50 of p outside [0.001, 0.999]"
     return clean, None
 

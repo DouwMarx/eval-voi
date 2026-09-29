@@ -9,6 +9,12 @@ disagreement both widen the metric intervals. A 'point' family (the derived
 quantities of the Gaussian protocol) is drawn as a constant, so its mixture
 over repeats is the empirical distribution of the repeat values.
 
+--members provider:model,... (v2.2) pools only those members' valid fits (a
+subset of the protocol's members, else the run is refused); the subset is
+stored on the run (runs.members_json, NULL = every member) and read back by
+the replay and by every analysis that selects the run with the same
+--members. A subset naming every member is the ordinary all-member run.
+
 Binary protocol: per scenario the run stores q05/q25/q50/q75/q95 of EVSI,
 EVPI, efficiency, margin, headroom, C (the pooled cost mixture) and
 evpi_efficiency (EVPI / C per draw, so the simpler perfect-information
@@ -31,7 +37,7 @@ from). A dirty code tree, or one whose revision git cannot report, is refused
 unless --allow-dirty.
 
 Usage: python -m voi_rank.mc --study studies/business --protocol p001 [--seed 42] [--draws 100000]
-       [--allow-dirty]
+       [--allow-dirty] [--members claude_cli:sonnet,claude_cli:opus]
 """
 
 from __future__ import annotations
@@ -118,23 +124,27 @@ def protocol_kind(con, protocol_id: int) -> str:
     return db.protocol_model_kind(prot)
 
 
-def complete_fits(con, protocol_id: int) -> dict[int, dict[str, list[dict]]]:
+def complete_fits(con, protocol_id: int,
+                  members: list[str] | None = None) -> dict[int, dict[str, list[dict]]]:
     """Scenarios with at least one valid elicitation carrying every parameter
-    of the protocol's model kind."""
+    of the protocol's model kind, over every member or the `members` subset
+    (labels)."""
     names = db.param_names(protocol_kind(con, protocol_id))
     return {
-        sid: fits for sid, fits in sorted(db.scenario_param_fits(con, protocol_id, names).items())
+        sid: fits for sid, fits in sorted(db.scenario_param_fits(con, protocol_id, names, members).items())
         if all(name in fits for name in names)
     }
 
 
 def data_hash(fits_by_scenario: dict[int, dict[str, list[dict]]]) -> str:
-    """sha256 over the sorted (elicitation_id, parameter name, fit_params) of
-    the fits an MC run draws from: two runs with equal data_hash pooled
-    exactly the same valid elicitations."""
-    rows = sorted((f["elicitation_id"], name, f["fit_params"])
-                  for fits in fits_by_scenario.values()
-                  for name, lst in fits.items() for f in lst)
+    """sha256 over the sorted distinct (elicitation_id, parameter name,
+    fit_params) of the fits an MC run draws from: two runs with equal
+    data_hash pooled exactly the same valid elicitations (a member subset
+    changes it; a fit shared by several scenarios, as the decision stage of
+    a staged protocol is, counts once)."""
+    rows = sorted({(f["elicitation_id"], name, f["fit_params"])
+                   for fits in fits_by_scenario.values()
+                   for name, lst in fits.items() for f in lst})
     return db.sha256(json.dumps(rows))
 
 
@@ -161,8 +171,8 @@ def replay_efficiency(con, run_id: int):
     kind = protocol_kind(con, run["protocol_id"])
     metric, evsi_name = db.primary_metric(kind), db.evsi_metric(kind)
     ids, effs, ppos = [], [], []
-    for sid, draws in iter_scenario_draws(complete_fits(con, run["protocol_id"]), run["seed"],
-                                          run["n_draws"], db.param_names(kind)):
+    fits = complete_fits(con, run["protocol_id"], db.run_member_labels(run))   # the stored subset
+    for sid, draws in iter_scenario_draws(fits, run["seed"], run["n_draws"], db.param_names(kind)):
         ids.append(sid)
         metrics = scenario_metrics(draws, kind)
         effs.append(metrics[metric])
@@ -192,20 +202,28 @@ def replay_efficiency(con, run_id: int):
 
 
 def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False,
-           allow_dirty: bool = False) -> int:
+           allow_dirty: bool = False, members: list[str] | None = None) -> int:
     """Execute one MC run over all scenarios with valid elicitations under the
     protocol. Writes runs, results (incl. a p_top10 stability row per scenario)
     and sensitivities. Returns the run id. Uncommitted changes under
     db.CODE_PATHS, or a code revision that cannot be determined (no git, not
     a repository), are refused unless allow_dirty (then code_hash is stored
-    as '<hash>-dirty' or 'unknown' and a warning is printed)."""
+    as '<hash>-dirty' or 'unknown' and a warning is printed). members (labels)
+    pools only that subset of the protocol's members; a label the protocol
+    does not list exits, and a subset naming every member is stored as the
+    all-member run (members_json NULL)."""
     protocol = db.protocol_by_name(con, protocol_name)
     kind = db.protocol_model_kind(protocol)
     names = db.param_names(kind)
     metric, evsi_name = db.primary_metric(kind), db.evsi_metric(kind)
-    fits = complete_fits(con, protocol["id"])
+    try:
+        members = db.normalize_run_members(db.protocol_members(protocol), members)
+    except ValueError as ex:
+        raise SystemExit(f"--members: {ex}") from None
+    fits = complete_fits(con, protocol["id"], members)
     if not fits:
-        raise RuntimeError(f"no scenarios with complete valid elicitations under {protocol_name}")
+        raise RuntimeError(f"no scenarios with complete valid elicitations under {protocol_name}"
+                           + (f" from members [{db.members_label(members)}]" if members else ""))
     head, dirty = db.git_state()
     code_hash = f"{head}-dirty" if dirty else head
     if head == db.UNKNOWN_HEAD and not allow_dirty:
@@ -219,7 +237,7 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
             + "\n  ".join(dirty)
             + "\ncommit them, or pass --allow-dirty to store code_hash "
             f"{code_hash} (not reproducible from any commit)")
-    run_id = db.insert_run(con, seed, n_draws, protocol["id"], data_hash(fits), code_hash)
+    run_id = db.insert_run(con, seed, n_draws, protocol["id"], data_hash(fits), code_hash, members)
     if dirty or head == db.UNKNOWN_HEAD:
         print(f"WARNING: {'working tree has uncommitted changes' if dirty else 'code revision unknown'};"
               f" run {run_id} stores code_hash {code_hash} (commit, then re-run for a reproducible hash)")
@@ -244,7 +262,7 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
     if not quiet:
         print_ranking(con, run_id)
         print(f"\nrun {run_id}: code_hash {code_hash}, data_hash {db.get_run(con, run_id)['data_hash']}"
-              f" over {len(scenario_ids)} scenarios")
+              f" over {len(scenario_ids)} scenarios, members: {db.members_label(members)}")
     return run_id
 
 
@@ -257,7 +275,8 @@ def print_ranking(con, run_id: int, limit: int = 30):
         " FROM results r JOIN scenarios s ON s.id = r.scenario_id"
         " WHERE r.run_id=? AND r.metric=? ORDER BY r.q50 DESC LIMIT ?",
         (run_id, metric, limit)).fetchall()
-    print(f"\nRanking by median {metric} ({evsi_name}/C), run {run_id}:")
+    print(f"\nRanking by median {metric} ({evsi_name}/C), run {run_id}"
+          f" (members: {db.members_label(db.run_member_labels(run))}):")
     print(f"{'rank':>4} {'id':>4} {'eff q50':>10} {'eff q05':>10} {'eff q95':>10} {'P(EVSI>C)':>10}  title")
     for rank, r in enumerate(rows, 1):
         print(f"{rank:>4} {r['scenario_id']:>4} {r['q50']:>10.3g} {r['q05']:>10.3g}"
@@ -273,12 +292,18 @@ def main(argv=None):
     ap.add_argument("--draws", type=int, default=100_000)
     ap.add_argument("--allow-dirty", action="store_true",
                     help="run with uncommitted code changes (code_hash is stored as <hash>-dirty)")
+    ap.add_argument("--members", default=None,
+                    help="comma-separated provider:model subset of the protocol's members to pool"
+                         " (default: all members)")
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    run_id = run_mc(con, args.protocol, args.seed, args.draws, allow_dirty=args.allow_dirty)
+    members = db.parse_member_labels(args.members)
+    run_id = run_mc(con, args.protocol, args.seed, args.draws, allow_dirty=args.allow_dirty,
+                    members=members)
     print(f"\nrun {run_id} complete: study={study.name} protocol={args.protocol} "
-          f"seed={args.seed} draws={args.draws}")
+          f"seed={args.seed} draws={args.draws}"
+          f" members={db.members_label(db.run_member_labels(db.get_run(con, run_id)))}")
 
 
 if __name__ == "__main__":

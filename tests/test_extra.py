@@ -6,6 +6,7 @@ inserted directly and propagated by mc.run_mc. No CLI, no network."""
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -15,7 +16,7 @@ import pytest
 import yaml
 
 from voi_rank import db, mc, model
-from voi_rank.analysis import extra, tables
+from voi_rank.analysis import extra, health, tables
 from voi_rank.fit import FAMILY_BY_PARAM, fit_param
 from voi_rank.sensitivity import repeat_spread, spearman
 from voi_rank.study import Study
@@ -180,10 +181,25 @@ def test_level_uplift_stats_figure_and_table(built, con, out):
     assert extra.write_level_uplift(con, run, out, an)
     assert (out / "fig_level_uplift.pdf").stat().st_size > 0
     tex = (out / "level_uplift.tex").read_text()
-    assert tex.count(r"\\") == 1 + 6 + 2  # header, 6 steps, 2 group headings
-    assert r"\emph{home manipulator}" in tex and r"0$\to$1 &" in tex
-    assert r"$P(\Delta C>0)$" in tex and "within one decision" in tex and "ratio of those medians" in tex
+    crn, other = tex.split(r"\par\medskip")
+    assert crn.count(r"\\") == 1 + 6 + 2  # header, 6 steps, 2 group headings
+    assert other.count(r"\\") == 1 + 6 + 2   # the mean, plug-in and fence marginals of the same steps
+    assert r"\emph{home manipulator}" in crn and r"0$\to$1 &" in crn and other.count(r"0$\to$1 &") == 1
+    assert r"$P(\Delta C>0)$" in crn and "within one decision" in crn and "ratio of those medians" in crn
+    assert r"$\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$" in other and "mean-based" in other
     assert r"\toprule" in tex and r"\bottomrule" in tex
+    # the plug-in and fence marginals sit at the ladder-pooled p, B, K (the caption says so, and
+    # that fig_level_fence / plugin.tex use each scenario's own medians)
+    assert "pooled over the ladder, as the CRN draws do" in other and "each scenario's own" in other
+    plug = an["plugin"]["home manipulator"]
+    pid = run["protocol_id"]
+    ladder_p = float(np.median([v for _, sid in an["rungs"]["home manipulator"]
+                                for v in db.elicited_p50s(con, pid, sid, "p")]))
+    for s in stats["home manipulator"]:
+        assert s["dEVSI_star"] == pytest.approx(plug[s["hi_id"]]["EVSI_star"] - plug[s["lo_id"]]["EVSI_star"])
+        assert plug[s["hi_id"]]["medians"]["p"] == ladder_p
+        own = extra.plugin_point(con, run, s["hi_id"])["medians"]
+        assert own["p"] == float(np.median(db.elicited_p50s(con, pid, s["hi_id"], "p")))
     # the analysis is recomputed identically when not passed in
     assert extra.level_uplift_stats(con, run) == stats
 
@@ -312,6 +328,17 @@ def test_consistency_skips_a_group_with_an_unelicited_level(tmp_path, out, capsy
     con.close()
 
 
+def test_compare_prints_na_for_a_constant_ranking(built, con, capsys):
+    """A run whose median efficiency is 0 on every scenario has no rank
+    order: health --compare says so instead of printing nan."""
+    health.compare(con, "p001", "p003")
+    assert re.search(r"shared scenarios: -?[0-9.]+\n", capsys.readouterr().out)
+    con.execute("UPDATE results SET q50=0.0 WHERE run_id=? AND metric='efficiency'", (built["runs"]["p003"],))
+    health.compare(con, "p001", "p003")
+    assert "shared scenarios: n/a (a constant ranking)" in capsys.readouterr().out
+    con.rollback()
+
+
 def test_level_uplift_skipped_without_levels(tmp_path, out, capsys):
     b = build_study(tmp_path / "nolevel", groups={
         "g": {"levels": [None, None], "risk_domain": None, "shared": False}},
@@ -322,9 +349,10 @@ def test_level_uplift_skipped_without_levels(tmp_path, out, capsys):
     assert extra.fig_level_uplift(con, run, out) is False
     assert extra.write_level_uplift(con, run, out) is False
     written, skipped = extra.make_all(con, run, out)
-    assert "level_uplift" in skipped and "consistency" in skipped
+    assert "level_uplift" in skipped and "consistency" in skipped and "level_fence" in skipped
     printed = capsys.readouterr().out
     assert "level_uplift: skipped: no ladder" in printed
+    assert "level_fence: skipped: no ranked scenario carries a numeric attributes.level" in printed
     assert "consistency: skipped: no group of leveled scenarios sharing one decision text" in printed
     con.close()
 
@@ -577,7 +605,7 @@ def test_protocol_noise_matched_and_compare_matrix(built, con, out):
     prot = db.protocol_by_name(con, "p001")
     matched, n_m = extra.member_noise(con, prot["id"], haiku, extra.MATCHED_K)
     full, n_f = extra.member_noise(con, prot["id"], haiku, None)
-    assert n_m == n_f == 9
+    assert n_m == n_f == dict.fromkeys(db.PARAM_NAMES, 9) and extra.noise_n_label(n_m, None) == "9"
     for name in db.PARAM_NAMES:  # a range over more repeats is never smaller
         assert full[name] >= matched[name] > 0.0
     # rows are labelled with the repeats actually pooled: an 'all k' row only
@@ -622,7 +650,8 @@ def test_protocol_noise_first_n_pools_valid_repeats_by_rank(tmp_path, out):
     matched, n = extra.member_noise(con, pid, five[0], extra.MATCHED_K)
     want = np.median([repeat_spread(db.elicited_p50s(con, pid, s, "C", "claude_cli", "haiku", first=3))
                       for s in b["sids"]["g"]])
-    assert n == 2 and matched["C"] == pytest.approx(float(want)) and matched["C"] > 0
+    assert n == dict.fromkeys(db.PARAM_NAMES, 2)
+    assert matched["C"] == pytest.approx(float(want)) and matched["C"] > 0
     three, two = [by_repeat[0], by_repeat[2], by_repeat[3]], [by_repeat[0], by_repeat[2]]
     assert repeat_spread(three) != repeat_spread(two)   # the index cap would have pooled two
     # the scale argument: relative by default, a plain max - min at scale 1, None at scale 0
@@ -776,14 +805,14 @@ def test_plugin_equals_voi_at_the_pooled_medians(built, con, out, protocol):
     assert (out / "fig_plugin.pdf").stat().st_size > 0
     tex = (out / "plugin.tex").read_text()
     table, summary = tex.split(r"\par\medskip")
-    assert table.startswith("\\begin{longtable}{@{}rrrrrrlrrrr@{}}\n\\caption{Plug-in vs Monte Carlo")
+    assert table.startswith("\\begin{longtable}{@{}rrrrrrrrrlrrrr@{}}\n\\caption{Plug-in vs Monte Carlo")
     assert r"\label{tab:plugin}" in table and r"\endfirsthead" in table and r"\endfoot" in table
     assert table.count(r"\\") == 3 + 9 and table.count("& gate &") == 8 and table.count("& always &") == 1
     assert f"\n1 & {order[0]} & " in table and f"\n9 & {order[-1]} & " in table
     assert "the catalog's $C$ is the run's mixture" in table
     assert "$p$ &" not in table   # the catalog's p, s, t, B, K columns are not repeated
     assert f"draws of run {run['id']}, replayed from the DB" in table
-    assert table.count(" & ") == 10 * (2 + 9)   # 11 columns in each header and row
+    assert table.count(" & ") == 13 * (2 + 9)   # 14 columns in each header and row
     assert "scenarios in gate at the medians & 8 / 9" in summary
     assert f"MC median EVSI $= 0$ & {st['n_zero_median']} / 9" in summary
     assert f"top-5 overlap, plug-in vs MC median & {st['top_overlap']} / 5" in summary
@@ -837,7 +866,133 @@ def test_plugin_macros_join_the_simplicity_macros(built, con, out):
                         ("voiPluginTopK", "5"), ("voiPluginTopOverlap", str(st["top_overlap"])),
                         ("voiSimpN", "9")):
         assert macros.count(f"\\newcommand{{\\{name}}}{{{value}}}\n") == 1, name
-    assert len(macros.splitlines()) == 15 + 7
+    assert len(macros.splitlines()) == 15 + 10
+
+
+# --- fence value (chapter, "The buyer on the fence, and bounds") ----------------------
+
+def test_fence_is_the_maximum_of_evsi_over_the_threshold():
+    """EVSI* = Lambda p (1-p) (s+t-1) equals max over K in (0, Lambda) of
+    model.voi(p, s, t, Lambda - K, K), attained at pi* = K / Lambda = p; an
+    inverted sensor (s + t < 1) is read the other way round."""
+    rng = np.random.default_rng(7)
+    grid = np.linspace(1e-6, 1 - 1e-6, 4001)
+    for _ in range(300):
+        p, s, t = rng.uniform(0.02, 0.98, 3)
+        lam = float(np.exp(rng.uniform(4, 15)))
+        fence = float(model.voi_fence(p, s, t, lam * (1 - p), lam * p))
+        assert fence == pytest.approx(lam * p * (1 - p) * abs(s + t - 1), rel=1e-12)
+        evsi_grid, _ = model.voi(p, s, t, lam * (1 - grid), lam * grid)
+        assert evsi_grid.max() <= fence * (1 + 1e-9) + 1e-9 * lam
+        # the tent's slopes are at most Lambda per unit pi*, so a grid of spacing 1/4000
+        # lands within Lambda/8000 of the peak
+        assert evsi_grid.max() >= fence - lam / 4000
+        at_p, _ = model.voi(p, s, t, lam * (1 - p), lam * p)             # the buyer on the fence
+        assert float(at_p) == pytest.approx(fence, rel=1e-9, abs=1e-9 * lam)
+    # every EVSI is bounded by its fence value; a stakes-preserving reshuffle never exceeds it
+    for _ in range(300):
+        p, s, t = rng.uniform(0.02, 0.98, 3)
+        B, K = np.exp(rng.uniform(8, 16, 2))
+        evsi, _ = model.voi(p, s, t, B, K)
+        assert float(evsi) <= float(model.voi_fence(p, s, t, B, K)) * (1 + 1e-12) + 1e-9 * (B + K)
+    assert model.voi_fence(0.5, 1.0, 1.0, 10.0, 10.0) == pytest.approx(5.0)   # Lambda/4 with a perfect sensor
+    assert model.voi_fence(0.3, 0.5, 0.5, 10.0, 10.0) == 0.0                   # an uninformative sensor
+    assert np.asarray(model.voi_fence([0.1, 0.5], 0.8, 0.9, 1e3, 1e3)).shape == (2,)
+
+
+@pytest.mark.parametrize("protocol", ["p001", "p003"])
+def test_plugin_fence_columns_and_macros(built, con, out, protocol):
+    run = db.get_run(con, built["runs"][protocol])
+    st = extra.plugin_stats(con, run)
+    control = built["sids"]["control"][0]
+    for r in st["rows"]:
+        m = r["medians"]
+        star = m["B"] + m["K"]
+        star *= m["p"] * (1 - m["p"]) * (m["s"] + m["t"] - 1)
+        assert r["EVSI_star"] == pytest.approx(star, rel=1e-12) and r["C"] == m["C"]
+        assert r["eff_star"] == pytest.approx(star / m["C"], rel=1e-12)
+        assert r["EVSI"] <= r["EVSI_star"] * (1 + 1e-12)
+        if r["sid"] == control:
+            assert r["EVSI"] == 0.0 and r["fence_ratio"] == 0.0 and r["EVSI_star"] > 0.0
+        else:
+            assert r["fence_ratio"] == pytest.approx(r["EVSI"] / star, rel=1e-12)
+            assert 0.0 < r["fence_ratio"] <= 1.0
+    positive = [r for r in st["rows"] if r["EVSI"] > 0.0]
+    assert st["fence_n"] == len(positive) == 8
+    assert st["fence_rho"] == pytest.approx(spearman([r["eff_star"] for r in positive],
+                                                     [r["eff"] for r in positive]))
+    top_plug = sorted(st["rows"], key=lambda r: (-r["eff"], r["sid"]))[:5]
+    top_star = sorted(st["rows"], key=lambda r: (-r["eff_star"], r["sid"]))[:5]
+    assert st["fence_top_overlap"] == len({r["sid"] for r in top_plug} & {r["sid"] for r in top_star})
+    assert extra.write_plugin(con, run, out, st)
+    tex = (out / "plugin.tex").read_text()
+    table, summary = tex.split(r"\par\medskip")
+    assert "EVSI$^\\star$ & eff & eff$^\\star$ & EVSI/EVSI$^\\star$ &" in table
+    assert "the buyer on the fence" in table and table.count(" & 0.00 & always &") == 1
+    assert (f"Spearman $\\rho$(fence eff$^\\star$, plug-in eff), EVSI $>$ 0 & {st['fence_rho']:.2f}"
+            " ($n$=8)") in summary
+    assert f"top-5 overlap, fence vs plug-in & {st['fence_top_overlap']} / 5" in summary
+    macros = (out / "macros_extra.tex").read_text()
+    assert f"\\newcommand{{\\voiFenceRhoPlugin}}{{{st['fence_rho']:.2f}}}" in macros
+    assert f"\\newcommand{{\\voiFenceTopOverlap}}{{{st['fence_top_overlap']}}}" in macros
+    assert "\\newcommand{\\voiFenceN}{8}" in macros
+
+
+def test_level_uplift_marginals_are_differences_of_the_per_rung_plugin_values(built, con, out):
+    run = db.get_run(con, built["runs"]["p003"])
+    an = extra.level_uplift_analysis(con, run)
+    for g, steps in an["steps"].items():
+        plug = an["plugin"][g]
+        rungs = an["rungs"][g]
+        assert list(plug) == [sid for _, sid in rungs]
+        # p, B, K pooled over the ladder's elicitations, s, t, C per rung
+        pooled = {n: float(np.median([v for _, sid in rungs
+                                      for v in db.elicited_p50s(con, run["protocol_id"], sid, n)]))
+                  for n in ("p", "B", "K")}
+        for _, sid in rungs:
+            m = plug[sid]["medians"]
+            assert {k: m[k] for k in ("p", "B", "K")} == pooled
+            for n in ("s", "t", "C"):
+                assert m[n] == float(np.median(db.elicited_p50s(con, run["protocol_id"], sid, n)))
+            evsi, evpi = model.voi(m["p"], m["s"], m["t"], m["B"], m["K"])
+            assert plug[sid]["EVSI"] == float(evsi) and plug[sid]["EVPI"] == float(evpi)
+            assert plug[sid]["EVSI_star"] == pytest.approx(
+                (m["B"] + m["K"]) * m["p"] * (1 - m["p"]) * (m["s"] + m["t"] - 1), rel=1e-12)
+            assert plug[sid]["C"] == m["C"]
+        draws = an["draws"][g]["rungs"]
+        for s in steps:
+            lo, hi = plug[s["lo_id"]], plug[s["hi_id"]]
+            assert s["dEVSI_plug"] == hi["EVSI"] - lo["EVSI"] and s["dC_plug"] == hi["C"] - lo["C"]
+            assert s["meff_plug"] == pytest.approx(s["dEVSI_plug"] / s["dC_plug"], rel=1e-12)
+            assert s["dEVSI_star"] == hi["EVSI_star"] - lo["EVSI_star"]
+            assert s["meff_star"] == pytest.approx(s["dEVSI_star"] / s["dC_plug"], rel=1e-12)
+            d_evsi = draws[s["hi_id"]]["EVSI"] - draws[s["lo_id"]]["EVSI"]
+            d_c = draws[s["hi_id"]]["C"] - draws[s["lo_id"]]["C"]
+            assert s["dEVSI_mean"] == pytest.approx(float(np.mean(d_evsi)))
+            assert s["dC_mean"] == pytest.approx(float(np.mean(d_c)))
+            assert s["meff_mean"] == pytest.approx(s["dEVSI_mean"] / s["dC_mean"], rel=1e-12)
+            assert s["dC_plug"] > 0 and s["dC_mean"] > 0   # cost quadruples per rung
+    assert extra.fig_level_uplift(con, run, out, an) and extra.write_level_uplift(con, run, out, an)
+    other = (out / "level_uplift.tex").read_text().split(r"\par\medskip")[1]
+    s0 = an["steps"]["AV AEB"][0]
+    assert f"1$\\to$3 & {s0['lo_id']}$\\to${s0['hi_id']} & {extra.money(s0['dEVSI_mean'])} &" in other
+    assert f"& {extra.money(s0['dEVSI_star'])} & {extra.num(s0['meff_star'])}\\\\" in other
+    assert extra.plugin_step_stats({"EVSI": 1.0, "EVSI_star": 2.0, "C": 5.0},
+                                   {"EVSI": 3.0, "EVSI_star": 5.0, "C": 5.0}) == {
+        "dEVSI_plug": 2.0, "dC_plug": 0.0, "meff_plug": pytest.approx(float("nan"), nan_ok=True),
+        "dEVSI_star": 3.0, "meff_star": pytest.approx(float("nan"), nan_ok=True)}
+
+
+def test_fig_level_fence(built, con, out, tmp_path):
+    run = db.get_run(con, built["runs"]["p001"])
+    assert extra.fig_level_fence(con, run, out)
+    assert (out / "fig_level_fence.pdf").stat().st_size > 0
+    written, skipped = extra.make_all(con, run, out)
+    assert "fig_level_fence.pdf" in written and "level_fence" not in skipped
+    con.execute("DELETE FROM results WHERE run_id=? AND scenario_id IN (SELECT id FROM scenarios"
+                " WHERE grp<>'control')", (run["id"],))
+    assert extra.fig_level_fence(con, run, tmp_path) is False   # only the unleveled control is ranked
+    con.rollback()
 
 
 # --- driver and LaTeX ------------------------------------------------------------------
@@ -848,7 +1003,8 @@ def test_cli_writes_everything_and_removes_stale_outputs(built, capsys):
     out = capsys.readouterr().out
     assert f"run {built['runs']['p003']} (protocol p003)" in out
     gen = study.generated_dir
-    for name in ("fig_level_uplift.pdf", "level_uplift.tex", "fig_within_group_consistency.pdf",
+    for name in ("fig_level_uplift.pdf", "level_uplift.tex", "fig_level_fence.pdf",
+                 "fig_within_group_consistency.pdf",
                  "consistency.tex", "fig_domain_map.pdf", "domain_summary.tex",
                  "fig_member_agreement.pdf", "member_agreement.tex", "simplicity.tex",
                  "macros_extra.tex", "fig_plugin.pdf", "plugin.tex", "protocol_noise_matched.tex"):

@@ -1,0 +1,64 @@
+name: p004
+model: binary
+stages:
+  - name: decision
+    template_path: templates/decision.md
+    params: [p, B, K]
+    group_key: attributes.context_group
+    decision_contexts:
+      home manipulator: >
+        The decision is whether to delay the launch of a VLA-based (vision-language-action)
+        mobile manipulator into customers' homes and add mitigations, or launch as planned;
+        the hazard is an unsafe behaviour mode of the deployed policy that would injure a
+        person or cause serious property damage in ordinary home use. Closed-loop simulation
+        studies of current VLA policies report 13-15% unsafe-episode rates for tabletop
+        baselines and find that 36-56% of nominally successful household rollouts violate a
+        safety requirement (SafeVLA-Bench, RoboCasa365), while real-home deployments of
+        end-to-end policies have shown simulation success of 77% falling to 23% in six real
+        homes (CMU / Meta AI, 2023). Injury-relevant contact is governed by the body-region
+        force limits of ISO 10218:2025 (which absorbed ISO/TS 15066), with measured pain
+        thresholds of about 122-311 N; the only fleet-level harm data for robots come from
+        warehouses (OSHA logs: 7.9 serious injuries per 100 workers per year at robotic
+        warehouses, 54% above non-robotic ones). No source states the fleet size, unit price
+        or launch schedule of this product; take a first consumer launch of a limited number
+        of units as the deployment, and price B and K for that one launch decision.
+      AV AEB: >
+        The decision is whether to delay the AEB (automatic emergency braking) release of a
+        vehicle programme and rework it, or release as planned; the hazard is a failure mode
+        in which the system does not brake for a crossing pedestrian (adult or child,
+        including a child emerging from behind parked cars) at 20-60 km/h in daylight or
+        darkness. Per insured vehicle year, pedestrian AEB cuts pedestrian crashes by 25-27%
+        and pedestrian injury crashes by 29-30% (IIHS, 2022), with no measurable effect in
+        unlit darkness, at speed limits of 50 mph or more, or while turning; NHTSA's FMVSS
+        127 rule requires no contact in every run of four pedestrian scenarios at 10-73 km/h
+        in daylight and darkness, and its Standing General Order forces crash reporting for
+        ADAS-equipped vehicles. Rare-event statistics need large exposure (RAND: 275M
+        failure-free miles to bound a fatality rate at the 2013 US level with 95% confidence).
+        No source states the programme's production volume, price or release date; take one
+        vehicle programme's release across its production run as the deployment decision,
+        and price B and K for that one release decision.
+  - name: instrument
+    template_path: templates/instrument.md
+    params: [s, t, C]
+members:
+  - provider: claude_cli
+    model: haiku
+    k_repeats: 5
+  - provider: claude_cli
+    model: sonnet
+    k_repeats: 5
+  - provider: claude_cli
+    model: opus
+    k_repeats: 5
+notes: >
+  One change vs p003: the hierarchy. The decision-level parameters p, B, K are
+  elicited once per decision (context_group: home manipulator, AV AEB) from the
+  group's shared agent, decision and theta text plus a decision-level context,
+  without any instrument description, and stored on the group's representative
+  scenario (stage 'decision'); s, t, C are elicited per scenario (rung) from the
+  instrument description and its background facts, without the decision-level
+  numbers (stage 'instrument'). Same anchors, split by stage; same ensemble as
+  p003 (haiku, sonnet, opus; k=5). By construction the cross-rung drift of p, B,
+  K and of the threshold pi* = K/(B+K) is zero; the outputs of interest are
+  whether s, t, C still move with the rung, the within-ladder ranking against
+  p003, and the marginals dEVSI/dC per step.

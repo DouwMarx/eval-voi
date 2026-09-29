@@ -14,7 +14,8 @@ protocol, writes to <study>/report/generated/:
   pooled elicited p50 of p, s, t, with Spearman and median absolute difference.
 - consistency_gauss.tex: distribution of the over-determination residuals per
   quantity (theta asymmetry, d mismatch, x route spread, k mismatch) over the
-  Gaussian protocol's valid elicitations, the fraction flagged, and their
+  valid elicitations of the Gaussian run's members (the stored subset of a
+  --members run), the fraction flagged, and their
   Spearman with the cross-repeat spread of the corresponding quantity
   (per-scenario median residual vs db.elicited_spread of the quantity: (max -
   min) / pooled p50 of the repeat values, or max - min for d, which crosses
@@ -24,6 +25,11 @@ protocol, writes to <study>/report/generated/:
   \\voiGaussRhoT, \\voiGaussGateAgree, \\voiGaussN (+ the run ids).
 
 Usage: python -m voi_rank.analysis.compare_models --study PATH [--binary p001] [--gaussian g001]
+       [--members claude_cli:sonnet,claude_cli:opus]
+(--members selects, for BOTH protocols, the latest run that pooled exactly
+that member subset, so the two framings are compared on the same elicitors;
+the derived-vs-elicited panel pools the binary protocol's medians over the
+same subset)
 """
 
 from __future__ import annotations
@@ -76,11 +82,12 @@ def top_ids(med: dict[int, float], sids: list[int], k: int) -> set[int]:
     return set(sorted(sids, key=lambda s: (-med[s], s))[:k])
 
 
-def select_runs(con, binary: str, gaussian: str):
-    """(binary run, gaussian run): the latest run of each protocol, refused
-    when a protocol is not of the expected model kind."""
-    b = figures.select_run(con, None, binary)
-    g = figures.select_run(con, None, gaussian)
+def select_runs(con, binary: str, gaussian: str, members: list[str] | None = None):
+    """(binary run, gaussian run): the latest run of each protocol (of the
+    `members` subset when given), refused when a protocol is not of the
+    expected model kind."""
+    b = figures.select_run(con, None, binary, members)
+    g = figures.select_run(con, None, gaussian, members)
     for run, want, name in ((b, db.BINARY_KIND, binary), (g, db.GAUSSIAN_KIND, gaussian)):
         kind = db.run_model_kind(con, run)
         if kind != want:
@@ -125,9 +132,10 @@ def derived_vs_elicited(con, b_run, g_run, shared: list[int]) -> dict:
     """{name: {"x": elicited pooled p50 (binary protocol), "y": derived median
     (Gaussian run), "rho", "mad"}} for p, s, t."""
     out = {}
+    labels = db.run_member_labels(b_run)
     for name in ("p", "s", "t"):
         der = medians(con, g_run["id"], f"{name}_derived")
-        pts = [(pooled_p50(con, b_run["protocol_id"], s, name), der[s]) for s in shared if s in der]
+        pts = [(pooled_p50(con, b_run["protocol_id"], s, name, labels), der[s]) for s in shared if s in der]
         pts = [(x, y) for x, y in pts if x is not None]
         x = np.array([p[0] for p in pts], dtype=float)
         y = np.array([p[1] for p in pts], dtype=float)
@@ -137,15 +145,19 @@ def derived_vs_elicited(con, b_run, g_run, shared: list[int]) -> dict:
 
 
 def residual_stats(con, g_run) -> dict:
-    """Per residual quantity: quantiles over valid elicitations, fraction
+    """Per residual quantity: quantiles over the valid elicitations of the
+    run's members (every member, or the subset a --members run stored, so the
+    table describes the elicitors the compared runs pooled), fraction
     flagged, and the Spearman between the per-scenario median residual and
-    the cross-repeat spread of the quantity; plus the consistency-score
-    quantiles (max residual / threshold per elicitation)."""
+    the cross-repeat spread of the quantity over the same members; plus the
+    consistency-score quantiles (max residual / threshold per elicitation)."""
     pid = g_run["protocol_id"]
+    labels = db.run_member_labels(g_run)
+    clause, margs = db.member_filter(labels)
     rows = con.execute(
         "SELECT e.id AS eid, e.scenario_id, p.name, p.p50, p.fit_residual, p.fit_warning"
         " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-        " WHERE e.protocol_id=? AND e.valid=1", (pid,)).fetchall()
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (pid, *margs)).fetchall()
     by_name: dict[str, dict[int, list]] = {}
     per_elic: dict[int, dict[str, float]] = {}
     for r in rows:
@@ -160,7 +172,7 @@ def residual_stats(con, g_run) -> dict:
         flagged = [bool(v[2]) for lst in per_sid.values() for v in lst]
         xs, ys = [], []
         for sid, lst in per_sid.items():
-            spread = db.elicited_spread(con, pid, sid, spread_of)
+            spread = db.elicited_spread(con, pid, sid, spread_of, members=labels)
             if spread is None:
                 continue
             xs.append(float(np.median([v[1] for v in lst if v[1] is not None])))
@@ -216,9 +228,11 @@ def write_consistency(res: dict, g_run, out: Path) -> None:
     lines.append(r"\midrule")
     lines.append(f"consistency score (max residual / threshold) & {sc['n']} & {num(sc['q25'])} &"
                  f" {num(sc['q50'])} & {num(sc['q75'])} & 1 & {pct(sc['above_one'])} & --\\\\")
+    members = esc(db.members_label(db.run_member_labels(g_run)))
     lines += [r"\bottomrule", r"\end{tabular}", r"\par\medskip",
               r"\noindent\emph{Over-determination residuals of the Gaussian protocol (run "
-              + str(g_run["id"]) + r"), over its valid elicitations: quantiles, the warning"
+              + str(g_run["id"]) + r"), over the valid elicitations of " + members
+              + r": quantiles, the warning"
               r" threshold, the fraction of elicitations flagged, and the Spearman between each"
               r" scenario's median residual and the cross-repeat spread of the quantity the"
               r" residual checks ((max - min) / pooled p50 of the repeat values; max - min"
@@ -321,10 +335,13 @@ def main(argv=None):
     add_study_arg(ap)
     ap.add_argument("--binary", default="p001", help="binary protocol (latest run; default p001)")
     ap.add_argument("--gaussian", default="g001", help="Gaussian protocol (latest run; default g001)")
+    ap.add_argument("--members", default=None,
+                    help="comma-separated provider:model subset: the latest run of each protocol"
+                         " that pooled exactly these members")
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    b_run, g_run = select_runs(con, args.binary, args.gaussian)
+    b_run, g_run = select_runs(con, args.binary, args.gaussian, db.parse_member_labels(args.members))
     result = make_all(con, b_run, g_run, study.generated_dir)
     ag = result["rank"]["agreement"]
     print(f"{len(result['rank']['shared'])} shared scenarios; Spearman binary vs "

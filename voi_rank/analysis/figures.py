@@ -2,7 +2,10 @@
 in <study>/report/generated/.
 
 Usage: python -m voi_rank.analysis.figures --study studies/business [--protocol p001] [--run ID]
-(default: the latest run of protocol p001; --run overrides)
+       [--members claude_cli:sonnet,claude_cli:opus]
+(default: the latest all-member run of protocol p001; --members selects the
+latest run of the protocol that pooled exactly that member subset; --run
+overrides both. Every figure reads the run's members only.)
 """
 
 from __future__ import annotations
@@ -135,29 +138,41 @@ def c_quantiles(con, run, sid) -> tuple[float, float, float]:
 
 
 def run_members(con, run) -> list[dict]:
-    prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
-    return db.protocol_members(prot)
+    """The members the run pooled (the protocol's, or the stored subset)."""
+    return db.run_members(con, run)
 
 
 def add_run_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--protocol", default="p001",
                     help="use the latest run of this protocol (default: p001)")
     ap.add_argument("--run", type=int, default=None, help="explicit run id (overrides --protocol)")
+    ap.add_argument("--members", default=None,
+                    help="comma-separated provider:model subset: use the latest run of the protocol"
+                         " that pooled exactly these members (default: the all-member run)")
 
 
-def select_run(con, run_id: int | None, protocol: str):
+def run_description(con, run) -> str:
+    """'run <id> (protocol <name>)', plus ', members a, b' for a subset run."""
+    prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
+    name = prot["name"] if prot else "unknown"
+    labels = db.run_member_labels(run)
+    return f"run {run['id']} (protocol {name}" + (f", members {', '.join(labels)}" if labels else "") + ")"
+
+
+def select_run(con, run_id: int | None, protocol: str, members: list[str] | None = None):
     """The run to analyse: --run when given, else the latest run of the
-    protocol. A run made by the v1 model (no data_hash, or sensitivities for
-    the retired parameter e) is refused: its numbers contradict the v2
-    commentary and its draws do not replay. Prints 'run <id> (protocol <name>)'."""
-    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol)
+    protocol that pooled exactly `members` (labels; None = every member). A
+    run made by the v1 model (no data_hash, or sensitivities for the retired
+    parameter e) is refused: its numbers contradict the v2 commentary and
+    its draws do not replay. Prints 'run <id> (protocol <name>[, members ...])'."""
+    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol, members)
     prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     name = prot["name"] if prot else "unknown"
     reason = db.run_predates_v2(con, run)
     if reason:
         raise RuntimeError(f"run {run['id']} (protocol {name}) predates the v2 model: {reason};"
                            f" run `python -m voi_rank.mc --protocol {name}` first")
-    print(f"run {run['id']} (protocol {name})")
+    print(run_description(con, run))
     return run
 
 
@@ -268,10 +283,50 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
     return True
 
 
+def param_median_points(con, run, names: list[str], rank_of: dict[int, int]) -> tuple[dict, list[str]]:
+    """{param: {member label: [(rank, p50), ...]}} over the valid elicitations
+    of the run's members, each at its scenario's rank. Under a staged
+    protocol a decision-stage row sits on its group's representative (the
+    group's lowest id), which a rename leaves retired without instrument
+    rows and so unranked: the row is drawn at the rank of the group's
+    lowest-id RANKED scenario instead, so no group's p, B, K vanish from the
+    figure. A group none of whose scenarios is ranked is named in the
+    returned notes rather than dropped silently."""
+    clause, margs = db.member_filter(db.run_member_labels(run))
+    rows = con.execute(
+        "SELECT e.scenario_id, e.stage, e.provider || ':' || e.model AS member, p.name, p.p50"
+        " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (run["protocol_id"], *margs)).fetchall()
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                            (run["protocol_id"],)).fetchone())
+    gstage = db.group_stage(stages) if stages is not None else None
+    anchor: dict[int, int | None] = {}   # representative id -> the group's lowest ranked id
+    notes = []
+    data: dict[str, dict[str, list]] = {n: {} for n in names}
+    for r in rows:
+        if r["name"] not in data:
+            continue
+        sid = r["scenario_id"]
+        if gstage is not None and r["stage"] == gstage["name"]:
+            if sid not in anchor:
+                ranked = [g for g in db.scenario_group_ids(con, gstage["group_key"], sid) if g in rank_of]
+                anchor[sid] = ranked[0] if ranked else None
+                if not ranked:
+                    row = con.execute("SELECT * FROM scenarios WHERE id=?", (sid,)).fetchone()
+                    value = db.scenario_group_value(row, gstage["group_key"])
+                    notes.append(f"group {value!r} (decision rows on scenario {sid}) has no ranked"
+                                 f" scenario: its {', '.join(gstage['params'])} points are not drawn")
+            sid = anchor[sid]
+        if sid in rank_of:
+            data[r["name"]].setdefault(r["member"], []).append((rank_of[sid], r["p50"]))
+    return data, notes
+
+
 def fig_param_medians(con, run_id, out: Path):
     """Six panels, one per parameter: the elicited p50 of every valid
     elicitation of the run's protocol against the scenario's efficiency rank
-    (jittered strip), coloured by member model when the protocol has several
+    (jittered strip; param_median_points places a staged protocol's
+    decision rows), coloured by member model when the protocol has several
     members, with a marginal histogram on the right. Reveals round-number
     clustering and cross-model disagreement. USD panels on a log axis."""
     run = db.get_run(con, run_id)
@@ -279,14 +334,10 @@ def fig_param_medians(con, run_id, out: Path):
     order = ranked_ids(con, run_id)
     rank_of = {sid: i + 1 for i, sid in enumerate(order)}
     members = [db.member_label(m) for m in run_members(con, run)]
-    rows = con.execute(
-        "SELECT e.scenario_id, e.provider || ':' || e.model AS member, p.name, p.p50"
-        " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-        " WHERE e.protocol_id=? AND e.valid=1", (run["protocol_id"],)).fetchall()
-    data: dict[str, dict[str, list]] = {n: {} for n in names}
-    for r in rows:
-        if r["name"] in data and r["scenario_id"] in rank_of:
-            data[r["name"]].setdefault(r["member"], []).append((rank_of[r["scenario_id"]], r["p50"]))
+    clause, margs = db.member_filter(db.run_member_labels(run))
+    data, notes = param_median_points(con, run, names, rank_of)
+    for note in notes:
+        print(f"fig_param_medians: {note}")
     present = [m for m in members if any(m in data[n] for n in names)]
     present += sorted({m for n in names for m in data[n]} - set(present))
     multi = len(present) > 1
@@ -344,10 +395,17 @@ def fig_param_medians(con, run_id, out: Path):
                    for m in present]
         fig.legend(handles=handles, loc="outside upper center", ncol=min(len(present), 3),
                    fontsize=7, frameon=False)
-    n_elic = con.execute("SELECT COUNT(*) FROM elicitations WHERE protocol_id=? AND valid=1",
-                         (run["protocol_id"],)).fetchone()[0]
-    fig.suptitle(f"Elicited medians per parameter, every valid elicitation ({n_elic} elicitations)",
-                 fontsize=9)
+    n_elic = con.execute(f"SELECT COUNT(*) FROM elicitations e WHERE protocol_id=? AND valid=1{clause}",
+                         (run["protocol_id"], *margs)).fetchone()[0]
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                            (run["protocol_id"],)).fetchone())
+    staged = ""
+    if stages is not None:   # decision rows sit on each group's representative: plotted once per group
+        g = db.group_stage(stages)
+        staged = (f"; ${', '.join(g['params'])}$ once per group, at the rank of its lowest-id"
+                  f" ranked scenario (stage {g['name']})")
+    fig.suptitle(f"Elicited medians per parameter, every valid elicitation of the run's members"
+                 f" ({n_elic} elicitations{staged})", fontsize=8 if staged else 9)
     fig.savefig(out / "fig_param_medians.pdf")
     plt.close(fig)
     return True
@@ -471,16 +529,32 @@ def fig_rank_stability(con, run_id, out: Path):
     return True
 
 
+def noise_units_label(stages: list[dict] | None, sids_of: dict[str, set[int]]) -> str:
+    """What the spreads of the noise figure are over: '15 scenarios', or
+    under a staged protocol '2 groups for p, B, K; 15 scenarios for s, t, C'
+    (a decision-stage spread is one per group, on its representative)."""
+    if stages is None:
+        return f"{len(set().union(*sids_of.values()))} scenarios"
+    g, s = db.group_stage(stages), db.scenario_stage(stages)
+    n_g = len(set().union(*(sids_of.get(n, set()) for n in g["params"])))
+    n_s = len(set().union(*(sids_of.get(n, set()) for n in s["params"])))
+    return f"{n_g} groups for {', '.join(g['params'])}; {n_s} scenarios for {', '.join(s['params'])}"
+
+
 def fig_elicitation_noise(con, run_id, out: Path):
     run = db.get_run(con, run_id)
     names = run_param_names(con, run_id)
+    labels = db.run_member_labels(run)
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                            (run["protocol_id"],)).fetchone())
     spreads = {name: [] for name in names}
-    sids = [r[0] for r in con.execute(
-        "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1",
-        (run["protocol_id"],))]
+    sids_of: dict[str, set[int]] = {}
     for name in names:
-        for sid in sids:
-            sp = db.elicited_spread(con, run["protocol_id"], sid, name)
+        # the scenarios carrying the parameter (group representatives for a
+        # decision-stage parameter of a staged protocol: one spread per group)
+        for sid in db.param_scenario_ids(con, run["protocol_id"], name, labels):
+            sids_of.setdefault(name, set()).add(sid)
+            sp = db.elicited_spread(con, run["protocol_id"], sid, name, members=labels)
             if sp is not None:
                 spreads[name].append(sp)
     fig, ax = plt.subplots(figsize=(6.2, 3.4))
@@ -496,7 +570,7 @@ def fig_elicitation_noise(con, run_id, out: Path):
                    capprops={"color": "#555555"})
         ax.set_ylabel("(max − min) / pooled p50 across elicitations"
                       + ("\n* max − min in prior-sd units" if sd_units else ""))
-        ax.set_title(f"Cross-elicitation noise per parameter ({len(sids)} scenarios)")
+        ax.set_title(f"Cross-elicitation noise per parameter ({noise_units_label(stages, sids_of)})")
     else:
         ax.text(0.5, 0.5, "protocol has k = 1: no repeat noise", ha="center",
                 transform=ax.transAxes)
@@ -555,7 +629,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
-    run_id = select_run(con, args.run, args.protocol)["id"]
+    run_id = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))["id"]
     for name in make_all(con, run_id, study.generated_dir):
         print(f"wrote {study.generated_dir / (name + '.pdf')}")
 

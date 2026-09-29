@@ -287,7 +287,7 @@ def test_duplicate_valid_slots_block_the_index_with_repair_sql(tmp_path):
     con = db.connect(path)
     assert [tuple(r) for r in con.execute("SELECT id, valid, error FROM elicitations ORDER BY id")] == \
         [(1, 1, None), (2, 0, "duplicate slot")]
-    assert con.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot'").fetchone()
+    assert con.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot_stage'").fetchone()
 
 
 def test_duplicate_members_rejected():
@@ -304,7 +304,7 @@ def test_duplicate_members_rejected():
 def test_unique_index_on_valid_slots(tmp_path):
     con = db.connect(tmp_path / "voi.db")
     names = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='index'")}
-    assert "ux_elicitations_valid_slot" in names
+    assert "ux_elicitations_valid_slot_stage" in names and "ux_elicitations_valid_slot" not in names
     db.insert_elicitation(con, 1, 1, "claude_cli", "haiku", 0, "h", "{}", False, "json: x")
     db.insert_elicitation(con, 1, 1, "claude_cli", "haiku", 0, "h", "{}", False, "json: y")
     db.insert_elicitation(con, 1, 1, "claude_cli", "haiku", 0, "h", "{}", True, None)
@@ -320,14 +320,15 @@ def test_unique_index_on_valid_slots(tmp_path):
     v1 = tmp_path / "v1.db"
     make_v1_db(v1)
     con1 = db.connect(v1)
-    assert con1.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot'").fetchone()
+    assert con1.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot_stage'")\
+        .fetchone()
 
 
 def test_business_db_copy_opens_migrates_and_registers_protocols(tmp_path):
     dst = tmp_path / "biz.db"
     shutil.copy(BUSINESS / "voi.db", dst)
     con = db.connect(dst)
-    assert con.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot'").fetchone()
+    assert con.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot_stage'").fetchone()
     manual = db.protocol_by_name(con, "p000_manual")
     assert db.protocol_members(manual) == [{"provider": "manual", "model": "manual", "k_repeats": 1}]
     assert {r[0] for r in con.execute("SELECT DISTINCT provider FROM elicitations WHERE protocol_id=?",

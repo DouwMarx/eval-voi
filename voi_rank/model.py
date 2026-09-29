@@ -41,3 +41,16 @@ def voi(p, s, t, B, K):
     noise = 1e-13 * np.maximum(B, K)
     evsi = np.where(evsi <= noise, 0.0, evsi)
     return evsi, evpi
+
+
+def voi_fence(p, s, t, B, K):
+    """EVSI* = Lambda p (1 - p) (s + t - 1), Lambda = B + K: the maximum of
+    EVSI over the threshold pi* = K / (B + K) at fixed stakes Lambda, reached
+    by the buyer on the fence, pi* = p (chapter, "The buyer on the fence, and
+    bounds", eq. fence). Stakes times the Bernoulli variance of the state
+    times Youden's index: smooth in every input and positive whenever the
+    sensor is informative, so it ranks scenarios without the gate. An
+    inverted sensor (s + t < 1, which the elicitation rejects but a mixture
+    draw can produce) is read the other way round, |s + t - 1|, as voi does."""
+    p, s, t, B, K = (np.asarray(v, dtype=float) for v in (p, s, t, B, K))
+    return (B + K) * p * (1.0 - p) * np.abs(s + t - 1.0)
