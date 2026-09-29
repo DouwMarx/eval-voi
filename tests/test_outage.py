@@ -9,9 +9,12 @@ kind as outages. Fake providers, injected sleep, no CLI, no network."""
 from __future__ import annotations
 
 import json
+import os
 import re
+import signal
 import subprocess
 import threading
+import time
 
 import pytest
 
@@ -286,6 +289,235 @@ def test_interrupt_during_the_pause_cancels_the_held_slots(study, monkeypatch, c
     con.close()
 
 
+# --- review round 1: a re-planned slot's re-run, halts after a hold, the pause budget ------
+
+def replanned_provider(seed: dict, calls: list, lock: threading.Lock, on_call: int | None = None):
+    """Call 1: a paid JSON failure on the first slot, whose immediate retry
+    (call 2) runs into the outage, so the paid attempt is stored and the
+    slot re-planned; every later call answers validly. Call `on_call`
+    sends the process SIGINT (a terminal Ctrl-C) while it is in flight."""
+    def get_provider(name):
+        def call(prompt, model, system_prompt):
+            with lock:
+                calls.append(prompt)
+                n = len(calls)
+            if n == 1:
+                return {"result": "not json", "total_cost_usd": 0.03}, '{"result": "not json"}', None
+            if n == 2:
+                return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
+            if n == on_call:
+                os.kill(os.getpid(), signal.SIGINT)
+                time.sleep(0.5)   # the main thread handles the interrupt and waits for this call
+            text = json.dumps({"parameters": seed})
+            return {"result": text, "total_cost_usd": 0.01}, text, None
+        return call
+    return get_provider
+
+
+def assert_replanned_slot_kept(con, out: str) -> None:
+    rows = [(r["scenario_id"], r["valid"], r["error"]) for r in rows_of(con)]
+    assert rows[:2] == [(1, 0, "json: result parse failed: Expecting value: line 1 column 1 (char 0)"),
+                        (2, 1, None)]
+    assert rows[2] == (1, 1, None), "the re-planned slot's paid valid answer was discarded by the salvage"
+    assert len(rows) == 3
+    assert "2 of 2 slots stored (1 after the interruption); re-run to resume, 1 zero-usage" in out
+    assert "3 of 2" not in out
+
+
+def test_ctrl_c_during_the_replanned_slots_paid_call_keeps_its_answer(study, monkeypatch, capsys):  # noqa: F811
+    """Batch 1: a paid JSON failure on slot 1 whose retry is a zero-usage
+    exit (the failure is stored, the slot re-planned); batch 2: the re-run's
+    paid valid answer, with Ctrl-C while it is in flight. The salvage
+    recognised the slot's EARLIER paid failure (a row above the run-wide id
+    floor) as the re-run's commit and skipped the store, losing the answer.
+    The check is keyed on the future's own final attempt now: the answer is
+    stored exactly once."""
+    calls, lock = [], threading.Lock()
+    monkeypatch.setattr(elicit, "get_provider", replanned_provider(_seed_payload(), calls, lock, on_call=4))
+    con, pid, jobs = plan(study, scenarios="1,2")
+    assert len(jobs) == 2
+    with pytest.raises(KeyboardInterrupt):
+        elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=lambda s: None)
+    out = capsys.readouterr().out
+    assert len(calls) == 4
+    assert ("interrupted (KeyboardInterrupt): 0 pending slots cancelled, waiting for 1 running call(s)"
+            " to store their results") in out
+    assert_replanned_slot_kept(con, out)
+    assert plan(study, scenarios="1,2")[2] == []   # nothing pending: the slot is not paid for twice
+    con.close()
+
+
+def test_ctrl_c_inside_the_replanned_slots_db_write_keeps_its_answer(study, monkeypatch, capsys):  # noqa: F811
+    calls, lock = [], threading.Lock()
+    monkeypatch.setattr(elicit, "get_provider", replanned_provider(_seed_payload(), calls, lock))
+    con, pid, jobs = plan(study, scenarios="1,2")
+    real, seen = elicit.store_attempts, []
+
+    def store_attempts(con_, scenario_id, *a, **kw):
+        seen.append(scenario_id)
+        if seen.count(scenario_id) == 2:
+            raise KeyboardInterrupt   # inside the re-run's write, before its commit
+        return real(con_, scenario_id, *a, **kw)
+
+    monkeypatch.setattr(elicit, "store_attempts", store_attempts)
+    with pytest.raises(KeyboardInterrupt):
+        elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=lambda s: None)
+    out = capsys.readouterr().out
+    assert len(calls) == 4 and seen == [1, 2, 1, 1]
+    assert "interrupted (KeyboardInterrupt): 0 pending slots cancelled\n" in out
+    assert_replanned_slot_kept(con, out)
+    con.close()
+
+
+def test_salvage_ignores_a_foreign_row_of_the_same_slot(study, monkeypatch, capsys):  # noqa: F811
+    """Another process writes an (invalid) row for slot 1 after this run's
+    batch was submitted, and the interrupt lands inside this run's write of
+    its own answer to that slot. A row of the slot above the floor is not
+    this future's attempt: the salvage stores the answer instead of
+    counting the foreign row as its commit."""
+    calls, lock = [], threading.Lock()
+    monkeypatch.setattr(elicit, "get_provider", _fake_ok(_seed_payload(), calls, lock))
+    con, pid, jobs = plan(study, scenarios="1")
+    job = jobs[0]
+    real, seen = elicit.store_attempts, []
+
+    def store_attempts(con_, scenario_id, *a, **kw):
+        seen.append(scenario_id)
+        if len(seen) == 1:
+            other = study.connect()   # the other process: its own connection and commit
+            db.insert_elicitation(other, job["scenario_id"], pid, job["member"]["provider"],
+                                  job["member"]["model"], job["repeat_ix"], elicit.prompt_hash(job["prompt"]),
+                                  "{}", False, "json: from another process", job.get("stage"))
+            other.commit()
+            other.close()
+            raise KeyboardInterrupt
+        return real(con_, scenario_id, *a, **kw)
+
+    monkeypatch.setattr(elicit, "store_attempts", store_attempts)
+    with pytest.raises(KeyboardInterrupt):
+        elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=lambda s: None)
+    out = capsys.readouterr().out
+    assert seen == [1, 1] and len(calls) == 1
+    assert [(r["valid"], r["error"]) for r in rows_of(con)] == [(0, "json: from another process"), (1, None)]
+    assert "1 of 1 slots stored (1 after the interruption)" in out
+    con.close()
+
+
+def _fake_ok(seed: dict, calls: list, lock: threading.Lock):
+    def get_provider(name):
+        def call(prompt, model, system_prompt):
+            with lock:
+                calls.append(prompt)
+            text = json.dumps({"parameters": seed})
+            return {"result": text, "total_cost_usd": 0.01}, text, None
+        return call
+    return get_provider
+
+
+OR_MEMBER = "openrouter:fake/model"
+
+
+def test_member_halted_after_the_hold_has_its_held_slots_cancelled(study, monkeypatch, capsys):  # noqa: F811
+    """haiku's fifth zero-usage result holds the not-yet-started slots back
+    (openrouter's second among them) while openrouter's first call is in
+    flight; it then returns 401 and halts the member. Its held-back slot is
+    cancelled, not re-submitted with the next batch, and the unbilled 401
+    does not reset the streak (one pause, not two)."""
+    seed = _seed_payload()
+    state = {"active": True}
+    calls = {"claude_cli": [], "openrouter": []}
+    lock = threading.Lock()
+
+    def get_provider(name):
+        def call(prompt, model, system_prompt):
+            with lock:
+                calls[name].append(prompt)
+            if name == "openrouter":
+                time.sleep(0.5)   # in flight when the fifth zero-usage result lands
+                return None, "", "http: status 401 unauthorized"
+            time.sleep(0.05)
+            if state["active"]:
+                return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
+            text = json.dumps({"parameters": seed})
+            return {"result": text, "total_cost_usd": 0.01}, text, None
+        return call
+
+    def sleep(seconds):
+        state["active"] = False   # the window ends during the pause
+
+    monkeypatch.setattr(elicit, "get_provider", get_provider)
+    con = study.connect()
+    db.seed_scenarios(con, study.scenarios_json)
+    pid = db.get_or_create_protocol(con, study.protocol_path("p001"), study.root)
+    _, planned = elicit.plan_jobs(con, study, pid, "1,2,3,4,5,6,7,8", 1, {"claude_cli:haiku", OR_MEMBER})
+    by = {(db.member_label(j["member"]), j["scenario_id"]): j for j in planned}
+    jobs = ([by[("claude_cli:haiku", s)] for s in (1, 2, 3, 4)] + [by[(OR_MEMBER, 1)]]
+            + [by[("claude_cli:haiku", s)] for s in (5, 6, 7, 8)] + [by[(OR_MEMBER, 2)]])
+    n_valid, cost, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=2, sleep=sleep)
+    out = capsys.readouterr().out
+    assert (n_valid, n_cancelled) == (8, 1) and cost == pytest.approx(0.08)
+    assert summary["pauses"] == 1 and out.count("usage-limit outage: pausing") == 1
+    assert re.search(r"dispatching stopped, [1-4] not-yet-started slot\(s\) held back", out)
+    assert (f"member {OR_MEMBER}: http: status 401 unauthorized: a retry cannot help; cancelled its 1"
+            " pending slots") in out
+    assert out.count(f"{OR_MEMBER} repeat 0: INVALID (http: status 401 unauthorized)") == 1
+    assert len(calls["openrouter"]) == 1, "the halted member's held-back slot was re-submitted"
+    rows = rows_of(con)
+    assert [(r["scenario_id"], r["valid"], r["error"]) for r in rows if r["error"]] == \
+        [(1, 0, "http: status 401 unauthorized")]
+    assert sorted(r["scenario_id"] for r in rows if r["valid"]) == list(range(1, 9))
+    # the streak resets on a billed result only
+    assert not elicit.billed([elicit.failed_attempt("http: status 401 unauthorized")])
+    assert not elicit.billed([elicit.failed_attempt("provider: OSError: unreachable")])
+    assert not elicit.billed([elicit.failed_attempt("cli: timeout after 600s")])
+    assert elicit.billed([{"error": "json: result parse failed", "cost": 0.0}])
+    assert elicit.billed([{"error": "cli: exit 1: boom", "cost": 0.02}])
+    assert elicit.billed([{"error": None, "cost": 0.0}])
+    con.close()
+
+
+def test_the_pause_budget_counts_every_window_of_the_run(study, monkeypatch, capsys):  # noqa: F811
+    """Two outage windows in one run: the first ends at its pause and its
+    probe is billed; the second never ends. The run gives up after
+    OUTAGE_MAX_PAUSES pauses in total (1 + 11), not 12 per window."""
+    seed = _seed_payload()
+    state = {"active": True, "billed": 0}
+    lock = threading.Lock()
+
+    def get_provider(name):
+        def call(prompt, model, system_prompt):
+            with lock:
+                if state["active"]:
+                    return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
+                state["billed"] += 1
+                if state["billed"] == 2:
+                    state["active"] = True   # the second window opens after two billed answers
+            text = json.dumps({"parameters": seed})
+            return {"result": text, "total_cost_usd": 0.01}, text, None
+        return call
+
+    slept = []
+
+    def sleep(seconds):
+        slept.append(seconds)
+        if len(slept) == 1:
+            state["active"] = False   # only the first window ends
+
+    monkeypatch.setattr(elicit, "get_provider", get_provider)
+    con, pid, jobs = plan(study)
+    n_valid, cost, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=1, sleep=sleep)
+    out = capsys.readouterr().out
+    assert (n_valid, n_cancelled) == (2, 6) and cost == pytest.approx(0.02)
+    assert summary["pauses"] == 12 and summary["gave_up"] and summary["unresolved"] == 6
+    assert len(slept) == 12
+    assert "usage-limit outage: pausing 300s (pause 1/12) with 8 slot(s) pending" in out
+    assert "usage-limit outage: pausing 300s (pause 2/12) with 6 slot(s) pending" in out
+    assert re.search(r"giving up after 12 pauses of 300s \(\d+ zero-usage results in a row\); 2 slot\(s\)"
+                     r" of this run stored, 6 still pending", out)
+    assert len(rows_of(con)) == 2 and all(r["valid"] for r in rows_of(con))
+    con.close()
+
+
 # --- health and the report macros on legacy rows -------------------------------------
 
 def test_health_and_macros_show_legacy_zero_usage_rows_as_outage(study, monkeypatch, capsys):  # noqa: F811
@@ -309,8 +541,12 @@ def test_health_and_macros_show_legacy_zero_usage_rows_as_outage(study, monkeypa
     capsys.readouterr()
     health.health(con, "p001")
     out = capsys.readouterr().out
-    assert "=== health: protocol p001 (8 attempts, 2 member(s)) ===" in out
+    assert "=== health: protocol p001 (8 rows, 3 usage-limit outage, 5 attempts, 2 member(s)) ===" in out
     assert "attempt counts by outcome: {'valid': 4, 'outage': 3, 'json': 1}" in out
+    # the plan's cost estimate averages over the billed attempts only (the fake stores no cost,
+    # the JSON failure $0.02: 0.02 / 5, not 0.02 / 8)
+    assert elicit.member_mean_cost(con, {"provider": "claude_cli", "model": "haiku"}, "binary") == \
+        (pytest.approx(0.004), 5)
     assert ("usage-limit outage rows (zero-usage CLI exits, no model call, unbilled): 3; left out of the"
             " 5 attempts the rates below are over") in out
     assert "JSON validity rate (parse+schema): 4/5 = 80.0%" in out

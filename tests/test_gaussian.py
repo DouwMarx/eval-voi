@@ -546,3 +546,21 @@ def test_validation_accepts_extra_keys_and_parse_helper():
     import json
     rows, fits, err = gauss_fit.parse_gauss(json.dumps(anchor_payload()))
     assert err is None and rows["g_d"]["p50"] == fits["g_d"].params["value"]
+
+
+def test_step_fence_is_the_maximum_of_the_step_value_over_d():
+    """voi_step_fence evaluates the continuous-signal step model at d* =
+    Phi^-1(K / (B + K)), where the prior sits on the fence; that is the
+    maximum of EVSI_step over d (the state threshold), on a fine grid."""
+    d = np.linspace(-4.0, 4.0, 4001)
+    for R2, B, K in ((0.3, 1e6, 1e5), (0.83, 150e3, 10e3), (0.95, 2e4, 3e4), (0.5, 1.0, 1.0)):
+        fence, evpi = g.voi_step_fence(R2, B, K)
+        d_star = float(stats.norm.ppf(K / (B + K)))
+        assert float(fence) == pytest.approx(float(g.voi_step(d_star, R2, B, K)[0]), rel=1e-12)
+        grid = g.voi_step(d, R2, B, K)[0]
+        assert float(np.max(grid)) <= float(fence) * (1 + 1e-9)
+        for h in (1e-4, 1e-2, 0.3):   # a kinked maximum: strictly lower on either side
+            assert float(g.voi_step(d_star - h, R2, B, K)[0]) < float(fence)
+            assert float(g.voi_step(d_star + h, R2, B, K)[0]) < float(fence)
+        assert abs(float(d[np.argmax(grid)]) - d_star) <= 0.01
+        assert float(evpi) == pytest.approx(B * K / (B + K))   # min(pB, (1 - p)K) at p = pi*

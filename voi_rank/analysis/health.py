@@ -158,20 +158,21 @@ def health(con, protocol_name: str, members: list[str] | None = None):
               + (f" by {db.members_label(labels)}" if labels else ""))
         return
 
-    print(f"=== health: protocol {protocol_name} ({len(rows)} attempts, "
-          f"{len(all_members)} member(s)"
-          + (f"; members restricted to {db.members_label(labels)}" if labels else "") + ") ===")
-    if labels:
-        print("(every count below is over the attempts of the members listed)")
     classes = {}
     for r in rows:
         cls = error_class(r["error"], r["raw_response"])
         classes[cls] = classes.get(cls, 0) + 1
     # a usage-limit outage row made no model call: it is not an elicitation
-    # attempt, so the rates below are over the billed attempts
+    # attempt, so the header and the rates below count the billed attempts
     n_outage = classes.get(OUTAGE_CLASS, 0)
     n = len(rows) - n_outage
     json_ok = n - sum(classes.get(c, 0) for c in UNPARSED_CLASSES)
+    counts = (f"{len(rows)} rows, {n_outage} usage-limit outage, {n} attempts" if n_outage
+              else f"{n} attempts")
+    print(f"=== health: protocol {protocol_name} ({counts}, {len(all_members)} member(s)"
+          + (f"; members restricted to {db.members_label(labels)}" if labels else "") + ") ===")
+    if labels:
+        print("(every count below is over the attempts of the members listed)")
     print(f"attempt counts by outcome: {classes}")
     if n_outage:
         print(f"usage-limit outage rows (zero-usage CLI exits, no model call, unbilled): {n_outage};"

@@ -112,12 +112,17 @@ before), and the harness treats it as an outage, not an attempt:
   not-yet-started slots are held back), lets the running calls finish,
   sleeps `OUTAGE_SLEEP_S = 300` s, probes with one call and resumes when
   the probe is billed (its answer is stored like any slot); a zero-usage
-  probe sleeps again, and after `OUTAGE_MAX_PAUSES = 12` pauses the run
-  gives up with a clear message, everything completed stored and the rest
-  pending for the next run (re-run to resume once the limit resets). Fewer
-  than 5 in a row (a blip) are re-planned at the end of the batch without
-  a pause. Ctrl-C during a pause cancels the held-back slots like any
-  interrupt.
+  probe sleeps again, and after `OUTAGE_MAX_PAUSES = 12` pauses in total
+  (over every outage window of the run) it gives up with a clear message,
+  everything completed stored and the rest pending for the next run
+  (re-run to resume once the limit resets). Fewer than 5 in a row (a blip)
+  are re-planned at the end of the batch without a pause. Only a billed
+  result resets the streak; an unbilled failure (http 401, a transport
+  error) leaves it, and a member halted after a hold has its held-back
+  slots cancelled. Ctrl-C during a pause cancels the held-back slots like
+  any interrupt.
+- the plan's cost estimate (`elicit.member_mean_cost`) averages over the
+  billed attempts only, as the report macros below do.
 - `health` prints rows the old harness stored during an outage (a
   `cli: exit 1` error with a zero-usage envelope) as the class `outage`,
   separately from the JSON failures, and leaves them out of every rate;
@@ -133,7 +138,10 @@ session, so the terminal's Ctrl-C (SIGINT to the foreground process group)
 reaches only the harness and the running calls finish; a harness killed
 with SIGKILL leaves them to finish unobserved. A further Ctrl-C during the
 wait is reported and ignored, and a slot the interrupt caught between its
-commit and its bookkeeping is recognised in the DB, never stored twice. A DB write that fails is retried once after 1 s; if it still
+commit and its bookkeeping is recognised in the DB by its own final attempt
+(raw response and error, written after its batch was submitted), never
+stored twice; a re-planned slot's earlier paid failure never passes for
+its re-run. A DB write that fails is retried once after 1 s; if it still
 fails, the slot's attempts are appended to `<study>/elicit_unstored.jsonl`,
 the path is printed and the run stops. `propose` follows the same rule
 (running calls are awaited and their scenarios inserted; a domain the DB
@@ -373,19 +381,41 @@ the binary-only analyses of `extra` are skipped with a printed reason):
   member-agreement analysis of `extra` does; the source column and the
   caption say which. Macros `\voiGaussRhoMember<Model><Member>` (e.g.
   `\voiGaussRhoMemberStepfixHaiku`; the member part is the model name's
-  letters, capitalised) and `\voiGaussNMembersMatched`.
+  letters capitalised with digits spelled out, `claude-3-5-sonnet` ->
+  `ClaudeThreeFiveSonnet`, and two members mapping to one name are
+  refused) and `\voiGaussNMembersMatched`.
 - `compare_plugin.tex` + `fig_compare_plugin.pdf`, the threshold-robust
   comparison: the binary plug-in efficiency at the pooled medians of
   `p, s, t, B, K, C` (the `plugin.tex` point) against the Gaussian plug-in
   efficiency per action model at the pooled medians of
-  `d, x, k, L, kappa sigma0, B, K, sigma_b/sigma0, C`, and the two
-  threshold-free values, the fence `EVSI* = (B + K) p (1 - p) (s + t - 1)`
-  against the quad value `L R^2` (the `k = 2` loss, bias-corrected `R^2`),
-  as values and as efficiencies over each protocol's own median `C`;
-  Spearman, Kendall and top-k overlap each. The figure is log-log (zeros
-  floored, open markers). Macros `\voiGaussPluginRho/Tau/TopOverlap<Model>`,
-  `\voiFenceQuadRho/Tau/TopOverlap` (values), `\voiFenceQuadEffRho/...`
-  (efficiencies), `\voiGaussPluginN`.
+  `d, x, k, L, kappa sigma0, B, K, sigma_b/sigma0, C`, and the binary fence
+  value `EVSI* = (B + K) p (1 - p) (s + t - 1)` (eq. fence: the binary EVSI
+  maximised over the threshold `pi*` at fixed stakes and fixed `p, s, t`)
+  against three Gaussian values that no gate can zero:
+  1. the stepfix fence, the same eq. fence at `p = Phi(d)` and the derived
+     `s, t` with the same stakes `B + K`: same formula, same stakes, only
+     the family's elicitation differs;
+  2. the step value on the fence, `gaussian.voi_step_fence`: the
+     continuous-signal step value at `d* = Phi^-1(K / (B + K))`, where the
+     prior sits on the fence. This is the chapter's own Gaussian analog
+     (fig:action: the step models peak "where [their] own decision is on
+     the fence") and the exact maximum of the step value over `d`; it
+     removes `d` at the elicited `pi*` where `EVSI*` removes `pi*` at the
+     elicited `p`;
+  3. the quad value `L R^2` (the `k = 2` loss, bias-corrected `R^2`), which
+     has no threshold at all. Pairing it with `EVSI*` is this repo's choice
+     of two quantities that are each threshold-free; the chapter does not
+     pair them. The pair compares two action models and two stakes
+     elicitations (`B + K` against `L`).
+
+  Each as values and as efficiencies over each protocol's own median `C`;
+  Spearman, Kendall and top-k overlap each. The figure (2 x 2) is log-log
+  (zeros floored, open markers). Macros
+  `\voiGaussPluginRho/Tau/TopOverlap<Model>`,
+  `\voiFenceStepfixRho/Tau/TopOverlap`, `\voiFenceStepRho/...` and
+  `\voiFenceQuadRho/...` (values), `\voiFenceStepfixEffRho/...`,
+  `\voiFenceStepEffRho/...` and `\voiFenceQuadEffRho/...` (efficiencies),
+  `\voiGaussPluginN`.
 - `compare_noise.tex`, the joint noise table: per shared member at matched
   k (the first 3 valid repeats of each scenario, as
   `protocol_noise_matched.tex`), the median cross-repeat spread of

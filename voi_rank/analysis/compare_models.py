@@ -49,15 +49,31 @@ runs pooled:
   K, C (extra.plugin_point, exactly the plugin.tex point) against the
   Gaussian plug-in efficiency per action model at the pooled medians of d,
   x, k, L, kappa sigma0, B, K, sigma_b/sigma0, C through
-  gaussian.scenario_metrics; and the two threshold-free values, the binary
-  fence EVSI* = (B + K) p (1 - p) (s + t - 1) (model.voi_fence) against the
-  Gaussian quad value L R^2 (chapter eq. lqg, the k = 2 form, R^2 the
-  bias-corrected one), as values and as efficiencies (each over its own
-  protocol's median C), with Spearman, Kendall and top-k overlap. The
-  figure plots binary plug-in eff vs Gaussian stepfix plug-in eff and EVSI*
-  vs L R^2, log-log (zeros floored, open markers). Macros
-  \\voiGaussPluginRho<Model>, \\voiFenceQuadRho (values), \\voiFenceQuadEffRho
-  (efficiencies), plus Kendall and top-overlap variants.
+  gaussian.scenario_metrics; and three fence pairs, the binary fence value
+  EVSI* = (B + K) p (1 - p) (s + t - 1) (model.voi_fence, eq. fence: the
+  binary EVSI maximised over the threshold pi* at fixed stakes and fixed
+  p, s, t) against a Gaussian value that also needs no pi*.
+  (i) Stepfix fence: the same eq. fence at p = Phi(d) and the derived s, t
+  with the same stakes B + K (the chapter's summary: "binary action with
+  step payoff gives back the binary model with p = Phi(d) and derived
+  s, t"), the same formula and stakes, only the family's elicitation
+  differs. (ii) Step fence, the chapter's own Gaussian analog (fig:action:
+  the step models peak "where [their] own decision is on the fence",
+  d = Phi^-1(pi*)): gaussian.voi_step_fence, the continuous-signal step
+  value at d* = Phi^-1(K / (B + K)), its exact maximum over d; it removes d
+  at the elicited pi* where eq. fence removes pi* at the elicited p.
+  (iii) The quad value L R^2 (chapter eq. lqg, the k = 2 form, R^2 the
+  bias-corrected one): this repo's choice of two quantities that are each
+  threshold-free, not a pairing the chapter makes; it compares two action
+  models and two stakes elicitations (B + K against L), two "stakes x
+  sensor quality" products. Each as values and as efficiencies (each over
+  its own protocol's median C), with Spearman, Kendall and top-k overlap.
+  The figure plots binary plug-in eff vs Gaussian stepfix plug-in eff and
+  EVSI* against each of the three, log-log (zeros floored, open markers).
+  Macros \\voiGaussPluginRho<Model>, \\voiFenceStepfixRho /
+  \\voiFenceStepRho / \\voiFenceQuadRho (values), \\voiFenceStepfixEffRho /
+  \\voiFenceStepEffRho / \\voiFenceQuadEffRho (efficiencies), plus Kendall
+  and top-overlap variants.
 - compare_noise.tex: the joint noise table. Per member present in both
   protocols, at matched k (the first MATCHED_K valid repeats of each
   scenario, as protocol_noise_matched.tex), the median cross-repeat spread
@@ -90,7 +106,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from scipy import stats  # noqa: E402
 
-from voi_rank import db, gaussian  # noqa: E402
+from voi_rank import db, gaussian, model  # noqa: E402
 from voi_rank.analysis import extra, figures  # noqa: E402
 from voi_rank.analysis.tables import esc, num, pooled_p50, tex_param  # noqa: E402
 from voi_rank.fit import GAUSS_PARAM_NAMES  # noqa: E402
@@ -113,15 +129,48 @@ NOISE_GAUSS = ("g_d", "g_x", "g_k", "g_L", "g_kappa_sigma0", "g_B", "g_K", "C")
 # the USD spread ratios of its final rows: (label, Gaussian quantity, binary quantity)
 NOISE_RATIOS = (("L", "g_L", "B"), ("K", "g_K", "K"), ("C", "C", "C"))
 MATCHED_K = extra.MATCHED_K
+# the fence rows of the plug-in table: (plugin_comparison key, macro prefix)
+FENCE_PAIRS = (("fence_stepfix", "voiFenceStepfix"), ("fence_stepfix_eff", "voiFenceStepfixEff"),
+               ("fence_step", "voiFenceStep"), ("fence_step_eff", "voiFenceStepEff"),
+               ("fence_quad", "voiFenceQuad"), ("fence_quad_eff", "voiFenceQuadEff"))
+# (plugin_comparison key, binary plugin_point key, gauss_plugin_point key) per fence row
+FENCE_SERIES = (("fence_stepfix", "EVSI_star", "fence_stepfix"),
+                ("fence_stepfix_eff", "eff_star", "eff_fence_stepfix"),
+                ("fence_step", "EVSI_star", "fence_step"),
+                ("fence_step_eff", "eff_star", "eff_fence_step"),
+                ("fence_quad", "EVSI_star", "quad_lr2"),
+                ("fence_quad_eff", "eff_star", "eff_lr2"))
 OUTPUTS = ("compare_models.tex", "fig_compare_models.pdf", "fig_derived_pst.pdf",
            "consistency_gauss.tex", "compare_members.tex", "compare_plugin.tex",
            "fig_compare_plugin.pdf", "compare_noise.tex", "macros_compare.tex")
 
 
+DIGIT_WORDS = ("Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine")
+
+
 def macro_name(text: str) -> str:
     """A LaTeX-safe CamelCase name from a member's model name: the letter
-    runs, capitalised ('haiku' -> 'Haiku', 'openai/gpt-4o-mini' -> 'OpenaiGptOMini')."""
-    return "".join(part.capitalize() for part in re.split(r"[^A-Za-z]+", text) if part)
+    runs capitalised and the digits spelled out, so versioned names stay
+    distinct ('haiku' -> 'Haiku', 'claude-3-5-sonnet' -> 'ClaudeThreeFiveSonnet',
+    'openai/gpt-4o-mini' -> 'OpenaiGptFourOMini'); write_macros refuses two
+    members that still map to one name."""
+    parts = []
+    for part in re.findall(r"[A-Za-z]+|[0-9]+", text):
+        parts.append(part.capitalize() if part.isalpha() else "".join(DIGIT_WORDS[int(c)] for c in part))
+    return "".join(parts)
+
+
+def member_macro_names(labels: list[str]) -> dict[str, str]:
+    """{member label: macro_name of its model}, refused when two members
+    collide (their macros would silently overwrite each other)."""
+    names = {label: macro_name(label.split(":", 1)[-1]) for label in labels}
+    seen: dict[str, str] = {}
+    for label, name in names.items():
+        if name in seen:
+            raise ValueError(f"members {seen[name]!r} and {label!r} both map to the macro name"
+                             f" {name!r}; rename one so the \\voi...{name} macros stay distinct")
+        seen[name] = label
+    return names
 
 
 def kendall(x, y) -> float | None:
@@ -400,8 +449,14 @@ def gauss_plugin_point(con, run, sid: int) -> dict | None:
     at the pooled medians (median of the repeat values, the catalog's) of
     d, x, k, L, kappa sigma0, B, K, sigma_b/sigma0 and C, over the run's
     members: {"medians", "eff": {m: EVSI_m / C}, "EVSI": {m: ...}, "R2",
-    "quad_lr2": L R^2 (the k = 2 quad value, threshold-free), "eff_lr2": L
-    R^2 / C}; None when a quantity has no valid elicitation."""
+    "fence_stepfix": the stepfix model's fence value, eq. fence at p =
+    Phi(d) and the derived s, t with the same stakes B + K (the maximum of
+    EVSI_stepfix over the threshold pi*, as EVSI* is of the binary EVSI),
+    "eff_fence_stepfix": that over C, "fence_step": the step model with its
+    prior on the fence, gaussian.voi_step_fence (its maximum over d),
+    "eff_fence_step": that over C, "quad_lr2": L R^2 (the k = 2 quad value,
+    threshold-free), "eff_lr2": L R^2 / C}; None when a quantity has no
+    valid elicitation."""
     labels = db.run_member_labels(run)
     names = [n for n in GAUSS_PARAM_NAMES if n not in ("g_mu0", "g_sigma0")]
     med = {name: pooled_p50(con, run["protocol_id"], sid, name, labels) for name in names}
@@ -410,9 +465,14 @@ def gauss_plugin_point(con, run, sid: int) -> dict | None:
     metrics = gaussian.scenario_metrics({name: np.array([v]) for name, v in med.items()})
     r2 = float(metrics["R2"][0])
     lr2 = med["g_L"] * r2
+    fence = float(model.voi_fence(metrics["p_derived"][0], metrics["s_derived"][0],
+                                  metrics["t_derived"][0], med["g_B"], med["g_K"]))
+    fence_step = float(gaussian.voi_step_fence(r2, med["g_B"], med["g_K"])[0])
     return {"medians": med, "eff": {m: float(metrics[f"eff_{m}"][0]) for m in ACTION_MODELS},
             "EVSI": {m: float(metrics[f"EVSI_{m}"][0]) for m in ACTION_MODELS},
-            "R2": r2, "quad_lr2": lr2, "eff_lr2": lr2 / med["C"]}
+            "R2": r2, "fence_stepfix": fence, "eff_fence_stepfix": fence / med["C"],
+            "fence_step": fence_step, "eff_fence_step": fence_step / med["C"],
+            "quad_lr2": lr2, "eff_lr2": lr2 / med["C"]}
 
 
 def agreement(x, y, k: int) -> dict:
@@ -431,9 +491,12 @@ def plugin_comparison(con, b_run, g_run, shared: list[int]) -> dict:
     """Over the shared scenarios with a complete plug-in point in both
     protocols: {"sids", "binary": {sid: extra.plugin_point}, "gauss": {sid:
     gauss_plugin_point}, "models": {m: agreement of binary eff vs eff_m},
-    "fence_quad": agreement of EVSI* vs L R^2 (values), "fence_quad_eff":
-    agreement of EVSI*/C_b vs L R^2 / C_g, "top_k", "n_zero_binary" (plug-in
-    EVSI = 0: outside the gate at the medians), "n_zero_stepfix"}."""
+    "fence_stepfix": agreement of EVSI* vs the stepfix fence value (the same
+    eq. fence, same stakes, the other family's p, s, t), "fence_step": EVSI*
+    vs the step value on the fence (voi_step_fence), "fence_quad": EVSI* vs
+    L R^2, each also over each protocol's own C ("<key>_eff"), "top_k",
+    "n_zero_binary" (plug-in EVSI = 0: outside the gate at the medians),
+    "n_zero_stepfix"}."""
     b_pts = {s: extra.plugin_point(con, b_run, s) for s in shared}
     g_pts = {s: gauss_plugin_point(con, g_run, s) for s in shared}
     sids = [s for s in shared if b_pts[s] is not None and g_pts[s] is not None]
@@ -443,10 +506,8 @@ def plugin_comparison(con, b_run, g_run, shared: list[int]) -> dict:
            "top_k": k, "models": {}}
     for m in ACTION_MODELS:
         out["models"][m] = agreement(b_eff, [g_pts[s]["eff"][m] for s in sids], k)
-    out["fence_quad"] = agreement([b_pts[s]["EVSI_star"] for s in sids],
-                                  [g_pts[s]["quad_lr2"] for s in sids], k)
-    out["fence_quad_eff"] = agreement([b_pts[s]["eff_star"] for s in sids],
-                                      [g_pts[s]["eff_lr2"] for s in sids], k)
+    for key, b_key, g_key in FENCE_SERIES:
+        out[key] = agreement([b_pts[s][b_key] for s in sids], [g_pts[s][g_key] for s in sids], k)
     out["n_zero_binary"] = sum(1 for s in sids if b_pts[s]["EVSI"] <= 0.0)
     out["n_zero_stepfix"] = sum(1 for s in sids if g_pts[s]["EVSI"]["stepfix"] <= 0.0)
     return out
@@ -465,6 +526,14 @@ def write_plugin(pc: dict, b_run, g_run, out: Path) -> None:
     for m in ACTION_MODELS:
         lines.append(row("eff $=$ EVSI$/C$", f"eff\\_{m}", pc["models"][m]))
     lines.append(r"\midrule")
+    lines.append(row(r"EVSI$^\star$ (fence)", r"EVSI$^\star_{\mathrm{stepfix}}$ (fence)",
+                     pc["fence_stepfix"]))
+    lines.append(row(r"eff$^\star = $ EVSI$^\star/C$", r"EVSI$^\star_{\mathrm{stepfix}}/C$",
+                     pc["fence_stepfix_eff"]))
+    lines.append(row(r"EVSI$^\star$ (fence)", r"EVSI$_{\mathrm{step}}$ at $\Phi(d) = \pi^\star$ (fence)",
+                     pc["fence_step"]))
+    lines.append(row(r"eff$^\star = $ EVSI$^\star/C$", r"EVSI$_{\mathrm{step}}(\Phi^{-1}(\pi^\star))/C$",
+                     pc["fence_step_eff"]))
     lines.append(row(r"EVSI$^\star$ (fence)", r"$L R^2$ (quad, $k=2$)", pc["fence_quad"]))
     lines.append(row(r"eff$^\star = $ EVSI$^\star/C$", r"$L R^2 / C$", pc["fence_quad_eff"]))
     lines += [r"\bottomrule", r"\end{tabular}", r"\par\medskip",
@@ -474,10 +543,22 @@ def write_plugin(pc: dict, b_run, g_run, out: Path) -> None:
               r" \texttt{model.voi} at the pooled elicited medians of $p$, $s$, $t$, $B$, $K$ and $C$"
               r" (the plugin.tex point); Gaussian plug-in: the action models at the pooled medians of"
               r" $d$, $x$, $k$, $L$, $\kappa\sigma_0$, $B$, $K$, $\sigma_b/\sigma_0$ and $C$. The"
-              r" fence value EVSI$^\star = (B+K)\,p(1-p)(s+t-1)$ and the quad value $L R^2$ (the"
-              r" $k=2$ loss, $R^2$ bias-corrected) need no threshold; they are compared as values and"
-              r" as efficiencies over each protocol's own median $C$. Binary plug-in EVSI $= 0$"
-              r" (outside the gate at the medians) on " + str(pc["n_zero_binary"])
+              r" fence rows put each decision on the fence, so no gate applies:"
+              r" EVSI$^\star = (B+K)\,p(1-p)(s+t-1)$ is the binary EVSI maximised over the threshold"
+              r" $\pi^\star$ at fixed stakes (eq. fence), and"
+              r" EVSI$^\star_{\mathrm{stepfix}}$ is the same maximum of the stepfix action model,"
+              r" eq. fence at $p = \Phi(d)$ and the derived $s$, $t$ with the same stakes $B+K$"
+              r" (the same action model and stakes, the other family's elicitation)."
+              r" EVSI$_{\mathrm{step}}$ at $\Phi(d) = \pi^\star$ is the chapter's Gaussian fence:"
+              r" the continuous-signal step value with the prior on the fence, $d = \Phi^{-1}(\pi^\star)$,"
+              r" $\pi^\star = K/(B+K)$, its maximum over $d$; it removes $d$ at the elicited"
+              r" $\pi^\star$ where EVSI$^\star$ removes $\pi^\star$ at the elicited $p$. The quad"
+              r" value $L R^2$ (the $k=2$ loss, $R^2$ bias-corrected) has no threshold at all; pairing"
+              r" it with EVSI$^\star$ is this study's choice, not the chapter's: a graded response"
+              r" with its own stakes scale $L$, so that pair compares two action models and two stakes"
+              r" elicitations. Each pair is compared"
+              r" as values and as efficiencies over each protocol's own median $C$. Binary plug-in"
+              r" EVSI $= 0$ (outside the gate at the medians) on " + str(pc["n_zero_binary"])
               + r" scenarios, Gaussian stepfix on " + str(pc["n_zero_stepfix"]) + r".}"]
     (out / "compare_plugin.tex").write_text("\n".join(lines) + "\n")
 
@@ -492,11 +573,20 @@ def fig_plugin(con, pc: dict, out: Path) -> None:
                np.array([pc["binary"][s]["eff"] for s in sids]),
                np.array([pc["gauss"][s]["eff"]["stepfix"] for s in sids]),
                pc["models"]["stepfix"]["rho"], figures.EFF_FLOOR),
+              ("binary fence EVSI* (USD)", "Gaussian stepfix fence EVSI* (USD)",
+               np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
+               np.array([pc["gauss"][s]["fence_stepfix"] for s in sids]),
+               pc["fence_stepfix"]["rho"], figures.EVSI_FLOOR),
+              ("binary fence EVSI* (USD)", "Gaussian step value on the fence (USD)",
+               np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
+               np.array([pc["gauss"][s]["fence_step"] for s in sids]),
+               pc["fence_step"]["rho"], figures.EVSI_FLOOR),
               ("binary fence EVSI* (USD)", "Gaussian quad value L R$^2$ (USD)",
                np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
                np.array([pc["gauss"][s]["quad_lr2"] for s in sids]),
                pc["fence_quad"]["rho"], figures.EVSI_FLOOR))
-    fig, axes = plt.subplots(1, 2, figsize=(6.2, 3.1))
+    fig, axes = plt.subplots(2, 2, figsize=(6.2, 5.8))
+    axes = axes.ravel()
     for ax, (xl, yl, x, y, rho, floor) in zip(axes, panels, strict=True):
         xf, yf = np.maximum(x, floor), np.maximum(y, floor)
         floored = (x < floor) | (y < floor)
@@ -520,9 +610,10 @@ def fig_plugin(con, pc: dict, out: Path) -> None:
     if len(names) > 1:
         axes[0].legend(fontsize=6, loc="lower right", frameon=False, title="group", title_fontsize=6)
     fig.suptitle("Plug-in points at each protocol's pooled medians (open markers: floored at"
-                 f" {figures.EFF_FLOOR:g} / {figures.EVSI_FLOOR:g}).\nLeft: binary vs Gaussian stepfix"
-                 " efficiency; right: fence EVSI* = (B+K) p (1-p) (s+t-1) vs quad L R^2 (threshold-free)",
-                 fontsize=7)
+                 f" {figures.EFF_FLOOR:g} / {figures.EVSI_FLOOR:g}).\nTop left: binary vs Gaussian stepfix"
+                 " efficiency. Fence EVSI* = (B+K) p (1-p) (s+t-1) against: the stepfix fence (same eq."
+                 " at p = Phi(d),\nderived s, t; top right), the step value with the prior on the fence"
+                 " (d = Phi^-1(pi*); bottom left), quad L R^2 (bottom right)", fontsize=7)
     fig.savefig(out / "fig_compare_plugin.pdf")
     plt.close(fig)
 
@@ -536,7 +627,10 @@ def noise_comparison(con, b_run, g_run) -> dict:
     spread over the first MATCHED_K valid repeats of each scenario
     (extra.member_noise, i.e. db.elicited_spread: relative, or max - min in
     sd units for d)."""
-    out = {"members": [], "binary": {}, "gauss": {}, "ratios": {}}
+    b_prot = con.execute("SELECT * FROM protocols WHERE id=?", (b_run["protocol_id"],)).fetchone()
+    out = {"members": [], "binary": {}, "gauss": {}, "ratios": {},
+           # a staged binary protocol: its decision-stage spreads are medians over groups
+           "b_name": b_prot["name"], "b_stages": db.protocol_stages(b_prot)}
     for m in shared_members(con, b_run, g_run):
         label = db.member_label(m)
         b = extra.member_noise(con, b_run["protocol_id"], m, MATCHED_K, list(NOISE_BINARY))
@@ -550,27 +644,37 @@ def noise_comparison(con, b_run, g_run) -> dict:
 
 
 def write_noise(nc: dict, b_run, g_run, out: Path) -> None:
+    """compare_noise.tex; every row is built as a cell list joined once, so
+    the column count always matches the tabular's (with no shared member
+    the table holds only its note). A staged binary protocol's n row reads
+    `groups / scenarios` (extra.noise_n_label) and the caption says which
+    unit its decision-stage cells are over (extra.staged_noise_note)."""
     members = nc["members"]
-    lines = [r"\begin{tabular}{@{}ll" + "r" * len(members) + r"@{}}", r"\toprule",
-             "protocol & quantity & " + " & ".join(esc(m) for m in members) + r"\\", r"\midrule"]
+    stages = nc.get("b_stages")
 
-    def block(title: str, names, key: str) -> None:
+    def cells(*items) -> str:
+        return " & ".join(items) + r"\\"
+
+    lines = [r"\begin{tabular}{@{}ll" + "r" * len(members) + r"@{}}", r"\toprule",
+             cells("protocol", "quantity", *(esc(m) for m in members)), r"\midrule"]
+
+    def block(title: str, names, key: str, n_stages) -> None:
         lines.append(r"\multicolumn{" + str(len(members) + 2) + r"}{@{}l}{\emph{" + title + r"}}\\")
         for name in names:
             label = tex_param(name) + esc(db.spread_label(name)).replace(" - ", " $-$ ")
-            cells = " & ".join(num(nc[key][m][0].get(name), "{:.2f}") for m in members)
-            lines.append(f" & {label} & {cells}\\\\")
-        counts = " & ".join(str(max(nc[key][m][1].values(), default=0)) for m in members)
-        lines.append(f" & $n$ (scenarios) & {counts}\\\\")
+            lines.append(cells("", label, *(num(nc[key][m][0].get(name), "{:.2f}") for m in members)))
+        n_label = "$n$ (groups / scenarios)" if n_stages is not None else "$n$ (scenarios)"
+        lines.append(cells("", n_label, *(extra.noise_n_label(nc[key][m][1], n_stages) for m in members)))
 
-    block("binary", NOISE_BINARY, "binary")
-    lines.append(r"\midrule")
-    block("Gaussian", NOISE_GAUSS, "gauss")
-    lines.append(r"\midrule")
-    for lab, gq, bq in NOISE_RATIOS:
-        cells = " & ".join(num(nc["ratios"][m][lab], "{:.2f}") for m in members)
-        lines.append(f"ratio & {tex_param(gq)} (Gaussian) / {tex_param(bq)} (binary) & {cells}\\\\")
-    if not members:
+    if members:
+        block("binary", NOISE_BINARY, "binary", stages)
+        lines.append(r"\midrule")
+        block("Gaussian", NOISE_GAUSS, "gauss", None)
+        lines.append(r"\midrule")
+        for lab, gq, bq in NOISE_RATIOS:
+            lines.append(cells("ratio", f"{tex_param(gq)} (Gaussian) / {tex_param(bq)} (binary)",
+                               *(num(nc["ratios"][m][lab], "{:.2f}") for m in members)))
+    else:
         lines.append(r"\multicolumn{2}{@{}l}{(no member elicits both protocols)}\\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\par\medskip",
               r"\noindent\emph{Cross-repeat spread per member at matched $k$: median over scenarios of"
@@ -579,7 +683,8 @@ def write_noise(nc: dict, b_run, g_run, out: Path) -> None:
               r" quantities and the Gaussian ones side by side; the members listed elicit both"
               r" protocols (of run " + str(b_run["id"]) + r" and run " + str(g_run["id"])
               + r"). The ratio rows divide the Gaussian median USD spread by the binary one: below 1,"
-              r" the Gaussian question is the more reproducible at the same elicitor.}"]
+              r" the Gaussian question is the more reproducible at the same elicitor"
+              + extra.staged_noise_note([nc.get("b_name", "")] if stages is not None else []) + r".}"]
     (out / "compare_noise.tex").write_text("\n".join(lines) + "\n")
 
 
@@ -666,9 +771,10 @@ def write_macros(rs: dict, pst: dict, b_run, g_run, out: Path, mm: dict | None =
         macros[f"voiGaussMad{name.upper()}"] = num(pst[name]["mad"], "{:.2f}")
         macros[f"voiGaussBias{name.upper()}"] = num(pst[name]["bias"], "{:+.3f}")
     if mm is not None:
+        names = member_macro_names([r["label"] for r in mm["rows"]])
         for r in mm["rows"]:
             for m in ACTION_MODELS:
-                key = f"voiGaussRhoMember{MODEL_MACRO[m]}{macro_name(r['model'])}"
+                key = f"voiGaussRhoMember{MODEL_MACRO[m]}{names[r['label']]}"
                 macros[key] = num(r["rho"][m], "{:.2f}")
         macros["voiGaussNMembersMatched"] = len(mm["rows"])
     if pc is not None:
@@ -679,14 +785,14 @@ def write_macros(rs: dict, pst: dict, b_run, g_run, out: Path, mm: dict | None =
             macros[f"voiGaussPluginRho{MODEL_MACRO[m]}"] = num(st["rho"], "{:.2f}")
             macros[f"voiGaussPluginTau{MODEL_MACRO[m]}"] = num(st["tau"], "{:.2f}")
             macros[f"voiGaussPluginTopOverlap{MODEL_MACRO[m]}"] = st["overlap"]
-        for key, prefix in (("fence_quad", "voiFenceQuad"), ("fence_quad_eff", "voiFenceQuadEff")):
+        for key, prefix in FENCE_PAIRS:
             macros[f"{prefix}Rho"] = num(pc[key]["rho"], "{:.2f}")
             macros[f"{prefix}Tau"] = num(pc[key]["tau"], "{:.2f}")
             macros[f"{prefix}TopOverlap"] = pc[key]["overlap"]
     if nc is not None:
+        names = member_macro_names(nc["members"])
         for label in nc["members"]:
-            macros[f"voiGaussNoiseRatio{macro_name(label.split(':', 1)[-1])}"] = num(
-                nc["ratios"][label]["L"], "{:.2f}")
+            macros[f"voiGaussNoiseRatio{names[label]}"] = num(nc["ratios"][label]["L"], "{:.2f}")
     (out / "macros_compare.tex").write_text(
         "\n".join(f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()) + "\n")
     return macros
@@ -794,7 +900,9 @@ def main(argv=None):
     pc = result["plugin"]
     print(f"plug-in ({len(pc['sids'])} scenarios): Spearman binary eff vs "
           + ", ".join(f"{m} {num(pc['models'][m]['rho'], '{:.2f}')}" for m in ACTION_MODELS)
-          + f"; fence EVSI* vs quad L R^2 {num(pc['fence_quad']['rho'], '{:.2f}')}")
+          + f"; fence EVSI* vs stepfix fence {num(pc['fence_stepfix']['rho'], '{:.2f}')}, vs step on the"
+          f" fence {num(pc['fence_step']['rho'], '{:.2f}')}, vs quad L R^2"
+          f" {num(pc['fence_quad']['rho'], '{:.2f}')}")
     for label in result["noise"]["members"]:
         print(f"noise ratio {label}: Gaussian L / binary B spread"
               f" {num(result['noise']['ratios'][label]['L'], '{:.2f}')}")

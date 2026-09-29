@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy.stats import norm
 
 from tests.test_gauss_pipeline import (
     HAIKU,
@@ -161,11 +162,31 @@ def test_plugin_comparison_is_the_two_plugin_points(two_member_study):
         assert g["R2"] == pytest.approx(r2)
         assert g["quad_lr2"] == pytest.approx(gm["g_L"] * r2)
         assert g["eff_lr2"] == pytest.approx(gm["g_L"] * r2 / gm["C"])
-        evsi_f, _, _, _ = gaussian.voi_stepfix(gm["g_d"], r2, gm["g_B"], gm["g_K"])
+        evsi_f, _, s_der, t_der = gaussian.voi_stepfix(gm["g_d"], r2, gm["g_B"], gm["g_K"])
         assert g["eff"]["stepfix"] == pytest.approx(float(evsi_f) / gm["C"])
         evsi_q, _ = gaussian.voi_quad(gm["g_L"], r2, gm["g_k"])
         assert g["EVSI"]["quad"] == pytest.approx(float(evsi_q))
         assert set(g["medians"]) == set(GAUSS_PARAM_NAMES) - {"g_mu0", "g_sigma0"}
+        # the stepfix fence value: eq. fence at p = Phi(d) and the derived s, t with the same
+        # stakes B + K, which is the maximum of EVSI_stepfix over the threshold pi* (reached at
+        # pi* = Phi(d)), so it bounds the plug-in EVSI_stepfix and every other split of B + K
+        p_der = float(norm.cdf(gm["g_d"]))
+        fence = float(model.voi_fence(p_der, s_der, t_der, gm["g_B"], gm["g_K"]))
+        assert g["fence_stepfix"] == pytest.approx(fence) and fence > 0.0
+        assert g["eff_fence_stepfix"] == pytest.approx(fence / gm["C"])
+        lam = gm["g_B"] + gm["g_K"]
+        splits = [float(model.voi(p_der, s_der, t_der, lam * (1 - q), lam * q)[0])
+                  for q in np.linspace(0.01, 0.99, 99)]
+        assert max(splits) <= fence * (1 + 1e-9) and g["EVSI"]["stepfix"] <= fence * (1 + 1e-9)
+        at_p = float(model.voi(p_der, s_der, t_der, lam * (1 - p_der), lam * p_der)[0])
+        assert at_p == pytest.approx(fence)
+        # the step value with the prior on the fence: voi_step at d* = Phi^-1(K / (B + K)), the
+        # maximum over d at the pooled R^2 and stakes (whatever the elicited d)
+        d_star = float(norm.ppf(gm["g_K"] / (gm["g_B"] + gm["g_K"])))
+        step_fence = float(gaussian.voi_step(d_star, r2, gm["g_B"], gm["g_K"])[0])
+        assert g["fence_step"] == pytest.approx(step_fence) and step_fence > 0.0
+        assert g["eff_fence_step"] == pytest.approx(step_fence / gm["C"])
+        assert g["EVSI"]["step"] <= step_fence * (1 + 1e-9)
     # the agreements are Spearman / Kendall / top-k overlap over those points
     sids = pc["sids"]
     b_eff = [pc["binary"][s]["eff"] for s in sids]
@@ -176,6 +197,16 @@ def test_plugin_comparison_is_the_two_plugin_points(two_member_study):
     fq = pc["fence_quad"]
     assert fq["rho"] == pytest.approx(spearman([pc["binary"][s]["EVSI_star"] for s in sids],
                                                [pc["gauss"][s]["quad_lr2"] for s in sids]))
+    fs = pc["fence_stepfix"]
+    assert fs["rho"] == pytest.approx(spearman([pc["binary"][s]["EVSI_star"] for s in sids],
+                                               [pc["gauss"][s]["fence_stepfix"] for s in sids]))
+    assert pc["fence_stepfix_eff"]["rho"] == pytest.approx(spearman(
+        [pc["binary"][s]["eff_star"] for s in sids], [pc["gauss"][s]["eff_fence_stepfix"] for s in sids]))
+    fst = pc["fence_step"]
+    assert fst["rho"] == pytest.approx(spearman([pc["binary"][s]["EVSI_star"] for s in sids],
+                                                [pc["gauss"][s]["fence_step"] for s in sids]))
+    assert pc["fence_step_eff"]["rho"] == pytest.approx(spearman(
+        [pc["binary"][s]["eff_star"] for s in sids], [pc["gauss"][s]["eff_fence_step"] for s in sids]))
     assert compare_models.agreement([1, 2, 3], [1, 2, 3], 2) == {"rho": 1.0, "tau": 1.0, "overlap": 2}
     assert compare_models.agreement([1, 2, 3], [3, 2, 1], 1) == {"rho": -1.0, "tau": -1.0, "overlap": 0}
     assert compare_models.agreement([1, 2], [2, 1], 1)["rho"] is None
@@ -186,10 +217,20 @@ def test_plugin_comparison_is_the_two_plugin_points(two_member_study):
         assert values[f"voiGaussPluginTopOverlap{key}"] == str(pc["models"][m]["overlap"])
     assert values["voiFenceQuadRho"] == compare_models.num(fq["rho"], "{:.2f}")
     assert values["voiFenceQuadEffRho"] == compare_models.num(pc["fence_quad_eff"]["rho"], "{:.2f}")
+    assert values["voiFenceStepfixRho"] == compare_models.num(fs["rho"], "{:.2f}")
+    assert values["voiFenceStepfixEffRho"] == compare_models.num(pc["fence_stepfix_eff"]["rho"], "{:.2f}")
+    assert values["voiFenceStepfixTopOverlap"] == str(fs["overlap"])
+    assert values["voiFenceStepRho"] == compare_models.num(fst["rho"], "{:.2f}")
+    assert values["voiFenceStepEffTau"] == compare_models.num(pc["fence_step_eff"]["tau"], "{:.2f}")
     assert values["voiGaussPluginN"] == "8"
     tex = (study.generated_dir / "compare_plugin.tex").read_text()
     assert "eff $=$ EVSI$/C$ & eff\\_stepfix &" in tex
+    assert "EVSI$^\\star$ (fence) & EVSI$^\\star_{\\mathrm{stepfix}}$ (fence) &" in tex
     assert "EVSI$^\\star$ (fence) & $L R^2$ (quad, $k=2$) &" in tex
+    assert "the same action model and stakes, the other family's elicitation" in tex
+    assert "EVSI$^\\star$ (fence) & EVSI$_{\\mathrm{step}}$ at $\\Phi(d) = \\pi^\\star$ (fence) &" in tex
+    assert "is the chapter's Gaussian fence" in tex
+    assert "pairing it with EVSI$^\\star$ is this study's choice, not the chapter's" in tex
     assert "top-8 overlap" in tex
     con.close()
 
@@ -242,10 +283,67 @@ def test_derived_vs_elicited_bias(two_member_study):
     con.close()
 
 
-def test_macro_name():
+def test_macro_name_keeps_versioned_members_apart(tmp_path):
     assert compare_models.macro_name("haiku") == "Haiku"
-    assert compare_models.macro_name("claude-3-5-sonnet") == "ClaudeSonnet"
-    assert compare_models.macro_name("openai/gpt-4o-mini") == "OpenaiGptOMini"
+    assert compare_models.macro_name("claude-3-5-sonnet") == "ClaudeThreeFiveSonnet"
+    assert compare_models.macro_name("claude-3-7-sonnet") == "ClaudeThreeSevenSonnet"
+    assert compare_models.macro_name("openai/gpt-4o-mini") == "OpenaiGptFourOMini"
+    assert compare_models.macro_name("gpt-4o") == "GptFourO"
+    assert compare_models.macro_name("gpt-4.1") == "GptFourOne"
+    assert compare_models.member_macro_names(["claude_cli:haiku", "openrouter:openai/gpt-4o"]) == {
+        "claude_cli:haiku": "Haiku", "openrouter:openai/gpt-4o": "OpenaiGptFourO"}
+    # two members that still map to one name are refused instead of overwriting each other's macros
+    with pytest.raises(ValueError, match="both map to the macro name 'Sonnet'"):
+        compare_models.member_macro_names(["claude_cli:sonnet", "openrouter:sonnet"])
+    rs = {"shared": [1, 2, 3], "top_k": 3, "gate": {"agree": 1.0},
+          "agreement": {("binary", m): {"rho": 0.5, "tau": 0.4, "overlap": 2} for m in ACTION_MODELS}}
+    pst = {n: {"rho": 0.1, "mad": 0.1, "bias": 0.01} for n in ("p", "s", "t")}
+    nc = {"members": ["claude_cli:sonnet", "openrouter:sonnet"],
+          "ratios": {"claude_cli:sonnet": {"L": 1.0}, "openrouter:sonnet": {"L": 2.0}}}
+    with pytest.raises(ValueError, match="both map to the macro name"):
+        compare_models.write_macros(rs, pst, {"id": 1}, {"id": 2}, tmp_path, nc=nc)
+
+
+def test_noise_table_without_a_shared_member_holds_only_its_note(tmp_path):
+    """A two-column tabular whose every row has two cells (the old writer
+    emitted three-cell header and quantity rows, which LaTeX refuses)."""
+    nc = {"members": [], "binary": {}, "gauss": {}, "ratios": {}, "b_name": "p001", "b_stages": None}
+    compare_models.write_noise(nc, {"id": 1}, {"id": 2}, tmp_path)
+    tex = (tmp_path / "compare_noise.tex").read_text()
+    body = tex.split("\\toprule\n")[1].split("\\bottomrule")[0].splitlines()
+    assert tex.startswith("\\begin{tabular}{@{}ll@{}}")
+    assert body == ["protocol & quantity\\\\", "\\midrule",
+                    "\\multicolumn{2}{@{}l}{(no member elicits both protocols)}\\\\"]
+    assert "under a staged protocol" not in tex
+
+
+def test_noise_table_of_a_staged_binary_protocol_counts_groups(tmp_path, monkeypatch):
+    """p004 (spec v2.2 staged protocol) as the binary side: its p, B, K
+    spreads are medians over the 2 groups, s, t, C over the scenarios, so
+    the n row reads `groups / scenarios` and the caption says so."""
+    from tests.test_staged import StagedFake
+    study = copy_study("sim2real", tmp_path)
+    sids = "1,2,3,11,12,13"
+    monkeypatch.setattr(elicit, "get_provider", lambda name: StagedFake())
+    elicit.main(["--study", str(study.root), "--protocol", "p004", "--scenarios", sids, "--k", "2",
+                 "--members", HAIKU, "--yes"])
+    use_providers(monkeypatch, FakeProvider(jittered_gauss))
+    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", sids, "--k", "2",
+                 "--members", HAIKU, "--yes"])
+    con = study.connect()
+    b_run = db.get_run(con, mc.run_mc(con, "p004", seed=3, n_draws=1000, quiet=True))
+    g_run = db.get_run(con, mc.run_mc(con, "g001", seed=5, n_draws=1000, quiet=True))
+    res = compare_models.make_all(con, b_run, g_run, study.generated_dir)
+    nc = res["noise"]
+    assert nc["members"] == [HAIKU] and nc["b_name"] == "p004" and nc["b_stages"] is not None
+    counts = nc["binary"][HAIKU][1]
+    assert {counts[n] for n in ("p", "B", "K")} == {2} and {counts[n] for n in ("s", "t", "C")} == {6}
+    assert {nc["gauss"][HAIKU][1][n] for n in compare_models.NOISE_GAUSS} == {6}
+    tex = (study.generated_dir / "compare_noise.tex").read_text()
+    assert " & $n$ (groups / scenarios) & 2 / 6\\\\" in tex and " & $n$ (scenarios) & 6\\\\" in tex
+    assert ("under a staged protocol (p004) the decision-stage cells are medians over groups (one"
+            " elicitation set per group, on its representative) and n reads groups / scenarios") in tex
+    con.close()
 
 
 @pytest.mark.parametrize("name", ("sim2real", "ai-safety-evals"))
@@ -279,7 +377,8 @@ def test_real_data_smoke_on_a_copy(name, tmp_path, capsys):
     for m in ("Haiku", "Sonnet", "Opus"):
         assert f"voiGaussRhoMemberStepfix{m}" in values and f"voiGaussNoiseRatio{m}" in values
         assert float(values[f"voiGaussNoiseRatio{m}"]) > 0
-    for key in ("voiFenceQuadRho", "voiGaussPluginRhoStepfix", "voiGaussBiasS"):
+    for key in ("voiFenceQuadRho", "voiFenceStepfixRho", "voiFenceStepRho", "voiGaussPluginRhoStepfix",
+                "voiGaussBiasS"):
         assert key in values and values[key] != "--"
     tex = (study.generated_dir / "compare_noise.tex").read_text()
     assert " & $n$ (scenarios) & 15 & 15 & 15\\\\" in tex

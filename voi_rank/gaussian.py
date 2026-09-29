@@ -28,6 +28,8 @@ Action models, all on the same (d, R^2) with d = (mu0 - theta_c) / sigma0:
              s, t are the orthant probabilities at that mark and EVSI is the binary
              closed form voi_rank.model.voi(p, s, t, B, K) (chapter, "Pass/fail report at
              a fixed mark"); this is the model that maps onto the binary protocol
+voi_step_fence is the step value with the prior on the fence, d = Phi^-1(pi*): the maximum
+of EVSI_step over d, the chapter's Gaussian counterpart of the binary fence value.
 
 The design (spec v2.1) evaluated `step` by 64-node Gauss-Hermite quadrature
 over mu1. That quadrature is kept as voi_step_gh for the cross-check tests
@@ -303,6 +305,24 @@ def voi_step(d, R2, B, K):
     pistar = K / (B + K)
     s, t = orthant_st(d, R2, optimal_cutoff(d, R2, pistar))
     return model.voi(_norm.cdf(d), s, t, B, K)
+
+
+def voi_step_fence(R2, B, K):
+    """The step model with its prior on the fence: voi_step at d* =
+    Phi^-1(pi*), pi* = K / (B + K), so that p = Phi(d*) = pi* (chapter,
+    "The three models side by side": the step models peak "where [their]
+    own decision is on the fence", d = Phi^-1(pi*) in fig:action). For the
+    continuous signal this is the exact maximum of EVSI_step over d, i.e.
+    over the state threshold theta_c at fixed prior, sensor and stakes: with
+    pi_y the posterior probability, EVSI = Lambda (E[(pi_y - pi*)^+] -
+    (Phi(d) - pi*)^+); below the fence the first term rises with d; above
+    it the slope is Lambda (E[1{pi_y > pi*} dpi_y/dd] - phi(d)) < 0 because
+    E[dpi_y/dd] = phi(d) (the martingale E[pi_y] = Phi(d)). It depends on R^2
+    and the stakes split, not on d: the Gaussian counterpart of eq. fence,
+    which removes pi* at the elicited p where this removes d at the
+    elicited pi*. Returns (EVSI, EVPI) at d*."""
+    R2, B, K = np.broadcast_arrays(*_arrays(R2, B, K))
+    return voi_step(_norm.ppf(K / (B + K)), R2, B, K)
 
 
 def voi_step_gh(d, R2, B, K, n_nodes: int = GH_NODES):

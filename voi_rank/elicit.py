@@ -37,10 +37,12 @@ counter across workers and after OUTAGE_STREAK consecutive such results
 stops dispatching (the not-yet-started slots are held back), lets the
 running calls finish, sleeps OUTAGE_SLEEP_S, probes with ONE call and
 resumes when the probe is billed (its answer is stored like any slot);
-after OUTAGE_MAX_PAUSES pauses without a billed probe it gives up with a
-clear message, everything completed stored, the rest pending for the next
-run. Fewer than OUTAGE_STREAK zero-usage results in a row (a blip) are
-re-planned at the end of the batch without a pause.
+after OUTAGE_MAX_PAUSES pauses in total (over every outage window of the
+run) it gives up with a clear message, everything completed stored, the
+rest pending for the next run. Fewer than OUTAGE_STREAK zero-usage results
+in a row (a blip) are re-planned at the end of the batch without a pause;
+only a billed result (a model answered, or a cost was recorded) resets the
+streak, an unbilled failure (http 401, a transport error) leaves it.
 
 Usage:
   python -m voi_rank.elicit --study studies/business --protocol p001 \
@@ -149,6 +151,20 @@ def paid_attempts(attempts: list[dict]) -> list[dict]:
     """The attempts of a slot that are elicitation attempts (a zero-usage
     outage result is not one and is never stored)."""
     return [a for a in attempts if not usage_limit(a["error"])]
+
+
+# failure classes that never reached a model: at zero recorded cost such a
+# result says nothing about the usage limit and does not reset the streak
+_UNBILLED_PREFIXES = ("http", "provider", "cli", "api")
+
+
+def billed(attempts: list[dict]) -> bool:
+    """Whether a slot's result came from a model call: an attempt that was
+    parsed (valid, or a json/schema/constraint/fit failure: the model
+    answered) or that recorded a cost. False for a run of unbilled failures
+    (http 401/429/5xx, a transport error, a CLI that did not run)."""
+    return any(a["error"] is None or a["cost"] > 0
+               or a["error"].split(":", 1)[0] not in _UNBILLED_PREFIXES for a in attempts)
 
 
 def render_prompt(template: string.Template, sc) -> str:
@@ -669,16 +685,22 @@ def preflight(members: list[dict], opener=None) -> None:
 
 
 def member_mean_cost(con, member: dict, kind: str = db.BINARY_KIND) -> tuple[float, int] | None:
-    """(mean recorded USD cost per stored attempt, attempts) of one member over
-    the protocols of the given model kind in the study; None when the member
-    has no stored attempts under that kind. Kinds are not pooled: the Gaussian
-    prompt is twice the binary one and asks for twelve reasoned answers, so a
-    binary mean would understate a first g001 batch by about half."""
+    """(mean recorded USD cost per billed attempt, billed attempts) of one
+    member over the protocols of the given model kind in the study; None
+    when the member has no such attempts. A usage-limit outage row (a
+    zero-usage CLI exit stored before v2.3, claude_cli.is_usage_limit) made
+    no model call and is left out, as tables.billed_attempts does: counted,
+    it understated sim2real's g001 estimates by 13-21%. Kinds are not
+    pooled: the Gaussian prompt is twice the binary one and asks for twelve
+    reasoned answers, so a binary mean would understate a first g001 batch
+    by about half."""
     kind = db.normalize_model_kind(kind)
     rows = con.execute(
-        "SELECT e.raw_response, p.model_kind FROM elicitations e JOIN protocols p ON p.id=e.protocol_id"
-        " WHERE e.provider=? AND e.model=?", (member["provider"], member["model"])).fetchall()
-    rows = [r for r in rows if db.normalize_model_kind(r["model_kind"]) == kind]
+        "SELECT e.raw_response, e.error, p.model_kind FROM elicitations e"
+        " JOIN protocols p ON p.id=e.protocol_id WHERE e.provider=? AND e.model=?",
+        (member["provider"], member["model"])).fetchall()
+    rows = [r for r in rows if db.normalize_model_kind(r["model_kind"]) == kind
+            and not claude_cli.is_usage_limit(r["error"], r["raw_response"])]
     if not rows:
         return None
     return sum(db.envelope_cost(r["raw_response"]) for r in rows) / len(rows), len(rows)
@@ -686,8 +708,8 @@ def member_mean_cost(con, member: dict, kind: str = db.BINARY_KIND) -> tuple[flo
 
 def print_plan(con, prot, members, jobs):
     """Slots per member and the estimated cost (slots x mean stored cost per
-    attempt of that member under protocols of the same model kind in this
-    study, 'unknown' without such history)."""
+    billed attempt of that member under protocols of the same model kind in
+    this study, 'unknown' without such history)."""
     kind = db.protocol_model_kind(prot)
     stages = db.protocol_stages(prot)
     print(f"plan: protocol {prot['name']}, {len(jobs)} pending slots "
@@ -755,8 +777,10 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
     launched, the running calls are awaited and stored, and the exception is
     re-raised; a further Ctrl-C during that wait or salvage is reported and
     ignored, and the salvage is idempotent (a slot the interrupt caught
-    between its commit and its bookkeeping is recognised in the DB, not
-    stored twice). Paid work is never discarded.
+    between its commit and its bookkeeping is recognised in the DB by its
+    own final attempt, a row holding that raw response and error written
+    after its batch was submitted, so a re-planned slot's earlier paid
+    failure never masks its re-run). Paid work is never discarded.
 
     Usage-limit outages (4): a zero-usage result (usage_limit: the CLI
     exited without a model call, nothing billed) is never stored and its
@@ -767,35 +791,47 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
     once the batch is drained the run sleeps OUTAGE_SLEEP_S (`sleep`,
     injectable) and probes with a one-slot batch; a billed probe (stored
     like any slot, valid or not) resumes the rest, a zero-usage probe
-    sleeps again, and after OUTAGE_MAX_PAUSES pauses the run gives up with
-    everything completed stored (the pending slots count as cancelled and
-    are pending on the next run). Fewer than OUTAGE_STREAK in a row are
-    re-planned at once (each result still counts toward the streak)."""
-    # elicitation ids above this one were written by this run: the salvage
-    # uses it to recognise a slot whose commit landed just before an interrupt
-    last_id_before = con.execute("SELECT COALESCE(MAX(id), 0) FROM elicitations").fetchone()[0]
+    sleeps again, and after OUTAGE_MAX_PAUSES pauses in total the run gives
+    up with everything completed stored (the pending slots count as
+    cancelled and are pending on the next run). Fewer than OUTAGE_STREAK in
+    a row are re-planned at once (each result still counts toward the
+    streak; only a billed result resets it). A member halted after a hold
+    has its held-back and re-planned slots cancelled, not re-run."""
     kind = db.protocol_model_kind(
         con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone())
     sleep = sleep or time.sleep   # resolved here, so a test can patch time.sleep for the CLI path
     stop = threading.Event()   # set on interrupt: a worker then launches no retry
     pool = cf.ThreadPoolExecutor(workers)
     futures: dict = {}       # every future submitted (all batches) -> its job
+    id_floor: dict = {}      # future -> the last elicitation id before its batch was submitted
     handled: set = set()     # futures whose attempts are in the DB or spilled (or were zero-usage)
+    stored: set = set()      # slot keys with attempts in the DB or the spill file (a slot once)
     halted: set[str] = set()
     rejected: dict[str, set[int]] = {}   # member -> scenarios whose request was rejected (400/403)
     timeouts: dict[str, int] = {}        # member -> consecutive CLI timeouts
-    n_valid, total_cost, n_cancelled, n_stored, n_done = 0, 0.0, 0, 0, 0
+    n_valid, total_cost, n_cancelled, n_done = 0, 0.0, 0, 0
     outage = {"results": 0, "pauses": 0, "gave_up": False, "unresolved": 0}
     streak = 0                # consecutive zero-usage results across workers
     held: set = set()         # futures cancelled by an outage pause: re-planned, not 'cancelled'
+    replan: set = set()       # the batch's futures with a zero-usage result: re-planned
     queue: list[dict] = []    # slots not yet submitted (held for the next batch)
 
+    def slot_key(job: dict) -> tuple:
+        return (job["scenario_id"], job["member"]["provider"], job["member"]["model"],
+                job["repeat_ix"], job.get("stage") or "")
+
     def submit(batch: list[dict]) -> list:
+        # rows above this id are written after the batch was submitted: the salvage
+        # uses it to recognise a slot whose commit landed just before an interrupt.
+        # One floor per batch (nothing is written between its submissions), and a
+        # re-planned slot's earlier batch stored its paid failure below the floor
+        floor = con.execute("SELECT COALESCE(MAX(id), 0) FROM elicitations").fetchone()[0]
         new = []
         for j in batch:
             fut = pool.submit(elicit_job, get_provider(j["member"]["provider"]), j["prompt"],
                               j["member"]["model"], stop=stop, model_kind=kind, names=j.get("names"))
             futures[fut] = j
+            id_floor[fut] = floor
             new.append(fut)
         return new
 
@@ -828,26 +864,35 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
     def store(fut, attempts) -> bool:
         # a slot counts as handled once its attempts are in the DB or in the
         # spill file; an interrupt in the middle of the write leaves it
-        # unhandled so the salvage below stores it again after the rollback
-        nonlocal n_stored
+        # unhandled so the salvage below stores it again after the rollback.
+        # `stored` counts slots, not writes: a re-planned slot stores its paid
+        # failure and, later, its re-run
         try:
             ok = store_or_spill(con, study.root, protocol_id, futures[fut], attempts)
         except StoreFailed:
             handled.add(fut)
-            n_stored += 1   # in the spill file
+            stored.add(slot_key(futures[fut]))   # in the spill file
             raise
         handled.add(fut)
-        n_stored += 1
+        stored.add(slot_key(futures[fut]))
         return ok
 
-    def stored_by_this_run(job: dict) -> bool:
+    def stored_by_this_run(fut, attempts: list[dict]) -> bool:
+        """Whether THIS future's attempts are already in the DB (the interrupt
+        landed between its commit and handled.add): a row of its slot written
+        after its batch was submitted that holds its final attempt (raw
+        response and error). The attempt identity, not the slot key alone: a
+        re-planned slot's earlier paid failure (stored by an earlier batch,
+        below the floor, and a different response) never masks its re-run."""
+        job, last = futures[fut], attempts[-1]
         clause, args = db.stage_clause(job.get("stage"))
         return con.execute(
             "SELECT 1 FROM elicitations e WHERE id>? AND scenario_id=? AND protocol_id=? AND provider=?"
-            f" AND model=? AND repeat_ix=? AND prompt_hash=?{clause} LIMIT 1",
-            (last_id_before, job["scenario_id"], protocol_id, job["member"]["provider"],
-             job["member"]["model"], job["repeat_ix"], prompt_hash(job["prompt"]),
-             *args)).fetchone() is not None
+            f" AND model=? AND repeat_ix=? AND prompt_hash=? AND raw_response=? AND error IS ?{clause}"
+            " LIMIT 1",
+            (id_floor[fut], job["scenario_id"], protocol_id, job["member"]["provider"],
+             job["member"]["model"], job["repeat_ix"], prompt_hash(job["prompt"]), last["raw"],
+             last["error"], *args)).fetchone() is not None
 
     def hold_pending() -> list:
         """An outage pause: cancel every not-yet-started future (their slots
@@ -856,16 +901,23 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
 
     def cancel_pending(member: str | None = None) -> int:
         """Cancel the not-yet-started futures (of one member, or all) and drop
-        the same slots from the queue; returns how many slots that was (the
-        queue's are counted in n_cancelled here, the futures when the batch
-        loop sees them cancelled)."""
+        the same slots from the queue; returns how many slots that was, the
+        member's slots awaiting a re-plan (held back by a pause, or with a
+        zero-usage result) included: run_batch drops those of a halted
+        member. The queue's are counted in n_cancelled here, the futures
+        when the batch loop sees them cancelled, the re-plan ones at the
+        end of the batch."""
         nonlocal n_cancelled
-        n = sum(1 for f, j in futures.items()
-                if (member is None or db.member_label(j["member"]) == member) and not f.done() and f.cancel())
-        kept = [j for j in queue if member is not None and db.member_label(j["member"]) != member]
+
+        def mine(job: dict) -> bool:
+            return member is None or db.member_label(job["member"]) == member
+
+        n = sum(1 for f, j in futures.items() if mine(j) and not f.done() and f.cancel())
+        kept = [j for j in queue if not mine(j)]
         n_cancelled += len(queue) - len(kept)
         n += len(queue) - len(kept)
         queue[:] = kept
+        n += sum(1 for f in held | replan if mine(futures[f]))
         return n
 
     def salvage() -> int:
@@ -874,7 +926,7 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
         a zero-usage result is counted in the outage summary and never
         stored. Idempotent, so a repeated call after a further Ctrl-C is
         harmless."""
-        nonlocal n_valid, total_cost, n_stored
+        nonlocal n_valid, total_cost
         con.rollback()
         salvaged = 0
         for f in futures:
@@ -884,9 +936,9 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
                     handled.add(f)
                     outage["results"] += 1
                     continue
-                if stored_by_this_run(futures[f]):
+                if stored_by_this_run(f, attempts):
                     handled.add(f)
-                    n_stored += 1
+                    stored.add(slot_key(futures[f]))
                     n_valid += attempts[-1]["error"] is None
                 else:
                     try:
@@ -900,10 +952,12 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
     def run_batch(batch: list[dict]) -> list[dict]:
         """Submit one batch and consume its results; returns the slots to
         re-plan (zero-usage results, and the slots held back by an outage
-        pause), in plan order."""
+        pause), in plan order, less those of a member halted meanwhile
+        (cancelled)."""
         nonlocal n_valid, total_cost, n_cancelled, n_done, streak
         submitted = submit(batch)
-        replan: set = set()
+        replan.clear()
+        held.clear()
         for fut in cf.as_completed(submitted):
             j = futures[fut]
             if fut.cancelled():
@@ -934,7 +988,8 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
                           f" dispatching stopped, {len(now_held)} not-yet-started slot(s) held back for"
                           " the pause")
                 continue
-            streak = 0
+            if billed(paid):   # an unbilled failure (http 401, transport) says nothing about the limit
+                streak = 0
             ok = store(fut, paid)
             n_valid += ok
             n_done += 1
@@ -952,7 +1007,17 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
                 n = cancel_pending(label)
                 print(f"member {label}: {(error or '')[:160]}: {why}; cancelled its {n} pending"
                       " slots (fix the key, credits or model id, then re-run to resume)")
-        return [futures[f] for f in submitted if f in replan or f in held]
+        again, dropped = [], 0
+        for f in submitted:
+            if f in replan or f in held:
+                if db.member_label(futures[f]["member"]) in halted:
+                    dropped += 1   # halted after the hold: its held-back slots are cancelled
+                else:
+                    again.append(futures[f])
+        n_cancelled += dropped
+        replan.clear()
+        held.clear()
+        return again
 
     try:
         queue[:] = list(jobs)
@@ -969,7 +1034,7 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
                 outage["unresolved"] = len(queue)
                 n_cancelled += len(queue)
                 print(f"usage-limit outage: giving up after {outage['pauses']} pauses of {OUTAGE_SLEEP_S:g}s"
-                      f" ({streak} zero-usage results in a row); {n_stored} slot(s) of this run stored,"
+                      f" ({streak} zero-usage results in a row); {len(stored)} slot(s) of this run stored,"
                       f" {len(queue)} still pending: re-run to resume once the limit resets")
                 queue.clear()
                 break
@@ -998,7 +1063,7 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
                 left = sum(1 for f in running if not f.done())
                 print(f"Ctrl-C ignored: {left} paid call(s) still running; their results are"
                       " stored before the run exits")
-        print(f"{n_stored} of {len(jobs)} slots stored ({salvaged} after the interruption);"
+        print(f"{len(stored)} of {len(jobs)} slots stored ({salvaged} after the interruption);"
               " re-run to resume" + outage_summary(outage))
         raise
     pool.shutdown(wait=True)
