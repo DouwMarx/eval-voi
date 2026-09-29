@@ -58,7 +58,9 @@ optionally `manual` (hand percentiles for the `p000_manual` protocol).
 10. `cd studies/X/report && latexmk -pdf main.tex`
 
 Tagged outputs: `figures`, `tables`, `extra` and `compare_models` take
-`--tag NAME` (letters only, since it becomes part of LaTeX macro names).
+`--tag NAME` (lowercase letters only: it becomes part of LaTeX macro
+names, and an uppercase tag can recreate an untagged name, `Gauss` +
+`RunId` being `compare_models`' `\voiGaussRunId`).
 Their files then go to `report/generated/NAME/` instead of
 `report/generated/`, and every macro they write is renamed from `\voiX` to
 `\voiNAMEX`, so a paper can input the headline run's macros next to a
@@ -101,7 +103,8 @@ json/schema/constraint/fit failures, after the server's `Retry-After` (else
 400/403: invalid params, or a guardrail / moderation flag on that one
 prompt; the slot is stored invalid, unbilled, and pending again on the next
 run), for an error of the member's environment (HTTP 401/402/404: auth,
-credit, unknown model id; a `claude` executable missing or not logged in)
+credit, unknown model id; a `claude` executable missing or not logged in;
+a zero-usage `claude -p` exit of API status 401-404, see below)
 or for a CLI call that did not finish (timeout, killed by a signal). Every
 attempt is stored with its raw response; a provider exception or a crashed
 job is stored as an invalid attempt and the run continues. A member has its
@@ -117,37 +120,57 @@ are not billed; the slots are pending again on the next run).
 ### Usage-limit outages (v2.3)
 
 During a claude.ai usage-limit window `claude -p` exits 1 with a zero-usage
-envelope (`is_error: true`, `total_cost_usd: 0`, `usage.input_tokens: 0`; no
-model call was made, nothing was billed), and before v2.3 the harness stored
-each such exit as a failed attempt and moved on (1,391 of them in one
-night). Now `claude_cli.call_claude` classifies a non-zero exit whose stdout
-is such an envelope as `cli: usage-limit (zero-usage exit 1): <message>`
-(a zero-usage exit that says "not logged in" still halts the member as
-before), and the harness treats it as an outage, not an attempt:
+envelope (`is_error: true`, `api_error_status: 429`, `total_cost_usd: 0`,
+`usage.input_tokens: 0`; no model call was made, nothing was billed), and
+before v2.3 the harness stored each such exit as a failed attempt and moved
+on (1,620 of them on 2026-09-29 between 00:03 and 04:58 UTC: 1,488 in
+`business`, 80 in `ai-safety-evals`, 52 in `sim2real`). Any API error the
+CLI meets before a model answers gives the same zero-usage shape (an
+unknown model id is `api_error_status: 404`), so the status decides. Now
+`claude_cli.call_claude` classifies a non-zero exit whose stdout is a
+zero-usage envelope of status 429 (or of no status, an older CLI) as
+`cli: usage-limit (zero-usage exit 1): <message>`, and any other one as
+`cli: exit 1 (zero-usage, api <status>): <message>`: an ordinary failed
+attempt, which halts the member for status 401-404 (auth, billing,
+permission, unknown model id) or a "not logged in" message, as the
+equivalent OpenRouter errors do. The harness treats a usage-limit result as
+an outage, not an attempt:
 
 - it is never stored (validity, attempt and cost statistics describe
   elicitation attempts only; a paid failure whose immediate retry ran into
-  the outage is stored as usual) and its slot is re-planned; the run
-  summary counts the zero-usage results and the pauses;
+  the outage is stored as usual, and its slot counts as pending) and its
+  slot is re-planned; the run summary counts the zero-usage results, the
+  pauses and the seconds paused;
 - the job launches no retry for it (`retry_delay` returns `OUTAGE_PAUSE`);
   `run_jobs` keeps one streak counter across workers and after
   `OUTAGE_STREAK = 5` consecutive zero-usage results stops dispatching (the
   not-yet-started slots are held back), lets the running calls finish,
-  sleeps `OUTAGE_SLEEP_S = 300` s, probes with one call and resumes when
-  the probe is billed (its answer is stored like any slot); a zero-usage
-  probe sleeps again, and after `OUTAGE_MAX_PAUSES = 12` pauses in total
-  (over every outage window of the run) it gives up with a clear message,
-  everything completed stored and the rest pending for the next run
-  (re-run to resume once the limit resets). Fewer than 5 in a row (a blip)
-  are re-planned at the end of the batch without a pause. Only a billed
-  result resets the streak; an unbilled failure (http 401, a transport
-  error) leaves it, and a member halted after a hold has its held-back
-  slots cancelled. Ctrl-C during a pause cancels the held-back slots like
-  any interrupt.
+  pauses, probes with one call and resumes when the probe is billed (its
+  answer is stored like any slot); a zero-usage probe pauses again. A
+  pause lasts until 60 s after the reset time the CLI's message names
+  ("resets 4:30am (Europe/Brussels)") when that is at most one 5-hour
+  session window away, else `VOI_OUTAGE_SLEEP_S` (default 300 s). Once the
+  pauses total `VOI_OUTAGE_MAX_WAIT_S` (default 21,600 s, 6 h: one session
+  window plus margin; the last pause is cut to fit) the run gives up with a
+  clear message, everything completed stored and the rest pending for the
+  next run (re-run to resume once the limit resets). Both settings come
+  from the environment or `.env`, over every outage window of the run.
+- Fewer than 5 in a row (a blip) are re-planned at the end of the batch
+  without a pause. Only a billed result (parsed, or with a recorded cost,
+  a paid CLI exit 1 included) resets the streak; an unbilled failure (http
+  401, a transport error) leaves it. The streak is one counter over every
+  member, so a billed answer of another member resets it too: with members
+  interleaved, a limited member's slots can be re-run (at zero cost) more
+  than four times before a pause. Once a batch is held, a billed answer of
+  a call already in flight no longer resets the streak: a held batch
+  always pauses. A member halted after a hold has its held-back slots
+  cancelled. Ctrl-C during a pause cancels the held-back slots like any
+  interrupt.
 - the plan's cost estimate (`elicit.member_mean_cost`) averages over the
   billed attempts only, as the report macros below do.
 - `health` prints rows the old harness stored during an outage (a
-  `cli: exit 1` error with a zero-usage envelope) as the class `outage`,
+  `cli: exit 1` error with a zero-usage envelope that the same status test
+  accepts, `claude_cli.is_usage_limit`) as the class `outage`,
   separately from the JSON failures, and leaves them out of every rate;
   `tables` leaves them out of `\voiNAttempts`, `\voiValidityRate`, the
   member table and the `\voiMember*` macros for the same reason (sim2real

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from scipy.stats import norm
 
 from tests.test_gauss_pipeline import (
@@ -89,8 +90,17 @@ def test_member_matrix_reads_stored_runs_and_redraws_the_rest(two_member_study, 
     assert "claude\\_cli:sonnet & " in tex and "& re-drawn / re-drawn\\\\" in tex
     assert "pooled & " in tex and f"& run {runs['p003']} / run {runs['g001']}\\\\" in tex
     assert "`re-drawn' means the member's fits were re-drawn locally" in tex
+    assert "agreement of the two selected runs (all members pooled).}" in tex
     values = macro_values(study)
     assert values["voiGaussNMembersMatched"] == "2"
+    # review round 3: under --members the caption said '(every member pooled)' of the subset runs
+    compare_models.main(["--study", str(study.root), "--binary", "p003", "--gaussian", "g001",
+                         "--members", HAIKU, "--tag", "subset"])
+    capsys.readouterr()
+    tex = (study.generated_dir / "subset" / "compare_members.tex").read_text()
+    assert f"& run {runs['p003_haiku']} / run {runs['g001_haiku']}\\\\\n\\bottomrule" in tex
+    assert "agreement of the two selected runs (claude\\_cli:haiku pooled).}" in tex
+    assert "every member" not in tex
     con = study.connect()
     b_run, g_run = db.get_run(con, runs["p003"]), db.get_run(con, runs["g001"])
     res = compare_models.make_all(con, b_run, g_run, study.generated_dir)
@@ -236,6 +246,31 @@ def test_plugin_comparison_is_the_two_plugin_points(two_member_study):
     con.close()
 
 
+def test_plugin_figure_text_fits_the_figure(two_member_study, monkeypatch, tmp_path):
+    """Review round 3: the three-line suptitle of fig_compare_plugin.pdf was
+    wider than the 6.2 in figure and clipped at both edges ('Top left:'
+    and 'Phi(d),' cut). The suptitle, panel titles and axis labels all lie
+    inside the figure now."""
+    study, runs = two_member_study["study"], two_member_study["runs"]
+    con = study.connect()
+    b_run, g_run = db.get_run(con, runs["p003"]), db.get_run(con, runs["g001"])
+    figs, close = [], compare_models.plt.close
+    monkeypatch.setattr(compare_models.plt, "close", lambda fig=None: figs.append(fig) or close(fig))
+    compare_models.make_all(con, b_run, g_run, tmp_path)
+    con.close()
+    (fig,) = [f for f in figs
+              if f._suptitle is not None and f._suptitle.get_text().startswith("Plug-in points")]
+    canvas = FigureCanvasAgg(fig)   # the closed figure's text extents, laid out as saved
+    canvas.draw()
+    renderer = canvas.get_renderer()
+    box = fig.bbox
+    texts = [fig._suptitle] + [t for ax in fig.axes for t in (ax.title, ax.xaxis.label, ax.yaxis.label)]
+    assert all(t.get_text() for t in texts)
+    for t in texts:
+        e = t.get_window_extent(renderer)
+        assert box.x0 <= e.x0 and e.x1 <= box.x1 and box.y0 <= e.y0 and e.y1 <= box.y1, t.get_text()
+
+
 def test_joint_noise_table_and_ratio(two_member_study):
     study, runs = two_member_study["study"], two_member_study["runs"]
     con = study.connect()
@@ -350,9 +385,11 @@ def test_noise_table_of_a_staged_binary_protocol_counts_groups(tmp_path, monkeyp
 @pytest.mark.parametrize("name", ("sim2real", "ai-safety-evals"))
 def test_real_data_smoke_on_a_copy(name, tmp_path, capsys):
     """The committed eval-study databases (copied; the originals are never
-    opened): p003 and g001 share haiku, sonnet and opus, no subset run is
-    stored, so every member row is re-drawn; 15 scenarios carry both
-    plug-in points."""
+    opened): p003 and g001 share haiku, sonnet and opus; each member row
+    reads the member's stored subset run where one exists and is re-drawn
+    otherwise (the source printed per row is checked against the database,
+    so the test holds before and after subset runs are committed); 15
+    scenarios carry both plug-in points."""
     src = ROOT / "studies" / name
     if not (src / "voi.db").exists():
         pytest.skip(f"{name} has no committed voi.db")
@@ -370,7 +407,15 @@ def test_real_data_smoke_on_a_copy(name, tmp_path, capsys):
     for m in ("haiku", "sonnet", "opus"):
         assert f"member claude_cli:{m}: Spearman binary vs" in out
         assert f"noise ratio claude_cli:{m}: Gaussian L / binary B spread" in out
-    assert out.count("(binary re-drawn, Gaussian re-drawn)") == 3
+    con = study.connect()
+    b_id, g_id = (db.protocol_by_name(con, name)["id"] for name in ("p003", "g001"))
+    for m in ("haiku", "sonnet", "opus"):
+        member = {"provider": "claude_cli", "model": m}
+        source = [f"run {r['id']}" if r is not None else "re-drawn"
+                  for r in (compare_models.stored_member_run(con, pid, member) for pid in (b_id, g_id))]
+        line = out.split(f"member claude_cli:{m}: ")[1].split("\n")[0]
+        assert line.endswith(f"(binary {source[0]}, Gaussian {source[1]})"), line
+    con.close()
     for f in compare_models.OUTPUTS:
         assert (study.generated_dir / f).stat().st_size > 0, f
     values = macro_values(study)
@@ -441,12 +486,16 @@ def test_tagged_outputs_have_their_own_dir_and_macro_prefix(two_member_study, tm
                   "compare_plugin.tex", "fig_compare_plugin.pdf", "compare_noise.tex"):
             assert (gen / tag / f).stat().st_size > 0, (tag, f)
     assert "claude\\_cli:sonnet" not in (gen / "baseline" / "compare_noise.tex").read_text()
-    # letters only: a tag becomes part of a LaTeX control word
-    for bad in ("head-line", "v2", "run_1", ""):
+    # lowercase letters only: a tag becomes part of a LaTeX control word, and an uppercase
+    # one can recreate an untagged name (tables --tag Gauss wrote \voiGaussRunId, which
+    # macros_compare.tex defines as the Gaussian run id)
+    assert "voiGaussRunId" in macro_names(plain / "macros_compare.tex") and "voiRunId" in macro_names(
+        plain / "macros.tex")
+    for bad in ("head-line", "v2", "run_1", "", "Gauss", "Baseline"):
         with pytest.raises(SystemExit):
             tables.main(["--study", str(study.root), "--protocol", "p003", "--tag", bad])
-    assert check_tag("Baseline") == "Baseline"
-    assert capsys.readouterr().err.count("--tag takes letters only") == 4
+    assert check_tag("baseline") == "baseline"
+    assert capsys.readouterr().err.count("--tag takes lowercase letters only") == 6
     if shutil.which("pdflatex") is None:
         pytest.skip("pdflatex not installed: the compile half did not run")
     doc = tmp_path / "doc"

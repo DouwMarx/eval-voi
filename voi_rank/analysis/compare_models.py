@@ -415,6 +415,9 @@ def member_matrix(con, b_run, g_run, rs: dict) -> dict:
 
 
 def write_members(mm: dict, b_run, g_run, out: Path) -> None:
+    # the members the two selected runs pooled (a --members selection pools a subset)
+    b_lab, g_lab = (db.members_label(db.run_member_labels(r)) for r in (b_run, g_run))
+    pooled_by = b_lab if b_lab == g_lab else f"binary: {b_lab}; Gaussian: {g_lab}"
     head = " & ".join(f"eff\\_{m}" for m in ACTION_MODELS)
     lines = [r"\begin{tabular}{@{}l" + "r" * len(ACTION_MODELS) + r"rl@{}}", r"\toprule",
              f"member & {head} & $n$ & source (binary / Gaussian)\\\\", r"\midrule"]
@@ -439,7 +442,7 @@ def write_members(mm: dict, b_run, g_run, out: Path) -> None:
               r" `re-drawn' means the member's fits were re-drawn locally with the selected run's"
               f" seed and draw count ({b_run['n_draws']:,} binary, {g_run['n_draws']:,} Gaussian), as"
               r" the member-agreement analysis does, not the stored run. The pooled row is the"
-              r" agreement of the two selected runs (every member pooled).}"]
+              f" agreement of the two selected runs ({esc(pooled_by)} pooled).}}"]
     (out / "compare_members.tex").write_text("\n".join(lines) + "\n")
 
 
@@ -570,25 +573,28 @@ def fig_plugin(con, pc: dict, out: Path) -> None:
     grp_of = [groups.get(s) or "(no group)" for s in sids]
     names = sorted(set(grp_of))
     colors = figures.group_colors(names)
-    panels = (("binary plug-in eff (EVSI / C)", "Gaussian stepfix plug-in eff",
+    panels = (("(a) plug-in efficiency", "binary plug-in eff (EVSI / C)", "Gaussian stepfix plug-in eff",
                np.array([pc["binary"][s]["eff"] for s in sids]),
                np.array([pc["gauss"][s]["eff"]["stepfix"] for s in sids]),
                pc["models"]["stepfix"]["rho"], figures.EFF_FLOOR),
-              ("binary fence EVSI* (USD)", "Gaussian stepfix fence EVSI* (USD)",
+              (r"(b) the stepfix fence ($p = \Phi(d)$, derived $s, t$)",
+               "binary fence EVSI* (USD)", "Gaussian stepfix fence EVSI* (USD)",
                np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
                np.array([pc["gauss"][s]["fence_stepfix"] for s in sids]),
                pc["fence_stepfix"]["rho"], figures.EVSI_FLOOR),
-              ("binary fence EVSI* (USD)", "Gaussian step value on the fence (USD)",
+              (r"(c) the step value on the fence ($d = \Phi^{-1}(\pi^*)$)",
+               "binary fence EVSI* (USD)", "Gaussian step value on the fence (USD)",
                np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
                np.array([pc["gauss"][s]["fence_step"] for s in sids]),
                pc["fence_step"]["rho"], figures.EVSI_FLOOR),
-              ("binary fence EVSI* (USD)", "Gaussian quad value L R$^2$ (USD)",
+              ("(d) the quad value L R$^2$ (no threshold)", "binary fence EVSI* (USD)",
+               "Gaussian quad value L R$^2$ (USD)",
                np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
                np.array([pc["gauss"][s]["quad_lr2"] for s in sids]),
                pc["fence_quad"]["rho"], figures.EVSI_FLOOR))
     fig, axes = plt.subplots(2, 2, figsize=(6.2, 5.8))
     axes = axes.ravel()
-    for ax, (xl, yl, x, y, rho, floor) in zip(axes, panels, strict=True):
+    for ax, (title, xl, yl, x, y, rho, floor) in zip(axes, panels, strict=True):
         xf, yf = np.maximum(x, floor), np.maximum(y, floor)
         floored = (x < floor) | (y < floor)
         for g in names:
@@ -605,16 +611,15 @@ def fig_plugin(con, pc: dict, out: Path) -> None:
         ax.set_yscale("log")
         ax.text(0.03, 0.95, f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={len(sids)})",
                 transform=ax.transAxes, fontsize=7, va="top")
+        ax.set_title(title, fontsize=7)
         ax.set_xlabel(xl, fontsize=7)
         ax.set_ylabel(yl, fontsize=7)
         ax.tick_params(labelsize=7)
     if len(names) > 1:
         axes[0].legend(fontsize=6, loc="lower right", frameon=False, title="group", title_fontsize=6)
     fig.suptitle("Plug-in points at each protocol's pooled medians (open markers: floored at"
-                 f" {figures.EFF_FLOOR:g} / {figures.EVSI_FLOOR:g}).\nTop left: binary vs Gaussian stepfix"
-                 " efficiency. Fence EVSI* = (B+K) p (1-p) (s+t-1) against: the stepfix fence (same eq."
-                 " at p = Phi(d),\nderived s, t; top right), the step value with the prior on the fence"
-                 " (d = Phi^-1(pi*); bottom left), quad L R^2 (bottom right)", fontsize=7)
+                 f" {figures.EFF_FLOOR:g} / {figures.EVSI_FLOOR:g});\n(b)-(d): the binary fence value"
+                 " EVSI* = (B+K) p (1-p) (s+t-1) against a Gaussian value no gate can zero", fontsize=7)
     fig.savefig(out / "fig_compare_plugin.pdf")
     plt.close(fig)
 

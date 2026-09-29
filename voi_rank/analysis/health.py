@@ -34,8 +34,9 @@ UNPARSED_CLASSES = ("provider", "cli", "http", "api", "json", "schema")
 def error_class(error: str | None, raw_response: str | None = None) -> str:
     """The outcome class of a stored attempt: 'valid', the error prefix
     (provider | cli | http | api | json | schema | constraint | fit), or
-    'outage' for a usage-limit result (a 'cli: usage-limit' error, or a
-    legacy 'cli: exit <n>' row whose raw response is a zero-usage envelope:
+    'outage' for a usage-limit result (claude_cli.is_usage_limit, the
+    harness's own test: a 'cli: usage-limit' error, or a legacy 'cli: exit
+    <n>' row whose raw response is a zero-usage envelope of API status 429:
     no model call was made, nothing was billed; the harness stores none
     since v2.3, but rows from before exist)."""
     if error is None:

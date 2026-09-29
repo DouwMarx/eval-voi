@@ -3,7 +3,7 @@ and report/. Every CLI entry point takes --study PATH and derives all paths
 from it (default: studies/business).
 
 Tagged outputs: every analysis CLI that writes report files (figures,
-tables, extra, compare_models) takes --tag NAME (letters only). Its files
+tables, extra, compare_models) takes --tag NAME (lowercase letters only). Its files
 then land in report/generated/NAME/ instead of report/generated/, and every
 LaTeX macro it writes is renamed from \\voiX to \\voiNAMEX, so a paper can
 input the headline run's macros and a baseline run's side by side.
@@ -23,7 +23,7 @@ from voi_rank import db
 
 DEFAULT_STUDY = "studies/business"
 MACRO_PREFIX = "voi"            # every macro an analysis writes is \\voi<Name>
-TAG_RE = re.compile(r"[A-Za-z]+")   # a LaTeX control word: letters only
+TAG_RE = re.compile(r"[a-z]+")   # a LaTeX control word, lowercase: never an untagged name
 
 
 @dataclass(frozen=True)
@@ -101,19 +101,20 @@ def add_study_arg(ap: argparse.ArgumentParser) -> None:
 
 
 def check_tag(text: str) -> str:
-    """The --tag value: letters only, since it becomes part of LaTeX macro
-    names (a control word has no digits or punctuation). A lowercase tag
-    can never collide with an untagged macro, whose name continues with an
-    uppercase letter after \\voi."""
+    """The --tag value: lowercase letters only. It becomes part of LaTeX
+    macro names (a control word has no digits or punctuation), and a
+    lowercase tag can never recreate an untagged macro, whose name continues
+    with an uppercase letter after \\voi; an uppercase one can ('Gauss'
+    turns the tables' \\voiRunId into compare_models' \\voiGaussRunId)."""
     if not TAG_RE.fullmatch(text or ""):
-        raise argparse.ArgumentTypeError(f"--tag takes letters only (A-Z, a-z), got {text!r}")
+        raise argparse.ArgumentTypeError(f"--tag takes lowercase letters only (a-z), got {text!r}")
     return text
 
 
 def add_tag_arg(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--tag", type=check_tag, default=None,
                     help="write to report/generated/TAG/ and rename every macro \\voiX to \\voiTAGX"
-                         " (letters only; default: report/generated/ and \\voiX)")
+                         " (lowercase letters only; default: report/generated/ and \\voiX)")
 
 
 def newcommands(macros: dict, prefix: str = MACRO_PREFIX) -> list[str]:
