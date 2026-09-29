@@ -962,6 +962,19 @@ def scenario_param_fits(con, protocol_id: int, names: list[str] | None = None,
     return out
 
 
+def elicited_source_ids(con, protocol_id: int, scenario_id: int, name: str) -> list[int]:
+    """The scenario ids whose elicitation rows feed one parameter of one
+    scenario under a protocol: [scenario_id], or under a staged protocol, for
+    a group-stage parameter (p, B, K), every scenario of its group
+    (scenario_group_ids). Two scenarios with the same list read the same
+    rows."""
+    stages = protocol_stages(_protocol_row(con, protocol_id))
+    stage = stage_of_param(stages, name)
+    if stage is not None and "group_key" in stage:
+        return scenario_group_ids(con, stage["group_key"], scenario_id)
+    return [scenario_id]
+
+
 def _elicited_rows(con, protocol_id: int, scenario_id: int, name: str,
                    provider: str | None = None, model: str | None = None,
                    members: list[str] | None = None) -> list[sqlite3.Row]:
@@ -971,11 +984,10 @@ def _elicited_rows(con, protocol_id: int, scenario_id: int, name: str,
     read from the scenario's group (the rows on its representative), the
     scenario-stage ones from the scenario's own rows of that stage."""
     stages = protocol_stages(_protocol_row(con, protocol_id))
-    ids, sclause, sargs = [scenario_id], "", []
+    ids = elicited_source_ids(con, protocol_id, scenario_id, name)
+    sclause, sargs = "", []
     if stages is not None:
         stage = stage_of_param(stages, name)
-        if stage is not None and "group_key" in stage:
-            ids = scenario_group_ids(con, stage["group_key"], scenario_id)
         sclause, sargs = stage_clause(stage["name"] if stage else None)
     clause, margs = member_filter(members)
     marks = ",".join("?" * len(ids))

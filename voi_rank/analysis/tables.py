@@ -14,6 +14,7 @@ run's members; \voiRunMembers names them, \voiRunWeights the weighting.)
 from __future__ import annotations
 
 import argparse
+from decimal import Decimal
 from pathlib import Path
 
 import numpy as np
@@ -61,14 +62,28 @@ def protocol_param_names(con, protocol_id: int) -> list[str]:
     return db.param_names(db.protocol_model_kind(prot))
 
 
-def money(v: float) -> str:
-    if v is None:
+PLAIN_SUFFIXES = ((9, "G"), (6, "M"), (3, "k"))   # (power of ten, suffix), largest first
+
+
+def plain(v: float) -> str:
+    """A value's decimal digits (its shortest repr) without exponent notation
+    at any magnitude: positional below 1000, scaled to a k / M / G suffix
+    from 1000 on (G from 1e9, positional beyond: 2.5e12 is '2500G'); never
+    '-0'."""
+    d = Decimal(repr(float(v) + 0.0))
+    for power, suffix in PLAIN_SUFFIXES:
+        if abs(v) >= 10.0 ** power:
+            return f"{d.scaleb(-power).normalize():f}{suffix}"
+    return f"{d.normalize():f}"
+
+
+def money(v) -> str:
+    """Three significant digits with a k / M / G suffix and no exponent
+    notation (plain; '.3g' of v / 1e6 printed '1e+03M' for a 1e9 median);
+    '--' when undefined."""
+    if v is None or not np.isfinite(v):
         return "--"
-    if v >= 1e6:
-        return f"{v/1e6:.3g}M"
-    if v >= 1e3:
-        return f"{v/1e3:.3g}k"
-    return f"{v:.3g}"
+    return plain(float(f"{v:.3g}"))
 
 
 def num(v: float, fmt: str = "{:.3g}") -> str:

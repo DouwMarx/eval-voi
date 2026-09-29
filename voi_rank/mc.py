@@ -7,11 +7,14 @@ parameter. By default ('--weights pooled', stored as runs.weights NULL) the
 mixture is equal-weight over the fits, so a member with more valid repeats
 carries more weight. '--weights equal-member' (v2.4) makes each member's fits
 a sub-mixture and gives the members present equal weight, whatever their
-repeat counts (fit i of member m weighs 1 / (members x fits of m)); when
-every member holds the same number of fits the two coincide and draw the
-same numbers, and a run pooling one member is stored as pooled. The
-weighting is stored on the run, covered by data_hash and read back by the
-replay. Cross-repeat and cross-model disagreement both widen the metric
+repeat counts (fit i of member m weighs 1 / (members x fits of m)). The
+two give the same mixture on a scenario whose members hold the same number
+of fits, and draw the same numbers when that holds on every scenario of the
+run: from the first uneven scenario on, the shared rng stream shifts
+(rng.choice in place of rng.integers), so later scenarios differ by Monte
+Carlo noise even where their counts are equal. A run pooling one member is
+stored as pooled. The weighting is stored on the run, covered by data_hash
+and read back by the replay. Cross-repeat and cross-model disagreement both widen the metric
 intervals. A 'point' family (the derived quantities of the Gaussian
 protocol) is drawn as a constant, so its mixture over repeats is the
 empirical distribution of the repeat values.

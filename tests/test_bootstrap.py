@@ -9,6 +9,7 @@ import json
 import re
 import shutil
 import subprocess
+from decimal import Decimal
 
 import numpy as np
 import pytest
@@ -18,13 +19,15 @@ from scipy.stats import rankdata
 from tests.test_extra import (  # noqa: F401  (module-scoped clean tree)
     CORL,
     MEMBERS_P001,
+    MEMBERS_P003,
+    ROOT,
     add_elicitation,
     build_study,
     clean_tree,
     synth_percentiles,
 )
 from voi_rank import db, mc, model
-from voi_rank.analysis import extra
+from voi_rank.analysis import extra, tables
 from voi_rank.fit import FAMILY_BY_PARAM, fit_param
 from voi_rank.sensitivity import spearman
 
@@ -240,6 +243,50 @@ def test_staged_groups_use_one_decision_resample(built, con):
         assert lb[sid]["point"]["EVSI"] == an["plugin"]["home manipulator"][sid]["EVSI"]
 
 
+def test_a_staged_ladder_over_two_groups_pools_each_group_once(built, con, tmp_path):
+    """pD with the AV AEB top rung moved to a decision group of its own (its
+    context_group changed, its own decision rows with p near 0.30 added):
+    the ladder still passes the text gate and now spans two groups.
+    ladder_plugin pools each group's decision rows once, as ladder_bootstrap
+    takes each unit once and ladder_draws each fit once, so the bootstrap's
+    point is the printed plug-in point. Pooling per rung counted the
+    two-rung group twice (review 2, a sim2real copy with one AEB rung
+    regrouped: sid 12 plug-in EVSI 814400 against the bootstrap's 195000)."""
+    run = run_of(con, built, "pD")
+    pid = run["protocol_id"]
+    aeb = built["sids"]["AV AEB"]
+    top, second = aeb[-1], "AV AEB (second decision)"
+    copy = tmp_path / "voi.db"
+    shutil.copy(built["study"].db, copy)
+    c2 = db.connect(copy)
+    try:
+        row = c2.execute("SELECT * FROM scenarios WHERE id=?", (top,)).fetchone()
+        attrs = {**db.scenario_attributes(row), "context_group": second}
+        c2.execute("UPDATE scenarios SET attributes=? WHERE id=?", (json.dumps(attrs), top))
+        for mi, m in enumerate(TWO):
+            for k in range(m["k_repeats"]):
+                pct = synth_percentiles(attrs["level"], mi, k, top)
+                pct["p"] = (0.25, 0.30, 0.35)
+                insert(c2, top, pid, m, k, {n: pct[n] for n in ("p", "B", "K")}, "decision")
+        c2.commit()
+        ladders, skipped = extra.leveled_rungs(c2, run)
+        draws = extra.bootstrap_draws(c2, run, N_BOOT)
+        an = extra.level_uplift_analysis(c2, run, draws)
+        once = {n: db.elicited_p50s(c2, pid, aeb[0], n) + db.elicited_p50s(c2, pid, top, n)
+                for n in ("p", "B", "K")}
+    finally:
+        c2.close()
+    assert ladders["AV AEB"] == an["rungs"]["AV AEB"] and "AV AEB" not in skipped
+    assert {draws["of"][sid]["p"] for sid in aeb} == {("group", "AV AEB"), ("group", second)}
+    assert len(once["p"]) == 10 and max(once["p"]) == 0.30
+    plug, lb = an["plugin"]["AV AEB"], an["boot"]["AV AEB"]
+    for sid in aeb:
+        for n in ("p", "B", "K"):
+            assert plug[sid]["medians"][n] == float(np.median(once[n])), (sid, n)   # each group once
+        assert lb[sid]["point"] == {"EVSI": plug[sid]["EVSI"], "C": plug[sid]["C"]}
+    assert any(plug[sid]["EVSI"] > 0.0 for sid in aeb)
+
+
 def test_bootstrap_is_deterministic_with_the_seed(built, con):
     run = run_of(con, built, "p003")
     a = extra.bootstrap_draws(con, run, N_BOOT)
@@ -255,6 +302,55 @@ def test_bootstrap_is_deterministic_with_the_seed(built, con):
     for sid in pa["rows"]:
         assert np.array_equal(pa["rows"][sid]["eff_q"], pb["rows"][sid]["eff_q"])
         assert pa["rows"][sid]["rank_eff"] == pb["rows"][sid]["rank_eff"]
+
+
+def test_a_unit_resample_depends_on_its_own_rows_only(built, con, tmp_path):
+    """Each resampling unit draws from its own generator (unit_rng). Two
+    valid elicitations added to the lowest ranked scenario, and two to a new
+    scenario 0 the run does not rank, leave every other unit's resample, and
+    so the other scenarios' intervals and P_boot(gate), unchanged. With one
+    rng stream consumed in sorted unit order they shifted every later unit
+    (review 2: ai-safety-evals run 5, sid 12's P_boot(gate) 0.649 -> 0.6425
+    after an unranked scenario 0 gained two elicitations)."""
+    run = run_of(con, built, "p003")
+    before = extra.bootstrap_draws(con, run, N_BOOT)
+    pb_before = extra.plugin_bootstrap(con, run, draws=before)
+    copy = tmp_path / "voi.db"
+    shutil.copy(built["study"].db, copy)
+    c2 = db.connect(copy)
+    try:
+        haiku = MEMBERS_P003[0]
+        first = min(before["sids"])
+        row = c2.execute("SELECT * FROM scenarios WHERE id=?", (first,)).fetchone()
+        new = db.insert_scenario(c2, {"title": "unranked", "agent": "a", "decision": "d",
+                                      "theta_definition": "t", "instrument": "i"}, "test")
+        c2.execute("UPDATE scenarios SET id=0 WHERE id=?", (new,))
+        for k in (7, 8):
+            level = db.scenario_attributes(row).get("level")
+            add_elicitation(c2, first, run["protocol_id"], haiku, k, synth_percentiles(level, 0, k, first))
+            add_elicitation(c2, 0, run["protocol_id"], haiku, k, synth_percentiles(1, 0, k, 0))
+        after = extra.bootstrap_draws(c2, run, N_BOOT)
+        pb_after = extra.plugin_bootstrap(c2, run, draws=after)
+    finally:
+        c2.close()
+    assert ("scenario", 0) in after["units"] and 0 not in after["of"] and after["sids"] == before["sids"]
+    assert after["units"][("scenario", first)]["idx"].shape[1] == before["units"][("scenario", first)][
+        "idx"].shape[1] + 2
+    others = [k for k in before["units"] if k != ("scenario", first)]
+    assert others and len(others) == len(before["units"]) - 1
+    for key in others:
+        assert np.array_equal(before["units"][key]["idx"], after["units"][key]["idx"]), key
+        assert np.array_equal(before["units"][key]["boot"], after["units"][key]["boot"]), key
+    for sid in before["sids"]:
+        if sid != first:
+            a, b = pb_before["rows"][sid], pb_after["rows"][sid]
+            for key in ("EVSI_q", "C_q", "eff_q", "eff_star_q"):
+                assert np.array_equal(a[key], b[key]), (sid, key)
+            assert a["p_gate"] == b["p_gate"]
+    # distinct units with the same member counts draw distinct resamples
+    same = [k for k in others if before["units"][k]["members"] == before["units"][others[0]]["members"]]
+    assert len(same) > 1
+    assert not np.array_equal(before["units"][same[0]]["idx"], before["units"][same[1]]["idx"])
 
 
 def test_rank_statistics_match_a_direct_computation(built, con):
@@ -337,26 +433,96 @@ def test_plugin_table_carries_the_bootstrap_columns(built, con, tmp_path):
     assert extra.interval((float("nan"),) * 3) == "--" and extra.num(-0.0) == "0"
 
 
+def unplain(text: str) -> float:
+    """The value of a plain() cell, exactly: '1.2k' is 1200, '-2500G' is -2.5e12."""
+    power = {suffix: power for power, suffix in tables.PLAIN_SUFFIXES}
+    return float(Decimal(text[:-1]).scaleb(power[text[-1]]) if text[-1] in power else Decimal(text))
+
+
+def test_the_two_bootstrap_shares_name_their_event(built, con, tmp_path):
+    """plugin.tex's share is P_boot(gate), level_uplift.tex's is
+    P_boot(dEVSI_pi > dC_pi); a paper inputs both, so each header names its
+    event (review 2: both headers read a bare P_boot, sim2real run 12 printing
+    93% for AEB L1 to L4 next to 52% for scenario 11). The stacked second line
+    is no wider than a 100% cell."""
+    run = run_of(con, built, "p003")
+    draws = extra.bootstrap_draws(con, run, N_BOOT)
+    assert extra.write_plugin(con, run, tmp_path, pb=extra.plugin_bootstrap(con, run, draws=draws))
+    assert extra.write_level_uplift(con, run, tmp_path, extra.level_uplift_analysis(con, run, draws))
+    plugin = (tmp_path / "plugin.tex").read_text()
+    uplift = (tmp_path / "level_uplift.tex").read_text().split(r"\par\medskip")[2]
+    gate = r"& regime & \begin{tabular}[b]{@{}r@{}}$P_\mathrm{boot}$\\(gate)\end{tabular}\\"
+    pays = (r"& [q05, q95] & \begin{tabular}[b]{@{}r@{}}$P_\mathrm{boot}$\\(pays)\end{tabular} &"
+            r" $\Delta$EVSI$^\star$ &")
+    assert plugin.count(gate) == 2 and uplift.count(pays) == 1   # longtable: first head and head
+    assert "P_boot (pays) = P_boot(dEVSI_pi > dC_pi)" in uplift
+    assert r"$P_\mathrm{boot}(\mathrm{gate})$" in plugin
+    for text in (plugin, uplift):
+        assert not re.search(r"& \$P_\\mathrm\{boot\}\$ *(&|\\\\)", text)   # no bare header cell
+
+
+def test_study_notes_cite_p_gate_from_the_fragment_that_ends_with_it(built, con, tmp_path):
+    """The track and findings notes cite the MC P_gate as the last (or the
+    P(gate)) column of a fragment. Since v2.4 that is plugin_mc.tex, and
+    plugin.tex ends with P_boot(gate), a bootstrap share with other values
+    (review 2: README_tracks cited 'plugin.tex run 5, last column' for P_gate
+    26 to 65 %, where a v2.4 plugin.tex prints 0 to 100 %)."""
+    run = run_of(con, built, "p003")
+    assert extra.write_plugin(con, run, tmp_path, pb=extra.plugin_bootstrap(con, run, N_BOOT))
+    last = {}
+    for name in ("plugin.tex", "plugin_mc.tex"):
+        head = next(ln for ln in (tmp_path / name).read_text().splitlines() if ln.startswith("rank & id &"))
+        last[name] = head.rsplit(" & ", 1)[1].removesuffix(r"\\")
+    assert last["plugin_mc.tex"] == r"$P_\mathrm{gate}$"
+    assert r"$P_\mathrm{boot}$\\(gate)" in last["plugin.tex"]
+    notes = "\n".join((ROOT / "studies" / f).read_text() for f in (
+        "README_tracks.md", "ai-safety-evals/report/findings.md", "sim2real/report/findings.md"))
+    cites = (re.findall(r"P_gate is [^(]*\(`(\w+\.tex)` run \d+, last column\)", notes)
+             + re.findall(r"`(\w+\.tex)` \([^)]*\) P\(gate\) column", notes)
+             + re.findall(r"`(\w+\.tex)` run \d+ column P_gate", notes))
+    assert len(cites) == 6 and set(cites) == {"plugin_mc.tex"}, cites
+
+
 def test_interval_prints_no_exponent_and_rounds_outward():
-    """Two significant digits without exponent notation (business run 22
-    printed '[87, 1.4e+02]'), q05 rounded down and q95 up, so the printed
-    interval contains the computed one (scenario 1 printed eff 5.88 next to
-    '[5.9, 5.9]'); values already at two digits are kept."""
+    """Two significant digits without exponent notation at any magnitude
+    (business run 22 printed '[87, 1.4e+02]'; review 2: from 1e9 on the M
+    suffix printed '[1.2e+03M, 3.4e+03M]'), q05 rounded down and q95 up, so
+    the printed interval contains the computed one (scenario 1 printed eff
+    5.88 next to '[5.9, 5.9]'); values already at two digits are kept."""
     cases = {(87.3, 143.2): "[87, 150]", (270.4, 449.1): "[270, 450]", (5.88, 5.88): "[5.8, 5.9]",
              (-0.6312, 9.0): "[-0.64, 9]", (0.016, 0.032): "[0.016, 0.032]", (5.9, 5.9): "[5.9, 5.9]",
              (-0.004, 0.0): "[-0.004, 0]", (-0.0, 0.0): "[0, 0]", (9.96, 9.96): "[9.9, 10]",
-             (1234.0, 56789.0): "[1.2k, 57k]", (1.6e-5, 2.3e-5): "[0.000016, 0.000023]"}
+             (1234.0, 56789.0): "[1.2k, 57k]", (1.6e-5, 2.3e-5): "[0.000016, 0.000023]",
+             (1.2e9, 3.4e9): "[1.2G, 3.4G]", (-2.5e12, 1e-7): "[-2500G, 0.0000001]",
+             (9.99e8, 1.01e9): "[990M, 1.1G]", (999.4, 999.6): "[990, 1k]"}
     for (lo, hi), text in cases.items():
         assert extra.interval((lo, 0.0, hi)) == text
     rng = np.random.default_rng(0)
-    values = rng.choice([-1.0, 1.0], 4000) * 10.0 ** rng.uniform(-4.0, 2.99, 4000)
+    values = rng.choice([-1.0, 1.0], 8000) * 10.0 ** rng.uniform(-7.0, 13.0, 8000)
     for lo, hi in np.sort(values.reshape(-1, 2), axis=1):
         text = extra.interval((lo, 0.0, hi))
         assert "e" not in text
-        a, b = (float(x) for x in text[1:-1].split(", "))
+        a, b = (unplain(x) for x in text[1:-1].split(", "))
         assert a <= lo and b >= hi                       # outward
         for point in (lo, hi, (lo + hi) / 2.0):          # a 3-digit point inside stays inside
             assert a <= float(extra.num(point)) <= b
+
+
+def test_money_prints_three_digits_without_exponent_notation():
+    """money() (one definition, tables.py's, which extra imports) printed
+    '.3g' of v / 1e6, so a 1e9 median read '1e+03M' (the on-disk sim2real
+    catalog.tex) and 999999 read '1e+03k'. Now three significant digits
+    with a k / M / G suffix, plain() digits, at every magnitude."""
+    assert extra.money is tables.money and extra.plain is tables.plain
+    cases = {1e9: "1G", 999.6e6: "1G", 7.24e9: "7.24G", 3.2e13: "32000G", 999999.0: "1M",
+             2.56e6: "2.56M", 12345.0: "12.3k", 150.0: "150", 0.0123: "0.0123", 1.23e-5: "0.0000123",
+             -1.5e6: "-1.5M", -0.0: "0", np.float64(4.2e9): "4.2G", None: "--", float("nan"): "--"}
+    for v, text in cases.items():
+        assert extra.money(v) == text, v
+    rng = np.random.default_rng(1)
+    for v in rng.choice([-1.0, 1.0], 3000) * 10.0 ** rng.uniform(-7.0, 14.0, 3000):
+        text = extra.money(v)
+        assert "e" not in text and unplain(text) == pytest.approx(float(f"{v:.3g}"), rel=1e-12)
 
 
 def test_ladder_bootstrap_of_a_single_stage_ladder(built, con, tmp_path):

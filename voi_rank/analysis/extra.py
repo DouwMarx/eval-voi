@@ -99,15 +99,16 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    parameter (pooled_p50's rule) and the plug-in EVSI, EVPI, eff, EVSI*,
    eff* and regime at them; a staged protocol's decision stage is resampled
    once per group and replicate and read by every scenario of the group.
-   N_BOOT = 2000 replicates (--boot), rng default_rng(run seed +
-   BOOT_SEED_OFFSET). plugin.tex gains the q05-q95 of eff and eff* and
-   P_boot(gate); plugin_ranks.tex gives per scenario the point, median and
-   q05-q95 of its replicate rank by plug-in eff and by fence eff* and
-   P(rank <= 3); \voiBootN, \voiBootTopOneId, \voiBootTopOneStable (share of
-   replicates in which the point top-1 by plug-in eff stays top-1),
-   \voiBootRhoEff and \voiBootRhoFence (median over replicates of the
-   Spearman between the replicate and the point ranking). The point of every
-   replicate statistic is plugin_point exactly. Needs no replay.
+   N_BOOT = 2000 replicates (--boot), seed run seed + BOOT_SEED_OFFSET, one
+   generator per unit (unit_rng). plugin.tex gains the q05-q95 of eff and
+   eff* and P_boot(gate); plugin_ranks.tex gives per scenario the point,
+   median and q05-q95 of its replicate rank by plug-in eff and by fence
+   eff* and P(rank <= 3); \voiBootN, \voiBootTopOneId,
+   \voiBootTopOneStable (share of replicates in which the point top-1 by
+   plug-in eff stays top-1), \voiBootRhoEff and \voiBootRhoFence (median
+   over replicates of the Spearman between the replicate and the point
+   ranking). The point of every replicate statistic is plugin_point
+   exactly. Needs no replay.
 
 Usage: python -m voi_rank.analysis.extra --study PATH [--protocol p001] [--run ID]
        [--members claude_cli:sonnet,claude_cli:opus] [--weights equal-member] [--tag NAME] [--boot N]
@@ -149,6 +150,7 @@ import numpy as np  # noqa: E402
 from scipy.stats import rankdata  # noqa: E402
 
 from voi_rank import db, mc, model  # noqa: E402
+from voi_rank.analysis.tables import money, plain  # noqa: E402  (one formatter for both modules)
 from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
 from voi_rank.sensitivity import spearman  # noqa: E402
 from voi_rank.study import (  # noqa: E402
@@ -227,22 +229,10 @@ OUTPUTS = {
 MACROS_FILE = "macros_extra.tex"
 
 
-# --- LaTeX helpers (mirror tables.py) ---------------------------------------
+# --- LaTeX helpers (mirror tables.py; money and plain are tables.py's) ------
 
 def esc(text) -> str:
     return "".join(LATEX_SPECIALS.get(ch, ch) for ch in str(text))
-
-
-def money(v) -> str:
-    if v is None or not np.isfinite(v):
-        return "--"
-    sign = "-" if v < 0 else ""
-    v = abs(v)
-    if v >= 1e6:
-        return f"{sign}{v/1e6:.3g}M"
-    if v >= 1e3:
-        return f"{sign}{v/1e3:.3g}k"
-    return f"{sign}{v:.3g}"
 
 
 def num(v, fmt: str = "{:.3g}") -> str:
@@ -581,16 +571,21 @@ def plugin_step_stats(lo: dict, hi: dict) -> dict:
 
 def ladder_plugin(con, run, rungs: list[tuple[float, int]]) -> dict[int, dict] | None:
     """Per rung, the plug-in point of the ladder: p, B, K at the pooled
-    elicited medians over EVERY rung's elicitations (the decision is shared,
-    as the CRN draws share them; under a staged protocol every rung returns
-    the group's decision rows, so the pooled median is theirs), s, t, C at
-    the rung's own medians: {sid: {"medians", "EVSI", "EVPI", "EVSI_star",
-    "C"}}; None when a rung lacks a parameter."""
+    elicited medians over EVERY rung's elicitations, each elicitation once
+    (the decision is shared, as the CRN draws share them; under a staged
+    protocol the rungs of one group read the same decision rows, taken once
+    per group, as ladder_draws takes each fit once and ladder_bootstrap each
+    unit once, so a ladder spanning two groups weighs their rows alike), s,
+    t, C at the rung's own medians: {sid: {"medians", "EVSI", "EVPI",
+    "EVSI_star", "C"}}; None when a rung lacks a parameter."""
     labels = db.run_member_labels(run)
     pid = run["protocol_id"]
     shared = {}
     for name in SHARED_PARAMS:
-        p50s = [v for _, sid in rungs for v in db.elicited_p50s(con, pid, sid, name, members=labels)]
+        sources: dict[tuple, int] = {}
+        for _, sid in rungs:
+            sources.setdefault(tuple(db.elicited_source_ids(con, pid, sid, name)), sid)
+        p50s = [v for sid in sources.values() for v in db.elicited_p50s(con, pid, sid, name, members=labels)]
         if not p50s:
             return None
         shared[name] = float(np.median(p50s))
@@ -760,7 +755,8 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
         "the same steps by the mean-based marginals: means of dEVSI and dC over the same"
         " common-random-number draws and their ratio", small=True)
     header_plug = (r"step & ids & $\Delta$EVSI$_\mathrm{pi}$ & $\Delta C_\mathrm{pi}$ &"
-                   r" $\Delta$EVSI$_\mathrm{pi}/\Delta C_\mathrm{pi}$ & [q05, q95] & $P_\mathrm{boot}$ &"
+                   r" $\Delta$EVSI$_\mathrm{pi}/\Delta C_\mathrm{pi}$ & [q05, q95] &"
+                   r" \begin{tabular}[b]{@{}r@{}}$P_\mathrm{boot}$\\(pays)\end{tabular} &"
                    r" $\Delta$EVSI$^\star$ & $\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$")
     plug = tabular(
         "@{}llrrrrrrr@{}", header_plug, rows_plug,
@@ -773,7 +769,8 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
         " group): [q05, q95] of dEVSI_pi / dC_pi over the replicates with dC_pi != 0, rounded"
         " outward to two significant digits (a dagger marks a step whose dC_pi takes each sign in"
         f" at least {BOOT_SIGN_FLAG:.0%} of them, where the ratio straddles its pole) and"
-        " P_boot = P(dEVSI_pi > dC_pi); and the fence"
+        " P_boot (pays) = P_boot(dEVSI_pi > dC_pi), the share of replicates in which the step pays"
+        " (not plugin.tex's P_boot (gate)); and the fence"
         " marginals (differences of the per-rung EVSI* = (B + K) p (1 - p) (s + t - 1) at the"
         " same medians, over the plug-in dC). Both use p, B, K pooled over the ladder, as the"
         " CRN draws do; fig_level_fence and the EVSI* column of plugin.tex use each scenario's"
@@ -1802,7 +1799,8 @@ def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACR
             f"{r['rank']} & {r['sid']} & {money(r['EVPI'])} & {num(r['eff'])} & {num(r['mc_median'])} &"
             f" {num(r['mc_mean'])} & {pct(r['p_positive'])} & {pct(r['p_gate'])}")
     header = (r"rank & id & $C$ & EVSI & EVSI$^\star$ & eff & [q05, q95] & eff$^\star$ & [q05, q95] &"
-              r" \begin{tabular}[b]{@{}r@{}}EVSI/\\EVSI$^\star$\end{tabular} & regime & $P_\mathrm{boot}$")
+              r" \begin{tabular}[b]{@{}r@{}}EVSI/\\EVSI$^\star$\end{tabular} & regime &"
+              r" \begin{tabular}[b]{@{}r@{}}$P_\mathrm{boot}$\\(gate)\end{tabular}")
     replicates = (f"{pb['n_boot']} replicates (seed {pb['seed']})" if pb is not None
                   else "no replicates")
     table = longtable(
@@ -1819,7 +1817,7 @@ def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACR
         r" Regime at the medians from $\pi^* = K/(B+K)$ against the posteriors"
         r" $\pi_1$, $\pi_0$: gate ($\pi^*$ strictly between them, EVSI $>$ 0), always / never"
         r" respond (both posteriors at or above / below $\pi^*$, EVSI $=$ 0)."
-        r" [q05, q95] after eff and eff$^\star$ and $P_\mathrm{boot} = P_\mathrm{boot}(\mathrm{gate})$"
+        r" [q05, q95] after eff and eff$^\star$ and $P_\mathrm{boot}(\mathrm{gate})$"
         r" come from the bootstrap over elicitations, " + replicates + r", each resampling every"
         r" scenario's valid elicitations of the run's members with replacement within each member"
         r" (keeping each member's count; a staged protocol's decision stage once per group) and"
@@ -1988,7 +1986,7 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None, pb: dict
 # --- 9. bootstrap over elicitations ------------------------------------------------
 
 N_BOOT = 2000                 # replicates (extra --boot overrides)
-BOOT_SEED_OFFSET = 1_000_003  # the bootstrap's rng: default_rng(run seed + this)
+BOOT_SEED_OFFSET = 1_000_003  # the bootstrap's seed: run seed + this, one stream per unit (unit_rng)
 BOOT_TOP_K = 3                # P(rank <= BOOT_TOP_K) in plugin_ranks.tex
 # a step's bootstrap ratio dEVSI/dC is flagged when dC takes each sign in at
 # least this share of the replicates with dC != 0 (those the ratio's q05-q95
@@ -2081,6 +2079,18 @@ def _median(values: np.ndarray, axis: int) -> np.ndarray:
     return (np.nanmedian if np.isnan(values).any() else np.median)(values, axis=axis)
 
 
+def unit_rng(seed: int, key: tuple) -> np.random.Generator:
+    """The generator of one resampling unit: SeedSequence(seed) spawned by
+    the unit key, (0, sid) for a scenario and (1, the UTF-8 bytes of the
+    value) for a group, so a unit's resample depends on the seed and its own
+    rows only, not on which other units the run's protocol holds (a valid
+    elicitation added to another scenario, ranked or not, leaves it
+    unchanged)."""
+    kind, value = key
+    spawn = (0, int(value)) if kind == "scenario" else (1, *str(value).encode())
+    return np.random.default_rng(np.random.SeedSequence(seed, spawn_key=spawn))
+
+
 def bootstrap_draws(con, run, n_boot: int = N_BOOT) -> dict:
     """The bootstrap over elicitations of a binary run. One replicate
     resamples, for every unit of bootstrap_units, its valid elicitations with
@@ -2088,18 +2098,17 @@ def bootstrap_draws(con, run, n_boot: int = N_BOOT) -> dict:
     count), and takes the pooled median of every parameter over the
     resample. A staged protocol's decision stage is one unit per group, so a
     replicate resamples it once and every scenario of the group reads the
-    same resample. rng = default_rng(run seed + BOOT_SEED_OFFSET), consumed
-    in sorted unit-key order, members in label order: deterministic for a
-    given DB state. Returns {"n_boot", "seed", "units" (each with "idx",
-    the (n_boot, N) resample, "boot", the (n_boot, k) replicate medians,
-    and "point", the (k,) medians of all rows), "of" ({sid: {param: key}}),
-    "sids" (in the run's ranking order)}."""
+    same resample. Seed = run seed + BOOT_SEED_OFFSET; each unit draws from
+    its own generator (unit_rng), members in label order: deterministic for
+    a unit's rows, whatever the other units hold. Returns {"n_boot",
+    "seed", "units" (each with "idx", the (n_boot, N) resample, "boot", the
+    (n_boot, k) replicate medians, and "point", the (k,) medians of all
+    rows), "of" ({sid: {param: key}}), "sids" (in the run's ranking
+    order)}."""
     units, of = bootstrap_units(con, run)
     seed = int(run["seed"]) + BOOT_SEED_OFFSET
-    rng = np.random.default_rng(seed)
-    for key in sorted(units):
-        u = units[key]
-        u["idx"] = resample_indices(rng, [n for _, n in u["members"]], n_boot)
+    for key, u in units.items():
+        u["idx"] = resample_indices(unit_rng(seed, key), [n for _, n in u["members"]], n_boot)
         u["boot"] = _median(u["base"][u["idx"]], axis=1)
         u["point"] = _median(u["base"], axis=0)
     return {"n_boot": n_boot, "seed": seed, "units": units, "of": of, "sids": list(of)}
@@ -2203,17 +2212,11 @@ def round_outward(v: float, digits: int, up: bool) -> float:
     return float(f"{math.ceil(scaled) if up else math.floor(scaled)}e{e}")
 
 
-def plain(v: float) -> str:
-    """A rounded value without exponent notation: positional below 1000,
-    money()'s k / M suffixes from 1000 on."""
-    return money(v) if abs(v) >= 1e3 else np.format_float_positional(v + 0.0, trim="-")   # never '-0'
-
-
 def interval(q) -> str:
     """'[q05, q95]' of a quantile triple (quantiles), '--' when undefined:
     INTERVAL_DIGITS significant digits, q05 rounded down and q95 up so the
     printed interval contains the computed one, without exponent notation
-    (plain)."""
+    at any magnitude (plain)."""
     lo, hi = q[0], q[-1]
     if not (np.isfinite(lo) and np.isfinite(hi)):
         return "--"
@@ -2279,10 +2282,12 @@ def write_plugin_ranks(con, run, out: Path, pb: dict | None = None, prefix: str 
 
 def ladder_bootstrap(draws: dict, rungs: list[tuple[float, int]]) -> dict[int, dict] | None:
     """ladder_plugin per bootstrap replicate: p, B, K the median over the
-    resampled rows of every rung's unit (a staged protocol's rungs share
-    their group's decision unit, so they read one resample per replicate;
-    a single-stage ladder pools the rungs' own resamples, as ladder_plugin
-    pools their elicitations), s, t, C the rung's own resampled median.
+    resampled rows of the rungs' distinct units, each once (a staged
+    protocol's rungs share their group's decision unit, so they read one
+    resample per replicate, and a ladder spanning two groups pools the two
+    groups' resamples; a single-stage ladder pools the rungs' own resamples,
+    as ladder_plugin pools their elicitations), s, t, C the rung's own
+    resampled median.
     {sid: {"EVSI", "C"}: (n_boot,) arrays, "point": {"EVSI", "C"} at the
     rows themselves, equal to ladder_plugin's}; None when a rung has no
     complete plug-in point."""

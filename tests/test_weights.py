@@ -102,6 +102,31 @@ def test_equal_counts_draw_exactly_the_pooled_mixture():
         db.normalize_weights("per-member")
 
 
+def test_one_uneven_scenario_shifts_the_draws_of_every_later_scenario():
+    """The two rules draw the same numbers only when every scenario of the
+    run has equal member counts: the weighted draw of an uneven scenario
+    takes rng.choice where the pooled one takes rng.integers, so the shared
+    stream shifts and a later scenario with equal counts draws other numbers
+    (review 2: sim2real p003 sonnet+opus, one uneven scenario of 15, all 120
+    result rows moved). An uneven scenario after it leaves it alone."""
+    even = {"p": [point_fit("haiku", 1.0, 0), point_fit("haiku", 1.5, 1),
+                  point_fit("sonnet", 2.0, 2), point_fit("sonnet", 2.5, 3)]}
+    uneven = {"p": even["p"][:3]}
+
+    def draws(fits, weights):
+        return dict(mc.iter_scenario_draws(fits, 5, 400, names=["p"], weights=weights))
+
+    for fits in ({1: even, 2: even}, {1: even, 2: uneven}):      # equal counts up to the last scenario
+        pooled, equal = draws(fits, None), draws(fits, EQUAL)
+        assert np.array_equal(pooled[1]["p"], equal[1]["p"])
+    pooled, equal = draws({1: uneven, 2: even}, None), draws({1: uneven, 2: even}, EQUAL)
+    assert not np.array_equal(pooled[1]["p"], equal[1]["p"])    # the uneven scenario: another mixture
+    assert not np.array_equal(pooled[2]["p"], equal[2]["p"])    # equal counts, other numbers
+    assert mc.member_probs(even["p"]) is None                     # yet the same mixture
+    for d in (pooled[2]["p"], equal[2]["p"]):
+        assert set(d) == {1.0, 1.5, 2.0, 2.5}
+
+
 # --- the stored runs ---------------------------------------------------------------------------
 
 def test_runs_store_the_weights_and_draw_their_mixture(built, con):

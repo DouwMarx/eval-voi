@@ -183,7 +183,8 @@ def test_level_uplift_stats_figure_and_table(built, con, out):
     tex = (out / "level_uplift.tex").read_text()
     crn, means, other = tex.split(r"\par\medskip")
     assert crn.count(r"\\") == 1 + 6 + 2  # header, 6 steps, 2 group headings
-    assert means.count(r"\\") == other.count(r"\\") == 1 + 6 + 2   # the same steps by other statistics
+    assert means.count(r"\\") == 1 + 6 + 2   # the same steps by other statistics
+    assert other.count(r"\\") == 1 + 1 + 6 + 2   # and the two-line P_boot (pays) header cell
     assert r"\emph{home manipulator}" in crn and r"0$\to$1 &" in crn and other.count(r"0$\to$1 &") == 1
     assert r"$P(\Delta C>0)$" in crn and "within one decision" in crn and "ratio of those medians" in crn
     assert "mean-based" in means and means.count(r"0$\to$1 &") == 1
@@ -812,8 +813,9 @@ def test_plugin_equals_voi_at_the_pooled_medians(built, con, out, protocol):
                             "\\begin{longtable}{@{}rrrrrrrrrrlr@{}}\n\\caption{Plug-in values")
     assert table.rstrip().endswith("\\end{longtable}\n\\endgroup")
     assert r"\label{tab:plugin}" in table and r"\endfirsthead" in table and r"\endfoot" in table
-    # caption, the two-line EVSI/EVSI* header cell and its row in the first and repeated head, rows
-    assert table.count(r"\\") == 1 + 2 * 2 + 9
+    # caption, the two-line EVSI/EVSI* and P_boot (gate) header cells and the header row, in the
+    # first and the repeated head, rows
+    assert table.count(r"\\") == 1 + 2 * 3 + 9
     assert table.count("& gate &") == 8 and table.count("& always &") == 1
     assert f"\n1 & {order[0]} & " in table and f"\n9 & {order[-1]} & " in table
     assert "the catalog's $C$ is the run's mixture" in table and r"\ref" not in table   # stands alone
