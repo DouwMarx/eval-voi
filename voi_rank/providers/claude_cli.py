@@ -16,11 +16,23 @@ output) is cut after the timeout, VOI_CLI_TIMEOUT_S in the environment or
 `claude auth status --json` (free, no model call) refuses a CLI that is not
 logged in; it does not verify an API key (CLI 2.1.280 reports loggedIn true
 for any ANTHROPIC_API_KEY), which the timeout halt in elicit.run_jobs covers.
+
+Usage-limit outages: during a claude.ai usage-limit window the CLI exits 1
+(CLI 2.1.x) and prints a ZERO-USAGE envelope on stdout, `{"type": "result",
+"is_error": true, "result": "You've hit your session limit · resets ...",
+"total_cost_usd": 0, "usage": {"input_tokens": 0, "output_tokens": 0}}`,
+i.e. no model call was made and nothing was billed (LEARNINGS 2026-09-29:
+1,391 such attempts were stored as 'cli: exit 1' failures). call_claude
+classifies a non-zero exit whose stdout is such an envelope as
+USAGE_LIMIT_PREFIX ('cli: usage-limit (zero-usage exit 1): <result>');
+elicit.run_jobs never stores it and pauses the run instead (see there), and
+health reads a legacy 'cli: exit 1' row with that envelope as an outage.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 
 from voi_rank.dotenv import setting
@@ -29,6 +41,45 @@ DEFAULT_CLI_TIMEOUT_S = 600
 TIMEOUT_SETTING = "VOI_CLI_TIMEOUT_S"
 AUTH_TIMEOUT_S = 60
 ISOLATION = ["--tools", "", "--setting-sources", "", "--no-session-persistence"]
+USAGE_LIMIT_PREFIX = "cli: usage-limit"
+_USAGE_LIMIT_RE = re.compile(r"^cli: usage-limit \(zero-usage exit \d+\)")
+_EXIT_RE = re.compile(r"^cli: exit \d+\b")
+
+
+def zero_usage_envelope(raw: str | None) -> dict | None:
+    """The parsed CLI envelope when `raw` is one that billed nothing
+    (total_cost_usd 0 or absent, usage.input_tokens and output_tokens 0);
+    None for anything else (a paid answer, an empty stdout, non-JSON)."""
+    try:
+        data = json.loads(raw or "")
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("usage"), dict):
+        return None
+    usage = data["usage"]
+    try:
+        cost = float(data.get("total_cost_usd") or 0.0)
+        tokens = float(usage.get("input_tokens") or 0.0) + float(usage.get("output_tokens") or 0.0)
+    except (TypeError, ValueError):
+        return None
+    return data if cost == 0.0 and tokens == 0.0 else None
+
+
+def usage_limit_error(returncode: int, envelope: dict, stderr: str = "") -> str:
+    """'cli: usage-limit (zero-usage exit <n>): <the CLI's message>'."""
+    text = str(envelope.get("result") or "").strip() or stderr.strip()[-300:]
+    return f"{USAGE_LIMIT_PREFIX} (zero-usage exit {returncode}): {text[:300]}"
+
+
+def is_usage_limit(error: str | None, raw: str | None = None) -> bool:
+    """A usage-limit outage: the error call_claude classifies as one, or a
+    legacy 'cli: exit <n>' row (stored before the class existed) whose raw
+    response is a zero-usage envelope."""
+    if not error:
+        return False
+    if _USAGE_LIMIT_RE.match(error):
+        return True
+    return _EXIT_RE.match(error) is not None and zero_usage_envelope(raw) is not None
 
 
 def cli_timeout_s() -> float:
@@ -83,8 +134,10 @@ def call_claude(prompt: str, model: str, system_prompt: str):
     full JSON envelope as printed by the CLI (stored verbatim in the DB); the
     model's answer is envelope['result'] and its cost envelope['total_cost_usd'].
     Error strings: 'cli: timeout after <n>s', 'cli: killed by signal <n>: ...',
-    'cli: exit <n>: ...', "cli: 'claude' executable not found", 'cli:
-    is_error: ...', 'json: envelope parse failed: ...'."""
+    'cli: usage-limit (zero-usage exit <n>): ...' (a non-zero exit whose
+    stdout is a zero-usage envelope: nothing was billed), 'cli: exit <n>:
+    ...', "cli: 'claude' executable not found", 'cli: is_error: ...', 'json:
+    envelope parse failed: ...'."""
     cmd = ["claude", "-p", prompt, "--model", model, "--output-format", "json",
            *ISOLATION, "--system-prompt", system_prompt]
     timeout = cli_timeout_s()
@@ -99,6 +152,9 @@ def call_claude(prompt: str, model: str, system_prompt: str):
     if proc.returncode < 0:
         return None, raw or proc.stderr, f"cli: killed by signal {-proc.returncode}: {proc.stderr[-300:]}"
     if proc.returncode != 0:
+        envelope = zero_usage_envelope(raw)
+        if envelope is not None:
+            return envelope, raw, usage_limit_error(proc.returncode, envelope, proc.stderr)
         return None, raw or proc.stderr, f"cli: exit {proc.returncode}: {proc.stderr[-300:]}"
     try:
         envelope = json.loads(raw)

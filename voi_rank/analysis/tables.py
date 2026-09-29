@@ -30,6 +30,7 @@ from voi_rank.analysis.figures import (
     run_sensitivity_names,
     select_run,
 )
+from voi_rank.providers.claude_cli import is_usage_limit
 from voi_rank.study import Study, add_study_arg
 
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
@@ -244,11 +245,25 @@ def global_sensitivity(con, run_id: int) -> dict[str, float | None]:
     return {n: global_sensitivity_param(con, run_id, n) for n in run_sensitivity_names(con, run_id)}
 
 
+def billed_attempts(con, protocol_id: int, members: list[str] | None = None,
+                    member: dict | None = None) -> list:
+    """The stored attempts of a protocol (every member, a subset, or one
+    member) that made a model call: a usage-limit outage row (a zero-usage
+    CLI exit, claude_cli.is_usage_limit; stored before v2.3 only) is left
+    out, so attempt counts and validity rates describe the elicitor."""
+    clause, margs = db.member_filter(members)
+    if member is not None:
+        clause += " AND e.provider=? AND e.model=?"
+        margs += [member["provider"], member["model"]]
+    rows = con.execute(f"SELECT valid, error, raw_response FROM elicitations e WHERE protocol_id=?{clause}",
+                       (protocol_id, *margs)).fetchall()
+    return [r for r in rows if not is_usage_limit(r["error"], r["raw_response"])]
+
+
 def member_stats(con, protocol_id: int, member: dict) -> dict:
-    """Attempts, valid attempts and summed cost of one member's elicitations."""
-    rows = con.execute(
-        "SELECT valid, raw_response FROM elicitations WHERE protocol_id=? AND provider=?"
-        " AND model=?", (protocol_id, member["provider"], member["model"])).fetchall()
+    """Attempts (billed ones, see billed_attempts), valid attempts and summed
+    cost of one member's elicitations."""
+    rows = billed_attempts(con, protocol_id, member=member)
     return {
         "attempts": len(rows),
         "valid": sum(int(r["valid"] or 0) for r in rows),
@@ -455,9 +470,8 @@ def write_macros(con, run, out: Path):
     n_ranked = con.execute(
         "SELECT COUNT(DISTINCT scenario_id) FROM results WHERE run_id=?",
         (run["id"],)).fetchone()[0]
-    att = con.execute(
-        f"SELECT COUNT(*), SUM(valid) FROM elicitations e WHERE protocol_id=?{clause}",
-        (run["protocol_id"], *margs)).fetchone()
+    billed = billed_attempts(con, run["protocol_id"], labels)
+    att = (len(billed), sum(int(r["valid"] or 0) for r in billed))
     kind = run_kind(con, run["id"])
     names = db.param_names(kind)
     eff = metric_rows(con, run["id"], db.primary_metric(kind))

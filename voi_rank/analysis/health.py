@@ -21,16 +21,28 @@ import numpy as np
 from scipy import stats
 
 from voi_rank import db
+from voi_rank.providers.claude_cli import is_usage_limit
 from voi_rank.sensitivity import spearman
 from voi_rank.study import Study, add_study_arg
 
 EVSI_ZERO_USD = 1e-6  # "median EVSI ~ 0" threshold, in USD
+OUTAGE_CLASS = "outage"
+# attempt classes that never yielded a parsed answer (JSON validity counts them as failures)
+UNPARSED_CLASSES = ("provider", "cli", "http", "api", "json", "schema")
 
 
-def error_class(error: str | None) -> str:
+def error_class(error: str | None, raw_response: str | None = None) -> str:
+    """The outcome class of a stored attempt: 'valid', the error prefix
+    (provider | cli | http | api | json | schema | constraint | fit), or
+    'outage' for a usage-limit result (a 'cli: usage-limit' error, or a
+    legacy 'cli: exit <n>' row whose raw response is a zero-usage envelope:
+    no model call was made, nothing was billed; the harness stores none
+    since v2.3, but rows from before exist)."""
     if error is None:
         return "valid"
-    return error.split(":", 1)[0]  # provider | cli | http | api | json | schema | constraint | fit
+    if is_usage_limit(error, raw_response):
+        return OUTAGE_CLASS
+    return error.split(":", 1)[0]
 
 
 def protocol_names(con, protocol_id: int) -> list[str]:
@@ -153,24 +165,34 @@ def health(con, protocol_name: str, members: list[str] | None = None):
         print("(every count below is over the attempts of the members listed)")
     classes = {}
     for r in rows:
-        classes[error_class(r["error"])] = classes.get(error_class(r["error"]), 0) + 1
-    n = len(rows)
-    json_ok = n - sum(classes.get(c, 0) for c in ("provider", "cli", "http", "api", "json", "schema"))
+        cls = error_class(r["error"], r["raw_response"])
+        classes[cls] = classes.get(cls, 0) + 1
+    # a usage-limit outage row made no model call: it is not an elicitation
+    # attempt, so the rates below are over the billed attempts
+    n_outage = classes.get(OUTAGE_CLASS, 0)
+    n = len(rows) - n_outage
+    json_ok = n - sum(classes.get(c, 0) for c in UNPARSED_CLASSES)
     print(f"attempt counts by outcome: {classes}")
-    print(f"JSON validity rate (parse+schema): {json_ok}/{n} = {json_ok/n:.1%} (target >= 95%)")
+    if n_outage:
+        print(f"usage-limit outage rows (zero-usage CLI exits, no model call, unbilled): {n_outage};"
+              f" left out of the {n} attempts the rates below are over")
+    if n:
+        print(f"JSON validity rate (parse+schema): {json_ok}/{n} = {json_ok/n:.1%} (target >= 95%)")
     passed = classes.get("valid", 0)
     if json_ok:
         print(f"constraint pass rate (of parsed): {passed}/{json_ok} = {passed/json_ok:.1%}")
+    rows = [r for r in rows if error_class(r["error"], r["raw_response"]) != OUTAGE_CLASS]
 
     # slot-level validity: fraction of (scenario, member, repeat, stage) slots that ended
     # valid (the stage keeps a decision and an instrument slot of one member and repeat
     # apart on a representative, as the unique valid-slot index does)
-    slot_key = ("scenario_id || '/' || provider || '/' || model || '/' || repeat_ix || '/' ||"
-                " COALESCE(stage, '')")
-    slots = con.execute(
-        f"SELECT COUNT(DISTINCT {slot_key}), COUNT(DISTINCT CASE WHEN valid=1 THEN {slot_key} END)"
-        f" FROM elicitations e WHERE protocol_id=?{clause}", (prot["id"], *margs)).fetchone()
-    print(f"slot validity (after retry): {slots[1]}/{slots[0]} = {slots[1]/slots[0]:.1%}")
+    def slot_key(r) -> tuple:
+        return (r["scenario_id"], r["provider"], r["model"], r["repeat_ix"], r["stage"] or "")
+
+    n_slots = len({slot_key(r) for r in rows})
+    n_valid_slots = len({slot_key(r) for r in rows if r["valid"]})
+    if n_slots:
+        print(f"slot validity (after retry): {n_valid_slots}/{n_slots} = {n_valid_slots/n_slots:.1%}")
 
     # per-member validity and cost
     print("\nper member (provider:model): attempts, valid, validity, cost USD")
