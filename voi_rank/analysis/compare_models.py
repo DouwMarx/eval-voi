@@ -614,6 +614,10 @@ def write_plugin(pc: dict, b_run, g_run, out: Path) -> None:
 
 
 def fig_plugin(con, pc: dict, out: Path) -> None:
+    """fig_compare_plugin.pdf: four log-log panels of a binary plug-in value
+    against a Gaussian one per scenario, with the diagonal. Zero values sit
+    in a zero row / column at the panel's data-driven floor
+    (figures.data_floor of both axes' values), as open markers."""
     sids = pc["sids"]
     groups = figures.scenario_groups(con)
     grp_of = [groups.get(s) or "(no group)" for s in sids]
@@ -622,50 +626,66 @@ def fig_plugin(con, pc: dict, out: Path) -> None:
     panels = (("(a) plug-in efficiency", "binary plug-in eff (EVSI / C)", "Gaussian stepfix plug-in eff",
                np.array([pc["binary"][s]["eff"] for s in sids]),
                np.array([pc["gauss"][s]["eff"]["stepfix"] for s in sids]),
-               pc["models"]["stepfix"]["rho"], figures.EFF_FLOOR),
+               pc["models"]["stepfix"]["rho"]),
               (r"(b) the stepfix fence ($p = \Phi(d)$, derived $s, t$)",
                "binary fence EVSI* (USD)", "Gaussian stepfix fence EVSI* (USD)",
                np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
                np.array([pc["gauss"][s]["fence_stepfix"] for s in sids]),
-               pc["fence_stepfix"]["rho"], figures.EVSI_FLOOR),
+               pc["fence_stepfix"]["rho"]),
               (r"(c) the step value on the fence ($d = \Phi^{-1}(\pi^*)$)",
                "binary fence EVSI* (USD)", "Gaussian step value on the fence (USD)",
                np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
                np.array([pc["gauss"][s]["fence_step"] for s in sids]),
-               pc["fence_step"]["rho"], figures.EVSI_FLOOR),
+               pc["fence_step"]["rho"]),
               ("(d) the quad value L R$^2$ (no threshold)", "binary fence EVSI* (USD)",
                "Gaussian quad value L R$^2$ (USD)",
                np.array([pc["binary"][s]["EVSI_star"] for s in sids]),
                np.array([pc["gauss"][s]["quad_lr2"] for s in sids]),
-               pc["fence_quad"]["rho"], figures.EVSI_FLOOR))
-    fig, axes = plt.subplots(2, 2, figsize=(6.2, 5.8))
+               pc["fence_quad"]["rho"]))
+    fig, axes = plt.subplots(2, 2, figsize=(figures.FIG_W, 4.9))
     axes = axes.ravel()
-    for ax, (title, xl, yl, x, y, rho, floor) in zip(axes, panels, strict=True):
+    any_open = False
+    for ax, (title, xl, yl, x, y, rho) in zip(axes, panels, strict=True):
+        floor = figures.data_floor([x, y])
         xf, yf = np.maximum(x, floor), np.maximum(y, floor)
         floored = (x < floor) | (y < floor)
+        any_open |= bool(floored.any())
         for g in names:
             mask = np.array([v == g for v in grp_of])
             ax.plot(xf[mask & ~floored], yf[mask & ~floored], "o", color=colors[g], ms=4.5, mec="white",
-                    mew=0.5, label=g if len(names) > 1 else None, zorder=3)
-            ax.plot(xf[mask & floored], yf[mask & floored], "o", mfc="white", mec=colors[g], ms=4.5, zorder=3)
+                    mew=0.5, zorder=3)
+            ax.plot(xf[mask & floored], yf[mask & floored], "o", mfc="white", mec=colors[g], ms=4.5,
+                    mew=0.8, zorder=3)
         if len(sids):
-            lim = [min(xf.min(), yf.min()) / 3, max(xf.max(), yf.max()) * 3]
-            ax.plot(lim, lim, ls="--", lw=0.8, color="#555555", zorder=1)
-            ax.set_xlim(*lim)
-            ax.set_ylim(*lim)
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.text(0.03, 0.95, f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={len(sids)})",
+            hi = max(xf.max(), yf.max()) * 3
+            lo = floor / 10.0**0.35 if floored.any() else min(xf.min(), yf.min()) / 3
+            d0 = floor * 10.0**0.5 if floored.any() else lo   # the diagonal stops short of the zero row
+            ax.plot([d0, hi], [d0, hi], ls="--", lw=0.8, color="#555555", zorder=1)
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+            ax.set_xlim(lo, hi)   # one range on both axes: the diagonal stays at 45 degrees
+            ax.set_ylim(lo, hi)
+            for axis, vals in (("x", x), ("y", y)):   # a zero row / column only where a value is 0
+                if (vals < floor).any():
+                    figures.floor_axis(ax, floor, axis, top=hi)
+                    band = ax.axhspan if axis == "y" else ax.axvspan
+                    band(lo, floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.4)
+        ax.text(0.03, 0.97, f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={len(sids)})",
                 transform=ax.transAxes, fontsize=7, va="top")
-        ax.set_title(title, fontsize=7)
+        ax.set_title(title, fontsize=7.5)
         ax.set_xlabel(xl, fontsize=7)
         ax.set_ylabel(yl, fontsize=7)
-        ax.tick_params(labelsize=7)
-    if len(names) > 1:
-        axes[0].legend(fontsize=6, loc="lower right", frameon=False, title="group", title_fontsize=6)
-    fig.suptitle("Plug-in points at each protocol's pooled medians (open markers: floored at"
-                 f" {figures.EFF_FLOOR:g} / {figures.EVSI_FLOOR:g});\n(b)-(d): the binary fence value"
-                 " EVSI* = (B+K) p (1-p) (s+t-1) against a Gaussian value no gate can zero", fontsize=7)
+        ax.tick_params(labelsize=figures.MIN_FONT)
+    handles = ([plt.Line2D([], [], marker="o", ls="", color=colors[g], mec="white", label=g) for g in names]
+               if len(names) > 1 else [])
+    if any_open:
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
+                                  label="open: a value is 0 (the zero row / column)"))
+    if handles:
+        fig.legend(handles=handles, loc="outside lower center", ncol=len(handles), fontsize=figures.MIN_FONT,
+                   frameon=False)
+    fig.suptitle("Plug-in points at each protocol's pooled medians. (b)-(d): the binary fence value\n"
+                 "EVSI* = (B+K) p (1-p) (s+t-1) against a Gaussian value no gate can zero", fontsize=7.5)
     fig.savefig(out / "fig_compare_plugin.pdf")
     plt.close(fig)
 
@@ -855,56 +875,83 @@ def write_macros(rs: dict, pst: dict, b_run, g_run, out: Path, mm: dict | None =
 
 
 def fig_compare(con, rs: dict, out: Path) -> None:
+    """fig_compare_models.pdf: binary median efficiency against the Gaussian
+    stepfix one per shared scenario, log-log with the diagonal; a zero
+    median sits in the zero row / column at the data-driven floor
+    (figures.data_floor of both axes' values), as an open marker."""
     shared = rs["shared"]
     groups = figures.scenario_groups(con)
     x = np.array([rs["series"]["binary"][s] for s in shared])
     y = np.array([rs["series"]["stepfix"][s] for s in shared])
-    xf, yf = np.maximum(x, figures.EFF_FLOOR), np.maximum(y, figures.EFF_FLOOR)
-    floored = (x < figures.EFF_FLOOR) | (y < figures.EFF_FLOOR)
+    floor = figures.data_floor([x, y])
+    xf, yf = np.maximum(x, floor), np.maximum(y, floor)
+    floored = (x < floor) | (y < floor)
     grp_of = [groups.get(s) or "(no group)" for s in shared]
     names = sorted(set(grp_of))
     colors = figures.group_colors(names)
-    fig, ax = plt.subplots(figsize=(5.2, 4.6))
+    fig, ax = plt.subplots(figsize=(figures.FIG_W, 3.2))
+    ax.set_box_aspect(1.0)   # one scale on both axes: the diagonal at 45 degrees
     for g in names:
         mask = np.array([v == g for v in grp_of])
         ax.plot(xf[mask & ~floored], yf[mask & ~floored], "o", color=colors[g], ms=5, mec="white",
                 mew=0.5, label=g if len(names) > 1 else None, zorder=3)
-        ax.plot(xf[mask & floored], yf[mask & floored], "o", mfc="white", mec=colors[g], ms=5, zorder=3)
-    lim = [min(xf.min(), yf.min()) / 3, max(xf.max(), yf.max()) * 3]
-    ax.plot(lim, lim, ls="--", lw=0.8, color="#555555", zorder=1)
+        ax.plot(xf[mask & floored], yf[mask & floored], "o", mfc="white", mec=colors[g], ms=5, mew=0.8,
+                zorder=3)
+    hi = max(xf.max(), yf.max()) * 3
+    lo = floor / 10.0**0.35 if floored.any() else min(xf.min(), yf.min()) / 3
+    d0 = floor * 10.0**0.5 if floored.any() else lo
+    ax.plot([d0, hi], [d0, hi], ls="--", lw=0.8, color="#555555", zorder=1)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(*lim)
-    ax.set_ylim(*lim)
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(lo, hi)
+    for axis, vals in (("x", x), ("y", y)):   # a zero row / column only where a value is 0
+        if (vals < floor).any():
+            figures.floor_axis(ax, floor, axis, top=hi)
+            band = ax.axhspan if axis == "y" else ax.axvspan
+            band(lo, floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.4)
     rho = rs["agreement"][("binary", "stepfix")]["rho"]
-    ax.text(0.03, 0.95, f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={len(shared)})",
-            transform=ax.transAxes, fontsize=8, va="top")
-    if len(names) > 1:
-        ax.legend(fontsize=6.5, loc="lower right", frameon=False, title="group", title_fontsize=6.5)
-    ax.set_xlabel(f"binary median efficiency (EVSI / C; open: floored at {figures.EFF_FLOOR:g})")
-    ax.set_ylabel("Gaussian median eff_stepfix (EVSI_stepfix / C)")
-    ax.set_title("Binary model vs Gaussian stepfix action model, median efficiency")
+    ax.text(0.03, 0.97, f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={len(shared)})",
+            transform=ax.transAxes, fontsize=7, va="top")
+    handles = ax.get_legend_handles_labels()[0]
+    if floored.any():
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
+                                  label="open: a median is 0"))
+    if handles:
+        ax.legend(handles=handles, fontsize=figures.MIN_FONT, loc="upper left", bbox_to_anchor=(1.04, 1.0),
+                  borderaxespad=0.0, frameon=False, title="group" if len(names) > 1 else None,
+                  title_fontsize=figures.MIN_FONT, alignment="left")
+    ax.set_xlabel("binary median efficiency (EVSI / C)", fontsize=7)
+    ax.set_ylabel("Gaussian median eff_stepfix", fontsize=7)
+    ax.tick_params(labelsize=figures.MIN_FONT)
+    ax.set_title("Binary model vs Gaussian stepfix action model, median efficiency", fontsize=7.5)
     fig.savefig(out / "fig_compare_models.pdf")
     plt.close(fig)
 
 
 def fig_derived(pst: dict, out: Path) -> None:
-    fig, axes = plt.subplots(1, 3, figsize=(6.2, 2.4))
+    """fig_derived_pst.pdf: the Gaussian run's derived p, s, t against the
+    binary elicitation, one panel each; the statistics sit in the panel
+    titles, clear of the points."""
+    fig, axes = plt.subplots(1, 3, figsize=(figures.FIG_W, 2.25))
     for ax, name in zip(axes, ("p", "s", "t"), strict=True):
         st = pst[name]
-        ax.plot(st["x"], st["y"], "o", color=figures.ACCENT, ms=4, mec="white", mew=0.4, alpha=0.85)
+        ax.plot(st["x"], st["y"], "o", color=figures.ACCENT, ms=3.5, mec="white", mew=0.4, alpha=0.85)
         ax.plot([0, 1], [0, 1], ls="--", lw=0.7, color="#c9c9c9", zorder=0)
         ax.set_xlim(-0.02, 1.02)
         ax.set_ylim(-0.02, 1.02)
-        ax.set_xlabel(f"elicited ${name}$ (binary protocol, pooled p50)", fontsize=7)
-        ax.set_ylabel(f"derived ${name}$ (Gaussian run median)", fontsize=7)
+        ax.set_xticks([0.0, 0.5, 1.0])
+        ax.set_yticks([0.0, 0.5, 1.0])
+        ax.set_xlabel(f"elicited ${name}$ (binary)", fontsize=7)
+        ax.set_ylabel(f"derived ${name}$ (Gaussian)", fontsize=7)
         rho = "--" if st["rho"] is None else f"{st['rho']:.2f}"
         mad = "--" if st["mad"] is None else f"{st['mad']:.2f}"
         bias = "--" if st["bias"] is None else f"{st['bias']:+.3f}"
-        ax.text(0.96, 0.05, f"$\\rho$ = {rho}, med |diff| = {mad},\nmean diff = {bias} (n={st['n']})",
-                transform=ax.transAxes, fontsize=6, ha="right")
-        ax.tick_params(labelsize=7)
-    fig.suptitle("Derived p = Phi(d), s, t (fixed mark at theta_c) vs the binary elicitation", fontsize=8)
+        ax.set_title(f"$\\rho$ = {rho}, median |diff| = {mad}\nmean diff = {bias} (n={st['n']})",
+                     fontsize=figures.MIN_FONT)
+        ax.tick_params(labelsize=figures.MIN_FONT)
+    fig.suptitle("Derived p = $\\Phi(d)$, s, t (Gaussian run medians, mark at $\\theta_c$) against the"
+                 " elicited binary p50", fontsize=7.5)
     fig.savefig(out / "fig_derived_pst.pdf")
     plt.close(fig)
 

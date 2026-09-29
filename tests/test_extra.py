@@ -6,17 +6,19 @@ inserted directly and propagated by mc.run_mc. No CLI, no network."""
 from __future__ import annotations
 
 import json
+import math
 import re
 import shutil
 import subprocess
 from pathlib import Path
 
+import matplotlib.text
 import numpy as np
 import pytest
 import yaml
 
 from voi_rank import db, mc, model
-from voi_rank.analysis import extra, health, tables
+from voi_rank.analysis import extra, figures, health, tables
 from voi_rank.fit import FAMILY_BY_PARAM, fit_param
 from voi_rank.sensitivity import repeat_spread, spearman
 from voi_rank.study import Study
@@ -1005,6 +1007,62 @@ def test_level_uplift_marginals_are_differences_of_the_per_rung_plugin_values(bu
         "dEVSI_star": 3.0, "meff_star": pytest.approx(float("nan"), nan_ok=True)}
 
 
+def test_fig_level_uplift_top_row_is_the_plugin_point_with_bootstrap_bars(built, con, out, monkeypatch):
+    """The top row plots, per rung, the ladder's plug-in EVSI with its
+    bootstrap q05-q95 bar, the fence value EVSI* and C with its bootstrap
+    bar (the values of level_uplift.tex's plug-in tabular), a zero EVSI as an
+    open marker in the zero row at the data-driven floor. The old top row
+    plotted the median of the CRN draws of EVSI, zero on every rung of the
+    sim2real headline run."""
+    run = db.get_run(con, built["runs"]["p003"])
+    an = extra.level_uplift_analysis(con, run)
+    an["plugin"] = {g: {sid: dict(v) for sid, v in d.items()} for g, d in an["plugin"].items()}
+    zeroed = an["rungs"]["AV AEB"][0][1]
+    an["plugin"]["AV AEB"][zeroed]["EVSI"] = 0.0         # a rung outside the gate
+    figs, real_close = [], extra.plt.close
+    monkeypatch.setattr(extra.plt, "close", figs.append)
+    assert extra.fig_level_uplift(con, run, out, an)
+    fig = figs[0]
+    groups = list(an["steps"])
+    top_vals = []
+    for g in groups:
+        for _, sid in an["rungs"][g]:
+            pt, lb = an["plugin"][g][sid], an["boot"][g][sid]
+            top_vals += [pt["EVSI"], pt["EVSI_star"], pt["C"], extra.quantiles(lb["EVSI"])[0],
+                         extra.quantiles(lb["C"])[0]]
+    floor = figures.data_floor(top_vals)
+    assert floor < min(v for v in top_vals if v > 0) / 10.0 * (1 + 1e-12)
+
+    def plotted(ax, gid, open_only=None):
+        return sorted(float(y) for ln in ax.lines if ln.get_gid() == gid
+                      and (open_only is None or (ln.get_markerfacecolor() == "white") == open_only)
+                      for y in ln.get_ydata())
+
+    def bars(ax, gid):
+        return sorted((float(a[1]), float(b[1])) for c in ax.collections if c.get_gid() == gid
+                      for a, b in c.get_segments())
+
+    for j, g in enumerate(groups):
+        ax, rungs = fig.axes[j], an["rungs"][g]
+        plug, lb = an["plugin"][g], an["boot"][g]
+        for gid, key in (("plug_evsi", "EVSI"), ("fence", "EVSI_star")):
+            assert plotted(ax, gid) == pytest.approx(sorted(max(plug[s][key], floor) for _, s in rungs))
+        assert plotted(ax, "cost") == pytest.approx(sorted(plug[s]["C"] for _, s in rungs))
+        for gid, key in (("boot_evsi", "EVSI"), ("boot_c", "C")):
+            assert bars(ax, gid) == pytest.approx(sorted(
+                (max(extra.quantiles(lb[s][key])[0], floor), max(extra.quantiles(lb[s][key])[2], floor))
+                for _, s in rungs))
+    assert plotted(fig.axes[0], "plug_evsi", open_only=True) == [floor]
+    assert fig.axes[0].get_ylim()[0] == pytest.approx(floor / 10.0**0.35)
+    assert fig.axes[0].yaxis.get_major_formatter()(floor) == figures.FLOOR_LABEL
+    # the bottom row keeps the marginals and prints the CRN P(dEVSI > dC) above each step
+    for j, g in enumerate(groups):
+        texts = [t.get_text() for t in fig.axes[len(groups) + j].texts if t.get_gid() == "p_pays"]
+        assert texts == [f"{100.0 * s['p_pays']:.0f}" for s in an["steps"][g]]
+    assert_legible(fig, max_height=3.1)
+    real_close(fig)
+
+
 def test_fig_level_fence(built, con, out, tmp_path):
     run = db.get_run(con, built["runs"]["p001"])
     assert extra.fig_level_fence(con, run, out)
@@ -1021,13 +1079,15 @@ def test_fig_level_fence(built, con, out, tmp_path):
 
 @pytest.mark.parametrize("protocol", ["p001", "p003"])
 def test_fig_plugin_map_plots_the_plugin_points(built, con, out, protocol, monkeypatch):
-    """The map's y values are extra.plugin_point's EVSI (floored at
-    EVSI_FLOOR, open markers there), its x the pooled-median C, and each
-    stem runs from the plug-in point up to the fence value EVSI*."""
+    """The map's y values are extra.plugin_point's EVSI (a zero EVSI in the
+    zero row at the data-driven floor, open markers there), its x the
+    pooled-median C, and each stem runs from the plug-in point up to the
+    fence value EVSI*."""
     run = db.get_run(con, built["runs"][protocol])
+    pb = extra.plugin_bootstrap(con, run)
     figs, real_close = [], extra.plt.close
     monkeypatch.setattr(extra.plt, "close", figs.append)
-    assert extra.fig_plugin_map(con, run, out)
+    assert extra.fig_plugin_map(con, run, out, pb=pb)
     assert (out / "fig_plugin_map.pdf").stat().st_size > 0
     ax = figs[0].axes[0]
     pts = {sid: extra.plugin_point(con, run, sid) for sid in extra.ranked_ids(con, run["id"])}
@@ -1038,7 +1098,8 @@ def test_fig_plugin_map_plots_the_plugin_points(built, con, out, protocol, monke
                       and (open_only is None or (ln.get_markerfacecolor() == "white") == open_only)
                       for x, y in zip(ln.get_xdata(), ln.get_ydata(), strict=True))
 
-    floor = extra.EVSI_FLOOR
+    floor = figures.data_floor([[pt["EVSI"] for pt in pts.values()], [pt["EVSI_star"] for pt in pts.values()],
+                                [pb["rows"][s]["EVSI_q"][0] for s in pts]])
     expected = sorted((pt["C"], max(pt["EVSI"], floor)) for pt in pts.values())
     np.testing.assert_allclose(plotted("plugin"), expected, rtol=1e-12)
     # the control scenario decides without measuring: EVSI = 0, outside the gate, open at the floor
@@ -1053,9 +1114,76 @@ def test_fig_plugin_map_plots_the_plugin_points(built, con, out, protocol, monke
     assert sorted((float(a[0]), float(a[1]), float(b[1])) for a, b in stems) == pytest.approx(sorted(
         (pt["C"], max(pt["EVSI"], floor), max(pt["EVSI_star"], floor)) for pt in pts.values()))
     assert all(pt["EVSI_star"] >= pt["EVSI"] for pt in pts.values())   # the fence is the maximum
+    # the zero row sits one empty decade below the data (the old fixed 1e-2 USD floor left six
+    # empty decades here), its tick reads 0, and the axis starts just below it
+    lowest = min(v for pt in pts.values() for v in (pt["EVSI"], pt["EVSI_star"]) if v > 0)
+    assert lowest / 100.0 < floor <= lowest / 10.0
+    assert ax.get_ylim()[0] == pytest.approx(floor / 10.0**0.35)
+    assert ax.yaxis.get_major_formatter()(floor) == figures.FLOOR_LABEL
     labels = [t.get_text() for t in ax.texts]
     assert sorted(int(t) for t in labels if t.isdigit()) == sorted(pts)   # every id labelled
     assert any(t.startswith("better") for t in labels) and any(t.startswith("eff $= 10^") for t in labels)
+    # CoRL width, the legend outside the axes, no two id labels touching
+    fig = figs[0]
+    assert tuple(fig.get_size_inches()) == pytest.approx((figures.FIG_W, 3.2))
+    renderer = fig.canvas.get_renderer()
+    fig.draw_without_rendering()
+    assert ax.get_legend().get_window_extent(renderer).x0 >= ax.get_window_extent(renderer).x1
+    boxes = [t.get_window_extent(renderer) for t in ax.texts if t.get_gid() == "id_label"]
+    assert len(boxes) == len(pts)
+    assert not any(a.overlaps(b) for i, a in enumerate(boxes) for b in boxes[i + 1:])
+    assert_legible(fig, max_height=3.2)
+    for fig in figs:
+        real_close(fig)
+
+
+def assert_legible(fig, max_height: float | None = None) -> None:
+    """A paper figure: drawn at the CoRL text width (figures.FIG_W), at most
+    max_height inches tall, every text at least figures.MIN_FONT points, and
+    nothing drawn outside the figure (no clipped title, label or legend)."""
+    w, h = fig.get_size_inches()
+    assert w == pytest.approx(figures.FIG_W)
+    assert max_height is None or h <= max_height + 1e-9
+    small = [(t.get_text(), t.get_fontsize()) for t in fig.findobj(matplotlib.text.Text)
+             if t.get_text().strip() and t.get_visible() and t.get_fontsize() < figures.MIN_FONT - 1e-9]
+    assert not small, small
+    fig.draw_without_rendering()
+    tight = fig.get_tightbbox(fig.canvas.get_renderer())
+    assert tight.x0 >= -0.01 and tight.y0 >= -0.01, tight
+    assert tight.x1 <= w + 0.01 and tight.y1 <= h + 0.01, tight
+
+
+def test_data_floor_is_one_empty_decade_below_the_data():
+    assert figures.data_floor([0.0, 3.62e3, 1e5]) == 100.0
+    assert figures.data_floor(np.array([2.3e4, 0.0])) == 1000.0
+    assert figures.data_floor([1000.0]) == 100.0                  # an exact decade: one decade below
+    assert figures.data_floor([999.0]) == 10.0                    # the decade at or below a tenth
+    assert figures.data_floor([np.array([0.02, 5.0]), 0.5, None]) == 1e-3
+    assert figures.data_floor([None, float("nan"), 0.0, -4.0]) == 1.0   # nothing positive
+    rng = np.random.default_rng(3)
+    for v in 10.0 ** rng.uniform(-6, 9, 500):
+        f = figures.data_floor([v, 10 * v])
+        assert v / 100.0 < f <= v / 10.0 * (1 + 1e-12)
+        assert math.log10(f) == round(math.log10(f))              # a decade: its tick exists
+
+
+def test_paper_figures_are_legible_at_corl_width(built, con, out, monkeypatch):
+    """Every figure the papers use in the body or the appendix from extra and
+    figures: CoRL width, legible fonts, nothing clipped."""
+    figs, real_close = [], extra.plt.close
+    monkeypatch.setattr(extra.plt, "close", figs.append)   # figures.plt is the same pyplot
+    run = db.get_run(con, built["runs"]["p003"])
+    body = {"fig_plugin_map": 3.2, "fig_level_uplift": 3.1, "fig_level_fence": 2.4, "fig_plugin": 2.3,
+            "fig_member_agreement": None, "fig_within_group_consistency": None, "fig_domain_map": None}
+    for name in body:
+        assert getattr(extra, name)(con, run, out), name
+    for name in ("fig_by_level", "fig_evsi_vs_cost", "fig_ranking"):
+        assert getattr(figures, name)(con, run["id"], out), name
+    body |= {"fig_by_level": 2.3, "fig_evsi_vs_cost": None, "fig_ranking": None}
+    assert len(figs) == len(body)
+    for (name, max_h), fig in zip(body.items(), figs, strict=True):
+        assert fig.axes, name
+        assert_legible(fig, max_h)
     for fig in figs:
         real_close(fig)
 

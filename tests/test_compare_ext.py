@@ -17,6 +17,7 @@ import pytest
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from scipy.stats import norm
 
+from tests.test_extra import assert_legible
 from tests.test_gauss_pipeline import (
     HAIKU,
     FakeProvider,
@@ -356,6 +357,34 @@ def test_plugin_figure_text_fits_the_figure(two_member_study, monkeypatch, tmp_p
     for t in texts:
         e = t.get_window_extent(renderer)
         assert box.x0 <= e.x0 and e.x1 <= box.x1 and box.y0 <= e.y0 and e.y1 <= box.y1, t.get_text()
+
+
+def test_compare_figures_are_legible_at_corl_width(two_member_study, monkeypatch, tmp_path):
+    """fig_compare_models, fig_compare_plugin and fig_derived_pst: CoRL
+    width, every text at least figures.MIN_FONT, nothing clipped (the
+    derived figure's third x label was cut at the right edge at 6.2 in);
+    a zero value of a panel sits at that panel's data-driven floor."""
+    study, runs = two_member_study["study"], two_member_study["runs"]
+    con = study.connect()
+    b_run, g_run = db.get_run(con, runs["p003"]), db.get_run(con, runs["g001"])
+    figs, close = [], compare_models.plt.close
+    monkeypatch.setattr(compare_models.plt, "close", lambda fig=None: figs.append(fig) or close(fig))
+    pc = compare_models.make_all(con, b_run, g_run, tmp_path)["plugin"]
+    con.close()
+    assert len(figs) == 3
+    for fig in figs:   # fig_compare_models, fig_derived_pst, fig_compare_plugin (an appendix page)
+        FigureCanvasAgg(fig)
+        assert_legible(fig, max_height=4.9)
+    (fig,) = [f for f in figs
+              if f._suptitle is not None and f._suptitle.get_text().startswith("Plug-in points")]
+    ax = fig.axes[0]   # (a) plug-in efficiency: binary eff against the Gaussian stepfix eff
+    x = np.array([pc["binary"][s]["eff"] for s in pc["sids"]])
+    y = np.array([pc["gauss"][s]["eff"]["stepfix"] for s in pc["sids"]])
+    floor = figures.data_floor([x, y])
+    pts = sorted((float(a), float(b)) for ln in ax.lines if ln.get_marker() == "o"
+                 for a, b in zip(ln.get_xdata(), ln.get_ydata(), strict=True))
+    assert pts == pytest.approx(sorted(zip(np.maximum(x, floor), np.maximum(y, floor), strict=True)))
+    assert ax.get_xlim()[0] >= floor / 10.0**0.36
 
 
 def test_joint_noise_table_and_ratio(two_member_study):

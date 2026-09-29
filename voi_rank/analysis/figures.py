@@ -12,12 +12,15 @@ overrides them. Every figure reads the run's members only.)
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.ticker  # noqa: E402
+import matplotlib.transforms  # noqa: E402
 import numpy as np  # noqa: E402
 from scipy.stats import gaussian_kde  # noqa: E402
 
@@ -31,8 +34,10 @@ INTERVAL = "#9aa5b1"        # recessive interval lines
 CATEGORICAL = ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7",
                "#56B4E9", "#F0E442", "#000000"]
 
-EFF_FLOOR = 1e-3            # log-axis floor for zero medians/quantiles
-EVSI_FLOOR = 1e-2           # USD floor for the log-log scatter
+FIG_W = 5.5                 # CoRL text width (in): the paper figures are drawn at it, fonts at print size
+MIN_FONT = 6.5              # the smallest text of a paper figure (pt)
+FLOOR_LABEL = "0"           # tick label of a data-driven floor (data_floor): the zero row
+FLOOR_TICK_GAP = 0.2        # inches between the decade labels of a floor axis (floor_axis)
 
 STYLE = {
     "font.family": "serif",
@@ -185,32 +190,175 @@ def select_run(con, run_id: int | None, protocol: str, members: list[str] | None
     return run
 
 
+# --- zero floors and labels (the paper figures) -----------------------------
+
+def data_floor(values) -> float:
+    """The log-axis floor at which a figure draws its zero values: the decade
+    at or below a tenth of the smallest positive finite value, so one empty
+    decade (at least, and less than two) separates the zero row from the
+    data; 1.0 when no value is positive. Non-positive, NaN and None values
+    are ignored."""
+    v = np.concatenate([np.ravel(np.asarray(x, dtype=float)) for x in values if x is not None]
+                       or [np.empty(0)])
+    v = v[np.isfinite(v) & (v > 0.0)]
+    if not v.size:
+        return 1.0
+    return 10.0 ** (math.floor(math.log10(float(v.min()))) - 1)
+
+
+class FloorFormatter(matplotlib.ticker.LogFormatterSciNotation):
+    """Decade labels, with the floor's tick labelled FLOOR_LABEL."""
+
+    def __init__(self, floor: float, label: str = FLOOR_LABEL):
+        super().__init__()
+        self.floor, self.label = floor, label
+
+    def __call__(self, x, pos=None):
+        return self.label if math.isclose(x, self.floor, rel_tol=1e-9) else super().__call__(x, pos)
+
+
+def floor_axis(ax, floor: float, axis: str = "y", top: float | None = None) -> None:
+    """A log axis whose lowest tick is the zero row at `floor`: the limit
+    sits 0.35 decade below it, the tick reads FLOOR_LABEL, and a '//' break
+    on the spine in the empty decade above it says the axis is not
+    continuous there. `top` sets the upper limit (default: kept). The
+    decades above the floor are labelled every `stride` decades, so labels
+    stay FLOOR_TICK_GAP inches apart on a short axis (every decade keeps a
+    minor tick)."""
+    getattr(ax, f"set_{axis}scale")("log")
+    lo, hi = getattr(ax, f"get_{axis}lim")()
+    hi = hi if top is None else top
+    getattr(ax, f"set_{axis}lim")(floor / 10.0**0.35, hi)
+    k0, k1 = round(math.log10(floor)) + 1, math.floor(math.log10(hi))
+    box = ax.get_position()
+    length = (box.height * ax.figure.get_figheight() if axis == "y" else box.width * ax.figure.get_figwidth())
+    stride = max(1, math.ceil((k1 - k0 + 1) / max(1, int(length / FLOOR_TICK_GAP))))
+    decades = [10.0**k for k in range(k1, k0 - 1, -stride)]   # anchored at the top decade
+    ax_obj = getattr(ax, f"{axis}axis")
+    ax_obj.set_major_locator(matplotlib.ticker.FixedLocator([floor, *sorted(decades)]))
+    ax_obj.set_minor_locator(matplotlib.ticker.FixedLocator([10.0**k for k in range(k0, k1 + 1)]))
+    ax_obj.set_major_formatter(FloorFormatter(floor))
+    ax_obj.set_minor_formatter(matplotlib.ticker.NullFormatter())
+    at = floor * 10.0**0.5
+    if axis == "y":
+        trans = matplotlib.transforms.blended_transform_factory(ax.transAxes, ax.transData)
+        xy, mk = (0.0, at), [(-1.0, -0.5), (1.0, 0.5)]
+    else:
+        trans = matplotlib.transforms.blended_transform_factory(ax.transData, ax.transAxes)
+        xy, mk = (at, 0.0), [(-0.5, -1.0), (0.5, 1.0)]
+    for d in (-1.2, 1.2):
+        shift = matplotlib.transforms.ScaledTranslation(0.0 if axis == "y" else d / 72.0,
+                                                        d / 72.0 if axis == "y" else 0.0,
+                                                        ax.figure.dpi_scale_trans)
+        ax.plot(*xy, marker=mk, ms=5, mew=0.8, color="#333333", ls="", clip_on=False,
+                transform=trans + shift, zorder=5, gid="floor_break")
+
+
+# candidate label offsets (points) and alignments, tried in order
+LABEL_OFFSETS = ((3.5, 2.0, "left", "bottom"), (-3.5, 2.0, "right", "bottom"),
+                 (3.5, -2.0, "left", "top"), (-3.5, -2.0, "right", "top"),
+                 (0.0, 4.5, "center", "bottom"), (0.0, -4.5, "center", "top"),
+                 (5.0, 0.0, "left", "center"), (-5.0, 0.0, "right", "center"),
+                 (7.0, 6.0, "left", "bottom"), (-7.0, 6.0, "right", "bottom"),
+                 (7.0, -6.0, "left", "top"), (-7.0, -6.0, "right", "top"))
+
+
+LABEL_PAD = 1.5         # points of clearance around a placed label ('1' touching '5' reads as '15')
+LABEL_AMBIGUITY = 0.7   # a label nearer than this ratio to another point than to its own is ambiguous
+
+
+def place_labels(ax, xy, texts, marker_pt: float = 5.5, others=(), avoid=(), fontsize: float = MIN_FONT,
+                 color: str = "#333333", gid: str = "id_label") -> list:
+    """Label each data point xy[i] with texts[i] at the candidate offset
+    (LABEL_OFFSETS) that overlaps least with every point's marker (a square
+    of marker_pt points; `others` adds the data points of other markers),
+    the labels placed before it, the extents of the artists in `avoid` and
+    the area outside the axes, and that is clearly nearer its own point than
+    any other (LABEL_AMBIGUITY; a greedy heuristic, no dependency; the most
+    crowded points are labelled first). Call it once the limits, scales and layout are final;
+    the labels stay out of the layout. Returns the annotations in the
+    order of xy."""
+    fig = ax.figure
+    fig.draw_without_rendering()
+    renderer = fig.canvas.get_renderer()
+    data = np.asarray(xy, dtype=float).reshape(-1, 2)
+    pts = ax.transData.transform(data)
+    more = ax.transData.transform(np.asarray(others, dtype=float).reshape(-1, 2))
+    px = fig.dpi / 72.0
+    half = marker_pt / 2.0 * px
+    boxes = [np.array([x - half, y - half, x + half, y + half]) for x, y in np.vstack([pts, more])]
+    for a in avoid:
+        e = a.get_window_extent(renderer)
+        boxes.append(np.array([e.x0, e.y0, e.x1, e.y1]))
+    fr = ax.get_window_extent(renderer)
+    frame = np.array([fr.x0, fr.y0, fr.x1, fr.y1])
+
+    def overlap(b, o):
+        return max(0.0, min(b[2], o[2]) - max(b[0], o[0])) * max(0.0, min(b[3], o[3]) - max(b[1], o[1]))
+
+    dist = np.hypot(*(pts[:, None, :] - pts[None, :, :]).transpose(2, 0, 1))
+    crowd = (dist < 20.0 * px).sum(axis=1)
+    out: list = [None] * len(pts)
+    for i in sorted(range(len(pts)), key=lambda k: -crowd[k]):
+        ann = ax.annotate(texts[i], tuple(data[i]), textcoords="offset points", xytext=(0, 0),
+                          fontsize=fontsize, color=color, zorder=4, gid=gid, annotation_clip=False)
+        ann.set_in_layout(False)
+        best = None
+        for dx, dy, ha, va in LABEL_OFFSETS:
+            ann.set_position((dx, dy))
+            ann.set_ha(ha)
+            ann.set_va(va)
+            e = ann.get_window_extent(renderer)
+            b = np.array([e.x0, e.y0, e.x1, e.y1])
+            area = (b[2] - b[0]) * (b[3] - b[1])
+            centre = np.array([(b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0])
+            d = np.hypot(*(pts - centre).T)
+            ambiguous = bool(len(pts) > 1 and d[i] > LABEL_AMBIGUITY * np.delete(d, i).min())
+            cost = (sum(overlap(b, o) for o in boxes) + 4.0 * (area - overlap(b, frame))
+                    + 0.5 * area * ambiguous)
+            if best is None or cost < best[0] - 1e-9:
+                best = (cost, (dx, dy, ha, va), b)
+        dx, dy, ha, va = best[1]
+        ann.set_position((dx, dy))
+        ann.set_ha(ha)
+        ann.set_va(va)
+        boxes.append(best[2] + np.array([-1.0, -1.0, 1.0, 1.0]) * LABEL_PAD * px)
+        out[i] = ann
+    return out
+
+
 # --- figures ----------------------------------------------------------------
 
 def fig_ranking(con, run_id, out: Path):
+    """The top 25 by median efficiency with q05-q95 bars; a zero value sits
+    in the zero column at the data-driven floor (data_floor of the plotted
+    quantiles), a zero median as an open marker."""
     metric = primary_metric(con, run_id)
     eff = metric_rows(con, run_id, metric)
     order = ranked_ids(con, run_id)[:25]
     ttl = titles(con)
-    fig, ax = plt.subplots(figsize=(6.2, 0.26 * len(order) + 1.0))
-    for y, sid in enumerate(reversed(order)):
-        r = eff[sid]
-        lo = max(r["q05"] or 0.0, EFF_FLOOR)
-        hi = max(r["q95"] or 0.0, EFF_FLOOR)
-        ax.hlines(y, lo, hi, color=INTERVAL, lw=1.4)
-        q50 = r["q50"] or 0.0
-        if q50 >= EFF_FLOOR:
-            ax.plot(q50, y, "o", color=ACCENT, ms=4.5)
-        else:
-            ax.plot(EFF_FLOOR, y, "o", mfc="white", mec=ACCENT, ms=4.5)
+    q = np.array([[eff[s][k] or 0.0 for k in ("q05", "q50", "q95")] for s in reversed(order)])
+    floor = data_floor(q)
+    fig, ax = plt.subplots(figsize=(FIG_W, 0.24 * len(order) + 0.9))
+    ys = np.arange(len(order))
+    qf = np.maximum(q, floor)
+    ax.hlines(ys, qf[:, 0], qf[:, 2], color=INTERVAL, lw=1.4)
+    zero = q[:, 1] < floor
+    ax.plot(qf[~zero, 1], ys[~zero], "o", color=ACCENT, ms=4.5)
+    ax.plot(qf[zero, 1], ys[zero], "o", mfc="white", mec=ACCENT, ms=4.5, mew=0.8)
     ax.axvline(1.0, color="#555555", lw=0.8, ls="--")
-    ax.text(1.35, len(order) - 0.35, "EVSI = C", fontsize=6.5, color="#555555",
+    ax.text(1.35, len(order) - 0.35, "EVSI = C", fontsize=MIN_FONT, color="#555555",
             rotation=90, va="top")
     ax.set_yticks(range(len(order)))
-    ax.set_yticklabels([f"{sid} · {ttl[sid][:52]}" for sid in reversed(order)], fontsize=7)
-    ax.set_xscale("log")
-    ax.set_xlabel(f"{metric} = {evsi_metric(con, run_id)} / C (log scale)")
-    ax.set_title(f"Ranking by median {metric}")
+    ax.set_yticklabels([f"{sid} · {ttl[sid][:52]}" for sid in reversed(order)], fontsize=MIN_FONT)
+    if (q < floor).any():
+        floor_axis(ax, floor, "x", top=max(qf.max(), 1.0) * 3.0)
+        ax.axvspan(ax.get_xlim()[0], floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.4)
+    else:
+        ax.set_xscale("log")
+    ax.tick_params(axis="x", labelsize=7)
+    ax.set_xlabel(f"{metric} = {evsi_metric(con, run_id)} / C (log scale)", fontsize=8)
+    fig.suptitle(f"Ranking by median {metric}" + (" (open: median 0)" if zero.any() else ""), fontsize=8.5)
     ax.grid(axis="y", visible=False)
     fig.savefig(out / "fig_ranking.pdf")
     plt.close(fig)
@@ -222,7 +370,9 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
     cost mixture the efficiency ranking divides by, so the iso-efficiency
     diagonals agree with the ranking table), log-log, with thin q05-q95 EVSI
     bars, points coloured by scenario group when the study has groups,
-    iso-efficiency diagonals and the top 10 labelled by id."""
+    iso-efficiency diagonals and the top 10 labelled by id. A zero median
+    sits in the zero row at the data-driven floor (data_floor of the plotted
+    medians and q05s), as an open marker."""
     evsi_name = evsi_metric(con, run_id)
     evsi = metric_rows(con, run_id, evsi_name)
     order = ranked_ids(con, run_id)
@@ -232,12 +382,14 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
     y50 = np.array([evsi[s]["q50"] or 0.0 for s in order])
     y05 = np.array([evsi[s]["q05"] or 0.0 for s in order])
     y95 = np.array([evsi[s]["q95"] or 0.0 for s in order])
-    floored = y50 < EVSI_FLOOR
-    y50f = np.maximum(y50, EVSI_FLOOR)
-    lo = np.maximum(y05, EVSI_FLOOR)
-    hi = np.maximum(y95, EVSI_FLOOR)
+    floor = data_floor([y50, y05])
+    floored = y50 < floor
+    zero_row = bool((y05 < floor).any())
+    y50f = np.maximum(y50, floor)
+    lo = np.maximum(y05, floor)
+    hi = np.maximum(y95, floor)
 
-    fig, ax = plt.subplots(figsize=(6.2, 4.6))
+    fig, ax = plt.subplots(figsize=(FIG_W, 3.6))
     ax.vlines(xs, lo, hi, color=INTERVAL, lw=0.6, alpha=0.75, zorder=1)
     grp_of = [groups.get(s) for s in order]
     grp_names = sorted({g for g in grp_of if g})
@@ -254,13 +406,20 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
         m0 = mask & floored
         ax.plot(xs[m1], y50f[m1], "o", color=color, ms=5, mec="white", mew=0.5,
                 label=label, zorder=3)
-        ax.plot(xs[m0], y50f[m0], "o", mfc="white", mec=color, ms=5, zorder=3)
+        ax.plot(xs[m0], y50f[m0], "o", mfc="white", mec=color, ms=5, mew=0.8, zorder=3)
     ax.set_xscale("log")
-    ax.set_yscale("log")
     xlim = np.array([xs.min() / 3, xs.max() * 3])
-    ylim = np.array([EVSI_FLOOR / 2, max(hi.max(), EVSI_FLOOR) * 10])
+    top = max(hi.max(), floor) * 10.0**1.3
     ax.set_xlim(*xlim)
-    ax.set_ylim(*ylim)
+    if zero_row:
+        floor_axis(ax, floor, "y", top=top)
+        ax.axhspan(ax.get_ylim()[0], floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.5)
+        label_lo = floor * 10.0
+    else:
+        ax.set_yscale("log")
+        label_lo = lo.min() / 10.0**0.5
+        ax.set_ylim(label_lo, top)
+    ylim = np.array([label_lo, top])
     for k in range(-2, 4):
         ax.plot(xlim, 10.0**k * xlim, ls="--", lw=0.7, color="#c9c9c9", zorder=0)
         x_lab = min(xlim[1] * 0.55, ylim[1] * 0.35 / 10.0**k)
@@ -269,24 +428,28 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
             p0 = ax.transData.transform((x_lab, y_lab))
             p1 = ax.transData.transform((x_lab * 2, y_lab * 2))
             angle = np.degrees(np.arctan2(p1[1] - p0[1], p1[0] - p0[0]))
-            ax.text(x_lab, y_lab * 1.25, f"eff $= 10^{{{k}}}$", fontsize=6,
+            ax.text(x_lab, y_lab * 1.25, f"eff $= 10^{{{k}}}$", fontsize=MIN_FONT,
                     color="#8a8a8a", rotation=angle, rotation_mode="anchor")
-    for i, sid in enumerate(order[:10]):
-        ax.annotate(str(sid), (xs[i], y50f[i]), textcoords="offset points",
-                    xytext=(4, 4) if i % 2 == 0 else (-4, -9),
-                    ha="left" if i % 2 == 0 else "right",
-                    fontsize=7, color="#333333", zorder=4)
-    ax.annotate("better\n(more decision value per dollar)",
-                xy=(0.03, 0.97), xytext=(0.16, 0.80),
-                xycoords="axes fraction", textcoords="axes fraction",
-                fontsize=7, color="#333333", ha="left", va="top",
-                arrowprops={"arrowstyle": "-|>", "color": "#333333", "lw": 0.9})
-    if grp_names:
-        ax.legend(fontsize=6.5, loc="lower right", frameon=False, title="group",
-                  title_fontsize=6.5)
-    ax.set_xlabel("median C (run mixture, USD)")
-    ax.set_ylabel(f"median {evsi_name} (USD per measurement)")
-    ax.set_title(f"Median {evsi_name} vs median cost (bars: q05–q95; top 10 labelled by id)")
+    arrow = ax.annotate("better\n(more decision value per dollar)",
+                        xy=(0.03, 0.97), xytext=(0.12, 0.84),
+                        xycoords="axes fraction", textcoords="axes fraction",
+                        fontsize=MIN_FONT, color="#333333", ha="left", va="top",
+                        arrowprops={"arrowstyle": "-|>", "color": "#333333", "lw": 0.9})
+    handles = ax.get_legend_handles_labels()[0] if grp_names else []
+    if floored.any():
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
+                                  label="open: median EVSI = 0"))
+    if handles:
+        ax.legend(handles=handles, fontsize=MIN_FONT, loc="upper left", bbox_to_anchor=(1.02, 1.0),
+                  borderaxespad=0.0, frameon=False, title="group" if grp_names else None,
+                  title_fontsize=MIN_FONT, alignment="left")
+    ax.set_xlabel("median C (run mixture, USD)", fontsize=8)
+    ax.set_ylabel(f"median {evsi_name} (USD)", fontsize=8)
+    ax.tick_params(labelsize=7)
+    ax.set_title(f"Median {evsi_name} vs median cost (bars: q05–q95; top 10 labelled by id)", fontsize=8)
+    top10 = min(10, len(order))
+    place_labels(ax, np.column_stack([xs[:top10], y50f[:top10]]), [str(s) for s in order[:top10]],
+                 marker_pt=5.0, others=np.column_stack([xs[top10:], y50f[top10:]]), avoid=[arrow])
     fig.savefig(out / "fig_evsi_vs_cost.pdf")
     plt.close(fig)
     return True
@@ -422,8 +585,10 @@ def fig_param_medians(con, run_id, out: Path):
 
 def fig_by_level(con, run_id, out: Path):
     """Median EVSI, efficiency and C against attributes.level, with q05-q95
-    intervals, grouped by grp. Skipped silently when no scenario carries a
-    numeric level."""
+    intervals, grouped by grp. A panel with zero values draws them in a
+    zero row at its data-driven floor (data_floor of the panel's plotted
+    quantiles; open markers for a zero median). Skipped silently when no
+    scenario carries a numeric level."""
     levels = {}
     for r in con.execute("SELECT * FROM scenarios"):
         lv = db.scenario_attributes(r).get("level")
@@ -441,33 +606,50 @@ def fig_by_level(con, run_id, out: Path):
     evsi = metric_rows(con, run_id, evsi_name)
     eff = metric_rows(con, run_id, eff_name)
     panels = [
-        (f"median {evsi_name} (USD)", lambda s: (evsi[s]["q05"], evsi[s]["q50"], evsi[s]["q95"]),
-         EVSI_FLOOR),
-        (f"{eff_name} = {evsi_name} / C", lambda s: (eff[s]["q05"], eff[s]["q50"], eff[s]["q95"]),
-         EFF_FLOOR),
-        ("cost C (USD)", lambda s: c_quantiles(con, run, s), 1.0),
+        (f"median {evsi_name} (USD)", lambda s: (evsi[s]["q05"], evsi[s]["q50"], evsi[s]["q95"])),
+        (f"{eff_name} = {evsi_name} / C", lambda s: (eff[s]["q05"], eff[s]["q50"], eff[s]["q95"])),
+        ("cost C (USD)", lambda s: c_quantiles(con, run, s)),
     ]
-    fig, axes = plt.subplots(1, 3, figsize=(6.2, 2.7))
-    for ax, (ylabel, q_of, floor) in zip(axes, panels, strict=True):
+    fig, axes = plt.subplots(1, 3, figsize=(FIG_W, 2.3))
+    any_open = False
+    for ax, (ylabel, q_of) in zip(axes, panels, strict=True):
+        q_all = np.nan_to_num(np.array([q_of(s) for s in order], dtype=float), nan=0.0)
+        floor = data_floor(q_all)
+        zero_row = bool((q_all < floor).any())
+        top = float(np.max(q_all))
         for gi, g in enumerate(grp_names):
             sids = [s for s in order if (groups[s] or "(no group)") == g]
             if not sids:
                 continue
             x = np.array([levels[s] for s in sids]) + offsets[gi]
-            q = np.array([q_of(s) for s in sids], dtype=float)
-            q = np.maximum(np.nan_to_num(q, nan=0.0), floor)
-            ax.errorbar(x, q[:, 1], yerr=[q[:, 1] - q[:, 0], q[:, 2] - q[:, 1]],
-                        fmt="o", ms=3.5, color=colors[g], ecolor=colors[g], alpha=0.85,
-                        elinewidth=0.6, capsize=0, mec="white", mew=0.4, label=g)
-        ax.set_yscale("log")
-        ax.set_ylabel(ylabel, fontsize=8)
-        ax.set_xlabel("level", fontsize=8)
+            raw = np.nan_to_num(np.array([q_of(s) for s in sids], dtype=float), nan=0.0)
+            q = np.maximum(raw, floor)
+            ax.vlines(x, q[:, 0], q[:, 2], color=colors[g], lw=0.7, alpha=0.8, zorder=1)
+            zero = raw[:, 1] < floor
+            any_open |= bool(zero.any())
+            ax.plot(x[~zero], q[~zero, 1], "o", ms=3.5, color=colors[g], mec="white", mew=0.4, zorder=3,
+                    label=g)
+            ax.plot(x[zero], q[zero, 1], "o", ms=3.5, mfc="white", mec=colors[g], mew=0.8, zorder=3)
+        if zero_row:
+            floor_axis(ax, floor, "y", top=top * 2.0)
+            ax.axhspan(floor / 10.0**0.35, floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.4)
+        else:
+            ax.set_yscale("log")
+        ax.set_ylabel(ylabel, fontsize=7)
+        ax.set_xlabel("level", fontsize=7)
         ax.set_xticks(sorted(set(levels.values())))
-        ax.tick_params(labelsize=7)
-    if len(grp_names) > 1:
-        axes[0].legend(fontsize=6, frameon=False, loc="best")
-    fig.suptitle("Decision value, efficiency and cost by scenario level (bars: q05–q95)",
-                 fontsize=9)
+        ax.set_xticklabels([f"{lv:g}" for lv in sorted(set(levels.values()))])
+        ax.tick_params(labelsize=MIN_FONT)
+    handles = [plt.Line2D([], [], marker="o", ls="-", lw=0.7, color=colors[g], mec="white", label=g)
+               for g in grp_names] if len(grp_names) > 1 else []
+    if any_open:
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
+                                  label="open: median 0, in the zero row"))
+    if handles:
+        fig.legend(handles=handles, loc="outside lower center", ncol=len(handles), fontsize=MIN_FONT,
+                   frameon=False)
+    fig.suptitle("Decision value, efficiency and cost by scenario level (median, bars: q05–q95)",
+                 fontsize=8)
     fig.savefig(out / "fig_by_level.pdf")
     plt.close(fig)
     return True

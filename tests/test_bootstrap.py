@@ -27,7 +27,7 @@ from tests.test_extra import (  # noqa: F401  (module-scoped clean tree)
     synth_percentiles,
 )
 from voi_rank import db, mc, model
-from voi_rank.analysis import extra, tables
+from voi_rank.analysis import extra, figures, tables
 from voi_rank.fit import FAMILY_BY_PARAM, fit_param
 from voi_rank.sensitivity import spearman
 
@@ -605,10 +605,12 @@ def test_plugin_map_draws_the_bootstrap_bars(built, con, tmp_path, monkeypatch):
     monkeypatch.setattr(extra.plt, "close", figs.append)
     assert extra.fig_plugin_map(con, run, tmp_path, pb=pb)
     ax = figs[0].axes[0]
-    floor = extra.EVSI_FLOOR
     seg = {gid: [c for c in ax.collections if c.get_gid() == gid][0].get_segments()
            for gid in ("boot_evsi", "boot_c", "stem")}
     pts = {sid: extra.plugin_point(con, run, sid) for sid in pb["sids"]}
+    # the zero row: a decade below the plotted EVSI, EVSI* and bootstrap q05 values
+    floor = figures.data_floor([[pts[s][k] for s in pts for k in ("EVSI", "EVSI_star")],
+                                [pb["rows"][s]["EVSI_q"][0] for s in pts]])
     assert sorted((float(a[0]), float(a[1]), float(b[1])) for a, b in seg["boot_evsi"]) == pytest.approx(
         sorted((pts[s]["C"], max(pb["rows"][s]["EVSI_q"][0], floor), max(pb["rows"][s]["EVSI_q"][2], floor))
                for s in pb["sids"]))

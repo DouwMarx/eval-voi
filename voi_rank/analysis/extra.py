@@ -146,10 +146,18 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.ticker  # noqa: E402
+import matplotlib.transforms  # noqa: E402
 import numpy as np  # noqa: E402
 from scipy.stats import rankdata  # noqa: E402
 
 from voi_rank import db, mc, model  # noqa: E402
+from voi_rank.analysis.figures import (  # noqa: E402  (one floor rule and label placement)
+    FIG_W,
+    MIN_FONT,
+    data_floor,
+    floor_axis,
+    place_labels,
+)
 from voi_rank.analysis.tables import money, plain  # noqa: E402  (one formatter for both modules)
 from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
 from voi_rank.sensitivity import spearman  # noqa: E402
@@ -170,8 +178,6 @@ BOOT_BAR = "#d3d9df"          # the bootstrap bars of the plug-in map: light, be
 CATEGORICAL = ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7",
                "#56B4E9", "#F0E442", "#000000"]
 MARKERS = ["o", "s", "^", "D", "v", "P", "X", "*"]
-EFF_FLOOR = 1e-3
-EVSI_FLOOR = 1e-2
 STYLE = {
     "font.family": "serif",
     "mathtext.fontset": "cm",
@@ -199,7 +205,9 @@ TOP_N_MEMBER = 5
 TOP_N_OVERLAP = 10
 TOP_N_PLUGIN = 5
 # fig_level_uplift: x offset of the plug-in (left) and fence (right) marginals around a step's midpoint
-STEP_OFFSET = 0.08
+STEP_OFFSET = 0.2
+# fig_within_group_consistency: most labelled level ticks per panel
+CONSISTENCY_XLABELS = 5
 # replay verification (mirrors mc.py): the stored efficiency summary a replay must reproduce
 REPLAY_RTOL = 1e-9
 SUMMARY_QS = (0.05, 0.25, 0.50, 0.75, 0.95)
@@ -639,73 +647,131 @@ def level_uplift_stats(con, run, analysis: dict | None = None) -> dict[str, list
 
 
 def fig_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
+    """fig_level_uplift.pdf, one column per ladder. Top row, per rung at the
+    ladder's plug-in point (ladder_plugin: p, B, K pooled over the ladder,
+    s, t, C the rung's medians, the values of the level_uplift.tex plug-in
+    tabular): the plug-in EVSI (filled) with its bootstrap q05-q95 bar
+    (ladder_bootstrap), the fence value EVSI* (hollow, above it) and C
+    (square, with its bootstrap bar); a rung outside the gate (EVSI = 0) is
+    an open marker in the zero row at the data-driven floor (figures.
+    data_floor of the row's plotted EVSI, EVSI*, C and q05 values), shared
+    by the row's panels. Bottom row, per step: the plug-in marginal dEVSI /
+    dC with its bootstrap q05-q95 bar, the fence marginal dEVSI* / dC and
+    the CRN ratio of medians (symlog, zero line solid, break-even dashed; an
+    open marker where dC <= 0), the CRN P(dEVSI > dC) printed above each
+    step. Legend below the panels. Artists carry gid 'plug_evsi' /
+    'fence' / 'cost' / 'boot_evsi' / 'boot_c' (top) and 'boot_meff'
+    (bottom)."""
     analysis = analysis or level_uplift_analysis(con, run)
     stats = analysis["steps"]
     if not stats:
         return False
     groups = list(stats)
-    fig, axes = plt.subplots(2, len(groups), figsize=(min(6.2, 3.3 * len(groups)), 4.6),
-                             squeeze=False, sharex="col")
+    top_vals = []
+    per_group = {}
+    for g in groups:
+        rungs, plug, lb = analysis["rungs"][g], analysis["plugin"][g], analysis["boot"].get(g)
+        v = {key: np.array([plug[sid][key] for _, sid in rungs], dtype=float)
+             for key in ("EVSI", "EVSI_star", "C")}
+        if lb is not None:
+            for key in ("EVSI", "C"):
+                q = np.array([quantiles(lb[sid][key]) for _, sid in rungs])
+                v[f"{key}_lo"], v[f"{key}_hi"] = q[:, 0], q[:, 2]
+        per_group[g] = v
+        top_vals += [v["EVSI"], v["EVSI_star"], v["C"], v.get("EVSI_lo"), v.get("C_lo")]
+    floor = data_floor(top_vals)
+    zero_row = any((v["EVSI"] < floor).any() or ("EVSI_lo" in v and (v["EVSI_lo"] < floor).any())
+                   for v in per_group.values())
+    fig, axes = plt.subplots(2, len(groups), figsize=(FIG_W, 3.1), squeeze=False, sharex="col")
+    for j in range(1, len(groups)):
+        axes[0][j].sharey(axes[0][0])
+        axes[0][j].tick_params(labelleft=False)
+    off = 0.14
+    top_hi = 0.0
     for j, g in enumerate(groups):
         top, bot = axes[0][j], axes[1][j]
-        rungs = analysis["rungs"][g]
-        draws = analysis["draws"][g]["rungs"]
+        rungs, v = analysis["rungs"][g], per_group[g]
         levels = np.array([lv for lv, _ in rungs])
-        for key, color, off in (("EVSI", ACCENT, -0.07), ("C", CATEGORICAL[1], 0.07)):
-            q = np.array([quantiles(draws[sid][key]) for _, sid in rungs])
-            floored = q[:, 1] < EVSI_FLOOR
-            q = np.maximum(q, EVSI_FLOOR)
-            top.errorbar(levels + off, q[:, 1], yerr=[q[:, 1] - q[:, 0], q[:, 2] - q[:, 1]],
-                         fmt="none", ecolor=color, elinewidth=0.7, alpha=0.8)
-            top.plot(levels[~floored] + off, q[~floored, 1], "o", color=color, ms=4,
-                     mec="white", mew=0.4, label=key)
-            top.plot(levels[floored] + off, q[floored, 1], "o", mfc="white", mec=color, ms=4)
-        top.set_yscale("log")
-        top.set_title(g, fontsize=9)
-        top.tick_params(labelsize=7)
-        if j == 0:
-            top.set_ylabel("USD (median, q05–q95)", fontsize=8)
-            top.legend(fontsize=6.5, frameon=False, loc="upper left")
+        for key, x0, color, gid in (("EVSI", levels - off, ACCENT, "boot_evsi"),
+                                    ("C", levels + off, CATEGORICAL[1], "boot_c")):
+            if f"{key}_lo" in v:
+                top.vlines(x0, np.maximum(v[f"{key}_lo"], floor), np.maximum(v[f"{key}_hi"], floor),
+                           color=color, lw=0.8, alpha=0.45, zorder=1, gid=gid)
+                top_hi = max(top_hi, float(np.max(v[f"{key}_hi"])))
+        evsi = np.maximum(v["EVSI"], floor)
+        gated = v["EVSI"] >= floor
+        top.plot(levels[gated] - off, evsi[gated], "o", color=ACCENT, ms=4, mec="white", mew=0.4,
+                 zorder=3, gid="plug_evsi")
+        top.plot(levels[~gated] - off, evsi[~gated], "o", mfc="white", mec=ACCENT, ms=4, mew=0.8,
+                 zorder=3, gid="plug_evsi")
+        top.plot(levels - off, np.maximum(v["EVSI_star"], floor), "^", mfc="white", mec=CATEGORICAL[2],
+                 ms=4, mew=0.8, zorder=2, gid="fence")
+        top.plot(levels + off, v["C"], "s", color=CATEGORICAL[1], ms=3.6, mec="white", mew=0.4, zorder=3,
+                 gid="cost")
+        top_hi = max(top_hi, float(np.max(v["EVSI_star"])), float(np.max(v["C"])))
+        top.set_title(g, fontsize=8)
+        top.tick_params(labelsize=MIN_FONT)
         steps = stats[g]
         xs = np.array([(s["lo_level"] + s["hi_level"]) / 2 for s in steps])
         # plug-in (differences of the per-rung values at the medians) with its
         # bootstrap q05-q95 as a bar, fence (dEVSI* over the plug-in dC) and
         # the CRN ratio of medians, side by side; a step whose dC is not
         # positive gets an open marker
-        series = (("meff_plug", "dC_plug", "o", ACCENT, "plug-in (bar: bootstrap q05-q95)", -STEP_OFFSET),
-                  ("meff_star", "dC_plug", "^", CATEGORICAL[2], "fence EVSI*", STEP_OFFSET),
-                  ("meff", "dC_q50", "s", "#7f7f7f", "CRN median ratio", 0.0))
+        series = (("meff_plug", "dC_plug", "o", ACCENT, -STEP_OFFSET),
+                  ("meff_star", "dC_plug", "^", CATEGORICAL[2], STEP_OFFSET),
+                  ("meff", "dC_q50", "s", "#7f7f7f", 0.0))
         lo = np.array([s["meff_plug_q05"] for s in steps])
         hi = np.array([s["meff_plug_q95"] for s in steps])
         ok = np.isfinite(lo) & np.isfinite(hi)
         bot.vlines(xs[ok] - STEP_OFFSET, lo[ok], hi[ok], color=ACCENT, lw=0.8, alpha=0.45, zorder=1,
                    gid="boot_meff")
-        for key, dc_key, marker, color, label, off in series:
+        for key, dc_key, marker, color, dx in series:
             vals = np.array([s[key] for s in steps])
             ok = np.isfinite(vals)
             cheaper = np.array([s[dc_key] <= 0.0 for s in steps])
-            bot.plot(xs[ok & ~cheaper] + off, vals[ok & ~cheaper], marker, color=color, ms=4.5,
-                     mec="white", mew=0.4, label=label if j == 0 else None)
-            bot.plot(xs[ok & cheaper] + off, vals[ok & cheaper], marker, mfc="white", mec=color, ms=4.5)
+            bot.plot(xs[ok & ~cheaper] + dx, vals[ok & ~cheaper], marker, color=color, ms=3.8,
+                     mec="white", mew=0.4, zorder=3)
+            bot.plot(xs[ok & cheaper] + dx, vals[ok & cheaper], marker, mfc="white", mec=color, ms=3.8,
+                     mew=0.8, zorder=3)
+        above = matplotlib.transforms.blended_transform_factory(bot.transData, bot.transAxes)
         for x, s in zip(xs, steps, strict=True):
-            y = s["meff_plug"] if np.isfinite(s["meff_plug"]) else s["meff"]
-            if np.isfinite(y):
-                bot.annotate(f"{s['p_pays']:.0%}", (x - STEP_OFFSET, y), textcoords="offset points",
-                             xytext=(0, 5), ha="center", fontsize=5.5, color="#555555")
-        bot.axhline(1.0, color="#555555", lw=0.8, ls="--")
-        bot.set_yscale("symlog", linthresh=0.1)
+            bot.text(x, 1.02, f"{100.0 * s['p_pays']:.0f}", transform=above, ha="center", va="bottom",
+                     fontsize=MIN_FONT, color="#555555", gid="p_pays")
+        bot.axhline(0.0, color="#9a9a9a", lw=0.6, zorder=0.5)
+        bot.axhline(1.0, color="#555555", lw=0.8, ls="--", zorder=0.6)
+        bot.set_yscale("symlog", linthresh=0.1, linscale=0.6)
+        bot.yaxis.set_major_locator(matplotlib.ticker.SymmetricalLogLocator(base=10.0, linthresh=0.1,
+                                                                              subs=[1.0]))
         bot.set_xticks(levels)
         bot.set_xticklabels([level_label(lv) for lv in levels])
-        bot.set_xlabel("level (steps sit between adjacent rungs)", fontsize=8)
-        bot.tick_params(labelsize=7)
-        if j == 0:
-            bot.set_ylabel(r"marginal efficiency $\Delta$EVSI / $\Delta C$", fontsize=8)
-    handles, labels_ = axes[1][0].get_legend_handles_labels()
-    fig.legend(handles, labels_, loc="outside lower center", ncol=3, fontsize=6.5, frameon=False)
-    fig.suptitle("Top: value and cost per rung (CRN draws: median, q05-q95). Bottom: marginal efficiency"
-                 " per step:\nplug-in dEVSI/dC of the per-rung values at the pooled medians (bar: its"
-                 " bootstrap q05-q95),\nfence dEVSI*/dC with EVSI* = (B+K) p (1-p) (s+t-1), and the CRN"
-                 " ratio of medians;\nlabels: CRN P(dEVSI > dC); open markers: dC <= 0", fontsize=7)
+        bot.set_xlabel("level (a step sits between two rungs)", fontsize=7)
+        bot.tick_params(labelsize=MIN_FONT)
+    if zero_row:
+        floor_axis(axes[0][0], floor, "y", top=top_hi * 3.0)
+        for ax in axes[0]:
+            ax.axhspan(floor / 10.0**0.35, floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.4)
+    else:
+        axes[0][0].set_yscale("log")
+    axes[0][0].set_ylabel("USD per rung", fontsize=7)
+    axes[1][0].set_ylabel(r"$\Delta$EVSI / $\Delta C$ per step", fontsize=7)
+    boot = "bootstrap q05-q95"
+    handles = [
+        plt.Line2D([], [], marker="o", color=ACCENT, ls="-", lw=0.8, ms=4, mec="white",
+                   label=f"plug-in EVSI and $\\Delta$EVSI/$\\Delta C$ (bar: {boot})"),
+        plt.Line2D([], [], marker="s", color=CATEGORICAL[1], ls="-", lw=0.8, ms=3.6, mec="white",
+                   label=f"C (bar: {boot})"),
+        plt.Line2D([], [], marker="^", ls="", mfc="white", mec=CATEGORICAL[2], ms=4,
+                   label="fence EVSI$^\\star$ and $\\Delta$EVSI$^\\star$/$\\Delta C$"),
+        plt.Line2D([], [], marker="s", color="#7f7f7f", ls="", ms=3.8, mec="white",
+                   label="CRN ratio of medians"),
+        plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555", ms=4,
+                   label="open: EVSI = 0 (gate closed), or $\\Delta C \\leq 0$"),
+        plt.Line2D([], [], marker="$\\%$", ls="", color="#555555", ms=5,
+                   label="numbers: CRN $P(\\Delta$EVSI $> \\Delta C)$ in %"),
+    ]
+    fig.legend(handles=handles, loc="outside lower center", ncol=2, fontsize=MIN_FONT, frameon=False,
+               handletextpad=0.4, columnspacing=1.2)
+    fig.suptitle("Per rung at the ladder's plug-in point (top) and per step (bottom)", fontsize=8)
     fig.savefig(out / "fig_level_uplift.pdf")
     plt.close(fig)
     return True
@@ -783,8 +849,10 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
 def fig_level_fence(con, run, out: Path) -> bool:
     """Per group of leveled scenarios ranked in the run: the fence value
     EVSI*, the plug-in EVSI and C, each at the scenario's own pooled
-    medians, against the level (log y). Skipped without a leveled ranked
-    scenario with a complete plug-in point."""
+    medians, against the level (log y, shared by the panels). A zero EVSI
+    (outside the gate) is an open marker in the zero row at the
+    data-driven floor (figures.data_floor of the plotted values). Skipped
+    without a leveled ranked scenario with a complete plug-in point."""
     levels = scenario_levels(con)
     groups = scenario_groups(con)
     order = [s for s in ranked_ids(con, run["id"]) if s in levels]
@@ -793,32 +861,44 @@ def fig_level_fence(con, run, out: Path) -> bool:
     if not order:
         return False
     names = sorted({groups[s] or "(no group)" for s in order})
-    fig, axes = plt.subplots(1, len(names), figsize=(min(6.2, 3.3 * len(names)), 2.9),
-                             squeeze=False, sharey=True)
-    series = (("EVSI_star", "^", CATEGORICAL[2], "EVSI* (fence)"), ("EVSI", "o", ACCENT, "EVSI (plug-in)"),
-              ("C", "s", CATEGORICAL[1], "C"))
+    series = (("EVSI_star", "^", CATEGORICAL[2], "EVSI$^\\star$ (fence)"),
+              ("EVSI", "o", ACCENT, "EVSI (plug-in)"), ("C", "s", CATEGORICAL[1], "C"))
+    floor = data_floor([pts[s][key] for s in order for key, *_ in series])
+    fig, axes = plt.subplots(1, len(names), figsize=(FIG_W, 2.4), squeeze=False, sharey=True)
+    zero_row, top = False, 0.0
     for ax, g in zip(axes[0], names, strict=True):
         sids = sorted((s for s in order if (groups[s] or "(no group)") == g), key=lambda s: (levels[s], s))
         x = np.array([levels[s] for s in sids])
         for key, marker, color, label in series:
-            y = np.array([pts[s][key] for s in sids], dtype=float)
-            floored = y < EVSI_FLOOR
-            y = np.maximum(y, EVSI_FLOOR)
+            raw = np.array([pts[s][key] for s in sids], dtype=float)
+            floored = raw < floor
+            zero_row |= bool(floored.any())
+            y = np.maximum(raw, floor)
+            top = max(top, float(y.max()))
             ax.plot(x[~floored], y[~floored], marker, color=color, ms=4.5, mec="white", mew=0.4,
-                    label=label if g == names[0] else None, ls="-", lw=0.7, alpha=0.9)
-            ax.plot(x[floored], y[floored], marker, mfc="white", mec=color, ms=4.5)
-        ax.set_yscale("log")
-        ax.set_title(g, fontsize=9)
+                    label=label if g == names[0] else None, ls="-", lw=0.7, alpha=0.9, gid=key)
+            ax.plot(x[floored], y[floored], marker, mfc="white", mec=color, ms=4.5, mew=0.8, ls="",
+                    gid=key)
+        ax.set_title(g, fontsize=8)
         ax.set_xticks(sorted(set(x)))
         ax.set_xticklabels([level_label(lv) for lv in sorted(set(x))])
-        ax.set_xlabel("level", fontsize=8)
-        ax.tick_params(labelsize=7)
-    axes[0][0].set_ylabel("USD at the pooled medians", fontsize=8)
-    axes[0][0].legend(fontsize=6, frameon=False, loc="best")
-    fig.suptitle("Fence value EVSI* = (B+K) p (1-p) (s+t-1), plug-in EVSI and cost C at each scenario's"
-                 f" pooled medians,\nagainst its level (open markers: below {EVSI_FLOOR:g} USD; the"
-                 " level-uplift marginals pool p, B, K over the ladder instead)",
-                 fontsize=7.5)
+        ax.set_xlabel("level", fontsize=7)
+        ax.tick_params(labelsize=MIN_FONT)
+    if zero_row:
+        floor_axis(axes[0][0], floor, "y", top=top * 3.0)
+        for ax in axes[0]:
+            ax.axhspan(floor / 10.0**0.35, floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.4)
+    else:
+        axes[0][0].set_yscale("log")
+    axes[0][0].set_ylabel("USD at the pooled medians", fontsize=7)
+    handles = axes[0][0].get_legend_handles_labels()[0]
+    if zero_row:
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555", ms=4.5,
+                                  label="open: EVSI = 0 (gate closed)"))
+    fig.legend(handles=handles, loc="outside lower center", ncol=len(handles), fontsize=MIN_FONT,
+               frameon=False, handletextpad=0.4, columnspacing=1.5)
+    fig.suptitle("Fence value EVSI$^\\star$, plug-in EVSI and cost C at each scenario's pooled medians",
+                 fontsize=8)
     fig.savefig(out / "fig_level_fence.pdf")
     plt.close(fig)
     return True
@@ -920,6 +1000,20 @@ def consistency_stats(con, run) -> dict[str, dict]:
     return consistency_analysis(con, run)[0]
 
 
+def sparse_levels(levels: list[float], most: int) -> set[float]:
+    """The levels to label on a crowded axis: the first and the last, and
+    each other level at least 0.9 of an even spacing of `most` labels away
+    from the previous labelled one and from the last."""
+    if len(levels) <= 2:
+        return set(levels)
+    gap = 0.9 * (levels[-1] - levels[0]) / max(most - 1, 1)
+    shown = [levels[0]]
+    for lv in levels[1:-1]:
+        if lv - shown[-1] >= gap and levels[-1] - lv >= gap:
+            shown.append(lv)
+    return {*shown, levels[-1]}
+
+
 def fig_within_group_consistency(con, run, out: Path) -> bool:
     """Same groups as the table (consistency_analysis), so a group skipped
     there is not plotted with a missing level either."""
@@ -931,7 +1025,7 @@ def fig_within_group_consistency(con, run, out: Path) -> bool:
     colors = group_colors(members) if multi else dict.fromkeys(members, ACCENT)
     rng = np.random.default_rng(0)
     fig, axes = plt.subplots(len(groups), len(db.PARAM_NAMES),
-                             figsize=(6.2, 1.55 * len(groups) + 0.7), squeeze=False)
+                             figsize=(FIG_W, 1.2 * len(groups) + 0.65), squeeze=False)
     for i, (g, rungs) in enumerate(groups.items()):
         sids = [sid for _, sid in rungs]
         level_of = {sid: lv for lv, sid in rungs}
@@ -954,8 +1048,13 @@ def fig_within_group_consistency(con, run, out: Path) -> bool:
             else:
                 ax.set_ylim(-0.02, 1.02)
             ax.set_xticks(levels)
-            ax.set_xticklabels([level_label(lv) for lv in levels])
-            ax.tick_params(labelsize=6)
+            # every level ticked, a spaced subset labelled (a 0-9 ladder in a sixth of the text
+            # width otherwise runs its digits together, and so do levels 8 and 9)
+            shown = sparse_levels(levels, CONSISTENCY_XLABELS)
+            ax.set_xticklabels([level_label(lv) if lv in shown else "" for lv in levels])
+            ax.tick_params(labelsize=MIN_FONT)
+            if not usd:
+                ax.set_yticks([0.0, 0.5, 1.0])
             if i == 0:
                 ax.set_title(f"${name}$" + (" (USD)" if usd else ""), fontsize=8)
             if j == 0:
@@ -965,7 +1064,7 @@ def fig_within_group_consistency(con, run, out: Path) -> bool:
     if multi:
         handles = [plt.Line2D([], [], marker="o", ls="", color=colors[m], label=m) for m in members]
         fig.legend(handles=handles, loc="outside lower center", ncol=min(len(members), 3),
-                   fontsize=6.5, frameon=False)
+                   fontsize=MIN_FONT, frameon=False)
     fig.suptitle("Elicited p50 by level, groups sharing one decision (line: pooled median)",
                  fontsize=8)
     fig.savefig(out / "fig_within_group_consistency.pdf")
@@ -1024,7 +1123,7 @@ def iso_efficiency_lines(ax, xlim, ylim) -> None:
             p0 = ax.transData.transform((x_lab, y_lab))
             p1 = ax.transData.transform((x_lab * 2, y_lab * 2))
             angle = np.degrees(np.arctan2(p1[1] - p0[1], p1[0] - p0[0]))
-            ax.text(x_lab, y_lab * 1.25, f"eff $= 10^{{{k}}}$", fontsize=6, color="#8a8a8a",
+            ax.text(x_lab, y_lab * 1.25, f"eff $= 10^{{{k}}}$", fontsize=MIN_FONT, color="#8a8a8a",
                     rotation=angle, rotation_mode="anchor")
 
 
@@ -1043,6 +1142,10 @@ def pooled_c(con, run, sid: int) -> float | None:
 
 
 def fig_domain_map(con, run, out: Path) -> bool:
+    """Median EVSI (MC) against the median C per scenario, coloured by risk
+    domain and shaped by group, q05-q95 bars; a zero median sits in the
+    zero row at the data-driven floor (figures.data_floor of the plotted
+    medians and q05s), as an open marker; every id labelled."""
     domains = scenario_domains(con)
     order = ranked_ids(con, run["id"])
     if not any(s in domains for s in order):
@@ -1052,9 +1155,11 @@ def fig_domain_map(con, run, out: Path) -> bool:
     cost = metric_rows(con, run["id"], "C")
     groups = scenario_groups(con)
     xs = np.array([cost[s]["q50"] if s in cost else pooled_c(con, run, s) for s in order], dtype=float)
-    y50 = np.maximum(np.array([evsi[s]["q50"] or 0.0 for s in order]), EVSI_FLOOR)
-    lo = np.maximum(np.array([evsi[s]["q05"] or 0.0 for s in order]), EVSI_FLOOR)
-    hi = np.maximum(np.array([evsi[s]["q95"] or 0.0 for s in order]), EVSI_FLOOR)
+    raw = {q: np.array([evsi[s][q] or 0.0 for s in order]) for q in ("q05", "q50", "q95")}
+    floor = data_floor([raw["q50"], raw["q05"]])
+    floored = raw["q50"] < floor
+    zero_row = bool((raw["q05"] < floor).any())
+    y50, lo, hi = (np.maximum(raw[q], floor) for q in ("q50", "q05", "q95"))
     dom_of = [domains.get(s, "(none)") for s in order]
     grp_of = [groups.get(s) or "(no group)" for s in order]
     dom_names = sorted(set(dom_of))
@@ -1062,33 +1167,43 @@ def fig_domain_map(con, run, out: Path) -> bool:
     colors = group_colors(dom_names)
     marker = {g: MARKERS[i % len(MARKERS)] for i, g in enumerate(grp_names)}
 
-    fig, ax = plt.subplots(figsize=(6.2, 4.6))
+    fig, ax = plt.subplots(figsize=(FIG_W, 3.4))
     ax.vlines(xs, lo, hi, color=INTERVAL, lw=0.6, alpha=0.75, zorder=1)
     for d in dom_names:
         for g in grp_names:
             mask = np.array([(a == d) and (b == g) for a, b in zip(dom_of, grp_of, strict=True)])
             if mask.any():
-                ax.plot(xs[mask], y50[mask], marker[g], ls="", color=colors[d], ms=5.5,
-                        mec="white", mew=0.5, zorder=3)
-    for i, sid in enumerate(order):
-        ax.annotate(str(sid), (xs[i], y50[i]), textcoords="offset points",
-                    xytext=(4, 3) if i % 2 == 0 else (-4, -8),
-                    ha="left" if i % 2 == 0 else "right", fontsize=6, color="#333333", zorder=4)
+                ax.plot(xs[mask & ~floored], y50[mask & ~floored], marker[g], ls="", color=colors[d],
+                        ms=5.5, mec="white", mew=0.5, zorder=3)
+                ax.plot(xs[mask & floored], y50[mask & floored], marker[g], ls="", mfc="white",
+                        mec=colors[d], ms=5.5, mew=0.9, zorder=3)
     ax.set_xscale("log")
-    ax.set_yscale("log")
     xlim = np.array([xs.min() / 3, xs.max() * 3])
-    ylim = np.array([EVSI_FLOOR / 2, max(hi.max(), EVSI_FLOOR) * 10])
+    top = max(hi.max(), floor) * 10.0
     ax.set_xlim(*xlim)
-    ax.set_ylim(*ylim)
-    iso_efficiency_lines(ax, xlim, ylim)
-    handles = [plt.Line2D([], [], marker="o", ls="", color=colors[d], label=d) for d in dom_names]
-    handles += [plt.Line2D([], [], marker=marker[g], ls="", color="#555555", label=g)
-                for g in grp_names]
-    ax.legend(handles=handles, fontsize=6.5, loc="lower right", frameon=False,
-              title="colour: risk domain; marker: group", title_fontsize=6.5)
-    ax.set_xlabel("median C (run mixture, USD)")
-    ax.set_ylabel(f"median {evsi_name} (USD per evaluation)")
-    ax.set_title(f"Median {evsi_name} vs median cost by risk domain and group (bars: q05–q95)")
+    if zero_row:
+        floor_axis(ax, floor, "y", top=top)
+        ax.axhspan(ax.get_ylim()[0], floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.5)
+        label_lo = floor * 10.0
+    else:
+        ax.set_yscale("log")
+        label_lo = lo.min() / 10.0**0.5
+        ax.set_ylim(label_lo, top)
+    iso_efficiency_lines(ax, xlim, np.array([label_lo, top]))
+    handles = [plt.Line2D([], [], marker="o", ls="", color=colors[d], label=d.replace("_", " "))
+               for d in dom_names]
+    handles += [plt.Line2D([], [], marker=marker[g], ls="", color="#555555", label=g) for g in grp_names]
+    if floored.any():
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
+                                  label="open: median EVSI = 0"))
+    ax.legend(handles=handles, fontsize=MIN_FONT, loc="upper left", bbox_to_anchor=(1.02, 1.0),
+              borderaxespad=0.0, frameon=False, title="colour: risk domain\nmarker: group",
+              title_fontsize=MIN_FONT, alignment="left")
+    ax.set_xlabel("median C (run mixture, USD)", fontsize=8)
+    ax.set_ylabel(f"median {evsi_name} (USD)", fontsize=8)
+    ax.tick_params(labelsize=7)
+    ax.set_title(f"Median {evsi_name} vs median cost by risk domain and group (bars: q05–q95)", fontsize=8)
+    place_labels(ax, np.column_stack([xs, y50]), [str(s) for s in order], marker_pt=6.0)
     fig.savefig(out / "fig_domain_map.pdf")
     plt.close(fig)
     return True
@@ -1224,6 +1339,10 @@ def member_agreement_names(con, protocol_id: int) -> list[str]:
 
 
 def fig_member_agreement(con, run, out: Path) -> bool:
+    """One row per member pair, one panel per parameter: each member's
+    per-scenario median p50, against the other's, with the diagonal and the
+    Spearman rho over the shared scenarios (n printed where it differs from
+    the most common n, which the title gives)."""
     members = run_members(con, run)
     if len(members) < 2:
         return False
@@ -1232,8 +1351,10 @@ def fig_member_agreement(con, run, out: Path) -> bool:
     pairs = list(combinations(range(len(members)), 2))
     pooled = {(i, name): member_pooled_p50(con, run["protocol_id"], m, name)
               for i, m in enumerate(members) for name in names}
+    shared_n = [len(set(pooled[(i, name)]) & set(pooled[(j, name)])) for i, j in pairs for name in names]
+    n_common = max(set(shared_n), key=shared_n.count)
     fig, axes = plt.subplots(len(pairs), len(names),
-                             figsize=(6.2, 1.25 * len(pairs) + 0.6), squeeze=False)
+                             figsize=(FIG_W, 1.2 * len(pairs) + 0.55), squeeze=False)
     for r, (i, j) in enumerate(pairs):
         for c, name in enumerate(names):
             ax = axes[r][c]
@@ -1248,26 +1369,30 @@ def fig_member_agreement(con, run, out: Path) -> bool:
                 log_axis(ax, "x", both)
                 log_axis(ax, "y", both)
                 lim = ax.get_xlim()
+                ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(   # a narrow panel: the ends
+                    lambda v, pos, lim=lim: f"$10^{{{round(math.log10(v))}}}$" if any(
+                        math.isclose(v, e, rel_tol=1e-9) for e in lim) else ""))
             else:
                 lim = (0.0, 1.0)
                 ax.set_xlim(*lim)
                 ax.set_ylim(*lim)
+                ax.set_xticks([0.0, 0.5, 1.0])
+                ax.set_yticks([0.0, 0.5, 1.0])
             ax.plot(lim, lim, ls="--", lw=0.6, color="#c9c9c9", zorder=0)
             rho = spearman(x, y) if len(shared) >= 3 else None
-            ax.text(0.04, 0.9, f"$\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={len(shared)})",
-                    transform=ax.transAxes, fontsize=5.5, color="#333333")
-            ax.tick_params(labelsize=5)
+            ax.text(0.04, 0.96, f"$\\rho$ = {'--' if rho is None else f'{rho:.2f}'}"
+                    + ("" if len(shared) == n_common else f" (n={len(shared)})"),
+                    transform=ax.transAxes, fontsize=MIN_FONT, color="#333333", va="top")
+            ax.tick_params(labelsize=MIN_FONT)
             if r == 0:
                 ax.set_title(f"${name}$" + (" (USD)" if usd else ""), fontsize=8)
             if c == 0:
-                ax.set_ylabel(labels[j], fontsize=6)
-            if r == len(pairs) - 1:
-                ax.set_xlabel(labels[i], fontsize=6)
+                ax.set_ylabel(labels[j].split(":")[-1], fontsize=7)
+            ax.set_xlabel(labels[i].split(":")[-1], fontsize=7)
     staged = "" if len(names) == len(db.PARAM_NAMES) else (
-        f"\n${', '.join(names)}$ only: the decision stage is one number per group,"
-        " see health's decision-level agreement")
-    fig.suptitle("Cross-member agreement of each member's per-scenario median p50 (Spearman over"
-                 f" shared scenarios){staged}", fontsize=8)
+        f"\n${', '.join(names)}$ only: a staged protocol's decision stage is one number per group")
+    fig.suptitle(f"Each member's median p50 per scenario against another's (Spearman over the {n_common}"
+                 f" shared scenarios){staged}", fontsize=7.5)
     fig.savefig(out / "fig_member_agreement.pdf")
     plt.close(fig)
     return True
@@ -1732,6 +1857,10 @@ def average_ranks(values) -> np.ndarray:
 
 
 def fig_plugin(con, run, out: Path, st: dict | None = None) -> bool:
+    """fig_plugin.pdf: three rank scatters (plug-in vs MC median vs MC mean
+    efficiency, rank 1 top right, ties averaged), ids labelled where they
+    overlap least (figures.place_labels; the ids of tied points share one
+    label) up to PLUGIN_ANNOTATE_MAX scenarios."""
     st = st or plugin_stats(con, run)
     if st is None:
         return False
@@ -1743,29 +1872,28 @@ def fig_plugin(con, run, out: Path, st: dict | None = None) -> bool:
     rhos = {("plugin", "mc_median"): st["rho_plugin_median"],
             ("plugin", "mc_mean"): st["rho_plugin_mean"],
             ("mc_median", "mc_mean"): st["rho_median_mean"]}
-    fig, axes = plt.subplots(1, len(PLUGIN_PANELS), figsize=(6.2, 2.4))
+    fig, axes = plt.subplots(1, len(PLUGIN_PANELS), figsize=(FIG_W, 2.3))
     for ax, (kx, ky) in zip(axes, PLUGIN_PANELS, strict=True):
         x, y = ranks[kx], ranks[ky]
         ax.plot([0.5, n + 0.5], [0.5, n + 0.5], ls="--", lw=0.6, color="#c9c9c9", zorder=0)
         ax.plot(x, y, "o", color=ACCENT, ms=4, mec="white", mew=0.4, alpha=0.85, zorder=3)
-        if n <= PLUGIN_ANNOTATE_MAX:
-            at: dict[tuple[float, float], list[int]] = {}
-            for r, xi, yi in zip(rows, x, y, strict=True):
-                at.setdefault((float(xi), float(yi)), []).append(r["sid"])
-            for (xi, yi), sids in at.items():
-                parts = [", ".join(map(str, sids[i:i + 4])) for i in range(0, len(sids), 4)]
-                ax.annotate("\n".join(parts), (xi, yi), textcoords="offset points", xytext=(3, 3),
-                            fontsize=5, color="#333333", zorder=4)
         rho = rhos[(kx, ky)]
-        ax.set_title(f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={n})",
-                     fontsize=7.5)
+        ax.set_title(f"Spearman $\\rho$ = {'--' if rho is None else f'{rho:.2f}'} (n={n})", fontsize=7.5)
         ax.set_xlim(n + 0.7, 0.3)
         ax.set_ylim(n + 0.7, 0.3)
-        ax.set_xlabel(PLUGIN_AXIS[kx], fontsize=8)
-        ax.set_ylabel(PLUGIN_AXIS[ky], fontsize=8)
-        ax.tick_params(labelsize=7)
-    fig.suptitle("Efficiency rank: plug-in at the pooled medians vs MC median vs MC mean"
-                 " (rank 1 top right; ties averaged)", fontsize=7.5)
+        ax.set_xlabel(PLUGIN_AXIS[kx], fontsize=7)
+        ax.set_ylabel(PLUGIN_AXIS[ky], fontsize=7)
+        ax.tick_params(labelsize=MIN_FONT)
+    fig.suptitle("Efficiency ranks: plug-in vs MC median vs MC mean (rank 1 top right, ties averaged)",
+                 fontsize=7.5)
+    if n <= PLUGIN_ANNOTATE_MAX:
+        for ax, (kx, ky) in zip(axes, PLUGIN_PANELS, strict=True):
+            at: dict[tuple[float, float], list[int]] = {}
+            for r, xi, yi in zip(rows, ranks[kx], ranks[ky], strict=True):
+                at.setdefault((float(xi), float(yi)), []).append(r["sid"])
+            place_labels(ax, list(at), ["\n".join(", ".join(map(str, sids[i:i + 4]))
+                                                  for i in range(0, len(sids), 4)) for sids in at.values()],
+                         marker_pt=4.5)
     fig.savefig(out / "fig_plugin.pdf")
     plt.close(fig)
     return True
@@ -1888,16 +2016,19 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None, pb: dict
     EVSI (y, log) against the pooled-median C (x, log), one point per
     scenario, coloured by group and shaped by attributes.risk_domain when
     any scenario has one. A scenario outside the gate (always / never
-    respond, EVSI = 0) sits at the y floor as an open marker. The fence
-    value EVSI* at the same medians is a small hollow marker on a thin
-    dotted stem from the plug-in point: decision value against fence
-    value. Thin grey bars give the q05-q95 of the plug-in EVSI (vertical)
-    and of C (horizontal) under the bootstrap over elicitations (pb =
-    plugin_bootstrap, drawn here when not passed; floored like the points).
-    Iso-efficiency diagonals and the 'better' arrow as in
-    figures.fig_evsi_vs_cost; every id labelled. Artists carry gid
-    'plugin' / 'fence' / 'stem' / 'boot_evsi' / 'boot_c' (the test reads
-    the plotted values back)."""
+    respond, EVSI = 0) sits in the zero row at the data-driven floor
+    (figures.data_floor of the plotted EVSI, EVSI* and bootstrap q05 values:
+    a decade below the smallest, its tick labelled 0) as an open marker. The
+    fence value EVSI* at the same medians is a small hollow marker on a thin
+    dotted stem from the plug-in point: decision value against fence value.
+    Light bars give the q05-q95 of the plug-in EVSI (vertical) and of C
+    (horizontal) under the bootstrap over elicitations (pb =
+    plugin_bootstrap, drawn here when not passed; a bar end below the floor
+    is drawn at it). Iso-efficiency diagonals and the 'better' arrow as in
+    figures.fig_evsi_vs_cost, the legend outside the axes on the right,
+    every id labelled where it overlaps least (figures.place_labels).
+    Artists carry gid 'plugin' / 'fence' / 'stem' / 'boot_evsi' / 'boot_c' /
+    'id_label' (the tests read the plotted values back)."""
     rows = plugin_map_points(con, run) if rows is None else rows
     if not rows:
         return False
@@ -1905,9 +2036,15 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None, pb: dict
     xs = np.array([r["C"] for r in rows])
     evsi = np.array([r["EVSI"] for r in rows])
     star = np.array([r["EVSI_star"] for r in rows])
-    floored = evsi < EVSI_FLOOR
-    y = np.maximum(evsi, EVSI_FLOOR)
-    ystar = np.maximum(star, EVSI_FLOOR)
+    boot_at = [(i, pb["rows"][r["sid"]]) for i, r in enumerate(rows)
+               if pb is not None and r["sid"] in pb["rows"]]
+    at = np.array([i for i, _ in boot_at], dtype=int)
+    e_lo, e_hi, c_lo, c_hi = (np.array([b[key][k] for _, b in boot_at], dtype=float)
+                              for key, k in (("EVSI_q", 0), ("EVSI_q", 2), ("C_q", 0), ("C_q", 2)))
+    floor = data_floor([evsi, star, e_lo])
+    floored = evsi < floor
+    zero_row = bool(floored.any() or (e_lo < floor).any())
+    y, ystar = np.maximum(evsi, floor), np.maximum(star, floor)
     grp_of = [r["grp"] or "(no group)" for r in rows]
     grp_names = sorted(set(grp_of))
     colors = group_colors([g for g in grp_names if g != "(no group)"])
@@ -1917,15 +2054,10 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None, pb: dict
     dom_names = sorted(set(dom_of))
     marker = {d: MARKERS[i % len(MARKERS)] if has_domain else "o" for i, d in enumerate(dom_names)}
 
-    fig, ax = plt.subplots(figsize=(6.2, 4.6))
-    boot_at = [(i, pb["rows"][r["sid"]]) for i, r in enumerate(rows)
-               if pb is not None and r["sid"] in pb["rows"]]
-    e_hi = c_lo = c_hi = np.array([])
+    fig, ax = plt.subplots(figsize=(FIG_W, 3.2))
     if boot_at:
-        at = np.array([i for i, _ in boot_at])
-        e_lo, e_hi = (np.maximum([b["EVSI_q"][k] for _, b in boot_at], EVSI_FLOOR) for k in (0, 2))
-        c_lo, c_hi = (np.array([b["C_q"][k] for _, b in boot_at]) for k in (0, 2))
-        ax.vlines(xs[at], e_lo, e_hi, color=BOOT_BAR, lw=1.6, zorder=0.9, gid="boot_evsi")
+        ax.vlines(xs[at], np.maximum(e_lo, floor), np.maximum(e_hi, floor), color=BOOT_BAR, lw=1.6,
+                  zorder=0.9, gid="boot_evsi")
         ax.hlines(y[at], c_lo, c_hi, color=BOOT_BAR, lw=1.6, zorder=0.9, gid="boot_c")
     ax.vlines(xs, y, ystar, color="#6f7a86", lw=0.6, ls=(0, (1, 1.5)), zorder=1, gid="stem")
     for g in grp_names:
@@ -1940,44 +2072,50 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None, pb: dict
                     mew=0.5, zorder=3, gid="plugin")
             ax.plot(xs[mask & floored], y[mask & floored], mk, ls="", mfc="white", mec=c, ms=5.5,
                     mew=0.9, zorder=3, gid="plugin")
-    for i, r in enumerate(rows):
-        ax.annotate(str(r["sid"]), (xs[i], y[i]), textcoords="offset points",
-                    xytext=(4, 3) if i % 2 == 0 else (-4, -8),
-                    ha="left" if i % 2 == 0 else "right", fontsize=6, color="#333333", zorder=4)
     ax.set_xscale("log")
-    ax.set_yscale("log")
-    xlim = np.array([min(xs.min(), *c_lo) / 3, max(xs.max(), *c_hi) * 3])
-    # the floor only when a point sits on it; 1.5 decades of headroom keep the arrow clear
-    ylim = np.array([EVSI_FLOOR / 2 if floored.any() else y.min() / 30,
-                     max(ystar.max(), *e_hi, EVSI_FLOOR) * 30])
+    xlim = np.array([min(xs.min(), *c_lo) / 2.5, max(xs.max(), *c_hi) * 2.5])
+    top = max(ystar.max(), *e_hi) * 10.0**1.4   # headroom: the arrow stays clear of the data
     ax.set_xlim(*xlim)
-    ax.set_ylim(*ylim)
-    iso_efficiency_lines(ax, xlim, ylim)
-    ax.annotate("better (more decision value per dollar)",
-                xy=(0.03, 0.97), xytext=(0.13, 0.87),
-                xycoords="axes fraction", textcoords="axes fraction",
-                fontsize=7, color="#333333", ha="left", va="center",
-                arrowprops={"arrowstyle": "-|>", "color": "#333333", "lw": 0.9})
+    if zero_row:
+        floor_axis(ax, floor, "y", top=top)
+        ax.axhspan(ax.get_ylim()[0], floor * 10.0**0.5, color="#f3f3f3", lw=0, zorder=0.5)
+        label_lo = floor * 10.0
+    else:
+        ax.set_yscale("log")
+        label_lo = min(y.min(), *e_lo) / 10.0**0.5
+        ax.set_ylim(label_lo, top)
+    iso_efficiency_lines(ax, xlim, np.array([label_lo, top]))
+    arrow = ax.annotate("better (more decision value per dollar)",
+                        xy=(0.03, 0.97), xytext=(0.12, 0.86),
+                        xycoords="axes fraction", textcoords="axes fraction",
+                        fontsize=MIN_FONT, color="#333333", ha="left", va="center",
+                        arrowprops={"arrowstyle": "-|>", "color": "#333333", "lw": 0.9})
     handles = []
     if len(grp_names) > 1:
         handles += [plt.Line2D([], [], marker="o", ls="", color=colors[g], label=g) for g in grp_names]
     if has_domain:
-        handles += [plt.Line2D([], [], marker=marker[d], ls="", color="#555555", label=d) for d in dom_names]
+        handles += [plt.Line2D([], [], marker=marker[d], ls="", color="#555555", label=d.replace("_", " "))
+                    for d in dom_names]
     if floored.any():
         handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
-                                  label="EVSI = 0 (at floor)"))
+                                  label="EVSI = 0 (gate closed)"))
     handles.append(plt.Line2D([], [], marker="o", ls=(0, (1, 1.5)), lw=0.6, color="#6f7a86", mfc="white",
                               mec="#555555", ms=3.2, label="fence EVSI$^\\star$"))
     if boot_at:
         handles.append(plt.Line2D([], [], ls="-", lw=1.6, color=BOOT_BAR,
-                                  label=f"bootstrap q05-q95 ({pb['n_boot']} replicates)"))
-    title = ("colour: group; marker: risk domain" if len(grp_names) > 1 and has_domain
+                                  label=f"bootstrap q05-q95\n({pb['n_boot']} replicates)"))
+    title = ("colour: group\nmarker: risk domain" if len(grp_names) > 1 and has_domain
              else "colour: group" if len(grp_names) > 1 else "marker: risk domain" if has_domain else None)
-    ax.legend(handles=handles, fontsize=6, loc="lower right", frameon=False, title=title, title_fontsize=6)
-    ax.set_xlabel("pooled median C (USD)")
-    ax.set_ylabel("plug-in EVSI (USD per measurement)")
+    ax.legend(handles=handles, fontsize=MIN_FONT, loc="upper left", bbox_to_anchor=(1.02, 1.0),
+              borderaxespad=0.0, frameon=False, title=title, title_fontsize=MIN_FONT,
+              alignment="left", handletextpad=0.4)
+    ax.set_xlabel("pooled median C (USD)", fontsize=8)
+    ax.set_ylabel("plug-in EVSI (USD)", fontsize=8)
+    ax.tick_params(labelsize=7)
     ax.set_title("Plug-in EVSI vs cost at the pooled medians; stems up to the fence value EVSI$^\\star$",
-                 fontsize=9)
+                 fontsize=8)
+    place_labels(ax, np.column_stack([xs, y]), [str(r["sid"]) for r in rows], marker_pt=6.0,
+                 others=np.column_stack([xs, ystar]), avoid=[arrow])
     fig.savefig(out / "fig_plugin_map.pdf")
     plt.close(fig)
     return True
