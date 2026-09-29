@@ -943,14 +943,25 @@ def elicited_points(con, protocol_id: int, scenario_id: int, name: str,
 
 def param_scenario_ids(con, protocol_id: int, name: str, members: list[str] | None = None) -> list[int]:
     """Scenario ids holding a valid elicitation that carries parameter `name`
-    under a protocol: every elicited scenario for a single-stage protocol; the
-    group representatives for a group-stage parameter of a staged one (so a
-    noise statistic over them counts each group once)."""
+    under a protocol: every elicited scenario for a single-stage protocol;
+    one id per group (the lowest holding rows) for a group-stage parameter of
+    a staged one, so a noise statistic over them counts each group once even
+    when its decision rows sit on two scenarios (a retired representative and
+    its successor)."""
     clause, margs = member_filter(members)
-    return [r[0] for r in con.execute(
+    ids = [r[0] for r in con.execute(
         "SELECT DISTINCT e.scenario_id FROM elicitations e JOIN parameters p ON p.elicitation_id=e.id"
         f" WHERE e.protocol_id=? AND e.valid=1 AND p.name=?{clause} ORDER BY e.scenario_id",
         (protocol_id, name, *margs))]
+    stage = stage_of_param(protocol_stages(_protocol_row(con, protocol_id)), name)
+    if stage is None or "group_key" not in stage:
+        return ids
+    first: dict[tuple, int] = {}
+    for sid in ids:   # ascending, so the first id seen per group is its lowest
+        row = con.execute("SELECT * FROM scenarios WHERE id=?", (sid,)).fetchone()
+        value = scenario_group_value(row, stage["group_key"]) if row else None
+        first.setdefault(("group", value) if value is not None else ("scenario", sid), sid)
+    return sorted(first.values())
 
 
 def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,

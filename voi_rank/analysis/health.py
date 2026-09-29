@@ -21,6 +21,7 @@ import numpy as np
 from scipy import stats
 
 from voi_rank import db
+from voi_rank.sensitivity import spearman
 from voi_rank.study import Study, add_study_arg
 
 EVSI_ZERO_USD = 1e-6  # "median EVSI ~ 0" threshold, in USD
@@ -156,11 +157,13 @@ def health(con, protocol_name: str, members: list[str] | None = None):
     if json_ok:
         print(f"constraint pass rate (of parsed): {passed}/{json_ok} = {passed/json_ok:.1%}")
 
-    # slot-level validity: fraction of (scenario, member, repeat) slots that ended valid
+    # slot-level validity: fraction of (scenario, member, repeat, stage) slots that ended
+    # valid (the stage keeps a decision and an instrument slot of one member and repeat
+    # apart on a representative, as the unique valid-slot index does)
+    slot_key = ("scenario_id || '/' || provider || '/' || model || '/' || repeat_ix || '/' ||"
+                " COALESCE(stage, '')")
     slots = con.execute(
-        "SELECT COUNT(DISTINCT scenario_id || '/' || provider || '/' || model || '/' || repeat_ix),"
-        " COUNT(DISTINCT CASE WHEN valid=1 THEN"
-        "   scenario_id || '/' || provider || '/' || model || '/' || repeat_ix END)"
+        f"SELECT COUNT(DISTINCT {slot_key}), COUNT(DISTINCT CASE WHEN valid=1 THEN {slot_key} END)"
         " FROM elicitations WHERE protocol_id=?", (prot["id"],)).fetchone()
     print(f"slot validity (after retry): {slots[1]}/{slots[0]} = {slots[1]/slots[0]:.1%}")
 
@@ -273,9 +276,10 @@ def compare(con, protocol_a: str, protocol_b: str, members: list[str] | None = N
         return
     a = [med[protocol_a][s] for s in shared]
     b = [med[protocol_b][s] for s in shared]
-    rho = stats.spearmanr(a, b).statistic
+    rho = spearman(a, b)   # None when a ranking is constant (e.g. every median EVSI 0)
     print(f"\n=== rank correlation {protocol_a} vs {protocol_b} ===")
-    print(f"Spearman rho of median efficiency over {len(shared)} shared scenarios: {rho:.3f}")
+    print(f"Spearman rho of median efficiency over {len(shared)} shared scenarios: "
+          + ("n/a (a constant ranking)" if rho is None else f"{rho:.3f}"))
 
 
 def main(argv=None):

@@ -6,6 +6,7 @@ inserted directly and propagated by mc.run_mc. No CLI, no network."""
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -15,7 +16,7 @@ import pytest
 import yaml
 
 from voi_rank import db, mc, model
-from voi_rank.analysis import extra, tables
+from voi_rank.analysis import extra, health, tables
 from voi_rank.fit import FAMILY_BY_PARAM, fit_param
 from voi_rank.sensitivity import repeat_spread, spearman
 from voi_rank.study import Study
@@ -187,6 +188,18 @@ def test_level_uplift_stats_figure_and_table(built, con, out):
     assert r"$P(\Delta C>0)$" in crn and "within one decision" in crn and "ratio of those medians" in crn
     assert r"$\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$" in other and "mean-based" in other
     assert r"\toprule" in tex and r"\bottomrule" in tex
+    # the plug-in and fence marginals sit at the ladder-pooled p, B, K (the caption says so, and
+    # that fig_level_fence / plugin.tex use each scenario's own medians)
+    assert "pooled over the ladder, as the CRN draws do" in other and "each scenario's own" in other
+    plug = an["plugin"]["home manipulator"]
+    pid = run["protocol_id"]
+    ladder_p = float(np.median([v for _, sid in an["rungs"]["home manipulator"]
+                                for v in db.elicited_p50s(con, pid, sid, "p")]))
+    for s in stats["home manipulator"]:
+        assert s["dEVSI_star"] == pytest.approx(plug[s["hi_id"]]["EVSI_star"] - plug[s["lo_id"]]["EVSI_star"])
+        assert plug[s["hi_id"]]["medians"]["p"] == ladder_p
+        own = extra.plugin_point(con, run, s["hi_id"])["medians"]
+        assert own["p"] == float(np.median(db.elicited_p50s(con, pid, s["hi_id"], "p")))
     # the analysis is recomputed identically when not passed in
     assert extra.level_uplift_stats(con, run) == stats
 
@@ -313,6 +326,17 @@ def test_consistency_skips_a_group_with_an_unelicited_level(tmp_path, out, capsy
     assert "h & 2 &" in tex and "g &" not in tex
     con.rollback()
     con.close()
+
+
+def test_compare_prints_na_for_a_constant_ranking(built, con, capsys):
+    """A run whose median efficiency is 0 on every scenario has no rank
+    order: health --compare says so instead of printing nan."""
+    health.compare(con, "p001", "p003")
+    assert re.search(r"shared scenarios: -?[0-9.]+\n", capsys.readouterr().out)
+    con.execute("UPDATE results SET q50=0.0 WHERE run_id=? AND metric='efficiency'", (built["runs"]["p003"],))
+    health.compare(con, "p001", "p003")
+    assert "shared scenarios: n/a (a constant ranking)" in capsys.readouterr().out
+    con.rollback()
 
 
 def test_level_uplift_skipped_without_levels(tmp_path, out, capsys):

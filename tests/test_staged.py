@@ -263,10 +263,14 @@ def test_staged_elicitation_mc_analyses_end_to_end(tmp_path, monkeypatch, capsys
     assert [lab for lab, _ in db.elicited_points(con, pid, 9, "p")] == [HAIKU, HAIKU, SONNET, SONNET]
     assert db.scenario_group_ids(con, "attributes.context_group", 9) == home
     assert db.scenario_groups_by_key(con, "attributes.context_group") == {AV: list(range(11, 16)), HOME: home}
-    # a group without a complete decision stage leaves its scenarios incomplete
+    # a group without a complete decision stage leaves its scenarios incomplete; health
+    # counts the four invalid decision slots apart from the representative's instrument slots
     con.execute("UPDATE elicitations SET valid=0 WHERE protocol_id=? AND stage='decision' AND scenario_id=11",
                 (pid,))
     assert sorted(mc.complete_fits(con, pid)) == home
+    capsys.readouterr()
+    health.health(con, "p004")
+    assert "slot validity (after retry): 64/68 = 94.1%" in capsys.readouterr().out
     con.rollback()
     # MC, data hash (each shared decision fit counted once), replay
     run_id = mc.run_mc(con, "p004", seed=3, n_draws=2000, quiet=True)
@@ -304,11 +308,22 @@ def test_staged_elicitation_mc_analyses_end_to_end(tmp_path, monkeypatch, capsys
     assert macros["voiKUsed"] == "4" and macros["voiNAttempts"] == "68" and macros["voiNMembers"] == "3"
     noise = (study.generated_dir / "protocol_noise.tex").read_text()
     assert "p004" in noise
+    # a representative's decision and instrument rows are two slot families of k = 2, not one of 4
+    haiku = db.protocol_members(prot)[0]
+    assert extra.member_repeat_counts(con, pid, haiku) == dict.fromkeys(range(1, 16), 2)
+    assert extra.member_k_used(con, pid, haiku) == 2
+    assert [(lab, cap) for p, _, lab, cap in extra.noise_rows(con) if p == "p004"] == [("first 2", 3)] * 2
+    assert extra.member_agreement_names(con, pid) == ["s", "t", "C"]
+    assert extra.member_agreement_names(con, p003) == list(db.PARAM_NAMES)
     # extra: ladders, consistency (ratio 0 by design), plug-in, member agreement
     capsys.readouterr()
     written, skipped = extra.make_all(con, run, study.generated_dir)
     out = capsys.readouterr().out
     assert skipped == ["domain_map"] and "plugin: skipped" not in out
+    matched = (study.generated_dir / "protocol_noise_matched.tex").read_text()
+    for lab in ("haiku", "sonnet"):
+        assert f"p004 & claude\\_cli:{lab} & first 2 &" in matched
+    assert "& all " not in matched
     cons = (study.generated_dir / "consistency.tex").read_text()
     assert r"$\frac{\mathrm{CV}(p)}{\overline{\mathrm{CV}(s,t)}}$" in cons and "0 by design here" in cons
     st = extra.consistency_stats(con, run)
@@ -329,6 +344,7 @@ def test_staged_elicitation_mc_analyses_end_to_end(tmp_path, monkeypatch, capsys
     capsys.readouterr()
     health.health(con, "p004")
     out = capsys.readouterr().out
+    assert "slot validity (after retry): 68/68 = 100.0%" in out
     assert ("stage decision (params p, B, K): 8 attempts, 8 valid (100.0%), 2 groups with a valid"
             " answer") in out
     assert "stage instrument (params s, t, C): 60 attempts, 60 valid (100.0%), 15 scenarios" in out
@@ -348,6 +364,11 @@ def test_staged_elicitation_mc_analyses_end_to_end(tmp_path, monkeypatch, capsys
         assert spread == pytest.approx((max(pooled.values()) - min(pooled.values()))
                                        / float(np.median(list(pooled.values()))))
     assert f"scenarios with median EVSI ~ 0 (run {run_id})" in out
+    # a constant ranking (every median efficiency 0) has no rank correlation
+    con.execute("UPDATE results SET q50=0.0 WHERE run_id=? AND metric='efficiency'", (run_id,))
+    health.compare(con, "p004", "p004")
+    assert "shared scenarios: n/a (a constant ranking)" in capsys.readouterr().out
+    con.rollback()
     con.close()
     # the analysis CLIs select the staged run like any other
     figures.main(["--study", str(study.root), "--protocol", "p004"])
@@ -400,10 +421,123 @@ def test_staged_planning_checks_groups_contexts_and_the_decision_template(tmp_pa
     study = _edited_copy(tmp_path / "e", edit_template=lambda t: t + "\nFacts: $context\n")
     with pytest.raises(SystemExit, match=r"uses \$context"):
         elicit.main(["--study", str(study.root), *dry])
-    # the scenario stage template may use every field
+    # the scenario stage template may use every scenario field, and nothing else
     study = _edited_copy(tmp_path / "f")
     elicit.main(["--study", str(study.root), *dry])
     assert not list(study.root.glob("voi.db*"))
+    study = _edited_copy(tmp_path / "g")
+    path = study.root / "templates/instrument.md"
+    path.write_text(path.read_text() + "\nDecision context: $decision_context\n")
+    with pytest.raises(SystemExit, match=r"scenario-stage template uses \$decision_context: it renders only"
+                                          r" \$title, \$agent"):
+        elicit.main(["--study", str(study.root), *dry])
+
+
+def test_staged_planner_uses_the_db_group_not_the_selection(tmp_path, monkeypatch, capsys):
+    """Decision rows are stored on the group's lowest id in the DB and a
+    repeat they fill is done for every selection: a partial --scenarios never
+    elicits a second set, a retired representative keeps carrying the group's
+    rows, and every noise statistic counts a group once even when its rows
+    sit on two scenarios."""
+    study = copy_study("sim2real", tmp_path)
+    fake = StagedFake()
+    monkeypatch.setattr(elicit, "get_provider", lambda name: fake)
+    base = ["--study", str(study.root), "--protocol", "p004", "--members", HAIKU, "--k", "2", "--yes"]
+    elicit.main([*base, "--stage", "decision", "--scenarios", "12"])
+    assert "done: 2/2 slots valid" in capsys.readouterr().out
+    con = study.connect()
+    pid = db.protocol_by_name(con, "p004")["id"]
+
+    def stored():
+        return [r[0] for r in con.execute(
+            "SELECT scenario_id FROM elicitations WHERE protocol_id=? AND stage='decision' AND valid=1"
+            " ORDER BY id", (pid,))]
+    assert stored() == [11, 11]   # the group's lowest id, not the selected 12
+    # another selection of the same group finds its decision stage done
+    _, jobs = elicit.plan_jobs(con, study, pid, "13", 2, {HAIKU}, stage="decision")
+    assert jobs == []
+    con.close()
+    elicit.main([*base, "--stage", "decision", "--scenarios", "13"])
+    assert "nothing to do" in capsys.readouterr().out
+    elicit.main([*base, "--stage", "decision"])
+    assert "done: 2/2 slots valid" in capsys.readouterr().out
+    con = study.connect()
+    assert stored() == [11, 11, 1, 1] and db.param_scenario_ids(con, pid, "p") == [1, 11]
+    con.close()
+    # the representative leaves scenarios.json (its title changes): the retired row 1 keeps
+    # carrying the home group's rows and the decision stage plans nothing
+    scen = json.loads(study.scenarios_json.read_text())
+    scen[0]["title"] += " (renamed)"
+    study.scenarios_json.write_text(json.dumps(scen))
+    elicit.main([*base, "--stage", "decision", "--dry-run"])
+    out = capsys.readouterr().out
+    assert "scenario 1 " in out and "would be retired" in out
+    assert f"member {HAIKU} (k=2 (override of 5)): 0 pending slots over 0 groups" in out
+    assert "0 slots would be elicited" in out
+    elicit.main([*base, "--dry-run"])
+    out = capsys.readouterr().out
+    assert f"member {HAIKU} (k=2 (override of 5)): 0 pending slots over 0 groups" in out
+    assert f"member {HAIKU} (k=2 (override of 5)): 30 pending slots over 15 scenarios (ids 2..16)" in out
+    elicit.main(base)
+    assert "done: 30/30 slots valid" in capsys.readouterr().out
+    con = study.connect()
+    assert stored() == [11, 11, 1, 1]
+    fits = mc.complete_fits(con, pid)
+    assert sorted(fits) == list(range(2, 17))
+    assert len(fits[16]["p"]) == 2 and fits[16]["p"] == fits[2]["p"] and fits[16]["s"] != fits[2]["s"]
+    assert db.param_scenario_ids(con, pid, "p") == [1, 11]
+    # a group whose rows sit on two scenarios (a second representative, as the old planner
+    # stored) still counts once in every noise statistic
+    eid = con.execute("SELECT id FROM elicitations WHERE protocol_id=? AND scenario_id=1 AND stage='decision'"
+                      " ORDER BY id DESC LIMIT 1", (pid,)).fetchone()[0]
+    con.execute("UPDATE elicitations SET scenario_id=2 WHERE id=?", (eid,))
+    assert db.param_scenario_ids(con, pid, "p") == [1, 11]
+    assert db.param_scenario_ids(con, pid, "K", [HAIKU]) == [1, 11]
+    assert len(db.elicited_p50s(con, pid, 16, "p")) == 2
+    capsys.readouterr()
+    health.health(con, "p004")
+    assert re.search(r"\n  p: [0-9.]+  \(n=2 groups\)", capsys.readouterr().out)
+    con.rollback()
+    con.close()
+
+
+def test_staged_plan_refuses_a_decision_text_changed_after_the_decision_stage(tmp_path, monkeypatch, capsys):
+    """Between the stages a non-representative scenario holds no rows, so the
+    seed refresh accepts a new decision text for it. Every staged plan,
+    --stage instrument included, then refuses the group: a mixed text over
+    the group's active scenarios, or (the whole group renamed and changed)
+    stored decision rows rendered from another text. No instrument row is
+    assembled with a p, B, K elicited for another decision."""
+    study = copy_study("sim2real", tmp_path)
+    monkeypatch.setattr(elicit, "get_provider", lambda name: StagedFake())
+    base = ["--study", str(study.root), "--protocol", "p004", "--members", HAIKU, "--k", "1", "--yes"]
+    elicit.main([*base, "--stage", "decision"])
+    assert "done: 2/2 slots valid" in capsys.readouterr().out
+    scen = json.loads(study.scenarios_json.read_text())
+    other = "A completely different decision: whether to buy a coffee machine"
+    scen[4]["decision"] = other
+    study.scenarios_json.write_text(json.dumps(scen))
+    ids = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"
+    for extra_args in (["--stage", "instrument"], ["--stage", "decision"], [],
+                       ["--stage", "instrument", "--scenarios", "5"]):
+        with pytest.raises(SystemExit, match=f"stage decision: group '{HOME}' \\(scenarios {re.escape(ids)}"
+                                             "\\) mixes 2 different agent / decision / theta texts"):
+            elicit.main([*base, *extra_args, "--dry-run"])
+    # the whole group changes its decision under new titles: the retired representative's
+    # rows are another decision's, so the plan refuses instead of eliciting beside them
+    for sc in scen[:10]:
+        sc["title"] += " v2"
+        sc["decision"] = other
+    study.scenarios_json.write_text(json.dumps(scen))
+    for extra_args in (["--stage", "decision"], ["--stage", "instrument"]):
+        with pytest.raises(SystemExit, match=r"holds 1 valid decision row\(s\) elicited for a different agent"
+                                             r" / decision / theta text \(prompt hash \w{12} vs \w{12} now\)"
+                                             r".*new attributes.context_group value, or start a new voi.db"):
+            elicit.main([*base, *extra_args, "--dry-run"])
+    con = study.connect()
+    assert con.execute("SELECT COUNT(*) FROM elicitations").fetchone()[0] == 2   # nothing written
+    assert con.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0] == 15
+    con.close()
 
 
 def test_dry_run_of_p004_on_sim2real_renders_every_scenario(tmp_path, monkeypatch):

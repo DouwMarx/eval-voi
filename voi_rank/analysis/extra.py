@@ -684,7 +684,10 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
         " per-rung values at the pooled medians, p, B, K pooled over the ladder, s, t, C per"
         " rung, EVSI from model.voi, C the rung's median) and fence (differences of the"
         " per-rung EVSI* = (B + K) p (1 - p) (s + t - 1) at the same medians, over the"
-        " plug-in dC)")
+        " plug-in dC). Both use p, B, K pooled over the ladder, as the CRN draws do;"
+        " fig_level_fence and the EVSI* column of plugin.tex use each scenario's own"
+        " medians, so their per-rung values (and the sign of a step) can differ where"
+        " a single-stage protocol's p, B, K move across rungs")
     _write(out, "level_uplift.tex", crn + "\\par\\medskip\n" + other)
     return True
 
@@ -725,7 +728,8 @@ def fig_level_fence(con, run, out: Path) -> bool:
     axes[0][0].set_ylabel("USD at the pooled medians", fontsize=8)
     axes[0][0].legend(fontsize=6, frameon=False, loc="best")
     fig.suptitle("Fence value EVSI* = (B+K) p (1-p) (s+t-1), plug-in EVSI and cost C at each scenario's"
-                 f" pooled medians,\nagainst its level (open markers: below {EVSI_FLOOR:g} USD)",
+                 f" pooled medians,\nagainst its level (open markers: below {EVSI_FLOOR:g} USD; the"
+                 " level-uplift marginals pool p, B, K over the ladder instead)",
                  fontsize=7.5)
     fig.savefig(out / "fig_level_fence.pdf")
     plt.close(fig)
@@ -1121,18 +1125,29 @@ def member_rankings(con, run) -> dict:
     return {"members": labels, "medians": medians, "pooled": pooled, "matrix": matrix, "top": top}
 
 
+def member_agreement_names(con, protocol_id: int) -> list[str]:
+    """The parameters fig_member_agreement correlates per scenario: all six,
+    or the scenario-stage ones of a staged protocol (its decision-stage
+    values are one number per group, so a per-scenario Spearman on them
+    would rank two distinct values over every rung; health prints the
+    per-group decision-level agreement instead)."""
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone())
+    return list(db.PARAM_NAMES) if stages is None else list(db.scenario_stage(stages)["params"])
+
+
 def fig_member_agreement(con, run, out: Path) -> bool:
     members = run_members(con, run)
     if len(members) < 2:
         return False
     labels = [db.member_label(m) for m in members]
+    names = member_agreement_names(con, run["protocol_id"])
     pairs = list(combinations(range(len(members)), 2))
     pooled = {(i, name): member_pooled_p50(con, run["protocol_id"], m, name)
-              for i, m in enumerate(members) for name in db.PARAM_NAMES}
-    fig, axes = plt.subplots(len(pairs), len(db.PARAM_NAMES),
+              for i, m in enumerate(members) for name in names}
+    fig, axes = plt.subplots(len(pairs), len(names),
                              figsize=(6.2, 1.25 * len(pairs) + 0.6), squeeze=False)
     for r, (i, j) in enumerate(pairs):
-        for c, name in enumerate(db.PARAM_NAMES):
+        for c, name in enumerate(names):
             ax = axes[r][c]
             a, b = pooled[(i, name)], pooled[(j, name)]
             shared = sorted(set(a) & set(b))
@@ -1160,8 +1175,11 @@ def fig_member_agreement(con, run, out: Path) -> bool:
                 ax.set_ylabel(labels[j], fontsize=6)
             if r == len(pairs) - 1:
                 ax.set_xlabel(labels[i], fontsize=6)
-    fig.suptitle("Cross-member agreement of per-scenario pooled p50 (Spearman over shared scenarios)",
-                 fontsize=8)
+    staged = "" if len(names) == len(db.PARAM_NAMES) else (
+        f"; ${', '.join(names)}$ only: the decision stage is one number per group,"
+        " see health's decision-level agreement")
+    fig.suptitle("Cross-member agreement of per-scenario pooled p50 (Spearman over shared scenarios"
+                 f"{staged})", fontsize=7.5 if staged else 8)
     fig.savefig(out / "fig_member_agreement.pdf")
     plt.close(fig)
     return True
@@ -1325,11 +1343,17 @@ def member_repeat_counts(con, protocol_id: int, member: dict) -> dict[int, int]:
     """{scenario_id: valid repeats} one member holds under a protocol: the
     repeats actually pooled, which `elicit --k` can push past the protocol's
     nominal k_repeats (the business p001 was filled from 3 to 5) and an
-    invalid slot can pull below it."""
-    return {r[0]: r[1] for r in con.execute(
-        "SELECT scenario_id, COUNT(*) FROM elicitations WHERE protocol_id=? AND valid=1"
-        " AND provider=? AND model=? GROUP BY scenario_id",
-        (protocol_id, member["provider"], member["model"]))}
+    invalid slot can pull below it. Counted per slot family (scenario,
+    stage): under a staged protocol a representative's decision and
+    instrument rows are two families of k, not one of 2k, and the scenario
+    reports the larger."""
+    out: dict[int, int] = {}
+    for sid, n in con.execute(
+            "SELECT scenario_id, COUNT(*) FROM elicitations WHERE protocol_id=? AND valid=1"
+            " AND provider=? AND model=? GROUP BY scenario_id, COALESCE(stage, '')",
+            (protocol_id, member["provider"], member["model"])):
+        out[sid] = max(out.get(sid, 0), n)
+    return out
 
 
 def member_k_used(con, protocol_id: int, member: dict) -> int:

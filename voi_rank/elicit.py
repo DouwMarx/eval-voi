@@ -113,9 +113,15 @@ def cli_timeout(error: str | None) -> bool:
 
 def render_prompt(template: string.Template, sc) -> str:
     """Substitute $title $agent $decision $theta_definition $instrument
-    $context (empty string when the scenario has no context)."""
+    $context (empty string when the scenario has no context). A template
+    naming any other field (e.g. $decision_context, which only a
+    decision-stage template renders) is refused."""
     fields = {f: (sc[f] if sc[f] is not None else "") for f in TEMPLATE_FIELDS}
-    return template.substitute(fields)
+    try:
+        return template.substitute(fields)
+    except KeyError as ex:
+        raise SystemExit(f"scenario-stage template uses ${ex.args[0]}: it renders only "
+                         f"{', '.join('$' + f for f in TEMPLATE_FIELDS)}") from None
 
 
 def render_decision_prompt(template: string.Template, sc, decision_context: str) -> str:
@@ -349,15 +355,50 @@ def job_label(job: dict) -> str:
     return f"{where} {db.member_label(job['member'])} repeat {job['repeat_ix']}"
 
 
+def n_group_texts(rows) -> int:
+    """The number of distinct (agent, decision, theta) texts over scenario
+    rows; 1 for one decision."""
+    return len({(r["agent"], r["decision"], r["theta_definition"]) for r in rows})
+
+
+def check_group_decision_rows(con, protocol_id: int, gids: list[int], stage: str, value: str,
+                              phash: str, key: str) -> None:
+    """Refuse a group whose stored valid decision rows (on any of its
+    scenarios, retired ones included) were rendered from another prompt than
+    the group renders now. The protocol's template and decision contexts are
+    immutable, so a different prompt hash means the group's agent, decision
+    or theta text changed since: eliciting again would put two decisions'
+    rows in one pool (the readers find them by the group)."""
+    marks = ",".join("?" * len(gids))
+    clause, args = db.stage_clause(stage)
+    n, other = con.execute(
+        f"SELECT COUNT(*), MIN(prompt_hash) FROM elicitations e WHERE scenario_id IN ({marks})"
+        f" AND protocol_id=? AND valid=1 AND prompt_hash<>?{clause}",
+        (*gids, protocol_id, phash, *args)).fetchone()
+    if n:
+        raise SystemExit(
+            f"stage {stage}: group {value!r} (scenarios {gids}) already holds {n} valid decision"
+            f" row(s) elicited for a different agent / decision / theta text (prompt hash"
+            f" {other[:12]} vs {phash[:12]} now): not one decision. Give the changed scenarios a new"
+            f" {key} value, or start a new voi.db")
+
+
 def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[dict], selector: str,
                      k_override: int | None, stage: str | None) -> list[dict]:
     """Pending slots of a staged protocol: the group stage once per scenario
-    group (every selected scenario must carry the group_key value, a group's
-    scenarios must share the agent, decision and theta text, and the stage's
-    decision_contexts must have an entry per group; the prompt is rendered
-    from the group's representative, its lowest id, on which the rows are
-    stored), then the scenario stage per scenario. A job carries its stage
-    and the stage's parameter names; stage=NAME plans that stage only."""
+    group, then the scenario stage per scenario. The group is the DB's
+    (db.scenario_group_ids: every scenario with the group value, retired ones
+    included), not the selection: the decision rows are stored on the
+    group's representative (its lowest id) and a repeat they fill is done for
+    every selection, so a partial --scenarios or a representative that left
+    scenarios.json never elicits a second set. Every staged plan, whichever
+    --stage, checks that every selected scenario carries the group_key value,
+    that the group's scenarios (its active ones in the DB and the selected
+    ones) share the agent, decision and theta text, that the stage's
+    decision_contexts has an entry per group and that the decision rows the
+    group already holds were rendered from that text
+    (check_group_decision_rows). A job carries its stage and the stage's
+    parameter names; stage=NAME plans that stage only."""
     gstage, sstage = db.group_stage(stages), db.scenario_stage(stages)
     if stage is not None and stage not in (gstage["name"], sstage["name"]):
         raise SystemExit(f"--stage {stage!r}: protocol {prot['name']} has stages"
@@ -371,29 +412,36 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
     groups: dict[str, list] = {}
     for sc in scenarios:
         groups.setdefault(db.scenario_group_value(sc, key), []).append(sc)
+    active: dict[str, dict[int, sqlite3.Row]] = {}   # group value -> its active scenarios
+    for r in db.get_scenarios(con, "all"):
+        value = db.scenario_group_value(r, key)
+        if value is not None:
+            active.setdefault(value, {})[r["id"]] = r
+    template = string.Template((study.root / gstage["template_path"]).read_text())
+    contexts = gstage.get("decision_contexts", {})
     jobs = []
-    if stage in (None, gstage["name"]):
-        template = string.Template((study.root / gstage["template_path"]).read_text())
-        contexts = gstage.get("decision_contexts", {})
-        for value, rows in sorted(groups.items()):
-            texts = {(r["agent"], r["decision"], r["theta_definition"]) for r in rows}
-            if len(texts) > 1:
-                raise SystemExit(f"stage {gstage['name']}: group {value!r} (scenarios"
-                                 f" {[r['id'] for r in rows]}) mixes {len(texts)} different agent /"
-                                 " decision / theta texts: not one decision")
-            if value not in contexts:
-                raise SystemExit(f"stage {gstage['name']}: no decision_contexts entry for group {value!r}"
-                                 f" (groups: {sorted(groups)})")
-            rep = min(rows, key=lambda r: r["id"])
-            prompt = render_decision_prompt(template, rep, contexts[value])
-            gids = [r["id"] for r in rows]
-            for m in members:
-                done = db.valid_repeats(con, gids, prot["id"], m["provider"], m["model"], gstage["name"])
-                for rix in range(effective_k(m, k_override)):
-                    if rix not in done:
-                        jobs.append({"scenario_id": rep["id"], "member": m, "repeat_ix": rix,
-                                     "prompt": prompt, "stage": gstage["name"],
-                                     "names": list(gstage["params"]), "group": value})
+    for value, rows in sorted(groups.items()):
+        checked = {**active.get(value, {}), **{r["id"]: r for r in rows}}
+        n_texts = n_group_texts(checked.values())
+        if n_texts > 1:
+            raise SystemExit(f"stage {gstage['name']}: group {value!r} (scenarios {sorted(checked)})"
+                             f" mixes {n_texts} different agent / decision / theta texts: not one decision")
+        if value not in contexts:
+            raise SystemExit(f"stage {gstage['name']}: no decision_contexts entry for group {value!r}"
+                             f" (groups: {sorted(groups)})")
+        gids = db.scenario_group_ids(con, key, rows[0]["id"])
+        prompt = render_decision_prompt(template, rows[0], contexts[value])
+        check_group_decision_rows(con, prot["id"], gids, gstage["name"], value, prompt_hash(prompt), key)
+        if stage not in (None, gstage["name"]):
+            continue
+        rep_id = min(gids)
+        for m in members:
+            done = db.valid_repeats(con, gids, prot["id"], m["provider"], m["model"], gstage["name"])
+            for rix in range(effective_k(m, k_override)):
+                if rix not in done:
+                    jobs.append({"scenario_id": rep_id, "member": m, "repeat_ix": rix,
+                                 "prompt": prompt, "stage": gstage["name"],
+                                 "names": list(gstage["params"]), "group": value})
     if stage in (None, sstage["name"]):
         template = string.Template((study.root / sstage["template_path"]).read_text())
         for sc in scenarios:
