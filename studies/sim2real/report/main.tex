@@ -1,24 +1,102 @@
 \documentclass{article}
 
+\usepackage{float}    % before corl_2026, which loads hyperref
+\usepackage{rotating}
 \usepackage{corl_2026} % anonymous submission mode (no [final]/[preprint])
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{capt-of}
+\usepackage{placeins}
 
 \graphicspath{{generated/}}
-% Macros (numbers, table snippets) written by voi_rank.analysis.tables (macros.tex) and
-% voi_rank.analysis.extra (macros_extra.tex); absent before the analysis runs.
-\InputIfFileExists{generated/macros.tex}{}{}
-\InputIfFileExists{generated/macros_extra.tex}{}{}
-\providecommand{\voiNScenarios}{N}
-\providecommand{\voiNAttempts}{M}
-\providecommand{\voiRunId}{--}
-\providecommand{\voiSeed}{--}
-\providecommand{\voiNDraws}{--}
-\providecommand{\voiCodeHash}{--}
-\providecommand{\voiDataHash}{--}
+\setlength{\LTcapwidth}{\linewidth} % longtable captions as wide as the other captions
 
-\title{Does the sim-to-real gap matter for the value of a robot safety evaluation?}
+% Numbers. Headline run (untagged \voi...), side runs (\voi<tag>...), the business cross-family check (\voibiz...),
+% all written by scripts/regen_papers.sh; numbers.tex holds the few values no generator writes, each with its source.
+\input{generated/macros.tex}
+\input{generated/macros_extra.tex}
+\input{generated/macros_compare.tex}
+\input{generated/single/macros.tex}
+\input{generated/single/macros_extra.tex}
+\input{generated/base/macros.tex}
+\input{generated/base/macros_extra.tex}
+\input{generated/allm/macros.tex}
+\input{generated/allm/macros_extra.tex}
+\input{generated/gauss/macros.tex}
+\input{generated/cmpsingle/macros_compare.tex}
+\input{../../business/report/generated/biz/macros_compare.tex}
+\input{../../business/report/generated/biz/macros_extra.tex}
+\input{numbers.tex}
+
+% \InputGenerated*{file}{part}{caption}: a generated fragment typeset for the paper. part n > 0 keeps the n-th piece of the
+% fragment split at \par\medskip (the generators separate their tables that way; 0 keeps the whole file); a non-empty caption
+% replaces the argument of the fragment's \caption, so the paper's captions name tables and equations, not code; the group
+% name "AV AEB" prints as "pedestrian AEB"; the starred form also prints every hyphen outside braces as a minus sign
+% (for numeric tables only).
+\ExplSyntaxOn
+\tl_new:N \l__twgen_tl
+\tl_new:N \l__twgen_rest_tl
+\seq_new:N \l__twgen_seq
+\NewDocumentCommand \InputGenerated { s m m +m }
+  {
+    \file_get:nnN {#2} {} \l__twgen_tl
+    \int_compare:nNnF {#3} = {0}
+      {
+        \seq_set_split:NnV \l__twgen_seq { \par \medskip } \l__twgen_tl
+        \tl_set:Nx \l__twgen_tl { \seq_item:Nn \l__twgen_seq {#3} }
+      }
+    \tl_if_blank:nF {#4}
+      {
+        \seq_set_split:NnV \l__twgen_seq { \caption } \l__twgen_tl
+        \int_compare:nNnT { \seq_count:N \l__twgen_seq } = {2}
+          {
+            \tl_set:Nx \l__twgen_rest_tl { \seq_item:Nn \l__twgen_seq {2} }
+            \tl_set:Nx \l__twgen_tl
+              { \seq_item:Nn \l__twgen_seq {1} \exp_not:N \caption { \exp_not:n {#4} } \tl_tail:N \l__twgen_rest_tl }
+          }
+      }
+    \regex_replace_all:nnN { AV\x20AEB } { pedestrian\ AEB } \l__twgen_tl % also inside braces
+    \IfBooleanT {#1} { \tl_replace_all:Nnn \l__twgen_tl { - } { \ensuremath{-} } }
+    \tl_use:N \l__twgen_tl
+  }
+\ExplSyntaxOff
+
+\newcommand{\evsi}{\mathrm{EVSI}}
+\newcommand{\evpi}{\mathrm{EVPI}}
+\newcommand{\eff}{\mathrm{eff}}
+\newcommand{\pist}{\pi^\star}
+\newcommand{\step}[2]{L#1$\to$L#2}
+\newcommand{\pct}[1]{\fpeval{round(100*(#1))}\%} % a share macro (0.69) printed as a percentage
+
+\lstset{basicstyle=\ttfamily\scriptsize, breaklines=true, columns=fullflexible, frame=single,
+  framesep=3pt, xleftmargin=4pt, xrightmargin=4pt, keepspaces=true}
+
+% one panel of the gate schematic: #1 prior p, #2 threshold pi*, #3 pi0, #4 pi1, #5 panel title
+\newcommand{\gatepanel}[5]{%
+\begin{tikzpicture}[x=5.6cm, y=3.4cm, font=\scriptsize]
+  \pgfmathsetmacro{\vzero}{max(#3-#2,0)}
+  \pgfmathsetmacro{\vone}{max(#4-#2,0)}
+  \pgfmathsetmacro{\vp}{max(#1-#2,0)}
+  \pgfmathsetmacro{\vchord}{\vzero+(#1-#3)/(#4-#3)*(\vone-\vzero)}
+  \pgfmathtruncatemacro{\hasgap}{(\vchord-\vp)>0.002}
+  \draw[->] (0,0) -- (0.56,0) node[below] {$\pi$};
+  \draw[->] (0,0) -- (0,0.36) node[left] {$V/\Lambda$};
+  \draw[very thick] (0,0) -- (#2,0) -- (0.5,{0.5-#2});
+  \draw[dashed] (#3,\vzero) -- (#4,\vone);
+  \fill (#3,\vzero) circle (0.9pt) (#4,\vone) circle (0.9pt);
+  \ifnum\hasgap=1 \draw[<->, thick, red!70!black] (#1,\vp) -- (#1,\vchord);
+  \else \fill[red!70!black] (#1,\vp) circle (1.8pt); \fi
+  \foreach \x/\l in {#3/{\pi_0}, #1/{p}, #4/{\pi_1}} \draw (\x,0) -- (\x,-0.012) node[below] {$\l$};
+  \draw (#2,0) -- (#2,-0.07) node[below, inner sep=1pt] {$\pist$};
+  \node[anchor=north west, align=left] at (0.01,0.36) {#5};
+\end{tikzpicture}}
+
+\title{When can a higher-fidelity robot safety evaluation pay for itself? A value-of-information protocol}
 
 \author{
   Anonymous Author(s)\\
@@ -30,68 +108,362 @@
 \maketitle
 
 \begin{abstract}
-Robot safety evaluations can be run in simulation, on hardware, or both. Simulation is cheap but its result is a noisier signal about real-world behaviour; hardware is faithful but expensive and slow. We ask when the sim-to-real gap changes whether an evaluation is worth running at all. Framing each evaluation as an instrument informing a deployment decision, we estimate its expected value of information (VOI) under elicited priors and instrument reliabilities~\citep{raiffa1961applied}, and sweep the reliability penalty attributable to the sim-to-real gap across \voiNScenarios{} robot safety scenarios. We find that [placeholder: for which classes of decision the gap flips the sim-versus-hardware choice, and where simulation retains most of the value]. We release scenarios, protocols and a reproducible pipeline.
+Robot safety evaluations range in fidelity from text prompts to monitored deployment. We give a protocol for asking when a higher-fidelity rung pays for one release decision: price each rung, a pass/fail report at a preset mark, by its expected value of sample information (EVSI) minus its cost. We work it through on a home vision-language-action (VLA) manipulator ladder (\twNHome{} rungs) and a pedestrian automatic emergency braking (AEB) ladder (\twNAeb{} rungs), with every input elicited from Claude models. The elicited inputs imply that a pass/fail home rung can change the launch only if the prior probability of an unsafe mode lies between \twHomeBandLoMin{} and \twHomeBandHiMax{} (\twHomeBandHiLSeven{} for lab trials) at the elicited stakes; the elicited prior moved from \twHomePSingleLo--\twHomePSingleHi{} to \twHomeP{} with the prompt, and at \twHomeP{} no pass/fail reading from nine of the ten rungs could change the launch. Where the decision is open (AEB), the track test has the highest net value under every elicitor set with Sonnet or Opus, and fleet telemetry cannot pay over it. Inside the gate a step pays when $pB\,\Delta s+(1-p)K\,\Delta t$ exceeds its extra cost, a line a paired sim-to-real study can test.
 \end{abstract}
 
-\keywords{Sim-to-real, Safety evaluation, Value of information}
+\keywords{Safety evaluation, Value of information, Sim-to-real, Elicitation}
 
 \section{Introduction}
-[Placeholder: motivation, the sim-versus-hardware evaluation choice as a decision problem, contributions.]
 
-\section{Value-of-information model}
-A decision maker chooses an action $a \in \mathcal{A}$ with utility $u(a,\theta)$ under prior $p(\theta)$. An evaluation returns $y \sim p(y \mid \theta)$; a simulated evaluation has a reliability degraded by a gap parameter $\gamma$. The expected value of sample information is
+Robot foundation models are evaluated with instruments of very different fidelity, from text prompts to a language planner~\citep{obi2025safeplan} through adversarial scenes~\citep{majumdar2025predictive}, closed-loop simulation~\citep{fan2026safevlabench} and world models~\citep{geminirobotics2025veo} to lab trials~\citep{zhang2026redvla} and deployment monitoring. The sim-to-real gap is usually studied as a validity question: does a simulated score predict the real one~\citep{kadian2020sim2real,li2024simpler,gervet2023navigating,dauner2024navsim,luo2025sim2val,stocco2023mindgap}? Automated-driving assessment combines simulation, track and road tests~\citep{reckenzaun2024natm} with leading and lagging measures~\citep{fraadeblanar2018measuring}. Other work spends a budget across fidelity tiers to estimate a metric or find failures: multi-fidelity, transfer, prediction-powered and sequential estimators~\citep{peherstorfer2018survey,winkelmann2022transfer,angelopoulos2023ppi,mahboob2026betting,snyder2026beyond,kressgazit2024empirical}, black-box and rare-event falsification~\citep{corso2021survey,okelly2018scalable}, accelerated autonomous-vehicle testing~\citep{glasmacher2023acquire,feng2023dense,yang2022sparse} and screen-then-confirm tiers~\citep{barrett2024benchmarkearly}; autonomous real-robot evaluation cuts the cost of the real rungs~\citep{zhou2025autoeval,atreya2025roboarena}. Whoever decides on release, through a readiness determination or a safety case~\citep{webb2020waymo,ul2020ul4600,buhl2024safetycases}, needs a different answer: can any rung change the decision, and by more than it costs~\citep{raiffa1961applied,howard1966information,koopman2020positive}? Health economics prices studies by their expected value of sample information (EVSI)~\citep{ades2004evsi}; safety cases that combine cheap offline tests with few costly real ones~\citep{sinha2026rethinking,shevlane2023extreme} need the same price per rung.
+
+We contribute a protocol for pricing an evaluation ladder for one release decision (box) and work it through on a home manipulator ladder (levels 0 to 9) and a pedestrian automatic emergency braking (AEB) ladder, the control, whose test-to-field chain is published~\citep{iihs2024paeb,cicchino2022pedestrian}. The model prices only the go/no-go role of an evaluation; sim-to-real validity enters it only through each rung's Youden index $J=s+t-1$, which also mixes hazard coverage and exposure. All inputs are elicited from language models, so each result is what the elicited inputs imply: (i) on the AEB ladder the track test has the highest net value under every elicitor set with Sonnet or Opus, and fleet telemetry cannot pay over it; (ii) whether a pass/fail home rung can change the launch turns on the prior against the decision threshold; both moved across elicitors, and the prior moved with the prompt; (iii) a ladder comparison needs the decision's numbers elicited without the instrument text (Table~\ref{tab:robust}).
+
+\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{\small\textbf{Using the protocol.} (1) Gate: would a flag make you delay and a pass make you release? If not, the rung cannot change this decision. (2) Net value: among rungs in the gate buy the one with the highest $\evsi-C$, or none if all are negative. (3) Bounds, for any $s,t$: rule out a rung costing more than $\evpi$, the value of perfect information, and a step costing more than $\evpi$ minus the cheaper rung's $\evsi$.}}
+
+\section{Model}
+\label{sec:model}
+
+One agent faces one binary decision: respond ($a=1$: delay the release and mitigate) or not. The state $\theta=1$ means responding is correct: the policy has an injurious behaviour mode, or the AEB misses a crossing pedestrian. In regret form $u(\theta,0)=0$, $u(1,1)=B$, $u(0,1)=-K$. The evaluation flags or passes at a preset mark, $x\in\{0,1\}$, with sensitivity $s=P(x{=}1\mid\theta{=}1)$ and specificity $t=P(x{=}0\mid\theta{=}0)$; the prior is $p=P(\theta{=}1)$; $C$ is the cost to build the evaluation from scratch and run it once. With stakes $\Lambda=B+K$ and threshold $\pist=K/\Lambda$, acting on belief $\pi$ is worth $V(\pi)=\Lambda\,[\pi-\pist]^+$, and one run is worth~\citep{raiffa1961applied}
 \begin{equation}
-  \mathrm{EVSI}(\gamma) = \mathbb{E}_{y}\!\left[\max_a \mathbb{E}_{\theta \mid y,\gamma}\, u(a,\theta)\right] - \max_a \mathbb{E}_{\theta}\, u(a,\theta).
+\evsi = P_1V(\pi_1)+P_0V(\pi_0)-V(p)\;\le\;\evpi=\min\{pB,\,(1-p)K\},
+\label{eq:evsi}
 \end{equation}
-Details of the fitting and the $\gamma$ sweep are in Appendix~\ref{app:protocol}.
+with $P_1=ps+(1-p)(1-t)=1-P_0$, $\pi_1=ps/P_1$, $\pi_0=p(1-s)/P_0$ and EVPI the expected value of perfect information.
+\textbf{Assumptions.} The agent buys at most one rung for this decision (rungs are substitutes) and maximises the net value $\evsi-C$, the one-decision form of the expected net benefit of sampling~\citep{willan2005value,conti2009dimensions}; it buys none if every net value is negative. Left out: trial counts, sequential use, and finding, fixing and re-testing failure modes, which would add value to cheap rungs, and systematic sim-to-real bias~\citep{kennedy2001calibration}, which would lower their $s$, $t$ and value.
+\textbf{The gate}~\citep{howard1966information,pauker1980threshold}. For $s+t>1$, $\evsi>0$ only if $\pi_0<\pist<\pi_1$ (Fig.~\ref{fig:gate}); otherwise the agent acts the same whatever the reading: the gate is closed. Equivalently, $p$ lies in the rung's gate band, $\mathrm{odds}(p)\in\big(\mathrm{odds}(\pist)\,(1-t)/s,\ \mathrm{odds}(\pist)\,t/(1-s)\big)$, the testing thresholds of clinical decision analysis~\citep{pauker1980threshold}; outside it the test's net benefit is that of ``treat all'' or ``treat none''~\citep{vickers2006decision}. The gate comes from the preset mark, whose likelihood ratio is bounded by $(1-s)/t$ and $s/(1-t)$; a continuous reading with an unbounded likelihood ratio (e.g.\ Gaussian) has no gate, nor does a mark on it set for this decision.
+\textbf{The decision's break-even line.} Inside the gate $\evsi$ is linear in $s$ and $t$: $psB-(1-p)(1-t)K$ for $p<\pist$ and $(1-p)tK-p(1-s)B$ for $p>\pist$. So a step from rung $a$ to a costlier rung $b$, both in the gate, pays if
+\begin{equation}
+pB\,\Delta s+(1-p)K\,\Delta t>\Delta C .
+\label{eq:line}
+\end{equation}
+\textbf{The best-placed buyer.} At fixed stakes $\evsi$ peaks for the buyer whose threshold is the prior ($\pist=p$, the fence buyer), whose two weights in~\eqref{eq:line} are both $\Lambda p(1-p)$: its value is the fence value $\evsi^\star=\Lambda\,p(1-p)\,J$, stakes times the variance of the state times Youden's index $J=s+t-1$~\citep{youden1950index}. For this buyer a step pays if it raises $J$ by more than $\Delta J^\star=\Delta C/(\Lambda p(1-p))$: the target for the most value any buyer with these stakes could get, not for this decision.
 
-\section{Method}
-Scenario catalogue, elicitation protocol, gap parameterisation, Monte Carlo estimation, sensitivity analysis. [Placeholder: filled from \texttt{generated/}.]
+\begin{figure}[t]
+  \begin{minipage}[c]{0.6\linewidth}
+  \gatepanel{\twAebP}{\twAebPiStar}{\twAebLEightPiZero}{\twAebLEightPiOne}{(a) AEB track\\ test (L8):\\ gate open}\hfill
+  \gatepanel{\twHomeP}{\twHomePiStar}{\twHomeLFourPiZero}{\twHomeLFourPiOne}{(b) home sim.\\ suite (L4):\\ gate closed}
+  \end{minipage}\hfill
+  \begin{minipage}[c]{0.38\linewidth}
+  \caption{The gate at the plug-in point: $V(\pi)$ (solid); a reading moves $p$ to $\pi_1$ or $\pi_0$; EVSI is the height of their chord (dashed) above $V(p)$ (arrow). (a) $\evsi=$ \twAebEVSILEight{} USD. (b) Both posteriors lie above $\pist$: the chord lies on $V$ (dot), so $\evsi=0$.}
+  \label{fig:gate}
+  \end{minipage}
+\end{figure}
+
+\section{Design and elicitation}
+\label{sec:design}
+
+\textbf{Ladders} (App.~\ref{app:catalogue}). Home: a company's head of safety decides whether to delay the launch of a VLA mobile manipulator into homes and add mitigations. Rungs (L$k$ is level $k$): text prompts (L0), image and video question answering (QA), generated adversarial scenes, a closed-loop MuJoCo suite (L4), a world model or digital twin, a hardware-in-the-loop twin, lab trials with contact-force measurement (L7), a field test in real homes (L8) and a monitored pilot deployment (L9). AEB: a carmaker decides whether to delay a pedestrian AEB release; rungs: vision-language model (VLM) QA on camera frames (L1), virtual testing (L4), vehicle-in-the-loop (L6), a track test (L8) and fleet telemetry (L9). Background paragraphs come from a catalogue of \twNCatalog{} papers and were fact-checked (\twFactClaims{} claims, \twFactEdits{} edits).
+\textbf{Elicitation} (App.~\ref{app:protocol}). Language models can supply priors for statistical models~\citep{capstick2024autoelicit,selby2025experts}; we use them as structured expert elicitors~\citep{ohagan2006uncertain}. One prompt per scenario, model and repeat asks for the 5th, 50th and 95th percentiles (p5, p50, p95) of each parameter against two worked anchors; Beta ($p,s,t$) and lognormal ($B,K,C$) fits follow. The headline protocol is staged: $p,B,K$ once per decision from a context without instrument text, $s,t,C$ once per rung without decision-level numbers. It pools Claude Sonnet 5 and Opus 5.5 (\twModelSonnet, \twModelOpus), \voiMemberKA{} repeats each (USD \voiElicitCost); Haiku 4.5 and a single-prompt protocol are baselines (App.~\ref{app:iterations}).
+\textbf{Point estimate.} We evaluate~\eqref{eq:evsi} at the pooled medians of the p50s (the plug-in point); a bootstrap over elicitations (\voiBootN{} replicates) measures the agreement between them. The predictive means, the principled point for a risk-neutral decision-maker, rest on fitted lognormal tails ($B$, $K$ at \twMeanRatioLo{} to \twMeanRatioHi{} times their medians) and leave the AEB order and the home verdict unchanged (Table~\ref{tab:robust}).
 
 \section{Results}
-[Placeholder: Figure~\ref{fig:sweep} and Table~\ref{tab:ranking} are generated by the analysis pipeline.]
+\label{sec:results}
 
 \begin{figure}[t]
   \centering
-  \IfFileExists{generated/fig_by_level.pdf}{\includegraphics[width=\linewidth]{fig_by_level.pdf}}{\fbox{\parbox{0.9\linewidth}{\centering\vspace{2em}generated/fig\_by\_level.pdf not yet produced (voi\_rank.analysis.figures)\vspace{2em}}}}
-  \caption{Median EVSI, efficiency and cost of each rung of the sim-to-real ladder (\texttt{attributes.level}), by scenario group; adjacent-rung marginals are in \texttt{generated/level\_uplift.tex} (\texttt{voi\_rank.analysis.extra}).}
-  \label{fig:sweep}
+  \includegraphics[width=\linewidth, trim=0 0 0 15pt, clip]{fig_level_fence.pdf}
+  \caption{Each rung at the plug-in point (staged prompt, Sonnet+Opus; ``AV AEB'' is the pedestrian AEB ladder; y axis in USD per decision): cost $C$ (squares), plug-in EVSI (circles; open, on the floor: $\evsi=0$, gate closed) and the fence value $\evsi^\star$ (triangles), which is not this decision-maker's value. A rung pays where its circle lies above its square. EVPI: \twAebEVPI{} (AEB), \twHomeEVPI{} (home).}
+  \label{fig:ladder}
 \end{figure}
 
+\textbf{On the AEB ladder the track test has the highest net value.}\label{sec:aeb} The AEB release is open ($p=\twAebP$, $\pist=\twAebPiStar$) and every rung is in the gate. The track test (L8) has the highest net value, \twAebNetLEight{} USD, and fleet telemetry (L9) the lowest, \twAebNetLNine{} (Table~\ref{tab:net}). Under the staged prompt each step up to L8 pays (\step{1}{4} in \twStepOneFourPays{} of bootstrap replicates); under the single prompt the simulated rungs lose money, but L8 still leads (Table~\ref{tab:robust}). No $(s,t)$ could rescue fleet telemetry at the median stakes: $\evpi-\evsi(\mathrm{L8})=$ \twAebHeadroom{} $<\Delta C=$ \twStepEightNinedC.
+\textbf{Worked example: the break-even line.} Here $pB=$ \twAebpB{} and $(1-p)K=$ \twAebqK, so by~\eqref{eq:line} \step{1}{4} pays if \twAebpB$\,\Delta s\,+$ \twAebqK$\,\Delta t>$ \twStepOneFourdC; with $\Delta s=0$ a specificity gain of \twStepOneFourdTBE{} suffices. The elicited $(\Delta s,\Delta t)=(\twStepOneFourdS,\twStepOneFourdT)$ returns \twStepOneFourdEVSI. The fence buyer weights both by \twAebLamVar{} and needs $\Delta J>\twDJStarAebOneFour$ (elicited \twDJAebOneFour).
+
+\textbf{For the home robot, the gate turns on the prior against the threshold.}\label{sec:home} At the staged medians $p=\twHomeP$ and $\pist=\twHomePiStar$. After a negative reading from any rung but L7 the posterior stays above $\pist$: the agent delays anyway, and $\evsi=0$ on \twHomeAlwaysN{} of \twNHome{} rungs (Fig.~\ref{fig:gate}b). The L7 lab trials are in the gate but worth \twLSevenEVSI{} USD against a cost of \twLSevenC. So no launch-gate evaluation with a preset pass mark pays for itself here: nine rungs cannot change the decision, and L7 not by enough to repay its cost. No $(s,t)$ could make the pilot pay: $C(\mathrm{L9})=$ \twHomeCLNine{} $>\evpi=$ \twHomeEVPI.
+At $\pist=\twHomePiStar$ every rung but L7 is closed toward delay for $p>\twHomeBandHiMax$ and toward launch for $p<\twHomeBandLoMin$ (gate bands in Table~\ref{tab:net}). Both $p$ and $\pist$ moved across elicitors: Opus alone gives $p=\twOpusHomeP$ but $\pist=\twOpusHomePiStar$, and \twOpusHomeGate{} rungs in the gate; at the pooled $s,t$ its prior with the pooled stakes puts \twOpusPriorOnlyGate{} rung in, its stakes with the pooled prior \twOpusStakesOnlyGate. Across prompts the prior moved: the same pair asked in one prompt gave $p=\twHomePSingleLo$ to $\twHomePSingleHi$ (at $p=\twCfP$, \twCfGate{} rungs are in the gate).
+The closed gate is a property of the preset mark (Sec.~\ref{sec:model}), not a verdict that no evaluation is worth buying. The Gaussian-state elicitation (App.~\ref{app:gauss}) cannot isolate the mark: its home prior, \twGaussHomePLo{} to \twGaussHomePHi, already opens every gate, and at its plug-in point a preset-mark report and a continuous reading both exceed cost on the same \twGaussHomeStepfixPlug{} of \twNHome{} home rungs.
+
+\textbf{Secondary patterns.} Per dollar, cheap rungs lead, and fence-value rankings reproduce across decision-model families (binary, Gaussian) while gated ones do not (Table~\ref{tab:secondary}).
+
 \begin{table}[t]
-  \centering
-  \caption{Scenarios ranked by VOI under simulation and hardware. Generated by \texttt{voi\_rank.analysis.tables}.}
-  \label{tab:ranking}
-  \IfFileExists{generated/ranking.tex}{\input{generated/ranking.tex}}{\begin{tabular}{lrr}\toprule Scenario & VOI (sim) & VOI (hw) \\ \midrule (pending) & -- & -- \\ \bottomrule\end{tabular}}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{What reproduces (headline: staged prompt, Sonnet+Opus, plug-in point). Step values: $\Delta\evsi/\Delta C$; brackets: bootstrap q05--q95; ``pays'': share of bootstrap replicates, or of joint draws from the elicited distributions (App.~\ref{app:summaries}), with $\Delta\evsi>\Delta C$. Single prompt: Sonnet+Opus asked about decision and instrument together.}
+\label{tab:robust}
+\begin{tabular}{@{}>{\raggedright}p{0.14\linewidth}>{\raggedright}p{0.17\linewidth}>{\raggedright}p{0.28\linewidth}>{\raggedright\arraybackslash}p{0.36\linewidth}@{}}
+\toprule
+Finding & Headline & Also holds under & Fails or weakens under\\
+\midrule
+AEB: the track test has the highest net value & L8 \twAebNetLEight; steps to L8 pay in \twStepOneFourPays, \twStepFourSixPays, 100\% & fence buyer; predictive means; single prompt; Sonnet, Opus alone; all three & Haiku alone (L6 first, or no rung in the gate); single-prompt steps (\step{1}{4} \twStepOneFourSingle, \step{4}{6} \twStepFourSixSingle); joint draws (\step{1}{4} pays in \twCrnOneFour)\\
+Fleet telemetry does not pay over the track test & \twStepEightNine{} \twStepEightNineCI, pays in \twStepEightNinePays & any $(s,t)$ of L9 at the median stakes; single prompt (\twStepEightNineSingle); joint draws (\twCrnEightNine); predictive means (L9 last) & EVPI bound at the predictive means\\
+Home launch: gate closed at the elicited $p$ and $\pist$ & \twHomeAlwaysN{} of \twNHome{} rungs outside the gate; L7 in, net \twLSevenNet & Sonnet alone; bootstrap (each rung in the gate in $\le$\twHomePbootMax); predictive means & $p$ outside \twHomeBandLoMin--\twHomeBandHiMax{} at $\pist=\twHomePiStar$; Opus alone ($\pist$ \twOpusHomePiStar: \twOpusHomeGate{} in the gate); all three ($\pist$ \twAllmHomePiStar: \twAllmHomeGate{} in); Haiku; single prompt ($p$ \twHomePSingleLo--\twHomePSingleHi); joint draws (always respond on \twHomeAlwaysDrawsLo--\twHomeAlwaysDrawsHi\%); Gaussian family ($p$ \twGaussHomePLo--\twGaussHomePHi: all in)\\
+\bottomrule
+\end{tabular}
 \end{table}
 
+\textbf{Why stage the prompt} (finding iii). Under a single prompt the instrument text moved $p,B,K$ along a ladder: the coefficient of variation of the home $p$ across rungs was \twDriftCVp{} against \twDriftCVst{} for $s$ and $t$ (Haiku), \twDriftCVpSO{} against \twDriftCVsSO{} and \twDriftCVtSO{} (Sonnet+Opus). Staging removes this and lowered $C$ (App.~\ref{app:iterations}).
+
 \section{Discussion and limitations}
-[Placeholder.]
+\label{sec:discussion}
+
+\textbf{Ask the gate question first, and the pass-mark question with it.} Fidelity matters only if some reading could change the decision~\citep{howard1966information}. Report each rung's gate band next to $p$ and $\pist$, and give a decision-maker outside the gate the continuous score. The home context quotes simulation violation rates that may raise $p$; eliciting $p$ under a second wording without them (about USD 14) is the first follow-up. A harm-rate state (e.g.\ injurious contacts per 1000 hours above a set rate) would make $p$ checkable; an injurious mode is close to certain for any current VLA.
+\textbf{Sequential and complementary use.} Screening before a real confirmation~\citep{sinha2026rethinking,barrett2024benchmarkearly}, early stopping~\citep{snyder2025stopping} and fixing and re-testing failure modes give cheap rungs value our model sets to zero; pricing them needs the correlation between rungs' readings, which no safety study reports.
+\textbf{Elicited inputs, and what would replace them.} Every input is a belief of one vendor's models, with no measured $s$, $t$ or $C$ and no human baseline (App.~\ref{app:limits}); paired sim-to-real numbers exist only for task success~\citep{li2024simpler,jain2025polaris,geminirobotics2025veo,majumdar2025predictive}. A paired study should test~\eqref{eq:line} on a step inside the decision's gate, such as AEB \step{1}{4}, with $n$ release candidates carrying a seeded pedestrian-braking fault and $n$ without. With independent errors the left side of~\eqref{eq:line} has standard deviation \twSettleSD$/\sqrt n$, so placing the break-even line two standard errors from the elicited value (\twSettleGap{} away) needs about \twSettleN{} candidates of each kind, against about \twSettleNFence{} for the fence criterion (\twSettleGapJ{} away); errors correlated at $\rho$ between the rungs cut $n$ by about $1-\rho$. Its cost is not elicited; its value is the sum of EVSI over the decisions it informs. Cheaper anchors: rating and claim data for AEB L8 and L9~\citep{iihs2024paeb,cicchino2022pedestrian}, a non-Claude elicitor (about USD 10 to 15), or 3 to 5 practitioners.
 
 \label{lastbodypage}
 \clearpage
 
 \bibliography{refs}
 
+\clearpage
 \appendix
-\section{Elicitation protocol}
-\label{app:protocol}
-[Placeholder.]
+\raggedbottom % appendix pages end where their content ends, instead of stretching around floats
 
-\section{Scenario catalogue}
+\section{Scenarios and context provenance}
 \label{app:catalogue}
-\IfFileExists{generated/catalog.tex}{\input{generated/catalog.tex}}{[generated/catalog.tex not yet produced (voi\_rank.analysis.tables).]}
 
-\section{Ablations}
-\label{app:ablations}
-[Placeholder.]
+\textbf{Appendix map.} A: scenarios and sources; B: the elicitation protocol and verbatim templates; C: limitations; D: net values, bootstrap intervals, Monte Carlo summaries and rung steps; E: protocol iterations and elicitation health; F: the Gaussian-state check; G: model choices; H: reproduction.
 
-\section{Additional figures}
-\label{app:figures}
-[Placeholder.]
+Within a ladder the agent, decision and state definition are byte-identical. Home manipulator: ``Head of safety at a robotics company about to deploy a VLA-based mobile manipulator into customers' homes''; decision ``Delay the launch and add mitigations, or launch as planned''; $\theta=1$: ``the deployed policy has an unsafe behaviour mode that would injure a person or cause serious property damage in ordinary home use''. AEB: ``Head of active-safety validation at a vehicle OEM [original equipment manufacturer] deciding on a vehicle programme's AEB release''; decision ``Delay the AEB release for the vehicle programme and rework it, or release as planned''; $\theta=1$: ``the AEB system has a failure mode in which it does not brake for a crossing pedestrian (adult or child, including a child emerging from behind parked cars) at 20--60 km/h in daylight or darkness''. Every instrument starts ``Built from scratch and run once'' and flags when a preset threshold is exceeded (L8, L9: when a qualifying event is observed). Euro NCAP is the European New Car Assessment Programme and IIHS the Insurance Institute for Highway Safety. Each background paragraph states only facts from its primary sources (Table~\ref{tab:provenance}) and further catalogue entries; where no cost is published it says so. The AEB ladder has no L0, L2, L3, L5 or L7 by design: a text-only rung is meaningless for a perception function. Levels 8 and 9 for home robots have no published evaluation; their contexts are composites of the nearest evidence (a real-home navigation study, pain-threshold measurements, automotive campaign costs, fleet-log monitoring, warehouse injury logs). Table~\ref{tab:net} gives the pooled elicited $s$, $t$ and $C$ of every rung; the decision-level medians are $p=\twHomeP$, $B=$ \twHomeB{} and $K=$ \twHomeK{} (home) and $p=\twAebP$, $B=$ \twAebB{} and $K=$ \twAebK{} (AEB).
 
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{Rungs and the primary sources of their background paragraphs. The id is the scenario number used in Tables~\ref{tab:net} to~\ref{tab:uplift}: ids 1--10 home manipulator, ids 11--15 AEB.}
+\label{tab:provenance}
+\begin{tabular}{@{}rlp{0.52\linewidth}l@{}}
+\toprule
+id & level & instrument & primary sources\\
+\midrule
+\multicolumn{4}{@{}l}{\emph{home manipulator}}\\
+1 & L0 & text prompt suite to the language planner & \citep{obi2025safeplan,sermanet2025asimov}\\
+2 & L1 & static image and instruction QA & \citep{zhou2024mssbench}\\
+3 & L2 & video-window QA of a monitoring VLM & \citep{geminirobotics2026agentic}\\
+4 & L3 & generated adversarial scenes, scored open-loop & \citep{majumdar2025predictive,yin2026roboshackles,sermanet2025asimov}\\
+5 & L4 & closed-loop MuJoCo suite with safety monitors & \citep{fan2026safevlabench,nasiriany2024robocasa}\\
+6 & L5 & photoreal world model or scan-built digital twin & \citep{geminirobotics2025veo,jain2025polaris,li2024simpler}\\
+7 & L6 & hardware-in-the-loop synchronised twin & \citep{abouchakra2025realissim,son2022pgvil}\\
+8 & L7 & lab trials with hazard objects and contact-force measurement & \citep{zhang2026redvla,iso2025iso10218}\\
+9 & L8 & staged field test in furnished homes with surrogates & \citep{gervet2023navigating}\\
+10 & L9 & monitored pilot deployment with incident logging & \citep{sindhwani2020anomaly,kalra2016driving}\\
+\midrule
+\multicolumn{4}{@{}l}{\emph{AEB}}\\
+11 & L1 & VLM QA on forward-camera frames & \citep{elhafsi2023semantic}\\
+12 & L4 & Euro NCAP-style virtual testing of the AEB grid & \citep{euroncap2025virtual}\\
+13 & L6 & vehicle-in-the-loop on a proving ground & \citep{son2022pgvil}\\
+14 & L8 & IIHS / Euro NCAP track test with pedestrian dummies & \citep{iihs2024paeb,cicchino2022pedestrian}\\
+15 & L9 & fleet telemetry matched to crash and claim data & \citep{cicchino2022pedestrian,kalra2016driving}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+\section{Elicitation protocol and templates}
+\label{app:protocol}
+
+Five protocols were run on the same \voiNScenarios{} scenarios (Table~\ref{tab:protocols}); each changes one thing. The models are Claude Haiku 4.5 (\twModelHaiku), Sonnet 5 (\twModelSonnet) and Opus 5.5 (\twModelOpus). Every prompt goes to a model through a command-line client with tools and settings disabled, so the rendered prompt is the only context. An answer is valid if it parses as the required JSON, carries every parameter with $p_5<p_{50}<p_{95}$, keeps probabilities in $(0,1)$ and dollars positive, and is informative at the median ($s>1-t$); an invalid answer is retried once. Every attempt is stored with its prompt hash and raw response. The headline protocol (p004) renders two templates. The decision template (below) receives the ladder's agent, decision and state text and the decision context; it never sees the instrument. The instrument template (below) receives the ladder's agent, decision and state text and the rung's title, instrument and background paragraph; it never sees $p$, $B$ or $K$. The two decision contexts are quoted after the templates.
+
+\begin{nolinenumbers}
+\noindent Decision-stage template (p004):
+\lstinputlisting{../templates/decision.md}
+
+\noindent Instrument-stage template (p004):
+\lstinputlisting{../templates/instrument.md}
+
+\noindent Decision contexts (p004 protocol file):
+\lstinputlisting[firstline=8, lastline=39]{../protocols/p004.yaml}
+\end{nolinenumbers}
+
+\FloatBarrier
+\section{Limitations}
+\label{app:limits}
+
+\begin{itemize}
+\item \textbf{Elicited, not measured.} Every input is the belief of one vendor's language models about a published evaluation described to them. The contexts were fact-checked, but the literature supplies almost no cost per run and no cross-rung false-negative rate for safety, so $s$, $t$ and $C$ are priors: in our catalogue \twNNoValidity{} of \twNRobotSafety{} safety-focused robotics evaluations report no validity evidence, and none of the \twNLevelFour{} closed-loop safety benchmarks reports a correlation with a real outcome. No rung is anchored to a measured sensitivity or specificity, there is no non-Claude elicitor, and nothing here is validated against human experts; Sec.~\ref{sec:discussion} lists the cheapest anchors.
+\item \textbf{Round numbers.} \twRoundS{} of the Sonnet and Opus p50s of $s$ and \twRoundT{} of those of $t$ sit on a multiple of 0.05, and Sonnet answers $s=\twRoundModeS$ in \twRoundModeSN{} of its \twRoundModeSOf{} instrument elicitations, so the elicited $J$ takes few distinct values.
+\item \textbf{Prompt and elicitor dependence.} The home gate verdict moves with the model set and with the prompt that elicited $p$ (Sec.~\ref{sec:results}); the staged prompt also lowered $C$. The home decision context quotes unsafe-episode and violation rates from closed-loop simulation benchmarks (App.~\ref{app:protocol}), evidence from the L4 class of instrument that the ladder prices. A second decision-context wording without those rates, with the same models, would bound how much of ``always respond'' follows from them; it has not been run.
+\item \textbf{Decision model.} The action is binary and the state qualitative, so choosing and verifying mitigations, the main use of an evaluation once mitigation is expected, has no value; the graded-response Gaussian model values every rung (App.~\ref{app:gauss}). The model has no trial count per rung, no sim-to-real bias or correlation, and no combined use (a simulated screen followed by a real confirmation); rungs are substitutes.
+\item \textbf{Point estimate.} The plug-in uses pooled medians. For one risk-neutral decision-maker uncertain about independent parameters the value is~\eqref{eq:evsi} at the parameters' predictive means (last column of Table~\ref{tab:net}), which depend on the fitted tails: $B$ and $K$ rise \twMeanRatioLo{} to \twMeanRatioHi{} times and the AEB EVPI from \twAebEVPI{} to \twAebEVPIMean, so the EVPI bound on fleet telemetry fails there, while the AEB order by net value (L8 first, L9 last) and the home verdict (every rung outside the gate, $\pist=\twHomePiStarMean$; $C(\mathrm{L9})=$ \twHomeCLNineMean{} $>\evpi=$ \twHomeEVPIMean) hold.
+\item \textbf{Scope.} Two ladders; the AEB ladder lacks five rungs by design; home L8 and L9 are composites; the top rungs' $C$ is dominated by the exposure that rare-event rates need~\citep{kalra2016driving,zhao2019assessing}. Rank correlations over the \twNAeb{} AEB rungs cannot separate a moderate from a strong trend.
+\item \textbf{Per-decision value and build-from-scratch cost.} No reuse count (App.~\ref{app:model}); one decision per ladder. The AEB ordering by net value cannot be overturned by any discount on the simulated rungs: even free, their EVSI (\twAebEVSILFour, \twAebEVSILSix) falls short of the track test's net value (\twAebNetLEight); the efficiency orderings and the home fence ordering can (L4's $\evsi^\star$, \twHomeEVSIStarLFour, exceeds L7's fence net value, \twHomeFenceNetLSeven).
+\item \textbf{Statistics.} The Monte Carlo (MC) median is zero on every scenario (App.~\ref{app:summaries}); the bootstrap measures agreement between elicitations, not the width of each elicitation. The stored MC draws each rung's $p,B,K$ independently; only the step analysis shares draws along a ladder.
+\item \textbf{Gaussian check.} The state variable is chosen by the elicitor and differs between repeats on some rungs; the derived $s,t$ disagree with the elicited ones.
+\end{itemize}
+
+\FloatBarrier
+\section{Net values, bootstrap intervals, Monte Carlo summaries and rung steps}
+\label{app:summaries}
+
+Table~\ref{tab:net} gives the elicited $s$ and $t$, the net values and gate bands of the body, and the net values at the predictive means. Table~\ref{tab:secondary} gives the secondary patterns of Sec.~\ref{sec:results} in the format of Table~\ref{tab:robust}. Table~\ref{tab:plugin} gives the plug-in point with bootstrap intervals, Table~\ref{tab:plugin-ranks} the bootstrap rank intervals and Table~\ref{tab:uplift} the rung steps; Fig.~\ref{fig:map} draws the plug-in point with its intervals. \voiPluginInGate{} of \voiNScenarios{} scenarios are in the gate at the plug-in point.
+
+\begin{table}[htbp]
+\centering\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\caption{Per rung at the plug-in point (staged prompt, Sonnet+Opus): pooled elicited medians $s$, $t$ and $C$ (USD), $J=s+t-1$, net value $\evsi-C$ and fence net value $\evsi^\star-C$ (USD), and the gate band, the priors for which the rung can change the decision at this decision's $\pist$ (\twHomePiStar{} home, \twAebPiStar{} AEB; the elicited $p$ is \twHomeP{} and \twAebP). $\Delta J$ and $\Delta J^\star=\Delta C/(\Lambda p(1-p))$: the step from the previous rung and its break-even gain for the fence buyer, whose step pays if $\Delta J>\Delta J^\star$. Last column: net value at the parameters' predictive means (the equal-weight mean of each valid elicitation's fitted Beta or lognormal), where every home rung is outside the gate ($\pist=\twHomePiStarMean$, $\evsi=0$). Full rung names: Table~\ref{tab:provenance}.}
+\label{tab:net}
+\begin{tabular}{@{}rlrrrrrrrrrr@{}}
+\toprule
+id & rung & $s$ & $t$ & $J$ & $C$ & $\evsi-C$ & $\evsi^\star-C$ & gate band & $\Delta J$ & $\Delta J^\star$ & at means\\
+\midrule
+\twNetRows
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Secondary patterns, in the format of Table~\ref{tab:robust} (headline: staged prompt, Sonnet+Opus, plug-in point). $\rho$: Spearman correlation with level over the rungs of a ladder (home, AEB); with \twNAeb{} AEB rungs its AEB values are descriptive. $\rho'$: Spearman correlation between two rankings of the \voiNScenarios{} rungs. The first row follows from the range of $C$ along a ladder (a factor of \twCFactorHome{} on the home ladder and \twCFactorAeb{} on the AEB ladder, against \twYoudenFactorHome{} and \twYoudenFactorAeb{} for $J$) rather than from the elicited $s$ and $t$.}
+\label{tab:secondary}
+\begin{tabular}{@{}>{\raggedright}p{0.17\linewidth}>{\raggedright}p{0.2\linewidth}>{\raggedright}p{0.3\linewidth}>{\raggedright\arraybackslash}p{0.28\linewidth}@{}}
+\toprule
+Pattern & Headline & Also holds under & Fails or weakens under\\
+\midrule
+Fence efficiency $\evsi^\star/C$ against level & $\rho$ \twRhoFenceLevel, both ladders & each model alone (home $\twRhoFenceMemberHomeLo$ to $\twRhoFenceMemberHomeHi$, AEB $\twRhoFenceMemberAebLo$ to $\twRhoFenceMemberAebHi$); single-prompt plug-in (\twRhoPlugSingleHome, \twRhoPlugSingleAeb); Gaussian step efficiency (\twRhoGaussHome, \twRhoGaussAeb) & one model under a single prompt (Opus home \twRhoFenceOpusSingleHome, Haiku AEB \twRhoFenceHaikuBaseAeb); gated home plug-in (\twRhoPlugHomeStaged)\\
+Specificity, not sensitivity, tracks the level & $t$ \twRhoTHome, \twRhoTAeb; $s$ \twRhoSHome, \twRhoSAeb & single prompt ($t$ \twRhoTHomeSingle, \twRhoTAebSingle; $s$ \twRhoSHomeSingle, \twRhoSAebSingle); all three models ($t$ \twRhoTHomeAll, \twRhoTAebAll; $s$ \twRhoSHomeAll, \twRhoSAebAll); 4 of 6 model-ladder pairs & Opus AEB ($s$ \twRhoSAebOpus, $t$ \twRhoTAebOpus); Sonnet home mixed ($s$ \twRhoSHomeSonnet, $t$ \twRhoTHomeSonnet)\\
+Threshold-free ranking reproduces; gated ranking does not & $\rho'$ bootstrap vs point: plug-in \voiBootRhoEff, fence \voiBootRhoFence & $\rho'$ fence vs Gaussian fence-type \voiFenceStepfixRho{} to \voiFenceQuadRho{} (per dollar \voiFenceStepfixEffRho{} to \voiFenceQuadEffRho); \voibizFenceStepRho{} to \voibizFenceStepfixRho{} on \voibizGaussN{} decisions of a separate study & $\rho'$ gated plug-in vs Gaussian plug-in ($\voiGaussPluginRhoStepfix$ to $\voiGaussPluginRhoQuad$)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Monte Carlo summaries.} An MC run draws \voiNDraws{} times from the mixture of the fitted distributions and reports the mean, the median, $P_+=P(\evsi>C)$ and $P_\mathrm{gate}=P(\evsi>0)$. The mixture spreads each rung across regimes: home rungs always respond on \twHomeAlwaysDrawsLo{} to \twHomeAlwaysDrawsHi\% of draws, and over all rungs $P_+$ is \twPposLo{} to \twPposHi{} and $P_\mathrm{gate}$ \twPgateLo{} to \twPgateHi, so the MC median EVSI is zero on all \voiMcZeroMedian{} scenarios and ranks nothing. The MC median has no decision-theoretic reading. The MC mean is the value to an agent who learns the parameters before deciding, a different question from the plug-in's; it agrees with the plug-in ranking at Spearman \voiPluginRhoMean{} but averages over a mass at zero. The fence ranking agrees with the plug-in where the plug-in is positive (Spearman \voiFenceRhoPlugin, $n=\voiFenceN$). $P_\mathrm{boot}(\mathrm{gate})$ (bootstrap of the medians) and $P_\mathrm{gate}$ (MC draws) answer different questions: the mixture pairs one repeat's stakes with another's prior and pulls every rung towards the middle. AEB L1 sits \twAebLOnePboot{} in the gate over the bootstrap because the prior lies just above its lower gate edge (\twAebBandLOneLo).
+
+\textbf{Rung steps on common random numbers (CRN).} Drawing $p,B,K$ once per ladder and $s,t,C$ per rung, a step pays with probability \twCrnOneFour{} (AEB \step{1}{4}) and \twCrnEightNine{} (\step{8}{9}); the CRN median of $\Delta\evsi$ is zero on every step, so Table~\ref{tab:uplift} gives the plug-in steps only.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth, trim=0 0 0 14pt, clip]{fig_plugin_map.pdf}
+  \caption{Plug-in EVSI against cost (staged prompt, Sonnet+Opus; ``AV AEB'': the pedestrian AEB ladder). Filled: plug-in EVSI; open, on stems: fence value $\evsi^\star=\Lambda p(1-p)J$; on the floor: $\evsi=0$, outside the gate. Grey bars: bootstrap q05--q95 on $C$ and on EVSI. Dashed: constant efficiency. Labels are scenario ids (Table~\ref{tab:provenance}): home rung L$k$ is id $k{+}1$; AEB ids 11 to 15 are L1, L4, L6, L8, L9.}
+  \label{fig:map}
+\end{figure}
+
+\FloatBarrier
+\nolinenumbers
+\InputGenerated{generated/plugin.tex}{1}{Plug-in values per rung (staged prompt, Sonnet+Opus): Eq.~\eqref{eq:evsi} at the pooled medians of $p$, $s$, $t$, $B$, $K$ and $C$, the point of Table~\ref{tab:net}. id: Table~\ref{tab:provenance}. $\evsi^\star=\Lambda p(1-p)J$: the fence value (Sec.~\ref{sec:model}); $\eff=\evsi/C$ and $\eff^\star=\evsi^\star/C$, each followed by its bootstrap [q05, q95]; $\evsi/\evsi^\star$: the share of the fence value this decision-maker obtains (0 outside the gate); regime at the plug-in point: in the gate, or always respond (both posteriors above $\pist$); $P_\mathrm{boot}(\mathrm{gate})$: the share of bootstrap replicates in the gate. Bootstrap: \voiBootN{} replicates, each resampling every model's valid elicitations with replacement (the decision stage once per decision) and recomputing the pooled medians. Rows are in the order of $P(\evsi>C)$ over the MC draws, since the MC median efficiency is zero on every rung (App.~\ref{app:summaries}); rank is that order.}
+
+\InputGenerated{generated/plugin_ranks.tex}{1}{Rank stability of the plug-in and fence rankings under the bootstrap of Table~\ref{tab:plugin}. Per ranking (rank 1 the largest, ties averaged): the rank at the plug-in point, the median and [q05, q95] of the replicate rank, and the share of replicates in which the rung ranks in the top 3. Rows in plug-in order. AEB L8 (id \voiBootTopOneId) stays first by plug-in efficiency in \pct{\voiBootTopOneStable} of replicates; the median Spearman correlation between a replicate's ranking and the point ranking is \voiBootRhoEff{} (plug-in) and \voiBootRhoFence{} (fence).}
+\linenumbers
+
+\begin{table}[htbp]
+\centering
+\caption{Rung steps at the plug-in point (staged prompt, Sonnet+Opus; subscript pi: plug-in): $\Delta\evsi$ and $\Delta C$ between adjacent rungs of a ladder, their ratio with its bootstrap [q05, q95], $P_\mathrm{boot}$(pays), the share of replicates with $\Delta\evsi>\Delta C$, and the fence step $\Delta\evsi^\star$ and its ratio. For $\Delta C<0$ a step pays whenever $\Delta\evsi>\Delta C$, as AEB \step{6}{8} does. $^\dagger$: $\Delta C_\mathrm{pi}$ takes each sign in at least 5\% of the replicates, so the ratio straddles its pole.}
+\label{tab:uplift}
+\InputGenerated*{generated/level_uplift.tex}{3}{}
+\end{table}
+
+\FloatBarrier
+\section{Protocol iterations and elicitation health}
+\label{app:iterations}
+
+\textbf{p001 to p002.} The log-decade framing of the dollar questions reduced the cross-repeat spread of $B$ and $K$ only modestly over all 5 repeats ($B$ \voibaseNoiseB{} to \twPtwoNoiseB) and raised that of $C$; over the first 3 repeats all three fell ($B$ \twPoneNoiseBThree{} to \twPtwoNoiseBThree, $C$ \twPoneNoiseCThree{} to \twPtwoNoiseCThree). It reordered the scenarios (Spearman correlation of median efficiency with p001 $\twPtwoRho$) and was reverted. \textbf{p003.} Adding Sonnet and Opus cut the dollar spread several-fold: under p003 the spread of $B$ is \twNoiseBHaiku{} for Haiku, \twNoiseBSonnet{} for Sonnet and \twNoiseBOpus{} for Opus. Haiku's dollar answers stay far noisier and, under p004, its stakes are inverted ($K>B$), so the headline pools Sonnet and Opus only. The single prompt still let the instrument text move $p$, $B$ and $K$ (Table~\ref{tab:consistency}), and under p003 every rung sits close to the fence: all \voisinglePluginInGate{} scenarios are in the gate at the plug-in point while the MC median is zero on \voisingleMcZeroMedian. \textbf{p004.} Staging fixes $p,B,K$ per decision. Model-matched against p003, it lowered $C$ for every model, by a median \twCDropOpus{} (Opus) to \twCDropHaiku{} (Haiku) decades per rung, and moved the home prior from \twHomePSingleLo--\twHomePSingleHi{} to \twHomeP; the shift in $s$ and $t$ is small: Sonnet's $s$ moves by a median $\twSShiftSonnet$ per rung (sign test $P=\twSShiftSonnetP$), Haiku's by $\twSShiftHaiku$ (borderline, $P=\twSShiftHaikuP$), and Opus's shifts have no consistent sign (\twOpusShiftUp{} rungs up, \twOpusShiftDown{} down). \textbf{MC-median rankings.} Of the 14 MC-median rankings (per protocol and model subset), five are constant: p003 (all three models), p003 Opus, p004 (all three, \voiallmMcZeroMedian{} of \voiNScenarios{} medians zero), p004 Sonnet+Opus (\voiMcZeroMedian{} of \voiNScenarios) and p004 Opus. p001 (\voibaseMcZeroMedian{} zero) and p003 Sonnet+Opus (\voisingleMcZeroMedian) are nearly so. Hence \twNaPairs{} of the \twAllPairs{} protocol pairs have no defined rank correlation.
+
+\textbf{Health.} Table~\ref{tab:health} gives the elicitations this paper uses. Spread is the cross-repeat spread of a parameter, $(\max-\min)$ over the pooled p50 of one scenario's repeats, median over scenarios (over the two decisions for $p,B,K$ under p004). Under p004, Haiku's decision-level $B$ for the AEB release runs from \twHaikuAebBLo{} to \twHaikuAebBHi{} USD across \voiMemberKA{} repeats, which is why the headline pools Sonnet and Opus only. The Gaussian protocol lost attempts to a usage-limit outage of the model client: over all models \twGaussValid{} of \twGaussAttempts{} attempts were valid (USD \twGaussUSD); these counts, and the study total of App.~\ref{app:repro}, include the outage rows, which were stored as invalid and re-run, while Table~\ref{tab:health} leaves them out.
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{Protocols. Models: Claude Haiku (H), Sonnet (S), Opus (O), \voiMemberKA{} repeats each.}
+\label{tab:protocols}
+\begin{tabular}{@{}llp{0.36\linewidth}p{0.35\linewidth}@{}}
+\toprule
+protocol & models & change against the previous & outcome\\
+\midrule
+p001 & H & baseline: one prompt per rung, all six parameters & decision numbers drift along a ladder\\
+p002 & H & log-decade framing of $B$, $K$, $C$ & over all 5 repeats $B$, $K$ spread slightly lower, $C$ higher (first 3: all lower); reordered; reverted\\
+p003 & H, S, O & p001 template, three models & S and O far less noisy in dollars; drift remains\\
+p004 & H, S, O & staged: $p,B,K$ once per decision; $s,t,C$ per rung & headline (S+O); drift zero by construction\\
+g001 & H, S, O & Gaussian-state family (App.~\ref{app:gauss}) & model check\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{The consistency check per protocol: dispersion of the pooled p50 across the rungs of each ladder (CV for probabilities, $\log_{10}$ range for dollars); the ratio column divides CV($p$) by the mean CV of $s$ and $t$; last column: $p,B,K$ flatter than $s,t,C$. Top to bottom: p001 Haiku, p003 Sonnet+Opus, p004 Sonnet+Opus (headline).}
+\label{tab:consistency}
+\resizebox{\linewidth}{!}{\InputGenerated{generated/base/consistency.tex}{0}{}}\\[4pt]
+\resizebox{\linewidth}{!}{\InputGenerated{generated/single/consistency.tex}{0}{}}\\[4pt]
+\resizebox{\linewidth}{!}{\InputGenerated{generated/consistency.tex}{0}{}}
+\end{table}
+
+\begin{table}[htbp]
+\centering\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\caption{Elicitation health of the protocols and model sets used here. Attempts include retries and exclude usage-limit outage rows; valid is the share of attempts that validated.}
+\label{tab:health}
+\begin{tabular}{@{}lrrrrrrrrrr@{}}
+\toprule
+protocol, models & attempts & valid & USD & fit warn. & \multicolumn{6}{c}{cross-repeat spread $p$, $s$, $t$, $B$, $K$, $C$}\\
+\midrule
+p001, Haiku & \voibaseNAttempts & \voibaseValidityRate & \voibaseElicitCost & \voibaseFitWarnings & \voibaseNoiseP & \voibaseNoiseS & \voibaseNoiseT & \voibaseNoiseB & \voibaseNoiseK & \voibaseNoiseC\\
+p003, Sonnet+Opus & \voisingleNAttempts & \voisingleValidityRate & \voisingleElicitCost & \voisingleFitWarnings & \voisingleNoiseP & \voisingleNoiseS & \voisingleNoiseT & \voisingleNoiseB & \voisingleNoiseK & \voisingleNoiseC\\
+p004, Sonnet+Opus & \voiNAttempts & \voiValidityRate & \voiElicitCost & \voiFitWarnings & \voiNoiseP & \voiNoiseS & \voiNoiseT & \voiNoiseB & \voiNoiseK & \voiNoiseC\\
+p004, all three & \voiallmNAttempts & \voiallmValidityRate & \voiallmElicitCost & \voiallmFitWarnings & \voiallmNoiseP & \voiallmNoiseS & \voiallmNoiseT & \voiallmNoiseB & \voiallmNoiseK & \voiallmNoiseC\\
+g001, Sonnet+Opus & \voigaussNAttempts & \voigaussValidityRate & \voigaussElicitCost & \voigaussFitWarnings & \multicolumn{6}{c}{Gaussian parameters, App.~\ref{app:gauss}}\\
+\midrule
+% model rows: generated/macros.tex and single/macros.tex list member A = sonnet, member B = opus
+\multicolumn{11}{@{}l}{\emph{per model, p004 (headline)}}\\
+\quad Sonnet & \voiMemberAttemptsA & \voiMemberValidityA & \voiMemberCostA & \multicolumn{7}{l}{}\\
+\quad Opus & \voiMemberAttemptsB & \voiMemberValidityB & \voiMemberCostB & \multicolumn{7}{l}{}\\
+\multicolumn{11}{@{}l}{\emph{per model, p003}}\\
+\quad Sonnet & \voisingleMemberAttemptsA & \voisingleMemberValidityA & \voisingleMemberCostA & \multicolumn{7}{l}{}\\
+\quad Opus & \voisingleMemberAttemptsB & \voisingleMemberValidityB & \voisingleMemberCostB & \multicolumn{7}{l}{}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+\section{The Gaussian-state family as a sanity check}
+\label{app:gauss}
+
+\textbf{What it asks.} The Gaussian protocol (g001) asks the elicitor to name a continuous state with a unit, its prior percentiles, the value $\theta_c$ at which the response changes, three routes to the sensor error relative to the prior spread $x$, four loss points, the stakes and $C$, under a linear-Gaussian sensor model. One reading removes a share $R^2=1/(1+x^2)$ of the prior variance of the state (the squared correlation between reading and state). Four action models are scored from the same answers: graded response with loss exponent $k$ (quad), binary action with linear payoff (lin), step payoff with a continuous reading (step), and step payoff with a pass/fail report at a fixed mark (stepfix), which maps one-to-one onto the binary model and alone has a gate. Notation: $d=(\mu_0-\theta_c)/\sigma_0$ is the standardised distance of the prior mean $\mu_0$ from $\theta_c$ ($\sigma_0$ the prior standard deviation), $\Phi$ the standard normal distribution function, so the implied prior is $p=\Phi(d)$, and $L$ the loss scale, the EVPI of the graded-response model, whose value is $LR^2$ for $k=2$. The stepfix mark sits at $\theta_c$.
+
+\textbf{What it confirms.} The direction of the step efficiency: the MC median of eff$_\mathrm{step}$ correlates with level at $\twRhoGaussHome$ (home) and $\twRhoGaussAeb$ (AEB). The threshold-free rankings: the binary fence value agrees with the Gaussian fence-type values at \voiFenceStepfixRho{} to \voiFenceQuadRho{} under p004 (Table~\ref{tab:cmpplugin}, Fig.~\ref{fig:cmpplugin}) and at \voicmpsingleFenceStepfixRho{} to \voicmpsingleFenceQuadRho{} under p003 (the same comparison against the single-prompt run, not tabulated), and at \voibizFenceStepRho{} to \voibizFenceStepfixRho{} over \voibizGaussN{} decisions of a separate study from other domains, elicited the same way (Sonnet+Opus; binary plug-in against stepfix \voibizGaussPluginRhoStepfix{} there).
+
+\textbf{The home gate.} The Gaussian run's implied home prior $\Phi(d)$ is \twGaussHomePLo{} to \twGaussHomePHi, below the upper gate edges of the binary run, and the stepfix value is positive on every rung. At the Gaussian plug-in point stepfix and step both exceed cost on the same \twGaussHomeStepfixPlug{} of \twNHome{} home rungs; over the MC draws the median exceeds cost on \twGaussHomeStepfixMC{} rungs for stepfix and \twGaussHomeStepMC{} for step. Within this family the preset mark lowers the value of a reading but does not close a gate at these priors, so the family cannot show how much of the binary verdict is the mark.
+
+\textbf{Where it disagrees.} The gated plug-in: $\voiGaussPluginRhoStepfix$ to $\voiGaussPluginRhoQuad$ against the staged binary run, because the binary plug-in is zero on the \twHomeAlwaysN{} always-respond home rungs while every Gaussian model is positive; against the single-prompt run, where every rung is in the gate, it is \voicmpsingleGaussPluginRhoKg{} to \voicmpsingleGaussPluginRhoQuad. The implied instrument: the derived $s$ (\twGaussSDerLo{} to \twGaussSDerHi) and $t$ (\twGaussTDerLo{} to \twGaussTDerHi) are nearly flat across rungs and sit above the elicited ones (mean difference \voiGaussBiasS{} and \voiGaussBiasT; Spearman \voiGaussRhoS{} and \voiGaussRhoT). The derived prior has the smallest mean difference ($\voiGaussBiasP$), but its median absolute difference (\voiGaussMadP) exceeds that of $t$ (\voiGaussMadT), and because the elicited $p$ takes one value per ladder, its Spearman $\rho=\voiGaussRhoP$ mostly measures the separation of the two ladders (Fig.~\ref{fig:derived}). $R^2$ sits at \twGaussRtwoLo{} to \twGaussRtwoHi{} on every rung and falls with the rung on the home ladder (Spearman $\twGaussRtwoRhoHome$), so the Gaussian ranking is set by the loss scale over cost, as the binary one is set by cost. \textbf{Caveats.} The elicitor chooses the state variable, and on \twGaussUnitRungs{} rungs the repeats pool physically different states (a rate with a contact force or an impact speed); \twGaussFitFlags{} parameter fits in \twGaussFitElic{} elicitations carry a fit warning over all models (\voigaussFitWarnings{} for Sonnet+Opus).
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{Binary against Gaussian rankings over the \voiGaussPluginN{} rungs, each family at its pooled medians (headline binary elicitations against the Gaussian ones, both Sonnet+Opus). Top: the gated binary plug-in efficiency against the four Gaussian action models. Bottom: the binary fence value $\evsi^\star=\Lambda p(1-p)J$ against three threshold-free Gaussian values (stepfix at $\Phi(d)=p$, step at $\Phi(d)=\pist$, and the quad value $LR^2$ with $k=2$), as values and per dollar; no gate applies to these rows.}
+\label{tab:cmpplugin}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+binary & Gaussian & Spearman $\rho$ & Kendall $\tau$ & top-10 overlap\\
+\midrule
+$\eff$ & $\eff_\mathrm{quad}$ & $\voiGaussPluginRhoQuad$ & $\voiGaussPluginTauQuad$ & \voiGaussPluginTopOverlapQuad{} / 10\\
+$\eff$ & $\eff_\mathrm{lin}$ & $\voiGaussPluginRhoKg$ & $\voiGaussPluginTauKg$ & \voiGaussPluginTopOverlapKg{} / 10\\
+$\eff$ & $\eff_\mathrm{step}$ & $\voiGaussPluginRhoStep$ & $\voiGaussPluginTauStep$ & \voiGaussPluginTopOverlapStep{} / 10\\
+$\eff$ & $\eff_\mathrm{stepfix}$ & $\voiGaussPluginRhoStepfix$ & $\voiGaussPluginTauStepfix$ & \voiGaussPluginTopOverlapStepfix{} / 10\\
+\midrule
+$\evsi^\star$ & $\evsi^\star_\mathrm{stepfix}$ & \voiFenceStepfixRho & \voiFenceStepfixTau & \voiFenceStepfixTopOverlap{} / 10\\
+$\eff^\star$ & $\evsi^\star_\mathrm{stepfix}/C$ & \voiFenceStepfixEffRho & \voiFenceStepfixEffTau & \voiFenceStepfixEffTopOverlap{} / 10\\
+$\evsi^\star$ & $\evsi_\mathrm{step}$ at $\Phi(d)=\pist$ & \voiFenceStepRho & \voiFenceStepTau & \voiFenceStepTopOverlap{} / 10\\
+$\eff^\star$ & $\evsi_\mathrm{step}/C$ & \voiFenceStepEffRho & \voiFenceStepEffTau & \voiFenceStepEffTopOverlap{} / 10\\
+$\evsi^\star$ & $LR^2$ & \voiFenceQuadRho & \voiFenceQuadTau & \voiFenceQuadTopOverlap{} / 10\\
+$\eff^\star$ & $LR^2/C$ & \voiFenceQuadEffRho & \voiFenceQuadEffTau & \voiFenceQuadEffTopOverlap{} / 10\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth, trim=0 0 0 21pt, clip]{fig_compare_plugin.pdf}
+  \caption{Binary against Gaussian plug-in points (headline binary elicitations against the Gaussian ones; ``AV AEB'': the pedestrian AEB ladder): (a) gated efficiencies, binary plug-in against Gaussian stepfix; (b)--(d) the binary fence value $\evsi^\star=\Lambda p(1-p)J$ against three Gaussian fence-type values (Table~\ref{tab:cmpplugin}). Dashed: $y=x$.}
+  \label{fig:cmpplugin}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth, trim=0 0 0 12.5pt, clip]{fig_derived_pst.pdf}
+  \caption{Derived $p=\Phi(d)$, $s$ and $t$ of the Gaussian elicitations (stepfix, mark at $\theta_c$) against the elicited binary p50 (Sonnet+Opus). Dashed: $y=x$.}
+  \label{fig:derived}
+\end{figure}
+
+\FloatBarrier
+\section{Model choice}
+\label{app:model}
+
+\textbf{Why the efficacy multiplier $e$ was dropped.} An earlier version multiplied $B$ by $e$, the probability that the agent acts on the signal and that the action works. It conflated compliance (part of the decision rule) with efficacy (part of $B$), discounted the benefit branch but not the false-alarm branch, and barely mattered: over the \twETopQuartileN{} top-quartile decisions of a separate study its mean $|\rho|$ against efficiency was \twEGlobal{} against \twEGlobalC{} for $C$, and dropping it left the ranking of all \voibizGaussN{} decisions in place (Spearman \twERho).
+
+\textbf{Why $s$ and $t$ stay.} They create the gate: every zero in Fig.~\ref{fig:ladder} is theirs. Dropping them collapses the ranking to $\evpi/C$; at the headline plug-in point that ranking agrees with $\evsi/C$ at \twSimpRhoGate{} inside the gate but only \twSimpRhoAll{} over all rungs. Along a ladder they are, with $C$, the only inputs that differ by design; the fence value is linear in Youden's index and, inside the gate, the decision's own value is linear in $s$ and $t$~\eqref{eq:line}.
+
+\textbf{What to add next: the reuse count.} With $C$ defined as build plus one run, a simulation suite built once and run on every release is charged its whole build cost for each decision. For an evaluation that informs $n$ decisions the net value is $n\,\evsi-C_\mathrm{build}-n\,C_\mathrm{run}$; $n=1$ reproduces the present objective. $C_\mathrm{build}$, $C_\mathrm{run}$ and $n$ belong to the instrument stage of the staged protocol, next to $s$ and $t$. Per decision a rung can gain at most its $C$ from reuse, so on the AEB ladder, where the simulated rungs' EVSI is below the track test's net value, no reuse count changes the first place; on the efficiency orderings and on the home fence ordering it could, and eliciting $n$ would tell.
+
+\FloatBarrier
 \section{Reproduction}
 \label{app:repro}
-Everything downstream of the elicitation database is deterministic given the stored seed (run \voiRunId: seed \voiSeed, \voiNDraws{} draws, code revision \texttt{\voiCodeHash}, data hash \texttt{\voiDataHash}; a revision suffixed \texttt{-dirty} was run from uncommitted code, the data hash identifies the valid elicitations the run drew from). \voiNAttempts{} elicitation attempts are stored with their prompt hashes and raw responses. See \texttt{README.md} for the run order.
+
+Every figure, every generated table and every generated number in this paper is regenerated from the stored elicitation database by one script, with no model calls, and the few numbers no generator writes are defined in one file, each next to the query or formula that produced it; the MC runs are deterministic given their seeds (seed \voiSeed, \voiNDraws{} draws). Stored runs and the hash of the valid elicitations each draws from: run \voiRunId{} (headline: p004, Sonnet+Opus) \texttt{\voiDataHash}; run \voiallmRunId{} (p004, all three models) \texttt{\voiallmDataHash}; run \voisingleRunId{} (p003, Sonnet+Opus) \texttt{\voisingleDataHash}; run \voibaseRunId{} (p001, Haiku) \texttt{\voibaseDataHash}; run \voigaussRunId{} (g001, Sonnet+Opus) \texttt{\voigaussDataHash}. The model client was version \voiCliVersion; model ids are in App.~\ref{app:protocol}. The whole study cost \twStudyUSD{} USD over \twStudyAttempts{} elicitation attempts, outage rows included. Every attempt is stored with its prompt hash and raw response; scenarios, templates, protocol files, the literature catalogue and the fact-check log will be released with the code.
 
 \end{document}

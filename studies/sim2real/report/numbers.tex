@@ -1,0 +1,420 @@
+% Numbers used in the track-2 paper that no generated macro carries.
+% Each definition is preceded by its source: a claim id of studies/sim2real/report/findings.md ([C#], fact-checked),
+% a section of studies/README_tracks.md or studies/README_methods.md (fact-checked), or a generated fragment of
+% report/generated/ (run 12 unless stated) with the row and column. Queries open studies/sim2real/voi.db read-only
+% (sqlite3.connect("file:studies/sim2real/voi.db?mode=ro", uri=True)). "verify.py" is the read-only script in the
+% session scratchpad (pooled() and point() of README_tracks Appendix A); its output reproduced every value below that
+% cites it, on 2026-09-29.
+
+% ---- design ------------------------------------------------------------------------------------------
+% [C1] select grp, count(*) from scenarios group by grp -> home manipulator 10, AV AEB 5
+\newcommand{\twNHome}{10}
+\newcommand{\twNAeb}{5}
+% README_methods s6: catalogue size; research/catalog.md headings (b)
+\newcommand{\twNCatalog}{443}
+\newcommand{\twNRobotSafety}{249}
+% research/gaps.md s2 (quoted in README_methods s6): 102 of 249 state no validity evidence; none of the 55 level-4 safety benchmarks reports a correlation with a real outcome
+\newcommand{\twNNoValidity}{102}
+\newcommand{\twNLevelFour}{55}
+% studies/sim2real/factcheck.md line 5 (sed -n 5p), cited in findings s10: 177 claims checked, 40 edits
+\newcommand{\twFactClaims}{177}
+\newcommand{\twFactEdits}{40}
+% README_tracks K10 / README_methods s5: every sim2real elicitation attempt, USD from the stored envelopes
+\newcommand{\twStudyAttempts}{925}
+\newcommand{\twStudyUSD}{83.40}
+
+% ---- decision stage of the headline (p004, sonnet+opus) -------------------------------------------
+% [C33], [C17]; verify.py "p004 s+o home": p 0.335, B 3e6, K 6e5, pi* 0.167; pi0 of the nine always-respond rungs 0.199..0.304
+\newcommand{\twHomeP}{0.335}
+\newcommand{\twHomeB}{3M}
+\newcommand{\twHomeK}{600k}
+\newcommand{\twHomePiStar}{0.167}
+\newcommand{\twHomePiZeroLo}{0.199}
+\newcommand{\twHomePiZeroHi}{0.304}
+% [C33]; plugin.tex regime column: always on ids 1-7, 9, 10; gate on id 8 (L7)
+\newcommand{\twHomeAlwaysN}{9}
+% plugin.tex row id 8 (L7): EVSI 23k, eff 0.153, EVSI/EVSI* 0.06, P_boot(gate) 74%; catalog.tex id 8: s 0.73, t 0.72 ([C33]: 0.735, 0.725)
+\newcommand{\twLSevenEVSI}{23k}
+\newcommand{\twLSevenEff}{0.153}
+\newcommand{\twLSevenShare}{0.06}
+\newcommand{\twLSevenPboot}{74\%}
+% plugin.tex P_boot(gate) of the nine always-respond home rungs: 0% to 5% (ids 5: 4%, 9: 5%, 6: 1%, rest 0%)
+\newcommand{\twHomePbootMax}{5\%}
+% [C17], [C36]; verify.py "p004 s+o aeb": p 0.12, B 4e7, K 9e6, pi* 0.184, pi0 0.034..0.082, pi1 0.195..0.415, all five in the gate
+\newcommand{\twAebP}{0.12}
+\newcommand{\twAebB}{40M}
+\newcommand{\twAebK}{9M}
+\newcommand{\twAebPiStar}{0.184}
+% plugin.tex row id 11 (AEB L1): P_boot(gate) 52%, eff [0, 31]; rows 12-15: 100%
+\newcommand{\twAebLOnePboot}{52\%}
+% [C34]: over the draws of run 12 the home rungs are always-respond on 47-58% of draws
+\newcommand{\twHomeAlwaysDrawsLo}{47}
+\newcommand{\twHomeAlwaysDrawsHi}{58}
+% plugin_mc.tex column P_gate (run 12): 15% .. 45%; [C31]
+\newcommand{\twPgateLo}{15\%}
+\newcommand{\twPgateHi}{45\%}
+
+% ---- member and prompt dependence of the home gate verdict -------------------------------------------
+% [C33]; verify.py "p004 opus home": p 0.30, 7 of 10 rungs in the gate; "p004 haiku home": B 4e5 < K 5e5, never respond on 7 of 10
+\newcommand{\twOpusHomeP}{0.30}
+\newcommand{\twOpusHomeGate}{7}
+\newcommand{\twHaikuHomeNever}{7}
+% [C32], README_tracks s2 (K7 loop per member): haiku under p004 takes every AEB rung out of the gate (never respond on 5 of 5)
+\newcommand{\twHaikuAebNever}{5}
+% [C18]: the same sonnet+opus pair gave p 0.15-0.26 per home rung under the single-prompt p003; verify.py "p003 s+o home" p 0.150..0.260
+\newcommand{\twHomePSingleLo}{0.15}
+\newcommand{\twHomePSingleHi}{0.26}
+% [C35] and findings fact-check snippet F1; verify.py "p=0.20": at p 0.20 (B 3M, K 600k) and the p004 instrument medians 9 of 10 home rungs are in the gate
+\newcommand{\twCfP}{0.20}
+\newcommand{\twCfGate}{9}
+
+% ---- ladder direction ---------------------------------------------------------------------------------
+% plugin.tex rows 11-15 (run 12), column eff: L1 5.69, L4 2.58, L6 2.42, L8 8.52, L9 0.457; [C26]
+\newcommand{\twAebEffLOne}{5.69}
+\newcommand{\twAebEffLFour}{2.58}
+\newcommand{\twAebEffLSix}{2.42}
+\newcommand{\twAebEffLEight}{8.52}
+\newcommand{\twAebEffLNine}{0.457}
+% plugin.tex column eff*: AEB L1 38.2, L9 0.638; home L0 3.21, L4 5.57, L9 0.495; [C26], [C27]
+\newcommand{\twAebFenceLOne}{38.2}
+\newcommand{\twAebFenceLNine}{0.638}
+\newcommand{\twHomeFenceLZero}{3.21}
+\newcommand{\twHomeFenceLNine}{0.495}
+% [C27] (home), README_tracks K7 (AEB eff* -0.7); verify.py rho(eff*,L) -0.70 on both p004 s+o ladders
+\newcommand{\twRhoFenceLevel}{\ensuremath{-}0.70}
+% [C32]: per member (p004) Spearman(eff*, level) -0.56 to -0.64 home, -0.60 to -0.90 AEB
+\newcommand{\twRhoFenceMemberHomeLo}{\ensuremath{-}0.64}
+\newcommand{\twRhoFenceMemberHomeHi}{\ensuremath{-}0.56}
+\newcommand{\twRhoFenceMemberAebLo}{\ensuremath{-}0.90}
+\newcommand{\twRhoFenceMemberAebHi}{\ensuremath{-}0.60}
+% [C25], [C24]: p003 sonnet+opus plug-in Spearman(eff, level) -0.72 home, -0.60 AEB
+\newcommand{\twRhoPlugSingleHome}{\ensuremath{-}0.72}
+\newcommand{\twRhoPlugSingleAeb}{\ensuremath{-}0.60}
+% [C37]: Gaussian run 6, Spearman(median eff_step, level) -0.71 home, -0.90 AEB
+\newcommand{\twRhoGaussHome}{\ensuremath{-}0.71}
+\newcommand{\twRhoGaussAeb}{\ensuremath{-}0.90}
+% README_tracks s2 "Evidence strength" (K7 loop per member, fact-check item 12): under the single prompt eff* vs level -0.32 (opus, home, p003), +0.10 (haiku, AEB, p001)
+\newcommand{\twRhoFenceOpusSingleHome}{\ensuremath{-}0.32}
+\newcommand{\twRhoFenceHaikuBaseAeb}{\ensuremath{+}0.10}
+% [C48]: under p004 the home plug-in is 0 on 9 rungs and its Spearman with level is +0.29
+\newcommand{\twRhoPlugHomeStaged}{\ensuremath{+}0.29}
+
+% ---- rung steps (level_uplift.tex, run 12, third tabular; CRN from the first) -------------------------
+% [C28], [C30], [C31]; bootstrap interval and P_boot(pays) from the third tabular (v2.4, LEARNINGS 2026-09-29 v2.4 review 2)
+\newcommand{\twStepOneFour}{2.37}
+\newcommand{\twStepOneFourCI}{[0.88, 3.3]}
+\newcommand{\twStepOneFourPays}{94\%}
+\newcommand{\twStepFourSix}{1.61}
+\newcommand{\twStepFourSixPays}{73\%}
+\newcommand{\twStepSixEightdEVSI}{1.1M}
+\newcommand{\twStepSixEightdC}{\ensuremath{-}300k}
+\newcommand{\twStepEightNine}{\ensuremath{-}0.439}
+\newcommand{\twStepEightNineCI}{[\ensuremath{-}0.63, \ensuremath{-}0.25]}
+\newcommand{\twStepEightNinePays}{0\%}
+\newcommand{\twStepEightNinedEVSI}{\ensuremath{-}1.19M}
+\newcommand{\twStepEightNinedC}{2.7M}
+% first tabular, column P(dEVSI > dC): L1->L4 15%, L8->L9 4%
+\newcommand{\twCrnOneFour}{15\%}
+\newcommand{\twCrnEightNine}{4\%}
+% [C28]: home dEVSI_pi = 0 on 7 of 9 steps
+\newcommand{\twHomeStepsZero}{7}
+\newcommand{\twHomeSteps}{9}
+% [C29], [C30]: under p003 sonnet+opus the AEB steps return 0.725 (L1->L4) and 0.556 (L4->L6); L8->L9 -0.252
+\newcommand{\twStepOneFourSingle}{0.725}
+\newcommand{\twStepFourSixSingle}{0.556}
+\newcommand{\twStepEightNineSingle}{\ensuremath{-}0.252}
+
+% ---- why cost wins ([C21], [C36], [C46], [C47] and the operator addendum; verify.py "p004 s+o") -----------
+\newcommand{\twYoudenHomeLo}{0.10}
+\newcommand{\twYoudenHomeHi}{0.46}
+\newcommand{\twRhoYoudenHome}{0.91}
+\newcommand{\twRhoYoudenAeb}{0.70}
+\newcommand{\twYoudenFactorHome}{4.6}
+\newcommand{\twYoudenFactorAeb}{2.6}
+\newcommand{\twCFactorHome}{24}
+\newcommand{\twCFactorAeb}{92}
+\newcommand{\twLogYHome}{0.66}
+\newcommand{\twLogYAeb}{0.42}
+\newcommand{\twLogCHome}{1.38}
+\newcommand{\twLogCAeb}{1.97}
+\newcommand{\twRhoTHome}{0.66}
+\newcommand{\twRhoTAeb}{0.67}
+\newcommand{\twRhoSHome}{0.16}
+\newcommand{\twRhoSAeb}{\ensuremath{-}0.05}
+
+% ---- consistency check under the single prompt ([C14], [C15]; base/consistency.tex, single/consistency.tex) --
+\newcommand{\twDriftCVp}{0.31}
+\newcommand{\twDriftCVst}{0.06}
+\newcommand{\twDriftBAeb}{2.40}
+\newcommand{\twDriftCAeb}{1.90}
+\newcommand{\twDriftNever}{6}
+\newcommand{\twDriftCVpSO}{0.17}
+% [C23]: median per-rung log10(C_p004 / C_p003): haiku -0.52, sonnet -0.18, opus -0.13 decades; efficiencies rescaled 1.3-3x
+\newcommand{\twCDropHaiku}{0.52}
+\newcommand{\twCDropSonnet}{0.18}
+\newcommand{\twCDropOpus}{0.13}
+% [C22]: sonnet's s drop p004 minus p003, median -0.03 per rung, sign test p = 0.022; haiku and opus at replicate-noise level
+\newcommand{\twSShiftSonnet}{\ensuremath{-}0.03}
+\newcommand{\twSShiftSonnetP}{0.022}
+
+% ---- elicitation health and iterations ([C7], [C8], [C10], [C12]; protocol_noise_matched.tex) -----------
+% [C7]: p002 (log-decade dollars) cross-repeat spread B 4.00, K 3.90, C 2.08 (p001: 4.40, 4.33, 1.68); Spearman of median efficiency with p001 -0.17
+\newcommand{\twPtwoNoiseB}{4.00}
+\newcommand{\twPtwoRho}{\ensuremath{-}0.17}
+% [C8]: p003 per-member cross-repeat spread of B, all 5 repeats: haiku 5.98, sonnet 1.00, opus 0.67
+\newcommand{\twNoiseBHaiku}{5.98}
+\newcommand{\twNoiseBSonnet}{1.00}
+\newcommand{\twNoiseBOpus}{0.67}
+% [C10]: haiku's decision-level B for the AEB group spans 1.5M to 900M over five repeats (600x)
+\newcommand{\twHaikuAebBLo}{1.5M}
+\newcommand{\twHaikuAebBHi}{900M}
+% [C12], [C42]: g001 279 attempts, 223 valid (slots 223/225), 41.83 USD, 109 flagged parameter fits in 58 elicitations
+\newcommand{\twGaussAttempts}{279}
+\newcommand{\twGaussValid}{223}
+\newcommand{\twGaussUSD}{41.83}
+\newcommand{\twGaussFitFlags}{109}
+\newcommand{\twGaussFitElic}{58}
+% [C13]: 55 of the 91 cross-protocol pairs of the MC-median Spearman matrix involve a constant ranking
+\newcommand{\twNaPairs}{55}
+\newcommand{\twAllPairs}{91}
+
+% ---- Gaussian family ([C38], [C41], [C43]) --------------------------------------------------------------
+\newcommand{\twGaussRtwoLo}{0.60}
+\newcommand{\twGaussRtwoHi}{0.78}
+\newcommand{\twGaussRtwoRhoHome}{\ensuremath{-}0.81}
+\newcommand{\twGaussSDerLo}{0.70}
+\newcommand{\twGaussSDerHi}{0.79}
+\newcommand{\twGaussTDerLo}{0.86}
+\newcommand{\twGaussTDerHi}{0.94}
+\newcommand{\twGaussUnitRungs}{7}
+
+% ---- model choice (README_methods s3.1 and s3.2, fact-checked) ------------------------------------------
+% s3.1: business run 7 (v1, with e): mean |rho| against efficiency over the 17 top-quartile scenarios, e 0.05 against C 0.40
+% (over all 68: e 0.04, C 0.28, business voi.db read-only); run 18 vs run 7 Spearman 0.996 over all 68 scenarios
+\newcommand{\twEGlobal}{0.05}
+\newcommand{\twEGlobalC}{0.40}
+\newcommand{\twERho}{0.996}
+% s3.2 plug-in simplicity table, row "sim2real p004 [sonnet+opus]": Spearman(EVSI/C, EVPI/C) 0.44 over 15, 0.89 over the 6 in the gate
+\newcommand{\twSimpRhoAll}{0.44}
+\newcommand{\twSimpRhoGate}{0.89}
+
+% ---- round-number clustering (NEW read-only query, no findings claim; the track-1 analogue is T1 [C16]) -----
+% select pa.p50 from elicitations e join protocols pr on pr.id=e.protocol_id join parameters pa on pa.elicitation_id=e.id
+%   where pr.name='p004' and e.valid=1 and pa.name in ('s','t') and e.model in ('sonnet','opus')
+% share with abs(20 p50 - round(20 p50)) < 1e-9: s 120/150, t 101/150; sonnet s mode 0.55 in 22 of 75 (verify.py "round")
+\newcommand{\twRoundS}{80\%}
+\newcommand{\twRoundT}{67\%}
+\newcommand{\twRoundModeS}{0.55}
+\newcommand{\twRoundModeSN}{22}
+\newcommand{\twRoundModeSOf}{75}
+
+% ---- added in revision ------------------------------------------------------------------------------------
+% README_tracks s2 fact-check note ("at the p004[s+o] plug-in the AEB Spearman is -0.40 and L8 is the highest rung", K7);
+% verify.py "p004 s+o aeb": rho(eff,L) -0.40
+\newcommand{\twRhoPlugAebStaged}{\ensuremath{-}0.40}
+
+% ---- added in revision 2: the one-decision rule (net value), bounds and gate bands ---------------------------
+% Derived arithmetic at run 12's plug-in point (pooled p50 medians of p004 Sonnet+Opus), no new elicitation. Every value
+% reproduces from plugin.tex (C, EVSI, EVSI*), plugin_mc.tex (EVPI) and catalog.tex (s, t) of run 12 with the formulas of
+% Sec. 2; checked 2026-09-29 by a read-only script (studies/sim2real/voi.db opened mode=ro; voi_rank.model.voi, voi_fence at
+% the pooled p50 medians, the same point plugin.tex prints).
+% plugin_mc.tex column EVPI = min(pB, (1-p)K): home 399k (ids 1-10), AEB 4.8M (ids 11-15)
+\newcommand{\twHomeEVPI}{399k}
+\newcommand{\twAebEVPI}{4.8M}
+% plugin.tex: C of id 10 (home L9) 600k; EVSI of ids 12, 13, 14 (AEB L4, L6, L8) 1.29M, 1.45M, 2.56M
+\newcommand{\twHomeCLNine}{600k}
+\newcommand{\twAebEVSILFour}{1.29M}
+\newcommand{\twAebEVSILSix}{1.45M}
+\newcommand{\twAebEVSILEight}{2.56M}
+% EVPI - EVSI(L8) = 4.8M - 2.556M = 2.244M: the most any L9 (s, t) could add over L8 at the plug-in p, B, K
+\newcommand{\twAebHeadroom}{2.24M}
+% plug-in net value EVSI - C (plugin.tex EVSI minus C): AEB ids 11..15 152k, 791k, 852k, 2.26M, -1.63M; home L7 (id 8) 23k - 150k = -127k
+\newcommand{\twAebNetLOne}{152k}
+\newcommand{\twAebNetLFour}{791k}
+\newcommand{\twAebNetLSix}{852k}
+\newcommand{\twAebNetLEight}{2.26M}
+\newcommand{\twAebNetLNine}{\ensuremath{-}1.63M}
+\newcommand{\twLSevenNet}{\ensuremath{-}127k}
+% fence net value EVSI* - C (plugin.tex EVSI* minus C): AEB maximum at L8 2.96M; home L7 219k, L4 194k, L9 -303k
+\newcommand{\twAebFenceNetLEight}{2.96M}
+\newcommand{\twHomeFenceNetLSeven}{219k}
+\newcommand{\twHomeFenceNetLFour}{194k}
+\newcommand{\twHomeFenceNetLNine}{\ensuremath{-}303k}
+% Lambda p (1-p) at the decision-stage medians: home 3.6M * 0.335 * 0.665 = 802k; AEB 49M * 0.12 * 0.88 = 5.17M
+\newcommand{\twHomeLamVar}{802k}
+\newcommand{\twAebLamVar}{5.17M}
+% break-even Youden gain for the fence buyer dJ* = dC / (Lambda p (1-p)), dC from plugin.tex C; J = s + t - 1 from catalog.tex
+% AEB L1->L4: 467.5k / 5.174M = 0.090 (elicited dJ 0.36 - 0.24 = 0.12); AEB L8->L9: 2.7M / 5.174M = 0.522, J(L8) = 0.63
+% home L4->L7: 107.5k / 802k = 0.134 (elicited dJ 0.46 - 0.295 = 0.165)
+\newcommand{\twDJStarAebOneFour}{0.09}
+\newcommand{\twDJAebOneFour}{0.12}
+\newcommand{\twDJStarAebEightNine}{0.52}
+\newcommand{\twJAebLEight}{0.63}
+\newcommand{\twJAebLNineNeeded}{1.15}
+\newcommand{\twDJStarHomeFourSeven}{0.13}
+\newcommand{\twDJHomeFourSeven}{0.165}
+% gate band: the prior interval in which a rung can change the decision, odds(p) between odds(pi*)(1-t)/s and odds(pi*) t/(1-s),
+% at pi* = 0.167 (home) and 0.184 (AEB) and catalog.tex s, t. Home upper edges 0.19 (L0) .. 0.29 (L8), L7 0.35; lower 0.06 .. 0.13.
+% AEB L1 [0.113, 0.257]: p = 0.12 sits 0.007 above the lower edge (hence P_boot(gate) 52% in plugin.tex)
+\newcommand{\twHomeBandHiMin}{0.19}
+\newcommand{\twHomeBandHiMax}{0.29}
+\newcommand{\twHomeBandHiLSeven}{0.35}
+\newcommand{\twHomeBandLoMin}{0.06}
+\newcommand{\twHomeBandLoMax}{0.13}
+\newcommand{\twAebBandLOneLo}{0.113}
+% rows of the net-value table (App. summaries): id, rung (short name; full names in Table provenance), pooled p50 medians s, t
+% (check.py pooled("p004", s+o); catalog.tex prints them rounded to 2 decimals), J = s+t-1, C, EVSI - C, EVSI* - C, gate band, dJ, dJ*, EVSI - C at the
+% predictive means; same sources as above, last column from s2r_rev3/means2.py (see revision 3 below; mean C, mean s, t,
+% mean p, B, K per group; every home rung always responds there, so its value is minus its mean C)
+\newcommand{\twNetRows}{%
+\multicolumn{12}{@{}l}{\emph{home manipulator}}\\
+1 & L0 text prompts & 0.35 & 0.75 & 0.100 & 25k & \ensuremath{-}25k & 55k & [0.13, 0.19] & & & \ensuremath{-}37.3k\\
+2 & L1 image QA & 0.66 & 0.525 & 0.185 & 35k & \ensuremath{-}35k & 113k & [0.13, 0.24] & 0.085 & 0.012 & \ensuremath{-}45.7k\\
+3 & L2 video QA & 0.55 & 0.725 & 0.275 & 90k & \ensuremath{-}90k & 131k & [0.09, 0.24] & 0.090 & 0.069 & \ensuremath{-}130k\\
+4 & L3 adv.\ scenes & 0.65 & 0.50 & 0.150 & 50k & \ensuremath{-}50k & 70k & [0.13, 0.22] & \ensuremath{-}0.125 & \ensuremath{-}0.050 & \ensuremath{-}85.9k\\
+5 & L4 MuJoCo suite & 0.665 & 0.63 & 0.295 & 42.5k & \ensuremath{-}42.5k & 194k & [0.10, 0.27] & 0.145 & \ensuremath{-}0.009 & \ensuremath{-}66.6k\\
+6 & L5 world model & 0.55 & 0.79 & 0.340 & 165k & \ensuremath{-}165k & 108k & [0.07, 0.26] & 0.045 & 0.153 & \ensuremath{-}382k\\
+7 & L6 HIL twin & 0.55 & 0.79 & 0.340 & 200k & \ensuremath{-}200k & 73k & [0.07, 0.26] & 0.000 & 0.044 & \ensuremath{-}357k\\
+8 & L7 lab trials & 0.735 & 0.725 & 0.460 & 150k & \ensuremath{-}127k & 219k & [0.07, 0.35] & 0.120 & \ensuremath{-}0.062 & \ensuremath{-}170k\\
+9 & L8 field test & 0.60 & 0.81 & 0.410 & 225k & \ensuremath{-}225k & 104k & [0.06, 0.29] & \ensuremath{-}0.050 & 0.094 & \ensuremath{-}291k\\
+10 & L9 pilot & 0.55 & 0.82 & 0.370 & 600k & \ensuremath{-}600k & \ensuremath{-}303k & [0.06, 0.27] & \ensuremath{-}0.040 & 0.468 & \ensuremath{-}1.26M\\
+\multicolumn{12}{@{}l}{\emph{AEB}}\\
+11 & L1 VLM QA & 0.55 & 0.69 & 0.240 & 32.5k & 152k & 1.21M & [0.11, 0.26] & & & 4.79M\\
+12 & L4 virtual test & 0.50 & 0.86 & 0.360 & 500k & 791k & 1.36M & [0.06, 0.28] & 0.120 & 0.090 & 6.04M\\
+13 & L6 vehicle-in-loop & 0.55 & 0.85 & 0.400 & 600k & 852k & 1.47M & [0.06, 0.30] & 0.040 & 0.019 & 7.62M\\
+14 & L8 track test & 0.78 & 0.85 & 0.630 & 300k & 2.26M & 2.96M & [0.04, 0.47] & 0.230 & \ensuremath{-}0.058 & 12.0M\\
+15 & L9 fleet telemetry & 0.50 & 0.87 & 0.370 & 3M & \ensuremath{-}1.63M & \ensuremath{-}1.09M & [0.06, 0.28] & \ensuremath{-}0.260 & 0.522 & 1.75M\\}
+% last two columns: the step from the previous rung, dJ = J_b - J_a and dJ* = (C_b - C_a) / (Lambda p (1-p)) (802k home,
+% 5.174M AEB); the fence buyer's step pays iff dJ > dJ*, which reproduces the sign of every fence step in level_uplift.tex
+% (third tabular, dEVSI* > dC_pi)
+% plugin.tex id 8 (home L7): C 150k (the L7 share EVSI/EVSI* is twLSevenShare above)
+\newcommand{\twLSevenC}{150k}
+% per-member Spearman of the median elicited s and t with level under p004 (read-only query on the instrument-stage p50s of
+% valid elicitations, median per rung per member): Opus AEB rho(s,L) +0.67, rho(t,L) +0.30; Sonnet home rho(s,L) +0.46
+% (pooled Sonnet+Opus reproduces twRhoSHome, twRhoTHome, twRhoSAeb, twRhoTAeb above)
+\newcommand{\twRhoSAebOpus}{\ensuremath{+}0.67}
+\newcommand{\twRhoTAebOpus}{\ensuremath{+}0.30}
+\newcommand{\twRhoSHomeSonnet}{\ensuremath{+}0.46}
+% single/consistency.tex (run 5, p003 Sonnet+Opus), home row: CV s 0.15, CV t 0.18, log10 range B 0.20, C 1.46 (CV p is twDriftCVpSO)
+\newcommand{\twDriftCVsSO}{0.15}
+\newcommand{\twDriftCVtSO}{0.18}
+\newcommand{\twDriftBHomeSO}{0.20}
+\newcommand{\twDriftCHomeSO}{1.46}
+
+% ---- added in revision 3 (review of 2026-09-29) ---------------------------------------------------------------
+% Read-only scripts in the session scratchpad, run from the repo root with PYTHONPATH=. (voi.db opened mode=ro):
+% s2r_rev3/check.py (pooled p50 medians, as verify.py) and s2r_rev3/means2.py (predictive means: the equal-weight
+% mixture mean of each valid elicitation's fitted Beta / lognormal, p004 Sonnet+Opus; same as the reviewer's s2r_means.py).
+% predictive means, AEB: E[p] 0.167, E[B] 129M, E[K] 26.9M (B, K 3.2x and 3.0x their pooled medians; home 3.6x, 2.9x);
+% EVPI = min(pB, (1-p)K) 21.58M; EVSI(L8) 12.29M; headroom 9.29M; mean C: L8 333k, L9 5.58M, dC 5.24M;
+% Lambda p (1-p) 21.7M, so dJ*(L8->L9) 0.24; net value L1..L9 4.79M, 6.04M, 7.62M, 11.96M, 1.75M (L8 first, L9 last,
+% every step to L8 pays). Home: E[p] 0.357, pi* 0.139, all ten rungs always respond; EVPI 1.11M < mean C(L9) 1.26M.
+\newcommand{\twMeanRatioLo}{2.9}
+\newcommand{\twMeanRatioHi}{3.6}
+\newcommand{\twAebEVPIMean}{21.6M}
+\newcommand{\twAebHeadroomMean}{9.3M}
+\newcommand{\twStepEightNinedCMean}{5.2M}
+\newcommand{\twDJStarAebEightNineMean}{0.24}
+\newcommand{\twHomeEVPIMean}{1.11M}
+\newcommand{\twHomeCLNineMean}{1.26M}
+% posteriors at the plug-in point (check.py / verify.py): AEB L8 (id 14) pi0 0.034, pi1 0.415; home L4 (id 5) pi0 0.211, pi1 0.475
+\newcommand{\twAebLEightPiZero}{0.034}
+\newcommand{\twAebLEightPiOne}{0.415}
+\newcommand{\twHomeLFourPiZero}{0.211}
+\newcommand{\twHomeLFourPiOne}{0.475}
+% J = s + t - 1 of the net-value rows above (twNetRows): home L7 0.46, L8 0.41, L9 0.37; AEB L9 0.37 (L8: twJAebLEight)
+\newcommand{\twJHomeLSeven}{0.46}
+\newcommand{\twJHomeLEight}{0.41}
+\newcommand{\twJHomeLNine}{0.37}
+\newcommand{\twJAebLNine}{0.37}
+% level_uplift.tex third tabular, AEB 1->4: dC_pi 468k
+\newcommand{\twStepOneFourdC}{468k}
+% check.py "run 11 (p004 all)": pooled p 0.30, B 2M, K 500k; 8 of 10 home rungs in the gate (voiallmPluginInGate 13 = 5 AEB + 8 home)
+\newcommand{\twAllmHomeGate}{8}
+% generated/gauss/ranking.tex (run 6, g001 Sonnet+Opus, continuous-signal step model): home ids with P_+ > 0.5 (median
+% EVSI_step / C > 1): 1, 2, 8, 6, 5, 3, 4 = 7 of 10; [C41]: the Gaussian run's derived home prior Phi(d) is 0.16-0.28
+\newcommand{\twGaussHomeStepMC}{7}
+\newcommand{\twGaussHomePLo}{0.16}
+\newcommand{\twGaussHomePHi}{0.28}
+% check.py "rho(s,L), rho(t,L)" (median of each member set's p50 per rung, Spearman with level; home, AEB):
+% p003 s+o: s -0.01, -0.21; t 0.66, 0.60 (= [C21]); p004 all three: s 0.26, 0.10; t 0.73, 0.80;
+% p004 per member: Sonnet home s 0.46 t 0.74, AEB s 0.10 t 0.79; Opus home s -0.04 t 0.71, AEB s 0.67 t 0.30;
+% Haiku home s 0.27 t 0.73, AEB s -0.10 t 0.89 (t above s in 4 of 6 member-ladder pairs by a wide margin; Sonnet home mixed; Opus AEB reversed)
+\newcommand{\twRhoSHomeSingle}{\ensuremath{-}0.01}
+\newcommand{\twRhoSAebSingle}{\ensuremath{-}0.21}
+\newcommand{\twRhoTHomeSingle}{0.66}
+\newcommand{\twRhoTAebSingle}{0.60}
+\newcommand{\twRhoSHomeAll}{0.26}
+\newcommand{\twRhoSAebAll}{0.10}
+\newcommand{\twRhoTHomeAll}{0.73}
+\newcommand{\twRhoTAebAll}{0.80}
+\newcommand{\twRhoTHomeSonnet}{\ensuremath{+}0.74}
+% [C22] and check.py: p004 minus p003 per rung, Opus s and t +0.02 (8 higher, 6 lower); Haiku s -0.03 (9 lower, 2 higher,
+% sign test P 0.065); Haiku's p003 minus p001 replicate moves s, t by a median |diff| of 0.02, 0.03
+\newcommand{\twOpusShiftUp}{8}
+\newcommand{\twOpusShiftDown}{6}
+\newcommand{\twSShiftHaiku}{\ensuremath{-}0.03}
+\newcommand{\twSShiftHaikuP}{0.065}
+% protocol_noise_matched.tex rows p001 / p002 haiku, first 3 repeats: B 2.50 -> 1.40, K 2.50 -> 1.47, C 1.10 -> 1.00
+\newcommand{\twPoneNoiseBThree}{2.50}
+\newcommand{\twPtwoNoiseBThree}{1.40}
+\newcommand{\twPoneNoiseCThree}{1.10}
+\newcommand{\twPtwoNoiseCThree}{1.00}
+% README_methods s3.1: e's mean |Spearman| against efficiency 0.05 (C 0.40) over the 17 top-quartile scenarios of business run 7
+\newcommand{\twETopQuartileN}{17}
+% catalog.tex (mixture-median C) against plugin.tex (plug-in C): largest gap id 14, 233k against 300k (22%)
+\newcommand{\twCMixGap}{22\%}
+% plugin.tex row id 5 (home L4): EVSI* 237k (check.py 236587); against twHomeFenceNetLSeven (L7: 369k - 150k = 219k), so a
+% reuse discount on L4's C could reorder the home fence ordering by net value
+\newcommand{\twHomeEVSIStarLFour}{237k}
+% means2.py: home threshold at the predictive means K/(B+K) 0.139 (AEB 0.173)
+\newcommand{\twHomePiStarMean}{0.139}
+
+% ---- added in revision 5 (review of 2026-09-29, round 5) --------------------------------------------------------
+% Read-only script s2r_rev5/check5.py in the session scratchpad (voi.db opened mode=ro; voi_rank.model.voi,
+% extra.plugin_point, compare_models.gauss_plugin_point at the pooled p50 medians), run 2026-09-29.
+% Model ids: the modelUsage keys of the stored raw responses of every valid elicitation (select raw_response from
+% elicitations where valid=1): haiku -> claude-haiku-4-5-20251001, sonnet -> claude-sonnet-5, opus -> claude-opus-5-5
+\newcommand{\twModelHaiku}{\texttt{claude-haiku-4-5-20251001}}
+\newcommand{\twModelSonnet}{\texttt{claude-sonnet-5}}
+\newcommand{\twModelOpus}{\texttt{claude-opus-5-5}}
+% p004 Opus alone (run 13 plug-in point): home p 0.30, B 4M, K 1.2M, pi* 0.231; 7 of 10 home rungs in the gate (= twOpusHomeGate).
+% Decomposition at the Sonnet+Opus s, t: Opus p with the Sonnet+Opus B, K: 1 of 10 in the gate (L7 only); the Sonnet+Opus
+% p (0.335) with Opus B, K: 6 of 10; Opus p, B, K: 9 of 10. All three pooled (run 11): p 0.30, B 2M, K 500k, pi* 0.200;
+% its p alone 1 of 10, its B, K alone 2 of 10, both 6 of 10, with its own s, t 8 of 10 (= twAllmHomeGate).
+\newcommand{\twOpusHomePiStar}{0.231}
+\newcommand{\twOpusPriorOnlyGate}{1}
+\newcommand{\twOpusStakesOnlyGate}{6}
+\newcommand{\twAllmHomePiStar}{0.200}
+% L7 gate band at the Sonnet+Opus plug-in point: [0.070, 0.354] (odds form of Sec. 2), containing p = 0.335 (twNetRows row 8)
+% Gaussian run 6 (g001 Sonnet+Opus) at its plug-in point (compare_models.gauss_plugin_point): eff_stepfix > 1 and eff_step > 1
+% on the same 8 of 10 home rungs (ids 1-6, 8, 9); stepfix EVSI > 0 on all 15 rungs (compare_plugin.tex: stepfix zero on 0).
+% Monte Carlo medians of run 6 (results, metric q50): eff_stepfix > 1 on 3 of 10 home rungs, eff_step on 7 (twGaussHomeStepMC)
+\newcommand{\twGaussHomeStepfixPlug}{8} % the step model: the same 8 rungs
+\newcommand{\twGaussHomeStepfixMC}{3}
+% Inside the gate EVSI = psB - (1-p)(1-t)K (p < pi*) or (1-p)tK - p(1-s)B (p > pi*), so a step between two rungs in the
+% gate pays iff pB ds + (1-p)K dt > dC. AEB weights at the plug-in point: pB = 0.12 * 40M = 4.8M, (1-p)K = 0.88 * 9M = 7.92M.
+% AEB L1 -> L4: ds = 0.50 - 0.55 = -0.05, dt = 0.86 - 0.69 = +0.17, 4.8M ds + 7.92M dt = 1,106,400 = dEVSI_pi of
+% level_uplift.tex (third tabular, 1.11M); dC 467.5k; at ds = 0 the break-even dt is 467.5k / 7.92M = 0.059.
+\newcommand{\twAebpB}{4.8M}
+\newcommand{\twAebqK}{7.92M}
+\newcommand{\twStepOneFourdEVSI}{1.11M}
+\newcommand{\twStepOneFourdS}{\ensuremath{-}0.05}
+\newcommand{\twStepOneFourdT}{\ensuremath{+}0.17}
+\newcommand{\twStepOneFourdTBE}{0.059}
+% Paired study on AEB L1 -> L4 with n units with a seeded fault and n without, rungs erring independently:
+% Var(4.8M ds_hat + 7.92M dt_hat) = [4.8M^2 (s1(1-s1) + s4(1-s4)) + 7.92M^2 (t1(1-t1) + t4(1-t4))] / n, at s 0.55, 0.50 and
+% t 0.69, 0.86: (5.69M)^2 / n. Gap to break-even 1,106,400 - 467,500 = 638,900; two standard errors = gap -> n = 318.
+% Fence criterion: dJ 0.120 against dJ* 0.0903 (gap 0.0297), Var(dJ_hat) = 0.832 / n -> n = 3,784.
+\newcommand{\twSettleSD}{5.7M}
+\newcommand{\twSettleGap}{639k}
+\newcommand{\twSettleN}{320}
+\newcommand{\twSettleNFence}{3800}
+\newcommand{\twSettleGapJ}{0.03}
+% plugin_mc.tex column P_+ (run 12): 3% (id 10) to 39% (id 14)
+\newcommand{\twPposLo}{3\%}
+\newcommand{\twPposHi}{39\%}
+% AEB net value EVSI - C at the pooled p50 medians per protocol and member set (s2r_rev5/aebnet.py): L8 first under p003
+% and p004 for Sonnet, Opus, Sonnet+Opus and all three (8 of 8 sets with Sonnet or Opus; p003 Sonnet+Opus: L1 120k, L4 -266k,
+% L6 -63k, L8 291k, L9 -1.86M; p004 all three: L8 2.39M); Haiku alone: L6 first under p001, p002, p003, no rung in the gate
+% under p004. Home verdict per set (s2r_rev5/homeset.py): p004 Sonnet alone 1 of 10 in the gate (always respond on 9).

@@ -1,6 +1,527 @@
-@article{raiffa1961applied,
+% Decision-theory references, verified 2026-09-29: Raiffa and Schlaifer via openlibrary.org (publisher, place, year);
+% Howard 1966 and Youden 1950 via api.crossref.org (DOI metadata).
+% Revision 2 (2026-09-29): titles brace-protected for proper nouns and acronyms; arXiv-only entries use one style
+% (journal = arXiv preprint arXiv:<id>); published entries carry their venue only. Added: entries from research/refs.bib
+% (glasmacher2023acquire .. shevlane2023extreme) and five outside the catalogue, verified via api.crossref.org
+% (angelopoulos2023ppi, peherstorfer2018survey, ohagan2006uncertain) and export.arxiv.org (capstick2024autoelicit,
+% selby2025experts, whose arXiv journal_ref is Stat 14: e70054, 2025).
+@book{raiffa1961applied,
   title     = {Applied Statistical Decision Theory},
   author    = {Raiffa, Howard and Schlaifer, Robert},
-  journal   = {Harvard Business School, Division of Research},
+  publisher = {Division of Research, Graduate School of Business Administration, Harvard University},
+  address   = {Boston},
   year      = {1961}
+}
+
+@article{howard1966information,
+  title   = {Information Value Theory},
+  author  = {Howard, Ronald A.},
+  journal = {IEEE Transactions on Systems Science and Cybernetics},
+  volume  = {2},
+  number  = {1},
+  pages   = {22--26},
+  year    = {1966},
+  doi     = {10.1109/TSSC.1966.300074}
+}
+
+@article{youden1950index,
+  title   = {Index for Rating Diagnostic Tests},
+  author  = {Youden, W. J.},
+  journal = {Cancer},
+  volume  = {3},
+  number  = {1},
+  pages   = {32--35},
+  year    = {1950}
+}
+
+@article{obi2025safeplan,
+  author  = {Ike Obi and Vishnunandan L.N. Venkatesh and Weizheng Wang and Ruiqi Wang and Dayoon Suh and Temitope I. Amosa and Wonse Jo and Byung-Cheol Min},
+  title   = {{SafePlan}: Leveraging Formal Logic and Chain-of-Thought Reasoning for Enhanced Safety in {LLM}-based Robotic Task Planning},
+  journal = {arXiv preprint arXiv:2503.06892},
+  year    = {2025}
+}
+
+@inproceedings{zhou2024mssbench,
+  author    = {Kaiwen Zhou and Chengzhi Liu and Xuandong Zhao and Anderson Compalas and Dawn Song and Xin Eric Wang},
+  title     = {Multimodal Situational Safety},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025}
+}
+
+@techreport{geminirobotics2026agentic,
+  title       = {{Gemini Robotics 2}: Safety Evaluations},
+  author      = {{Gemini Robotics Team}},
+  institution = {Google DeepMind},
+  year        = {2026},
+  month       = {July},
+  url         = {https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf}
+}
+
+@inproceedings{majumdar2025predictive,
+  title     = {Predictive Red Teaming: Breaking Policies Without Breaking Robots},
+  author    = {Majumdar, Anirudha and Sharma, Mohit and Kalashnikov, Dmitry and Singh, Sumeet and Sermanet, Pierre and Sindhwani, Vikas},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2025}
+}
+
+@article{yin2026roboshackles,
+  author  = {Zhuowen Yin and Chongyang Liu and Wenzhang Yang and Renjue Li and Yinxing Xue},
+  title   = {{ROBOSHACKLES}: A Safety Dataset for Human-Injury Prevention in Embodied Foundation Models},
+  journal = {arXiv preprint arXiv:2606.18632},
+  year    = {2026}
+}
+
+@inproceedings{sermanet2025asimov,
+  author    = {Pierre Sermanet and Anirudha Majumdar and Alex Irpan and Dmitry Kalashnikov and Vikas Sindhwani},
+  title     = {Generating Robot Constitutions \& Benchmarks for Semantic Safety},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2025}
+}
+
+@article{fan2026safevlabench,
+  author  = {Jialiang Fan and Weizhe Xu and Oleg Sokolsky and Insup Lee and Fanxin Kong},
+  title   = {{SafeVLA-Bench}: A Benchmark for the Success-Safety Gap in {Vision-Language-Action} Models},
+  journal = {arXiv preprint arXiv:2606.00773},
+  year    = {2026}
+}
+
+@inproceedings{nasiriany2024robocasa,
+  title     = {{RoboCasa}: Large-Scale Simulation of Everyday Tasks for Generalist Robots},
+  author    = {Nasiriany, Soroush and Maddukuri, Abhiram and Zhang, Lance and Parikh, Adeet and Lo, Aaron and Joshi, Abhishek and Mandlekar, Ajay and Zhu, Yuke},
+  booktitle = {Robotics: Science and Systems (RSS)},
+  year      = {2024}
+}
+
+@article{geminirobotics2025veo,
+  title   = {Evaluating {Gemini Robotics} Policies in a {Veo} World Simulator},
+  author  = {{Gemini Robotics Team} and Choromanski, Krzysztof and Devin, Coline and Du, Yilun and Dwibedi, Debidatta and Gao, Ruiqi and Jindal, Abhishek and Kipf, Thomas and Kirmani, Sean and Leal, Isabel and Liu, Fangchen and Majumdar, Anirudha and Marmon, Andrew and Parada, Carolina and Rubanova, Yulia and Shah, Dhruv and Sindhwani, Vikas and Tan, Jie and Xia, Fei and Xiao, Ted and Yang, Sherry and Yu, Wenhao and Zhou, Allan},
+  journal = {arXiv preprint arXiv:2512.10675},
+  year    = {2025}
+}
+
+@article{jain2025polaris,
+  title   = {{PolaRiS}: Scalable Real-to-Sim Evaluations for Generalist Robot Policies},
+  author  = {Jain, Arhan and Zhang, Mingtong and Arora, Kanav and Chen, William and Torne, Marcel and Irshad, Muhammad Zubair and Zakharov, Sergey and Wang, Yue and Levine, Sergey and Finn, Chelsea and Ma, Wei-Chiu and Shah, Dhruv and Gupta, Abhishek and Pertsch, Karl},
+  journal = {arXiv preprint arXiv:2512.16881},
+  year    = {2025}
+}
+
+@article{abouchakra2025realissim,
+  title   = {{Real-is-Sim}: Bridging the Sim-to-Real Gap with a Dynamic Digital Twin},
+  author  = {Abou-Chakra, Jad and Sun, Lingfeng and Rana, Krishan and May, Brandon and Schmeckpeper, Karl and Suenderhauf, Niko and Minniti, Maria Vittoria and Herlant, Laura},
+  journal = {arXiv preprint arXiv:2504.03597},
+  year    = {2025}
+}
+
+@article{zhang2026redvla,
+  title   = {{RedVLA}: Physical Red Teaming for {Vision-Language-Action} Models},
+  author  = {Zhang, Yuhao and Zhang, Borong and Fan, Jiaming and Shen, Jiachen and Cai, Yishuai and Yang, Yaodong and Ji, Jiaming},
+  journal = {arXiv preprint arXiv:2604.22591},
+  year    = {2026}
+}
+
+@misc{iso2025iso10218,
+  title  = {{ISO 10218-1:2025 Robotics -- Safety requirements -- Part 1: Industrial robots; ISO 10218-2:2025 Part 2: Industrial robot applications and robot cells}},
+  author = {{International Organization for Standardization}},
+  year   = {2025},
+  url    = {https://www.iso.org/standard/73933.html}
+}
+
+@article{gervet2023navigating,
+  title   = {Navigating to Objects in the Real World},
+  author  = {Gervet, Theophile and Chintala, Soumith and Batra, Dhruv and Malik, Jitendra and Chaplot, Devendra Singh},
+  journal = {Science Robotics},
+  volume  = {8},
+  number  = {79},
+  year    = {2023}
+}
+
+@inproceedings{sindhwani2020anomaly,
+  title     = {Unsupervised Anomaly Detection for Self-flying Delivery Drones},
+  author    = {Sindhwani, Vikas and Sidahmed, Hakim and Choromanski, Krzysztof and Jones, Brandon},
+  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+  pages     = {186--192},
+  year      = {2020}
+}
+
+@article{elhafsi2023semantic,
+  title   = {Semantic Anomaly Detection with Large Language Models},
+  author  = {Elhafsi, Amine and Sinha, Rohan and Agia, Christopher and Schmerling, Edward and Nesnas, Issa and Pavone, Marco},
+  journal = {Autonomous Robots},
+  volume  = {47},
+  number  = {8},
+  pages   = {1035--1055},
+  year    = {2023}
+}
+
+@misc{euroncap2025virtual,
+  title        = {Safe Driving \& Crash Avoidance Virtual Testing, Supporting Protocol, Version 1.00},
+  author       = {{Euro NCAP}},
+  year         = {2025},
+  month        = {March},
+  howpublished = {\url{https://cdn.euroncap.com/cars/assets/euro_ncap_supporting_protocol_safe_driving_crash_avoidance_virtual_testing_v10_bb5738fef8.pdf}},
+  note         = {Implementation January 2026}
+}
+
+@article{son2022pgvil,
+  title   = {{PG}-Based {Vehicle-In-the-Loop} Simulation for System Development and Consistency Validation},
+  author  = {Son, Weonil and Ha, Yunchul and Oh, Taeyoung and Woo, Seunghoon and Cho, Sungwoo and Yoo, Jinwoo},
+  journal = {Electronics},
+  volume  = {11},
+  number  = {24},
+  pages   = {4073},
+  year    = {2022},
+  doi     = {10.3390/electronics11244073}
+}
+
+@techreport{iihs2024paeb,
+  title       = {Pedestrian Automatic Emergency Braking Test Protocol (Version {IV})},
+  author      = {{Insurance Institute for Highway Safety}},
+  institution = {IIHS},
+  year        = {2024},
+  month       = {January},
+  url         = {https://www.iihs.org/media/f6a24355-fe4b-4d71-bd19-0aab8b39aa7e/5ZH5qg/Ratings/Protocols/current/test_protocol_pedestrian_aeb.pdf}
+}
+
+@article{cicchino2022pedestrian,
+  title   = {Effects of automatic emergency braking systems on pedestrian crash risk},
+  author  = {Cicchino, Jessica B.},
+  journal = {Accident Analysis \& Prevention},
+  volume  = {172},
+  pages   = {106686},
+  year    = {2022},
+  doi     = {10.1016/j.aap.2022.106686}
+}
+
+@techreport{kalra2016driving,
+  title       = {Driving to Safety: How Many Miles of Driving Would It Take to Demonstrate Autonomous Vehicle Reliability?},
+  author      = {Kalra, Nidhi and Paddock, Susan M.},
+  institution = {RAND Corporation},
+  number      = {RR-1478-RC},
+  year        = {2016},
+  url         = {https://www.rand.org/pubs/research_reports/RR1478.html}
+}
+
+@inproceedings{luo2025sim2val,
+  title     = {{Sim2Val}: Leveraging Correlation Across Test Platforms for Variance-Reduced Metric Estimation},
+  author    = {Luo, Rachel and Yang, Heng and Watson, Michael and Sharma, Apoorva and Veer, Sushant and Schmerling, Edward and Pavone, Marco},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2025}
+}
+
+@inproceedings{dauner2024navsim,
+  title     = {{NAVSIM}: Data-Driven Non-Reactive Autonomous Vehicle Simulation and Benchmarking},
+  author    = {Dauner, Daniel and Hallgarten, Marcel and Li, Tianyu and Weng, Xinshuo and Huang, Zhiyu and Yang, Zetong and Li, Hongyang and Gilitschenski, Igor and Ivanovic, Boris and Pavone, Marco and Geiger, Andreas and Chitta, Kashyap},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {37},
+  year      = {2024}
+}
+
+@article{sinha2026rethinking,
+  title   = {Rethinking Safety for Generalist Robots},
+  author  = {Sinha, Rohan and Dixit, Anushri and Tian, Ran and Majumdar, Anirudha and Bajcsy, Andrea},
+  journal = {arXiv preprint arXiv:2609.06326},
+  year    = {2026}
+}
+
+@inproceedings{li2024simpler,
+  title     = {Evaluating Real-World Robot Manipulation Policies in Simulation},
+  author    = {Li, Xuanlin and Hsu, Kyle and Gu, Jiayuan and Pertsch, Karl and Mees, Oier and Walke, Homer Rich and Fu, Chuyuan and Lunawat, Ishikaa and Sieh, Isabel and Kirmani, Sean and Levine, Sergey and Wu, Jiajun and Finn, Chelsea and Su, Hao and Vuong, Quan and Xiao, Ted},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2024}
+}
+
+@article{glasmacher2023acquire,
+  title   = {Acquire Driving Scenarios Efficiently: A Framework for Prospective Assessment of Cost-Optimal Scenario Acquisition},
+  author  = {Glasmacher, Christoph and Schuldes, Michael and Weber, Hendrik and Wagener, Nicolas and Eckstein, Lutz},
+  journal = {arXiv preprint arXiv:2307.11647},
+  year    = {2023}
+}
+
+@inproceedings{winkelmann2022transfer,
+  title     = {Transfer Importance Sampling -- How Testing Automated Vehicles in Multiple Test Setups Helps With the Bias-Variance Tradeoff},
+  author    = {Winkelmann, Max and Vasconi, Constantin and M{\"u}ller, Steffen},
+  booktitle = {IEEE International Conference on Intelligent Transportation Systems (ITSC)},
+  pages     = {26--31},
+  year      = {2022}
+}
+
+@article{barrett2024benchmarkearly,
+  title   = {Benchmark Early and Red Team Often: A Framework for Assessing and Managing Dual-Use Hazards of {AI} Foundation Models},
+  author  = {Barrett, Anthony M. and Jackson, Krystal and Murphy, Evan R. and Madkour, Nada and Newman, Jessica},
+  journal = {arXiv preprint arXiv:2405.10986},
+  year    = {2024}
+}
+
+@inproceedings{mahboob2026betting,
+  title     = {Betting for {Sim-to-Real} Performance Evaluation},
+  author    = {Mahboob, Zaid and Chen, Yujia and Weng, Bowen},
+  booktitle = {Robotics: Science and Systems (RSS)},
+  year      = {2026}
+}
+
+@article{kadian2020sim2real,
+  title   = {{Sim2Real} Predictivity: Does Evaluation in Simulation Predict Real-World Performance?},
+  author  = {Kadian, Abhishek and Truong, Joanne and Gokaslan, Aaron and Clegg, Alexander and Wijmans, Erik and Lee, Stefan and Savva, Manolis and Chernova, Sonia and Batra, Dhruv},
+  journal = {IEEE Robotics and Automation Letters},
+  volume  = {5},
+  number  = {4},
+  year    = {2020}
+}
+
+@article{kressgazit2024empirical,
+  title   = {Robot Learning as an Empirical Science: Best Practices for Policy Evaluation},
+  author  = {Kress-Gazit, Hadas and Hashimoto, Kunimatsu and Kuppuswamy, Naveen and Shah, Paarth and Horgan, Phoebe and Richardson, Gordon and Feng, Siyuan and Burchfiel, Benjamin},
+  journal = {arXiv preprint arXiv:2409.09491},
+  year    = {2024}
+}
+
+@article{snyder2026beyond,
+  title   = {Beyond Binary Success: Sample-Efficient and Statistically Rigorous Robot Policy Comparison},
+  author  = {Snyder, David and Badithela, Apurva and Matni, Nikolai and Pappas, George and Majumdar, Anirudha and Itkina, Masha and Nishimura, Haruki},
+  journal = {arXiv preprint arXiv:2603.13616},
+  year    = {2026}
+}
+
+@inproceedings{koopman2020positive,
+  title     = {Positive Trust Balance for Self-Driving Car Deployment},
+  author    = {Koopman, Philip and Wagner, Michael},
+  booktitle = {SAFECOMP 2020 Workshops (WAISE)},
+  series    = {LNCS},
+  volume    = {12235},
+  year      = {2020}
+}
+
+@article{feng2023dense,
+  title   = {Dense reinforcement learning for safety validation of autonomous vehicles},
+  author  = {Feng, Shuo and Sun, Haowei and Yan, Xintao and Zhu, Haojie and Zou, Zhengxia and Shen, Shengyin and Liu, Henry X.},
+  journal = {Nature},
+  volume  = {615},
+  pages   = {620--627},
+  year    = {2023},
+  doi     = {10.1038/s41586-023-05732-8}
+}
+
+@article{yang2022sparse,
+  title   = {Adaptive Safety Evaluation for Connected and Automated Vehicles with Sparse Control Variates},
+  author  = {Yang, Jingxuan and Sun, Haowei and He, Honglin and Zhang, Yi and Feng, Shuo and Liu, Henry X.},
+  journal = {arXiv preprint arXiv:2212.00517},
+  year    = {2022}
+}
+
+@article{buhl2024safetycases,
+  title   = {Safety cases for frontier {AI}},
+  author  = {Buhl, Marie Davidsen and Sett, Gaurav and Koessler, Leonie and Schuett, Jonas and Anderljung, Markus},
+  journal = {arXiv preprint arXiv:2410.21572},
+  year    = {2024}
+}
+
+@article{shevlane2023extreme,
+  title   = {Model evaluation for extreme risks},
+  author  = {Shevlane, Toby and Farquhar, Sebastian and Garfinkel, Ben and Phuong, Mary and Whittlestone, Jess and Leung, Jade and Kokotajlo, Daniel and Marchal, Nahema and Anderljung, Markus and Kolt, Noam and others},
+  journal = {arXiv preprint arXiv:2305.15324},
+  year    = {2023}
+}
+
+@article{angelopoulos2023ppi,
+  title   = {Prediction-powered inference},
+  author  = {Angelopoulos, Anastasios N. and Bates, Stephen and Fannjiang, Clara and Jordan, Michael I. and Zrnic, Tijana},
+  journal = {Science},
+  volume  = {382},
+  number  = {6671},
+  pages   = {669--674},
+  year    = {2023},
+  doi     = {10.1126/science.adi6000}
+}
+
+@article{peherstorfer2018survey,
+  title   = {Survey of Multifidelity Methods in Uncertainty Propagation, Inference, and Optimization},
+  author  = {Peherstorfer, Benjamin and Willcox, Karen and Gunzburger, Max},
+  journal = {SIAM Review},
+  volume  = {60},
+  number  = {3},
+  pages   = {550--591},
+  year    = {2018},
+  doi     = {10.1137/16M1082469}
+}
+
+@article{capstick2024autoelicit,
+  title   = {{AutoElicit}: Using Large Language Models for Expert Prior Elicitation in Predictive Modelling},
+  author  = {Capstick, Alexander and Krishnan, Rahul G. and Barnaghi, Payam},
+  journal = {arXiv preprint arXiv:2411.17284},
+  year    = {2024}
+}
+
+@article{selby2025experts,
+  title   = {Had enough of experts? {Quantitative} knowledge retrieval from large language models},
+  author  = {Selby, David and Spriestersbach, Kai and Iwashita, Yuichiro and Saad, Mohammad and Bappert, Dennis and Warrier, Archana and Mukherjee, Sumantrak and Kise, Koichi and Vollmer, Sebastian},
+  journal = {Stat},
+  volume  = {14},
+  pages   = {e70054},
+  year    = {2025}
+}
+
+@book{ohagan2006uncertain,
+  title     = {Uncertain Judgements: Eliciting Experts' Probabilities},
+  author    = {O'Hagan, Anthony and Buck, Caitlin E. and Daneshkhah, Alireza and Eiser, J. Richard and Garthwaite, Paul H. and Jenkinson, David J. and Oakley, Jeremy E. and Rakow, Tim},
+  publisher = {Wiley},
+  year      = {2006},
+  doi       = {10.1002/0470033312}
+}
+
+% added in revision 3 (review of 2026-09-29); metadata from Crossref (DOIs below) or the arXiv listing
+@article{stocco2023mindgap,
+  title   = {Mind the Gap! {A} Study on the Transferability of Virtual Versus Physical-World Testing of Autonomous Driving Systems},
+  author  = {Stocco, Andrea and Pulfer, Brian and Tonella, Paolo},
+  journal = {IEEE Transactions on Software Engineering},
+  volume  = {49},
+  number  = {4},
+  pages   = {1928--1940},
+  year    = {2023},
+  doi     = {10.1109/TSE.2022.3202311}
+}
+
+@inproceedings{reckenzaun2024natm,
+  title     = {Transnational Testing, Operation and Certification of Automated Driving Systems: Building Bricks for the {NATM} Multi-Pillar Framework},
+  author    = {Reckenzaun, Jakob and Rott, Relindis and Nikoli{\'c}, Oliver and Innerwinkler, Pamela and Kirchengast, Martin and others},
+  booktitle = {IEEE International Automated Vehicle Validation Conference (IAVVC)},
+  pages     = {1--7},
+  year      = {2024},
+  doi       = {10.1109/IAVVC63304.2024.10786414}
+}
+
+@article{kennedy2001calibration,
+  title   = {Bayesian Calibration of Computer Models},
+  author  = {Kennedy, Marc C. and O'Hagan, Anthony},
+  journal = {Journal of the Royal Statistical Society: Series B (Statistical Methodology)},
+  volume  = {63},
+  number  = {3},
+  pages   = {425--464},
+  year    = {2001},
+  doi     = {10.1111/1467-9868.00294}
+}
+
+@article{ades2004evsi,
+  title   = {Expected Value of Sample Information Calculations in Medical Decision Modeling},
+  author  = {Ades, A. E. and Lu, G. and Claxton, K.},
+  journal = {Medical Decision Making},
+  volume  = {24},
+  number  = {2},
+  pages   = {207--227},
+  year    = {2004},
+  doi     = {10.1177/0272989X04263162}
+}
+
+@article{atreya2025roboarena,
+  title   = {{RoboArena}: Distributed Real-World Evaluation of Generalist Robot Policies},
+  author  = {Atreya, Pranav and Pertsch, Karl and Lee, Tony and Kim, Moo Jin and Jain, Arhan and Kuramshin, Artur and Eppner, Clemens and Neary, Cyrus and Hu, Edward and Ramos, Fabio and Tremblay, Jonathan and Arora, Kanav and Ellis, Kirsty and Macesanu, Luca and Torne Villasevil, Marcel and Leonard, Matthew and Cho, Meedeum and Aslan, Ozgur and Dass, Shivin and Wang, Jie and Reger, William and Yuan, Xingfang and Yang, Xuning and Gupta, Abhishek and Jayaraman, Dinesh and Berseth, Glen and Daniilidis, Kostas and Mart{\'\i}n-Mart{\'\i}n, Roberto and Lee, Youngwoon and Liang, Percy and Finn, Chelsea and Levine, Sergey},
+  journal = {arXiv preprint arXiv:2506.18123},
+  year    = {2025}
+}
+
+@article{zhou2025autoeval,
+  title   = {{AutoEval}: Autonomous Evaluation of Generalist Robot Manipulation Policies in the Real World},
+  author  = {Zhou, Zhiyuan and Atreya, Pranav and Tan, You Liang and Pertsch, Karl and Levine, Sergey},
+  journal = {arXiv preprint arXiv:2503.24278},
+  year    = {2025}
+}
+
+@article{pauker1980threshold,
+  title   = {The Threshold Approach to Clinical Decision Making},
+  author  = {Pauker, Stephen G. and Kassirer, Jerome P.},
+  journal = {New England Journal of Medicine},
+  volume  = {302},
+  number  = {20},
+  pages   = {1109--1117},
+  year    = {1980},
+  doi     = {10.1056/NEJM198005153022003}
+}
+
+@article{vickers2006decision,
+  title   = {Decision Curve Analysis: A Novel Method for Evaluating Prediction Models},
+  author  = {Vickers, Andrew J. and Elkin, Elena B.},
+  journal = {Medical Decision Making},
+  volume  = {26},
+  number  = {6},
+  pages   = {565--574},
+  year    = {2006},
+  doi     = {10.1177/0272989X06295361}
+}
+
+@article{willan2005value,
+  title   = {The Value of Information and Optimal Clinical Trial Design},
+  author  = {Willan, Andrew R. and Pinto, Eleanor M.},
+  journal = {Statistics in Medicine},
+  volume  = {24},
+  number  = {12},
+  pages   = {1791--1806},
+  year    = {2005},
+  doi     = {10.1002/sim.2069}
+}
+
+@article{conti2009dimensions,
+  title   = {Dimensions of Design Space: A Decision-Theoretic Approach to Optimal Research Design},
+  author  = {Conti, Stefano and Claxton, Karl},
+  journal = {Medical Decision Making},
+  volume  = {29},
+  number  = {6},
+  pages   = {643--660},
+  year    = {2009},
+  doi     = {10.1177/0272989X09336142}
+}
+
+@article{corso2021survey,
+  title   = {A Survey of Algorithms for Black-Box Safety Validation of Cyber-Physical Systems},
+  author  = {Corso, Anthony and Moss, Robert and Koren, Mark and Lee, Ritchie and Kochenderfer, Mykel},
+  journal = {Journal of Artificial Intelligence Research},
+  volume  = {72},
+  pages   = {377--428},
+  year    = {2021},
+  doi     = {10.1613/jair.1.12716}
+}
+
+@inproceedings{okelly2018scalable,
+  title     = {Scalable End-to-End Autonomous Vehicle Testing via Rare-event Simulation},
+  author    = {O'Kelly, Matthew and Sinha, Aman and Namkoong, Hongseok and Duchi, John and Tedrake, Russ},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2018}
+}
+
+@inproceedings{zhao2019assessing,
+  title     = {Assessing the Safety and Reliability of Autonomous Vehicles from Road Testing},
+  author    = {Zhao, Xingyu and Robu, Valentin and Flynn, David and Salako, Kizito and Strigini, Lorenzo},
+  booktitle = {IEEE International Symposium on Software Reliability Engineering (ISSRE)},
+  pages     = {13--23},
+  year      = {2019},
+  doi       = {10.1109/ISSRE.2019.00012}
+}
+
+@article{webb2020waymo,
+  title={Waymo's Safety Methodologies and Safety Readiness Determinations},
+  author={Webb, Nick and Smith, Dan and Ludwick, Christopher and Victor, Trent and Hommes, Qi and Favaro, Francesca and Ivanov, George and Daniel, Tom},
+  journal={arXiv preprint arXiv:2011.00054},
+  year={2020}
+}
+
+@techreport{fraadeblanar2018measuring,
+  title={Measuring Automated Vehicle Safety: Forging a Framework},
+  author={Fraade-Blanar, Laura and Blumenthal, Marjory S. and Anderson, James M. and Kalra, Nidhi},
+  institution={RAND Corporation},
+  number={RR-2662},
+  year={2018}
+}
+
+@inproceedings{snyder2025stopping,
+  title={Is Your Imitation Learning Policy Better than Mine? Policy Comparison with Near-Optimal Stopping},
+  author={Snyder, David and Hancock, Asher James and Badithela, Apurva and Dixon, Emma and Miller, Patrick and Ambrus, Rares Andrei and Majumdar, Anirudha and Itkina, Masha and Nishimura, Haruki},
+  booktitle={Robotics: Science and Systems (RSS)},
+  year={2025},
+  note={arXiv:2503.10966}
+}
+
+@misc{ul2020ul4600,
+  title        = {{ANSI/UL} 4600: Standard for Safety for the Evaluation of Autonomous Products},
+  author       = {{Underwriters Laboratories}},
+  howpublished = {First edition},
+  year         = {2020}
 }
