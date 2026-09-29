@@ -1,8 +1,9 @@
 """LaTeX table fragments + macros (spec §8), reading only from a study's
-voi.db. Writes to <study>/report/generated/.
+voi.db. Writes to <study>/report/generated/ (generated/TAG/ with --tag TAG,
+every macro then \\voiTAG...; study.Study.tagged).
 
 Usage: python -m voi_rank.analysis.tables --study studies/business [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus]
+       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
 (default: the latest all-member run of protocol p001; --members selects the
 latest run that pooled exactly that subset; --run overrides. The catalog's
 pooled medians, the member table, the attempt, validity, cost and noise
@@ -30,7 +31,8 @@ from voi_rank.analysis.figures import (
     run_sensitivity_names,
     select_run,
 )
-from voi_rank.study import Study, add_study_arg
+from voi_rank.providers.claude_cli import is_usage_limit
+from voi_rank.study import MACRO_PREFIX, Study, add_study_arg, add_tag_arg, newcommands, tex_label
 
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
                   "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}",
@@ -80,7 +82,7 @@ def pooled_p50(con, protocol_id: int, sid: int, name: str,
     return float(np.median(p50s)) if p50s else None
 
 
-def write_gauss_catalog(con, run, out: Path):
+def write_gauss_catalog(con, run, out: Path, prefix: str = MACRO_PREFIX):
     """Gaussian run: pooled medians of the derived quantities d, x, k, L,
     kappa sigma0, B, K (median of the repeat values) and the run's mixture
     median for C."""
@@ -92,7 +94,7 @@ def write_gauss_catalog(con, run, out: Path):
         r"\caption{Scenario catalog (Gaussian-state protocol). $d$, $x$, $k$, $L$,"
         r" $\kappa\sigma_0$, $B$, $K$: pooled medians of the derived quantities across valid"
         r" elicitations; $C$: the run's mixture median. $L$, $\kappa\sigma_0$, $B$, $K$, $C$"
-        r" in USD.}\label{tab:catalog}\\",
+        r" in USD.}\label{" + tex_label("tab:catalog", prefix) + r"}\\",
         r"\toprule",
         f"id & scenario & {head} & $C$\\\\",
         r"\midrule\endfirsthead",
@@ -111,14 +113,15 @@ def write_gauss_catalog(con, run, out: Path):
     (out / "catalog.tex").write_text("\n".join(lines) + "\n")
 
 
-def write_catalog(con, run, out: Path):
+def write_catalog(con, run, out: Path, prefix: str = MACRO_PREFIX):
     """Scenario catalog: pooled elicited medians for p, s, t, B, K under the
     run's protocol, and the run's mixture median for C (the quantity the
     efficiency column divides by; for a pre-v2 run without a stored C row
     c_quantiles falls back to the pooled elicited median). A Gaussian run
-    gets the derived-quantity catalog instead."""
+    gets the derived-quantity catalog instead. Its label is tab:catalog
+    (tab:catalog-<tag> under a tagged prefix, study.tex_label)."""
     if run_kind(con, run["id"]) == db.GAUSSIAN_KIND:
-        return write_gauss_catalog(con, run, out)
+        return write_gauss_catalog(con, run, out, prefix)
     order = ranked_ids(con, run["id"])
     stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
                                             (run["protocol_id"],)).fetchone())
@@ -135,7 +138,7 @@ def write_catalog(con, run, out: Path):
         r"\caption{Scenario catalog. $p$, $s$, $t$, $B$, $K$: pooled elicited medians"
         r" (median of the p50 across valid elicitations); $C$: the run's mixture median"
         r" (q50 of the pooled cost draws), the same $C$ the efficiency column divides by."
-        r" $B$, $K$, $C$ in USD." + staged_note + r"}\label{tab:catalog}\\",
+        r" $B$, $K$, $C$ in USD." + staged_note + r"}\label{" + tex_label("tab:catalog", prefix) + r"}\\",
         r"\toprule",
         f"id & scenario & {head} & $C$\\\\",
         r"\midrule\endfirsthead",
@@ -167,7 +170,7 @@ def top_param(con, run_id: int, sid: int) -> str:
     return tex_param(best["param"])
 
 
-def write_ranking(con, run, out: Path, top_n: int = 25):
+def write_ranking(con, run, out: Path, top_n: int = 25, prefix: str = MACRO_PREFIX):
     metric, evsi_name = primary_metric(con, run["id"]), evsi_metric(con, run["id"])
     eff = metric_rows(con, run["id"], metric)
     order = ranked_ids(con, run["id"])[:top_n]
@@ -177,7 +180,7 @@ def write_ranking(con, run, out: Path, top_n: int = 25):
         f"\\caption{{Final ranking by median {esc(metric)} ({esc(evsi_name)}/C). $P_+$ ="
         f" P({esc(evsi_name)} $>$ C)"
         r" across draws; last column = parameter with largest $|\rho|$ vs"
-        r" efficiency.}\label{tab:ranking}\\",
+        r" efficiency.}\label{" + tex_label("tab:ranking", prefix) + r"}\\",
         r"\toprule",
         r"rank & id & scenario & $\mathrm{eff}_{q05}$ & $\mathrm{eff}_{q50}$ &"
         r" $\mathrm{eff}_{q95}$ & $P_+$ & top\\",
@@ -244,11 +247,25 @@ def global_sensitivity(con, run_id: int) -> dict[str, float | None]:
     return {n: global_sensitivity_param(con, run_id, n) for n in run_sensitivity_names(con, run_id)}
 
 
+def billed_attempts(con, protocol_id: int, members: list[str] | None = None,
+                    member: dict | None = None) -> list:
+    """The stored attempts of a protocol (every member, a subset, or one
+    member) that made a model call: a usage-limit outage row (a zero-usage
+    CLI exit, claude_cli.is_usage_limit; stored before v2.3 only) is left
+    out, so attempt counts and validity rates describe the elicitor."""
+    clause, margs = db.member_filter(members)
+    if member is not None:
+        clause += " AND e.provider=? AND e.model=?"
+        margs += [member["provider"], member["model"]]
+    rows = con.execute(f"SELECT valid, error, raw_response FROM elicitations e WHERE protocol_id=?{clause}",
+                       (protocol_id, *margs)).fetchall()
+    return [r for r in rows if not is_usage_limit(r["error"], r["raw_response"])]
+
+
 def member_stats(con, protocol_id: int, member: dict) -> dict:
-    """Attempts, valid attempts and summed cost of one member's elicitations."""
-    rows = con.execute(
-        "SELECT valid, raw_response FROM elicitations WHERE protocol_id=? AND provider=?"
-        " AND model=?", (protocol_id, member["provider"], member["model"])).fetchall()
+    """Attempts (billed ones, see billed_attempts), valid attempts and summed
+    cost of one member's elicitations."""
+    rows = billed_attempts(con, protocol_id, member=member)
     return {
         "attempts": len(rows),
         "valid": sum(int(r["valid"] or 0) for r in rows),
@@ -443,10 +460,11 @@ def short_code_hash(code_hash: str) -> str:
     return code_hash.removesuffix("-dirty")[:12] + ("-dirty" if db.is_dirty_hash(code_hash) else "")
 
 
-def write_macros(con, run, out: Path):
+def write_macros(con, run, out: Path, prefix: str = MACRO_PREFIX):
     """The run's macros. Members, attempts, validity, cost, k used, fit
     warnings and noise describe the members the run pooled (every member of
-    the protocol, or its stored subset; \voiRunMembers says which)."""
+    the protocol, or its stored subset; \voiRunMembers says which). Written
+    under `prefix` (study.newcommands); returned with their voi names."""
     prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     labels = db.run_member_labels(run)
     members = db.run_members(con, run)
@@ -455,9 +473,8 @@ def write_macros(con, run, out: Path):
     n_ranked = con.execute(
         "SELECT COUNT(DISTINCT scenario_id) FROM results WHERE run_id=?",
         (run["id"],)).fetchone()[0]
-    att = con.execute(
-        f"SELECT COUNT(*), SUM(valid) FROM elicitations e WHERE protocol_id=?{clause}",
-        (run["protocol_id"], *margs)).fetchone()
+    billed = billed_attempts(con, run["protocol_id"], labels)
+    att = (len(billed), sum(int(r["valid"] or 0) for r in billed))
     kind = run_kind(con, run["id"])
     names = db.param_names(kind)
     eff = metric_rows(con, run["id"], db.primary_metric(kind))
@@ -535,17 +552,16 @@ def write_macros(con, run, out: Path):
     macros["voiRhoProtoMin"] = f"{min(rhos):.2f}" if rhos else "--"
     macros["voiRhoProtoMax"] = f"{max(rhos):.2f}" if rhos else "--"
     macros["voiNProtocols"] = len(names)
-    lines = [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
-    (out / "macros.tex").write_text("\n".join(lines) + "\n")
+    (out / "macros.tex").write_text("\n".join(newcommands(macros, prefix)) + "\n")
     write_members(con, run, out, members)
     return macros
 
 
-def make_all(con, run, out: Path):
+def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX):
     out.mkdir(parents=True, exist_ok=True)
-    write_catalog(con, run, out)
-    write_ranking(con, run, out)
-    write_macros(con, run, out)
+    write_catalog(con, run, out, prefix)
+    write_ranking(con, run, out, prefix=prefix)
+    write_macros(con, run, out, prefix)
     write_protocol_compare(con, out)
     write_protocol_noise(con, out, run_kind(con, run["id"]))
 
@@ -554,13 +570,16 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     add_study_arg(ap)
     add_run_args(ap)
+    add_tag_arg(ap)
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
+    out, prefix = study.tagged(args.tag)
     con = study.connect()
     run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
-    make_all(con, run, study.generated_dir)
+    make_all(con, run, out, prefix)
     print(f"wrote catalog.tex, ranking.tex, macros.tex, members.tex, protocol_compare.tex,"
-          f" protocol_noise.tex for run {run['id']} in {study.generated_dir}")
+          f" protocol_noise.tex for run {run['id']} in {out}"
+          + (f" (macros \\{prefix}...)" if args.tag else ""))
 
 
 if __name__ == "__main__":

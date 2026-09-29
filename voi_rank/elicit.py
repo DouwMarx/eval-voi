@@ -26,6 +26,35 @@ further Ctrl-C during that wait is reported and ignored; claude CLI children
 run in their own session so the terminal's SIGINT never reaches them); a
 result the DB refuses is appended to <study>/elicit_unstored.jsonl.
 
+Usage-limit outages (v2.3): during a claude.ai usage-limit window the CLI
+exits 1 with a zero-usage envelope of API status 429 (no model call,
+nothing billed; claude_cli.usage_limit_envelope), classified 'cli:
+usage-limit (zero-usage exit 1)'. Such a result is NOT stored as an attempt
+(it is not an elicitation attempt: validity and cost statistics stay clean;
+the run summary counts it) and its slot is re-planned. The job launches no
+retry for it (retry_delay returns OUTAGE_PAUSE). run_jobs tracks outages
+PER MEMBER (a model-specific limit holds only that model; a healthy member
+is never held back by a limited one): after OUTAGE_STREAK consecutive such
+results of one member across workers it stops dispatching that member (its
+not-yet-started slots are held back) while the other members go on; once
+only held members' slots are left the run pauses, probes each held member
+with ONE call and resumes a member when its probe is billed (the answer is
+stored like any slot). A pause lasts until OUTAGE_RESET_MARGIN_S after the
+reset time the CLI's message names, when that is within one session
+window (SESSION_WINDOW_S), else VOI_OUTAGE_SLEEP_S (the shortest over the
+held members); once a member has paused VOI_OUTAGE_MAX_WAIT_S since its
+last billed result the run gives up on that member with a clear message
+(its slots pending for the next run, the other members go on); the budget
+restarts at every billed result, so a run spanning several windows waits
+out each. Fewer than OUTAGE_STREAK zero-usage results in a row (a blip)
+are re-planned at the end of the batch without a pause; only a billed
+result of the member (a model answered, or a cost was recorded) resets
+its streak, an unbilled failure (http 401, a transport error) leaves it,
+and once a member is held a billed answer of its call already in flight
+(started before the hold) no longer does. A zero-usage exit of another
+API status (an unknown model id, 404) is an ordinary failed attempt
+instead.
+
 Usage:
   python -m voi_rank.elicit --study studies/business --protocol p001 \
       [--scenarios all|seed|1,2,3] [--k 3] [--workers 8] \
@@ -38,15 +67,18 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import json
+import math
 import re
 import sqlite3
 import string
 import sys
 import threading
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 from voi_rank import db, gauss_fit
+from voi_rank.dotenv import seconds_setting
 from voi_rank.providers import claude_cli, get_provider, openrouter
 from voi_rank.study import Study, add_study_arg
 from voi_rank.validate import fit_all, strip_fences, validate_payload
@@ -64,16 +96,35 @@ TRANSPORT_RETRY_DELAY_S = 5.0       # 429 / 5xx without Retry-After, and transpo
 MAX_RETRY_DELAY_S = 120.0           # cap on a server's Retry-After (a worker never sleeps longer)
 STORE_RETRY_DELAY_S = 1.0           # one retry of a failed DB write ('database is locked')
 CLI_TIMEOUTS_TO_HALT = 2            # consecutive 'cli: timeout' results that halt a member
+# usage-limit outage (a zero-usage CLI exit, nothing billed): the streak of
+# consecutive such results of one member, across workers, that holds that
+# member; a pause lasts until OUTAGE_RESET_MARGIN_S after the reset the CLI's
+# message names when that is at most one session window away (a claude.ai
+# session limit resets within 5 hours; a later time is a weekly limit, or a
+# reset already past), else VOI_OUTAGE_SLEEP_S; the run gives up on a member
+# once it has paused VOI_OUTAGE_MAX_WAIT_S since that member's last billed
+# result (both from the environment or .env; the default is one session
+# window plus margin, per window: a billed result restarts the budget)
+OUTAGE_STREAK = 5
+OUTAGE_SLEEP_SETTING, DEFAULT_OUTAGE_SLEEP_S = "VOI_OUTAGE_SLEEP_S", 300.0
+OUTAGE_MAX_WAIT_SETTING, DEFAULT_OUTAGE_MAX_WAIT_S = "VOI_OUTAGE_MAX_WAIT_S", 6 * 3600.0
+OUTAGE_RESET_MARGIN_S = 60.0
+SESSION_WINDOW_S = 5 * 3600.0
+OUTAGE_PAUSE = float("inf")         # retry_delay's answer for it: no retry in the job, run_jobs pauses
 UNSTORED_FILE = "elicit_unstored.jsonl"
 _HTTP_ERROR_RE = re.compile(r"^http: status (\d+)(?: retry-after (\d+(?:\.\d+)?)s)?")
 # errors of the member's environment, not of one call: a retry cannot help and
 # the member's pending slots are cancelled. HTTP 401/402/404 (auth, credit,
-# unknown model id), a missing claude executable or a CLI that exits because
-# it is not logged in.
+# unknown model id), a missing claude executable, a zero-usage CLI exit of
+# API status 401/402/403/404 (claude_cli.zero_usage_error: auth, billing,
+# permission, unknown model id) or a CLI that exits because it is not logged
+# in (claude_cli.AUTH_PATTERN, with or without a zero-usage envelope).
 _HALT_MEMBER_RE = re.compile(
     r"^http: status 40[124]\b"
     r"|^cli: 'claude' executable not found"
-    r"|^cli: exit \d+: .*(?:not logged in|invalid api key|authentication)", re.IGNORECASE | re.DOTALL)
+    r"|^cli: exit \d+ \(zero-usage, api 40[1-4]\)"
+    r"|^cli: (?:exit \d+|usage-limit)\b[^:]*: .*(?:" + claude_cli.AUTH_PATTERN + ")",
+    re.IGNORECASE | re.DOTALL)
 # a request the server rejected, unbilled: HTTP 400 (invalid params) or 403
 # (OpenRouter: 'insufficient permissions, guardrail block, or moderation
 # flag', so one flagged prompt). Per-request outcomes in OpenRouter's error
@@ -109,6 +160,34 @@ def names_key(error: str | None) -> bool:
 
 def cli_timeout(error: str | None) -> bool:
     return bool(error) and _CLI_TIMEOUT_RE.match(error) is not None
+
+
+def usage_limit(error: str | None) -> bool:
+    """A usage-limit outage result (claude_cli.is_usage_limit, the one test
+    health and the report macros apply to stored rows too): the CLI exited
+    without a model call, nothing was billed. A zero-usage exit of another
+    API status, or one that names a login or key problem, is not one."""
+    return claude_cli.is_usage_limit(error)
+
+
+def paid_attempts(attempts: list[dict]) -> list[dict]:
+    """The attempts of a slot that are elicitation attempts (a zero-usage
+    outage result is not one and is never stored)."""
+    return [a for a in attempts if not usage_limit(a["error"])]
+
+
+# failure classes that never reached a model: at zero recorded cost such a
+# result says nothing about the usage limit and does not reset the streak
+_UNBILLED_PREFIXES = ("http", "provider", "cli", "api")
+
+
+def billed(attempts: list[dict]) -> bool:
+    """Whether a slot's result came from a model call: an attempt that was
+    parsed (valid, or a json/schema/constraint/fit failure: the model
+    answered) or that recorded a cost. False for a run of unbilled failures
+    (http 401/429/5xx, a transport error, a CLI that did not run)."""
+    return any(a["error"] is None or a["cost"] > 0
+               or a["error"].split(":", 1)[0] not in _UNBILLED_PREFIXES for a in attempts)
 
 
 def render_prompt(template: string.Template, sc) -> str:
@@ -187,7 +266,9 @@ def attempt_once(call, prompt: str, model: str, model_kind: str = db.BINARY_KIND
             err = f"json: result parse failed: {ex}"
         else:
             clean, fits, err = parse_payload(obj, model_kind, names)
-    cost = float(envelope.get("total_cost_usd") or 0.0) if envelope else 0.0
+    # without an envelope (a paid CLI exit 1, e.g. a max-output-tokens stop)
+    # the raw response still records the cost
+    cost = float(envelope.get("total_cost_usd") or 0.0) if envelope else db.envelope_cost(raw)
     return {"raw": raw, "error": err, "clean": clean, "fits": fits, "cost": cost}
 
 
@@ -202,13 +283,16 @@ def retry_delay(error: str | None) -> float | None:
     is valid; an error of the member's environment that halts_member: http
     401/402/404, a CLI that cannot run; a rejected request, http 400/403,
     which the same prompt would get again; a CLI call that did not finish,
-    timed out or killed by a signal). 0: retry at once (json/schema/
-    constraint/fit failures and other provider errors). Positive: http 429,
-    5xx and transport errors, using the server's Retry-After (clamped to
-    MAX_RETRY_DELAY_S) when the provider recorded one, else
-    TRANSPORT_RETRY_DELAY_S."""
+    timed out or killed by a signal). OUTAGE_PAUSE (infinite): a usage-limit
+    outage, no retry in the job either; run_jobs pauses the run and re-plans
+    the slot. 0: retry at once (json/schema/constraint/fit failures and
+    other provider errors). Positive: http 429, 5xx and transport errors,
+    using the server's Retry-After (clamped to MAX_RETRY_DELAY_S) when the
+    provider recorded one, else TRANSPORT_RETRY_DELAY_S."""
     if error is None or halts_member(error) or rejected_request(error):
         return None
+    if usage_limit(error):
+        return OUTAGE_PAUSE
     if _UNFINISHED_CLI_RE.match(error):
         return None
     if not error.startswith("http:"):
@@ -234,7 +318,7 @@ def elicit_job(call, prompt: str, model: str, sleep=time.sleep,
     parameters a stage of a staged protocol asks for."""
     attempts = [attempt_once(call, prompt, model, model_kind, names)]
     delay = retry_delay(attempts[0]["error"])
-    if delay is None:
+    if delay is None or not math.isfinite(delay):   # never, or the run's outage pause
         return attempts
     if delay > 0:
         requested = retry_after_requested(attempts[0]["error"])
@@ -626,16 +710,22 @@ def preflight(members: list[dict], opener=None) -> None:
 
 
 def member_mean_cost(con, member: dict, kind: str = db.BINARY_KIND) -> tuple[float, int] | None:
-    """(mean recorded USD cost per stored attempt, attempts) of one member over
-    the protocols of the given model kind in the study; None when the member
-    has no stored attempts under that kind. Kinds are not pooled: the Gaussian
-    prompt is twice the binary one and asks for twelve reasoned answers, so a
-    binary mean would understate a first g001 batch by about half."""
+    """(mean recorded USD cost per billed attempt, billed attempts) of one
+    member over the protocols of the given model kind in the study; None
+    when the member has no such attempts. A usage-limit outage row (a
+    zero-usage CLI exit stored before v2.3, claude_cli.is_usage_limit) made
+    no model call and is left out, as tables.billed_attempts does: counted,
+    it understated sim2real's g001 estimates by 13-21%. Kinds are not
+    pooled: the Gaussian prompt is twice the binary one and asks for twelve
+    reasoned answers, so a binary mean would understate a first g001 batch
+    by about half."""
     kind = db.normalize_model_kind(kind)
     rows = con.execute(
-        "SELECT e.raw_response, p.model_kind FROM elicitations e JOIN protocols p ON p.id=e.protocol_id"
-        " WHERE e.provider=? AND e.model=?", (member["provider"], member["model"])).fetchall()
-    rows = [r for r in rows if db.normalize_model_kind(r["model_kind"]) == kind]
+        "SELECT e.raw_response, e.error, p.model_kind FROM elicitations e"
+        " JOIN protocols p ON p.id=e.protocol_id WHERE e.provider=? AND e.model=?",
+        (member["provider"], member["model"])).fetchall()
+    rows = [r for r in rows if db.normalize_model_kind(r["model_kind"]) == kind
+            and not claude_cli.is_usage_limit(r["error"], r["raw_response"])]
     if not rows:
         return None
     return sum(db.envelope_cost(r["raw_response"]) for r in rows) / len(rows), len(rows)
@@ -643,8 +733,8 @@ def member_mean_cost(con, member: dict, kind: str = db.BINARY_KIND) -> tuple[flo
 
 def print_plan(con, prot, members, jobs):
     """Slots per member and the estimated cost (slots x mean stored cost per
-    attempt of that member under protocols of the same model kind in this
-    study, 'unknown' without such history)."""
+    billed attempt of that member under protocols of the same model kind in
+    this study, 'unknown' without such history)."""
     kind = db.protocol_model_kind(prot)
     stages = db.protocol_stages(prot)
     print(f"plan: protocol {prot['name']}, {len(jobs)} pending slots "
@@ -681,40 +771,147 @@ def confirm_interactively(prompt: str = "submit this run? [y/N] ") -> bool:
 
 # --- the consumer loop ------------------------------------------------------
 
-def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int) -> tuple[int, float, int]:
-    """Submit every job to a thread pool and store each result as it
-    completes. Returns (valid slots, total cost, cancelled slots).
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def outage_pause(error: str | None, now: datetime, fixed_s: float) -> tuple[float, str]:
+    """(seconds, note) of one usage-limit pause: until OUTAGE_RESET_MARGIN_S
+    after the reset the CLI's message names (claude_cli.usage_limit_reset)
+    when that is at most SESSION_WINDOW_S away, else fixed_s (no reset time,
+    a weekly limit, or a stated reset already past, which reads as
+    tomorrow's)."""
+    reset = claude_cli.usage_limit_reset(error, now)
+    if reset is not None:
+        wait = (reset - now).total_seconds()
+        if wait <= SESSION_WINDOW_S:
+            note = f" until {OUTAGE_RESET_MARGIN_S:g}s after the stated reset ({reset:%H:%M} {reset.tzinfo})"
+            return float(round(wait + OUTAGE_RESET_MARGIN_S)), note
+    return fixed_s, ""
+
+
+def outage_summary(outage: dict) -> str:
+    """The run summary's clause about usage-limit outages ('' when none)."""
+    if not outage["results"]:
+        return ""
+    text = (f", {outage['results']} zero-usage usage-limit result(s) not stored as attempts"
+            f" ({outage['pauses']} pause(s), {outage['waited_s']:g}s paused)")
+    if outage["gave_up"]:
+        text += (f"; gave up after {outage['pauses']} pauses with {outage['unresolved']} slot(s) still"
+                 " pending: re-run to resume")
+    return text
+
+
+def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int,
+             sleep=None, now=None) -> tuple[int, float, int, dict]:
+    """Submit the jobs to a thread pool and store each result as it
+    completes. Returns (valid slots, total cost, cancelled slots, outage
+    summary {"results": zero-usage results seen, "pauses", "waited_s": the
+    seconds paused, "gave_up": the run gave up on at least one member,
+    "unresolved": the slots it left pending there}).
 
     Safety rules: (1) a member has its pending slots cancelled (fix the key,
     credits or model id and re-run to resume) when an attempt ends in an
     error of its environment (halts_member: http 401/402/404, a CLI that
-    cannot run), when its rejected requests (http 400/403, unbilled, stored
-    invalid without a retry) name the key or reach a second distinct
-    scenario, or after CLI_TIMEOUTS_TO_HALT consecutive CLI timeouts; (2) a
-    DB write that fails is retried once, then the attempts are spilled to
+    cannot run, a zero-usage CLI exit of api 401-404), when its rejected
+    requests (http 400/403, unbilled, stored invalid without a retry) name
+    the key or reach a second distinct scenario, or after
+    CLI_TIMEOUTS_TO_HALT consecutive CLI timeouts; (2) a DB write that fails
+    is retried once, then the attempts are spilled to
     <study>/elicit_unstored.jsonl and the run stops; (3) on any exception in
     this thread (Ctrl-C included) the pending jobs are cancelled, no retry is
     launched, the running calls are awaited and stored, and the exception is
     re-raised; a further Ctrl-C during that wait or salvage is reported and
     ignored, and the salvage is idempotent (a slot the interrupt caught
-    between its commit and its bookkeeping is recognised in the DB, not
-    stored twice). Paid work is never discarded."""
-    # elicitation ids above this one were written by this run: the salvage
-    # uses it to recognise a slot whose commit landed just before an interrupt
-    last_id_before = con.execute("SELECT COALESCE(MAX(id), 0) FROM elicitations").fetchone()[0]
+    between its commit and its bookkeeping is recognised in the DB by its
+    own final attempt, a row holding that raw response and error written
+    after its batch was submitted, so a re-planned slot's earlier paid
+    failure never masks its re-run). Paid work is never discarded.
+
+    Usage-limit outages (4), per member: a zero-usage result (usage_limit:
+    the CLI exited without a model call, nothing billed) is never stored
+    and its slot is re-planned. The jobs run in batches: the first batch is
+    every job; a batch's re-planned slots form the next one. After
+    OUTAGE_STREAK consecutive zero-usage results of one member across
+    workers that member is held: its not-yet-started slots are held back
+    (cancelled futures, re-planned), its running calls finish, and every
+    other member goes on (a model-specific limit, or one limited member
+    next to a slower healthy one, never stalls or cancels the others'
+    slots). Batches keep running the slots of members not held; once only
+    held members' slots are left the run pauses (outage_pause of each held
+    member's latest limit message, the shortest: until just after the
+    reset the CLI's message names, else VOI_OUTAGE_SLEEP_S; `sleep` and the
+    clock `now` are injectable) and probes with a batch of one slot per
+    held member, the first in plan order; a billed probe (stored like any
+    slot, valid or not) releases that member's slots, a zero-usage probe
+    keeps it held and the run pauses again. Each member's wait budget is
+    the planned pause time since its last billed result: once it reaches
+    VOI_OUTAGE_MAX_WAIT_S the run gives up on that member (its pending
+    slots count as cancelled and are pending on the next run; the other
+    members go on) and the last pause is cut to what is left. A billed
+    result restarts the budget, so one default budget covers every window
+    of a long run. The summary's waited_s is the time actually paused (a
+    pause cut short by Ctrl-C counts what elapsed). Fewer than
+    OUTAGE_STREAK in a row are re-planned at once (each result still counts
+    toward the member's streak; only a billed result of that member resets
+    it, and after its hold not even that: a call in flight since before
+    the hold says nothing about the limit, so a held member always
+    pauses). A member halted after a hold has its held-back and re-planned
+    slots cancelled, not re-run. `stored` counts the slots whose final
+    result is stored: a paid failure stored before a zero-usage retry
+    leaves its slot pending."""
     kind = db.protocol_model_kind(
         con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone())
+    sleep = sleep or time.sleep   # resolved here, so a test can patch time.sleep for the CLI path
+    now = now or utc_now
+    fixed_pause_s = seconds_setting(OUTAGE_SLEEP_SETTING, DEFAULT_OUTAGE_SLEEP_S)
+    max_wait_s = seconds_setting(OUTAGE_MAX_WAIT_SETTING, DEFAULT_OUTAGE_MAX_WAIT_S)
     stop = threading.Event()   # set on interrupt: a worker then launches no retry
     pool = cf.ThreadPoolExecutor(workers)
-    futures = {pool.submit(elicit_job, get_provider(j["member"]["provider"]),
-                           j["prompt"], j["member"]["model"], stop=stop, model_kind=kind,
-                           names=j.get("names")): j
-               for j in jobs}
-    handled: set = set()     # futures whose attempts are in the DB or spilled
+    futures: dict = {}       # every future submitted (all batches) -> its job
+    id_floor: dict = {}      # future -> the last elicitation id before its batch was submitted
+    handled: set = set()     # futures whose attempts are in the DB or spilled (or were zero-usage)
+    stored: set = set()      # slot keys whose final result is in the DB or the spill file (a slot once)
     halted: set[str] = set()
     rejected: dict[str, set[int]] = {}   # member -> scenarios whose request was rejected (400/403)
     timeouts: dict[str, int] = {}        # member -> consecutive CLI timeouts
-    n_valid, total_cost, n_cancelled = 0, 0.0, 0
+    n_valid, total_cost, n_cancelled, n_done = 0, 0.0, 0, 0
+    outage = {"results": 0, "pauses": 0, "waited_s": 0.0, "gave_up": False, "unresolved": 0}
+    # usage-limit outages are tracked per member: one member's limit (a model-specific
+    # limit, or a slower healthy member next to a limited one) never holds another's slots
+    streak: dict[str, int] = {}       # member -> consecutive zero-usage results, across workers
+    last_limit: dict[str, str] = {}   # member -> its latest usage-limit error (names the reset)
+    waited: dict[str, float] = {}     # member -> seconds paused (planned) since its last billed result
+    held: set = set()         # futures cancelled by an outage hold: re-planned, not 'cancelled'
+    replan: set = set()       # the batch's futures with a zero-usage result: re-planned
+    queue: list[dict] = []    # slots not yet submitted (held for the next batch)
+
+    def slot_key(job: dict) -> tuple:
+        return (job["scenario_id"], job["member"]["provider"], job["member"]["model"],
+                job["repeat_ix"], job.get("stage") or "")
+
+    def label_of(job: dict) -> str:
+        return db.member_label(job["member"])
+
+    def limited(label: str) -> bool:
+        """The member is held by an outage: OUTAGE_STREAK zero-usage results
+        in a row, no billed result since."""
+        return streak.get(label, 0) >= OUTAGE_STREAK
+
+    def submit(batch: list[dict]) -> list:
+        # rows above this id are written after the batch was submitted: the salvage
+        # uses it to recognise a slot whose commit landed just before an interrupt.
+        # One floor per batch (nothing is written between its submissions), and a
+        # re-planned slot's earlier batch stored its paid failure below the floor
+        floor = con.execute("SELECT COALESCE(MAX(id), 0) FROM elicitations").fetchone()[0]
+        new = []
+        for j in batch:
+            fut = pool.submit(elicit_job, get_provider(j["member"]["provider"]), j["prompt"],
+                              j["member"]["model"], stop=stop, model_kind=kind, names=j.get("names"))
+            futures[fut] = j
+            id_floor[fut] = floor
+            new.append(fut)
+        return new
 
     def halt_reason(label: str, scenario_id: int, error: str | None) -> str | None:
         """Why this result cancels the member's pending slots; None to go on."""
@@ -742,67 +939,155 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
         except Exception as ex:  # one failed job never stops the loop
             return [failed_attempt(f"provider: {type(ex).__name__}: {ex}")]
 
-    def store(fut, attempts) -> bool:
+    def store(fut, attempts, final: bool = True) -> bool:
         # a slot counts as handled once its attempts are in the DB or in the
         # spill file; an interrupt in the middle of the write leaves it
-        # unhandled so the salvage below stores it again after the rollback
+        # unhandled so the salvage below stores it again after the rollback.
+        # `stored` counts slots, not writes, and only a final result: a
+        # re-planned slot stores its paid failure (final=False: the slot is
+        # still pending) and, later, its re-run
         try:
             ok = store_or_spill(con, study.root, protocol_id, futures[fut], attempts)
         except StoreFailed:
             handled.add(fut)
+            if final:
+                stored.add(slot_key(futures[fut]))   # in the spill file
             raise
         handled.add(fut)
+        if final:
+            stored.add(slot_key(futures[fut]))
         return ok
 
-    def stored_by_this_run(job: dict) -> bool:
+    def stored_by_this_run(fut, attempts: list[dict]) -> bool:
+        """Whether THIS future's attempts are already in the DB (the interrupt
+        landed between its commit and handled.add): a row of its slot written
+        after its batch was submitted that holds its final attempt (raw
+        response and error). The attempt identity, not the slot key alone: a
+        re-planned slot's earlier paid failure (stored by an earlier batch,
+        below the floor, and a different response) never masks its re-run."""
+        job, last = futures[fut], attempts[-1]
         clause, args = db.stage_clause(job.get("stage"))
         return con.execute(
             "SELECT 1 FROM elicitations e WHERE id>? AND scenario_id=? AND protocol_id=? AND provider=?"
-            f" AND model=? AND repeat_ix=? AND prompt_hash=?{clause} LIMIT 1",
-            (last_id_before, job["scenario_id"], protocol_id, job["member"]["provider"],
-             job["member"]["model"], job["repeat_ix"], prompt_hash(job["prompt"]),
-             *args)).fetchone() is not None
+            f" AND model=? AND repeat_ix=? AND prompt_hash=? AND raw_response=? AND error IS ?{clause}"
+            " LIMIT 1",
+            (id_floor[fut], job["scenario_id"], protocol_id, job["member"]["provider"],
+             job["member"]["model"], job["repeat_ix"], prompt_hash(job["prompt"]), last["raw"],
+             last["error"], *args)).fetchone() is not None
+
+    def hold_pending(label: str) -> list:
+        """An outage hold of one member: cancel its not-yet-started futures
+        (their slots are re-planned, not cancelled); the other members'
+        futures and the queue are left alone."""
+        return [f for f, j in futures.items() if label_of(j) == label and not f.done() and f.cancel()]
 
     def cancel_pending(member: str | None = None) -> int:
-        return sum(1 for f, j in futures.items()
-                   if (member is None or db.member_label(j["member"]) == member) and f.cancel())
+        """Cancel the not-yet-started futures (of one member, or all) and drop
+        the same slots from the queue; returns how many slots that was, the
+        member's slots awaiting a re-plan (held back by a pause, or with a
+        zero-usage result) included: run_batch drops those of a halted
+        member. The queue's are counted in n_cancelled here, the futures
+        when the batch loop sees them cancelled, the re-plan ones at the
+        end of the batch."""
+        nonlocal n_cancelled
+
+        def mine(job: dict) -> bool:
+            return member is None or db.member_label(job["member"]) == member
+
+        n = sum(1 for f, j in futures.items() if mine(j) and not f.done() and f.cancel())
+        kept = [j for j in queue if not mine(j)]
+        n_cancelled += len(queue) - len(kept)
+        n += len(queue) - len(kept)
+        queue[:] = kept
+        n += sum(1 for f in held | replan if mine(futures[f]))
+        return n
 
     def salvage() -> int:
         """Store every finished slot not yet handled; a slot this run already
-        committed (interrupt between commit and handled.add) is only counted.
-        Idempotent, so a repeated call after a further Ctrl-C is harmless."""
+        committed (interrupt between commit and handled.add) is only counted,
+        a zero-usage result is counted in the outage summary and never
+        stored. Idempotent, so a repeated call after a further Ctrl-C is
+        harmless."""
         nonlocal n_valid, total_cost
         con.rollback()
         salvaged = 0
         for f in futures:
             if f.done() and not f.cancelled() and f not in handled:
-                attempts = result_of(f)
-                if stored_by_this_run(futures[f]):
+                result = result_of(f)
+                attempts = paid_attempts(result)
+                final = not usage_limit(result[-1]["error"])   # else the slot stays pending
+                if not final:
+                    outage["results"] += 1
+                if not attempts:   # a zero-usage outage result: nothing to store
                     handled.add(f)
+                    continue
+                if stored_by_this_run(f, attempts):
+                    handled.add(f)
+                    if final:
+                        stored.add(slot_key(futures[f]))
                     n_valid += attempts[-1]["error"] is None
                 else:
                     try:
-                        n_valid += store(f, attempts)
+                        n_valid += store(f, attempts, final)
                     except StoreFailed as err:
                         print(err)
                     salvaged += 1
                 total_cost += sum(a["cost"] for a in attempts)
         return salvaged
 
-    try:
-        for i, fut in enumerate(cf.as_completed(futures), 1):
+    def run_batch(batch: list[dict]) -> list[dict]:
+        """Submit one batch and consume its results; returns the slots to
+        re-plan (zero-usage results, and the slots held back by an outage
+        hold), in plan order, less those of a member halted meanwhile
+        (cancelled)."""
+        nonlocal n_valid, total_cost, n_cancelled, n_done
+        submitted = submit(batch)
+        replan.clear()
+        held.clear()
+        holding: set[str] = set()   # members held in this batch: no later result of theirs resets the streak
+        for fut in cf.as_completed(submitted):
             j = futures[fut]
             if fut.cancelled():
-                n_cancelled += 1
+                if fut not in held:
+                    n_cancelled += 1
                 continue
             attempts = result_of(fut)
-            ok = store(fut, attempts)
-            n_valid += ok
-            total_cost += sum(a["cost"] for a in attempts)
+            paid = paid_attempts(attempts)
+            total_cost += sum(a["cost"] for a in paid)
             label = db.member_label(j["member"])
             error = attempts[-1]["error"]
+            if usage_limit(error):
+                # not an elicitation attempt: never stored, the slot is re-planned; a
+                # paid attempt before it (a retry that ran into the outage) is stored
+                if paid:
+                    store(fut, paid, final=False)
+                else:
+                    handled.add(fut)
+                outage["results"] += 1
+                streak[label] = streak.get(label, 0) + 1
+                last_limit[label] = error
+                replan.add(fut)
+                print(f"{job_label(j)}: usage limit ({error[:120]}); nothing billed, not stored,"
+                      f" re-planned ({streak[label]} zero-usage result(s) of {label} in a row)")
+                if streak[label] == OUTAGE_STREAK:
+                    holding.add(label)
+                    now_held = hold_pending(label)
+                    held.update(now_held)
+                    print(f"usage-limit outage: {label}: {streak[label]} consecutive zero-usage results"
+                          f" across workers; its dispatching stopped, {len(now_held)} not-yet-started"
+                          " slot(s) of it held back for the pause (the other members go on)")
+                continue
+            # an unbilled failure (http 401, transport) says nothing about the limit, nor
+            # does a billed answer of a call in flight since before the member's hold; a
+            # billed result ends the member's outage and restarts its wait budget
+            if billed(paid) and label not in holding:
+                streak.pop(label, None)
+                waited.pop(label, None)
+            ok = store(fut, paid)
+            n_valid += ok
+            n_done += 1
             status = "ok" if ok else f"INVALID ({error})"
-            print(f"[{i}/{len(jobs)}] {job_label(j)}: {status}")
+            print(f"[{n_done}/{len(jobs)}] {job_label(j)}: {status}")
             if rejected_request(error):
                 print(f"scenario {j['scenario_id']} {label}: the request was rejected (http 400/403:"
                       " invalid params, guardrail or moderation flag on this prompt, or permissions);"
@@ -815,11 +1100,91 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
                 n = cancel_pending(label)
                 print(f"member {label}: {(error or '')[:160]}: {why}; cancelled its {n} pending"
                       " slots (fix the key, credits or model id, then re-run to resume)")
+        again, dropped = [], 0
+        for f in submitted:
+            if f in replan or f in held:
+                if db.member_label(futures[f]["member"]) in halted:
+                    dropped += 1   # halted after the hold: its held-back slots are cancelled
+                else:
+                    again.append(futures[f])
+        n_cancelled += dropped
+        replan.clear()
+        held.clear()
+        return again
+
+    def give_up(label: str) -> None:
+        """Cancel the pending slots of a member whose outage has used up its
+        wait budget; the other members go on."""
+        nonlocal n_cancelled
+        mine = [j for j in queue if label_of(j) == label]
+        queue[:] = [j for j in queue if label_of(j) != label]
+        outage["gave_up"] = True
+        outage["unresolved"] += len(mine)
+        n_cancelled += len(mine)
+        n_stored = sum(1 for k in stored if f"{k[1]}:{k[2]}" == label)
+        print(f"usage-limit outage: giving up on {label} after {waited[label]:g}s paused since its last"
+              f" billed result ({OUTAGE_MAX_WAIT_SETTING}={max_wait_s:g}), with {streak[label]}"
+              f" zero-usage results of it in a row; {n_stored} slot(s) of it stored by this run,"
+              f" {len(mine)} still pending: re-run to resume once the limit resets")
+
+    def next_pause(members: list[str]) -> tuple[float, str]:
+        """(seconds, note) of the next pause: the shortest of the held
+        members' pauses (outage_pause of each one's latest limit message),
+        each cut to what is left of that member's wait budget."""
+        options = []
+        for label in members:
+            pause, why = outage_pause(last_limit[label], now(), fixed_pause_s)
+            left = max_wait_s - waited.get(label, 0.0)
+            if pause > left:
+                pause, why = left, f" (cut to what is left of {label}'s wait budget)"
+            options.append((pause, why))
+        return min(options, key=lambda o: o[0])
+
+    try:
+        queue[:] = list(jobs)
+        probe = False
+        while queue:
+            if probe:   # one slot of every held member, the first in plan order
+                firsts: dict[str, dict] = {}
+                for j in queue:
+                    firsts.setdefault(label_of(j), j)
+                batch = list(firsts.values())
+            else:       # every slot of the members no outage holds
+                batch = [j for j in queue if not limited(label_of(j))]
+            probe = False
+            if batch:
+                taken = {id(j) for j in batch}
+                queue[:] = [j for j in queue if id(j) not in taken]
+                queue[:0] = run_batch(batch)   # the re-planned slots go first
+                continue
+            # only slots of held members are left: give up on those whose wait budget
+            # is spent, pause for the rest, then probe each with one call
+            members = sorted({label_of(j) for j in queue})
+            for label in members:
+                if waited.get(label, 0.0) >= max_wait_s:
+                    give_up(label)
+            members = [m for m in members if waited.get(m, 0.0) < max_wait_s]
+            if not members:
+                break
+            pause, why = next_pause(members)
+            for label in members:
+                waited[label] = waited.get(label, 0.0) + pause   # the budget counts the planned pause
+            outage["pauses"] += 1
+            print(f"usage-limit outage: pausing {pause:g}s{why} (pause {outage['pauses']}; "
+                  + ", ".join(f"{m} {waited[m]:g}s of {max_wait_s:g}s" for m in members)
+                  + f") with {len(queue)} slot(s) pending, then probing with one call per held member")
+            started, finished = time.monotonic(), False
+            try:
+                sleep(pause)
+                finished = True
+            finally:   # the summary reports the time paused, a pause cut short by Ctrl-C included
+                outage["waited_s"] += pause if finished else round(time.monotonic() - started)
+            probe = True
     except BaseException as ex:
         # Ctrl-C, a failed store or any other error here: stop submitting,
         # launch no retry, keep what is paid for
         stop.set()
-        pending = cancel_pending()
+        pending = cancel_pending()   # the not-yet-started futures and the held-back queue
         pool.shutdown(wait=False, cancel_futures=True)
         running = [f for f in futures if not f.done()]
         print(f"\ninterrupted ({type(ex).__name__}): {pending} pending slots cancelled"
@@ -835,11 +1200,11 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
                 left = sum(1 for f in running if not f.done())
                 print(f"Ctrl-C ignored: {left} paid call(s) still running; their results are"
                       " stored before the run exits")
-        print(f"{len(handled)} of {len(jobs)} slots stored ({salvaged} after the interruption);"
-              " re-run to resume")
+        print(f"{len(stored)} of {len(jobs)} slots stored ({salvaged} after the interruption);"
+              " re-run to resume" + outage_summary(outage))
         raise
     pool.shutdown(wait=True)
-    return n_valid, total_cost, n_cancelled
+    return n_valid, total_cost, n_cancelled, outage
 
 
 # --- manual (hand-entered) percentiles --------------------------------------
@@ -1004,11 +1369,11 @@ def main(argv=None):
     print(f"eliciting {len(jobs)} slots under {prot['name']} "
           f"(members={[db.member_label(m) for m in members]}, workers={args.workers})")
 
-    n_valid, total_cost, n_cancelled = run_jobs(con, study, protocol_id, jobs, args.workers)
+    n_valid, total_cost, n_cancelled, outage = run_jobs(con, study, protocol_id, jobs, args.workers)
     rate = n_valid / len(jobs)
     print(f"\ndone: {n_valid}/{len(jobs)} slots valid ({rate:.1%})"
           + (f", {n_cancelled} cancelled" if n_cancelled else "")
-          + f", total elicitation cost ${total_cost:.2f}")
+          + f", total elicitation cost ${total_cost:.2f}" + outage_summary(outage))
 
 
 if __name__ == "__main__":

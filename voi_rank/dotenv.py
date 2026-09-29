@@ -1,5 +1,6 @@
 """Settings from the environment or the repo-root .env file (git-ignored, see
-.env.example): OPENROUTER_API_KEY and VOI_CLI_TIMEOUT_S. A KEY=VALUE line may
+.env.example): OPENROUTER_API_KEY, VOI_CLI_TIMEOUT_S, VOI_OUTAGE_SLEEP_S and
+VOI_OUTAGE_MAX_WAIT_S. A KEY=VALUE line may
 carry a leading 'export ', surrounding quotes and a trailing ' # comment'.
 Callers never print a value."""
 
@@ -37,3 +38,18 @@ def read_env_file(path: Path | None = None) -> dict[str, str]:
 def setting(name: str, path: Path | None = None) -> str | None:
     """The environment variable `name`, else its line in .env, else None."""
     return os.environ.get(name) or read_env_file(path).get(name)
+
+
+def seconds_setting(name: str, default: float) -> float:
+    """A positive number of seconds from setting(name), else `default`;
+    RuntimeError when the value is not a positive number."""
+    value = setting(name)
+    if not value:
+        return float(default)
+    try:
+        seconds = float(value)
+    except ValueError:
+        raise RuntimeError(f"{name}={value!r} is not a number of seconds") from None
+    if not seconds > 0 or seconds == float("inf"):
+        raise RuntimeError(f"{name} must be a positive number of seconds, got {value!r}")
+    return seconds

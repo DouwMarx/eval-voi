@@ -1,8 +1,8 @@
 """All report figures (spec §8), reading only from a study's voi.db. PDFs land
-in <study>/report/generated/.
+in <study>/report/generated/ (generated/TAG/ with --tag TAG; study.Study.tagged).
 
 Usage: python -m voi_rank.analysis.figures --study studies/business [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus]
+       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
 (default: the latest all-member run of protocol p001; --members selects the
 latest run of the protocol that pooled exactly that member subset; --run
 overrides both. Every figure reads the run's members only.)
@@ -22,7 +22,7 @@ from scipy.stats import gaussian_kde  # noqa: E402
 
 from voi_rank import db, mc  # noqa: E402
 from voi_rank.fit import FAMILY_BY_PARAM, GAUSS_LOG_PARAMS, GAUSS_USD_PARAMS  # noqa: E402
-from voi_rank.study import Study, add_study_arg  # noqa: E402
+from voi_rank.study import Study, add_study_arg, add_tag_arg  # noqa: E402
 
 ACCENT = "#0072B2"          # single hue for single-series marks
 INTERVAL = "#9aa5b1"        # recessive interval lines
@@ -626,12 +626,14 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     add_study_arg(ap)
     add_run_args(ap)
+    add_tag_arg(ap)
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
+    out, _ = study.tagged(args.tag)   # figures write no macros
     con = study.connect()
     run_id = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))["id"]
-    for name in make_all(con, run_id, study.generated_dir):
-        print(f"wrote {study.generated_dir / (name + '.pdf')}")
+    for name in make_all(con, run_id, out):
+        print(f"wrote {out / (name + '.pdf')}")
 
 
 if __name__ == "__main__":

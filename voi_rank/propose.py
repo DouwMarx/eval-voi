@@ -60,9 +60,10 @@ def propose_domain(template: string.Template, domain: str, n: int, model: str):
     last_err = None
     cost = 0.0
     for _ in range(MAX_ATTEMPTS_PER_DOMAIN):
-        envelope, _raw, err = call_claude(prompt, model, SYSTEM_PROMPT)
-        if envelope:
-            cost += float(envelope.get("total_cost_usd") or 0.0)
+        envelope, raw, err = call_claude(prompt, model, SYSTEM_PROMPT)
+        # without an envelope (a paid CLI exit 1, e.g. a max-output-tokens
+        # stop) the raw response still records the cost (as elicit.attempt_once)
+        cost += float(envelope.get("total_cost_usd") or 0.0) if envelope else db.envelope_cost(raw)
         if err is not None:
             last_err = err
             continue
