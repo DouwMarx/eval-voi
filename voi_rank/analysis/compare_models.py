@@ -14,7 +14,8 @@ protocol, writes to <study>/report/generated/:
   pooled elicited p50 of p, s, t, with Spearman and median absolute difference.
 - consistency_gauss.tex: distribution of the over-determination residuals per
   quantity (theta asymmetry, d mismatch, x route spread, k mismatch) over the
-  Gaussian protocol's valid elicitations, the fraction flagged, and their
+  valid elicitations of the Gaussian run's members (the stored subset of a
+  --members run), the fraction flagged, and their
   Spearman with the cross-repeat spread of the corresponding quantity
   (per-scenario median residual vs db.elicited_spread of the quantity: (max -
   min) / pooled p50 of the repeat values, or max - min for d, which crosses
@@ -144,15 +145,19 @@ def derived_vs_elicited(con, b_run, g_run, shared: list[int]) -> dict:
 
 
 def residual_stats(con, g_run) -> dict:
-    """Per residual quantity: quantiles over valid elicitations, fraction
+    """Per residual quantity: quantiles over the valid elicitations of the
+    run's members (every member, or the subset a --members run stored, so the
+    table describes the elicitors the compared runs pooled), fraction
     flagged, and the Spearman between the per-scenario median residual and
-    the cross-repeat spread of the quantity; plus the consistency-score
-    quantiles (max residual / threshold per elicitation)."""
+    the cross-repeat spread of the quantity over the same members; plus the
+    consistency-score quantiles (max residual / threshold per elicitation)."""
     pid = g_run["protocol_id"]
+    labels = db.run_member_labels(g_run)
+    clause, margs = db.member_filter(labels)
     rows = con.execute(
         "SELECT e.id AS eid, e.scenario_id, p.name, p.p50, p.fit_residual, p.fit_warning"
         " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-        " WHERE e.protocol_id=? AND e.valid=1", (pid,)).fetchall()
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (pid, *margs)).fetchall()
     by_name: dict[str, dict[int, list]] = {}
     per_elic: dict[int, dict[str, float]] = {}
     for r in rows:
@@ -167,7 +172,7 @@ def residual_stats(con, g_run) -> dict:
         flagged = [bool(v[2]) for lst in per_sid.values() for v in lst]
         xs, ys = [], []
         for sid, lst in per_sid.items():
-            spread = db.elicited_spread(con, pid, sid, spread_of)
+            spread = db.elicited_spread(con, pid, sid, spread_of, members=labels)
             if spread is None:
                 continue
             xs.append(float(np.median([v[1] for v in lst if v[1] is not None])))
@@ -223,9 +228,11 @@ def write_consistency(res: dict, g_run, out: Path) -> None:
     lines.append(r"\midrule")
     lines.append(f"consistency score (max residual / threshold) & {sc['n']} & {num(sc['q25'])} &"
                  f" {num(sc['q50'])} & {num(sc['q75'])} & 1 & {pct(sc['above_one'])} & --\\\\")
+    members = esc(db.members_label(db.run_member_labels(g_run)))
     lines += [r"\bottomrule", r"\end{tabular}", r"\par\medskip",
               r"\noindent\emph{Over-determination residuals of the Gaussian protocol (run "
-              + str(g_run["id"]) + r"), over its valid elicitations: quantiles, the warning"
+              + str(g_run["id"]) + r"), over the valid elicitations of " + members
+              + r": quantiles, the warning"
               r" threshold, the fraction of elicitations flagged, and the Spearman between each"
               r" scenario's median residual and the cross-repeat spread of the quantity the"
               r" residual checks ((max - min) / pooled p50 of the repeat values; max - min"

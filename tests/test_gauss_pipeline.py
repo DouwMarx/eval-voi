@@ -474,3 +474,42 @@ def test_dry_run_of_g001_renders_every_scenario(name, tmp_path, monkeypatch, cap
     _, jobs = elicit.plan_jobs(con, study, pid, None, None, None)
     assert len(jobs) == 5 * len(members) * len(scen)
     assert {j["scenario_id"] for j in jobs} == {r["id"] for r in db.get_scenarios(con)}
+
+
+def test_residual_stats_follow_the_runs_member_subset(tmp_path, monkeypatch):
+    """A subset run's consistency table describes the subset's elicitations,
+    the rows quantiled and the spreads its rho is taken over alike, as
+    compare_models --members promises (the two framings compared on the
+    same elicitors); the caption names the members."""
+    study = copy_study("sim2real", tmp_path)
+    use_providers(monkeypatch, FakeProvider(jittered_gauss))
+    sonnet = "claude_cli:sonnet"
+    elicit.main(["--study", str(study.root), "--protocol", "g001", "--scenarios", "1,2,3,4", "--k", "2",
+                 "--members", f"{HAIKU},{sonnet}", "--yes"])
+    con = study.connect()
+    pid = db.protocol_by_name(con, "g001")["id"]
+    runs = {None: mc.run_mc(con, "g001", seed=1, n_draws=1000, quiet=True),
+            HAIKU: mc.run_mc(con, "g001", seed=1, n_draws=1000, quiet=True, members=[HAIKU])}
+
+    def n_rows(name, labels):
+        clause, args = db.member_filter(labels)
+        return con.execute(
+            "SELECT COUNT(*) FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
+            f" WHERE e.protocol_id=? AND e.valid=1 AND p.name=? AND p.fit_residual IS NOT NULL{clause}",
+            (pid, name, *args)).fetchone()[0]
+    study.generated_dir.mkdir(parents=True, exist_ok=True)
+    for labels, run_id in runs.items():
+        run = db.get_run(con, run_id)
+        assert db.run_member_labels(run) == ([labels] if labels else None)
+        res = compare_models.residual_stats(con, run)
+        for name, _, _ in compare_models.RESIDUALS:
+            want = n_rows(name, [labels] if labels else None)
+            assert want > 0 and res[name]["n"] == want and res[name]["n_spread"] == 4
+        assert res["score"]["n"] == (4 * 2 if labels else 4 * 4)
+        compare_models.write_consistency(res, run, study.generated_dir)
+        cons = (study.generated_dir / "consistency_gauss.tex").read_text()
+        who = "claude\\_cli:haiku" if labels else "all members"
+        assert f"over the valid elicitations of {who}:" in cons
+    all_n = compare_models.residual_stats(con, db.get_run(con, runs[None]))["g_d"]["n"]
+    assert compare_models.residual_stats(con, db.get_run(con, runs[HAIKU]))["g_d"]["n"] == all_n // 2
+    con.close()

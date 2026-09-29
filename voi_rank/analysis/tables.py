@@ -372,6 +372,13 @@ def write_protocol_noise(con, out: Path, kind: str = db.BINARY_KIND):
         label = tex_param(name) + esc(db.spread_label(name)).replace(" - ", " $-$ ")
         lines.append(f"{label} & " + " & ".join(cells) + r"\\")
     lines += [r"\bottomrule", r"\end{tabular}"]
+    staged = sorted({name for name, _ in cols
+                     if db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                                       (prots[name],)).fetchone()) is not None})
+    if staged:   # a decision-stage row of such a column is a median over groups, not scenarios
+        lines += [r"\par\medskip", r"\noindent\emph{Medians over scenarios; under a staged protocol ("
+                  + esc(", ".join(staged)) + r") the decision-stage rows are medians over groups (one"
+                  r" elicitation set per group, on its representative).}"]
     (out / "protocol_noise.tex").write_text("\n".join(lines) + "\n")
 
 

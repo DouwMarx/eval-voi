@@ -224,9 +224,12 @@ and, since the decision-stage spread across a group's rungs is zero by
 construction, the cross-member decision-level agreement per group instead
 of a per-scenario Spearman on `p, B, K`; `fig_member_agreement` correlates
 the scenario-stage parameters only, for the same reason; `fig_param_medians`
-shows the decision-level points once per group (at the representative's
-rank); `db.param_scenario_ids` gives every noise statistic one id per group
-for `p, B, K` (a group whose rows sit on two scenarios counts once); the
+shows the decision-level points once per group (at the rank of the group's
+lowest-id ranked scenario, so a retired representative without instrument
+rows hides no group); `db.param_scenario_ids` gives every noise statistic
+one id per group for `p, B, K` (a group whose rows sit on two scenarios
+counts once), and the noise tables and figure say so: their `n` reads
+`groups / scenarios` and the decision-stage cells are medians over groups; the
 catalog marks the shared `p, B, K` with a dagger; `consistency.tex` reports
 `CV(p) / mean(CV(s), CV(t))`, 0 by design under a staged protocol; the
 level-uplift ladders draw `p, B, K` from the decision stage. `sim2real` has

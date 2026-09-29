@@ -283,10 +283,50 @@ def fig_evsi_vs_cost(con, run_id, out: Path):
     return True
 
 
+def param_median_points(con, run, names: list[str], rank_of: dict[int, int]) -> tuple[dict, list[str]]:
+    """{param: {member label: [(rank, p50), ...]}} over the valid elicitations
+    of the run's members, each at its scenario's rank. Under a staged
+    protocol a decision-stage row sits on its group's representative (the
+    group's lowest id), which a rename leaves retired without instrument
+    rows and so unranked: the row is drawn at the rank of the group's
+    lowest-id RANKED scenario instead, so no group's p, B, K vanish from the
+    figure. A group none of whose scenarios is ranked is named in the
+    returned notes rather than dropped silently."""
+    clause, margs = db.member_filter(db.run_member_labels(run))
+    rows = con.execute(
+        "SELECT e.scenario_id, e.stage, e.provider || ':' || e.model AS member, p.name, p.p50"
+        " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (run["protocol_id"], *margs)).fetchall()
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                            (run["protocol_id"],)).fetchone())
+    gstage = db.group_stage(stages) if stages is not None else None
+    anchor: dict[int, int | None] = {}   # representative id -> the group's lowest ranked id
+    notes = []
+    data: dict[str, dict[str, list]] = {n: {} for n in names}
+    for r in rows:
+        if r["name"] not in data:
+            continue
+        sid = r["scenario_id"]
+        if gstage is not None and r["stage"] == gstage["name"]:
+            if sid not in anchor:
+                ranked = [g for g in db.scenario_group_ids(con, gstage["group_key"], sid) if g in rank_of]
+                anchor[sid] = ranked[0] if ranked else None
+                if not ranked:
+                    row = con.execute("SELECT * FROM scenarios WHERE id=?", (sid,)).fetchone()
+                    value = db.scenario_group_value(row, gstage["group_key"])
+                    notes.append(f"group {value!r} (decision rows on scenario {sid}) has no ranked"
+                                 f" scenario: its {', '.join(gstage['params'])} points are not drawn")
+            sid = anchor[sid]
+        if sid in rank_of:
+            data[r["name"]].setdefault(r["member"], []).append((rank_of[sid], r["p50"]))
+    return data, notes
+
+
 def fig_param_medians(con, run_id, out: Path):
     """Six panels, one per parameter: the elicited p50 of every valid
     elicitation of the run's protocol against the scenario's efficiency rank
-    (jittered strip), coloured by member model when the protocol has several
+    (jittered strip; param_median_points places a staged protocol's
+    decision rows), coloured by member model when the protocol has several
     members, with a marginal histogram on the right. Reveals round-number
     clustering and cross-model disagreement. USD panels on a log axis."""
     run = db.get_run(con, run_id)
@@ -295,14 +335,9 @@ def fig_param_medians(con, run_id, out: Path):
     rank_of = {sid: i + 1 for i, sid in enumerate(order)}
     members = [db.member_label(m) for m in run_members(con, run)]
     clause, margs = db.member_filter(db.run_member_labels(run))
-    rows = con.execute(
-        "SELECT e.scenario_id, e.provider || ':' || e.model AS member, p.name, p.p50"
-        " FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
-        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (run["protocol_id"], *margs)).fetchall()
-    data: dict[str, dict[str, list]] = {n: {} for n in names}
-    for r in rows:
-        if r["name"] in data and r["scenario_id"] in rank_of:
-            data[r["name"]].setdefault(r["member"], []).append((rank_of[r["scenario_id"]], r["p50"]))
+    data, notes = param_median_points(con, run, names, rank_of)
+    for note in notes:
+        print(f"fig_param_medians: {note}")
     present = [m for m in members if any(m in data[n] for n in names)]
     present += sorted({m for n in names for m in data[n]} - set(present))
     multi = len(present) > 1
@@ -367,8 +402,8 @@ def fig_param_medians(con, run_id, out: Path):
     staged = ""
     if stages is not None:   # decision rows sit on each group's representative: plotted once per group
         g = db.group_stage(stages)
-        staged = (f"; ${', '.join(g['params'])}$ once per group, at the representative's rank"
-                  f" (stage {g['name']})")
+        staged = (f"; ${', '.join(g['params'])}$ once per group, at the rank of its lowest-id"
+                  f" ranked scenario (stage {g['name']})")
     fig.suptitle(f"Elicited medians per parameter, every valid elicitation of the run's members"
                  f" ({n_elic} elicitations{staged})", fontsize=8 if staged else 9)
     fig.savefig(out / "fig_param_medians.pdf")
@@ -494,17 +529,31 @@ def fig_rank_stability(con, run_id, out: Path):
     return True
 
 
+def noise_units_label(stages: list[dict] | None, sids_of: dict[str, set[int]]) -> str:
+    """What the spreads of the noise figure are over: '15 scenarios', or
+    under a staged protocol '2 groups for p, B, K; 15 scenarios for s, t, C'
+    (a decision-stage spread is one per group, on its representative)."""
+    if stages is None:
+        return f"{len(set().union(*sids_of.values()))} scenarios"
+    g, s = db.group_stage(stages), db.scenario_stage(stages)
+    n_g = len(set().union(*(sids_of.get(n, set()) for n in g["params"])))
+    n_s = len(set().union(*(sids_of.get(n, set()) for n in s["params"])))
+    return f"{n_g} groups for {', '.join(g['params'])}; {n_s} scenarios for {', '.join(s['params'])}"
+
+
 def fig_elicitation_noise(con, run_id, out: Path):
     run = db.get_run(con, run_id)
     names = run_param_names(con, run_id)
     labels = db.run_member_labels(run)
+    stages = db.protocol_stages(con.execute("SELECT * FROM protocols WHERE id=?",
+                                            (run["protocol_id"],)).fetchone())
     spreads = {name: [] for name in names}
-    sids: set[int] = set()
+    sids_of: dict[str, set[int]] = {}
     for name in names:
         # the scenarios carrying the parameter (group representatives for a
         # decision-stage parameter of a staged protocol: one spread per group)
         for sid in db.param_scenario_ids(con, run["protocol_id"], name, labels):
-            sids.add(sid)
+            sids_of.setdefault(name, set()).add(sid)
             sp = db.elicited_spread(con, run["protocol_id"], sid, name, members=labels)
             if sp is not None:
                 spreads[name].append(sp)
@@ -521,7 +570,7 @@ def fig_elicitation_noise(con, run_id, out: Path):
                    capprops={"color": "#555555"})
         ax.set_ylabel("(max − min) / pooled p50 across elicitations"
                       + ("\n* max − min in prior-sd units" if sd_units else ""))
-        ax.set_title(f"Cross-elicitation noise per parameter ({len(sids)} scenarios)")
+        ax.set_title(f"Cross-elicitation noise per parameter ({noise_units_label(stages, sids_of)})")
     else:
         ax.text(0.5, 0.5, "protocol has k = 1: no repeat noise", ha="center",
                 transform=ax.transAxes)

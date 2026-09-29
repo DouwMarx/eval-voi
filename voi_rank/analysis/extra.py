@@ -1361,11 +1361,14 @@ def member_k_used(con, protocol_id: int, member: dict) -> int:
     return max(member_repeat_counts(con, protocol_id, member).values(), default=0)
 
 
-def member_noise(con, protocol_id: int, member: dict, first: int | None) -> tuple[dict, int]:
-    """({param: median cross-repeat spread}, n scenarios with >= 2 repeats)
-    for one member, optionally truncated to the first `first` valid repeats
-    of each scenario (in repeat_ix order)."""
-    med, n = {}, 0
+def member_noise(con, protocol_id: int, member: dict, first: int | None) -> tuple[dict, dict]:
+    """({param: median cross-repeat spread}, {param: n units with >= 2
+    repeats}) for one member, optionally truncated to the first `first`
+    valid repeats of each unit (in repeat_ix order). A unit is a scenario,
+    or a group for a decision-stage parameter of a staged protocol (its rows
+    sit once per group, on the representative), so the counts differ per
+    parameter there: p, B, K over 2 groups, s, t, C over 15 scenarios."""
+    med, n = {}, {}
     label = [db.member_label(member)]
     for name in db.PARAM_NAMES:
         # the scenarios carrying the parameter for this member (group
@@ -1374,8 +1377,30 @@ def member_noise(con, protocol_id: int, member: dict, first: int | None) -> tupl
                    if (sp := db.elicited_spread(con, protocol_id, sid, name, member["provider"],
                                                 member["model"], first)) is not None]
         med[name] = float(np.median(spreads)) if spreads else None
-        n = max(n, len(spreads))
+        n[name] = len(spreads)
     return med, n
+
+
+def noise_n_label(counts: dict[str, int], stages: list[dict] | None) -> str:
+    """The n column of the matched-k noise table: one count for a
+    single-stage protocol (every parameter's), 'groups / scenarios' for a
+    staged one, whose decision-stage cells are medians over groups."""
+    if stages is None:
+        return str(max(counts.values(), default=0))
+    g, s = db.group_stage(stages), db.scenario_stage(stages)
+    n_g = max((counts[n] for n in g["params"] if n in counts), default=0)
+    n_s = max((counts[n] for n in s["params"] if n in counts), default=0)
+    return f"{n_g} / {n_s}"
+
+
+def staged_noise_note(staged: list[str]) -> str:
+    """Caption clause for a noise table that lists a staged protocol: its
+    decision-stage cells are medians over groups, not scenarios."""
+    if not staged:
+        return ""
+    return (f"; under a staged protocol ({', '.join(esc(p) for p in staged)}) the decision-stage"
+            " cells are medians over groups (one elicitation set per group, on its"
+            " representative) and n reads groups / scenarios")
 
 
 def count_label(counts: list[int]) -> str:
@@ -1424,11 +1449,16 @@ def write_protocol_noise_matched(con, out: Path) -> bool:
     runs = latest_run_per_protocol(con)
     if not runs:
         return False
-    rows = []
+    rows, staged = [], []
     for pname, m, label, cap in noise_rows(con):
-        med, n = member_noise(con, db.protocol_by_name(con, pname)["id"], m, cap)
+        prot = db.protocol_by_name(con, pname)
+        stages = db.protocol_stages(prot)
+        if stages is not None and pname not in staged:
+            staged.append(pname)
+        med, counts = member_noise(con, prot["id"], m, cap)
         cells = " & ".join(num(med[name], "{:.2f}") for name in db.PARAM_NAMES)
-        rows.append(f"{esc(pname)} & {esc(db.member_label(m))} & {label} & {cells} & {n}")
+        rows.append(f"{esc(pname)} & {esc(db.member_label(m))} & {label} & {cells}"
+                    f" & {noise_n_label(counts, stages)}")
     if not rows:
         rows.append(r"\multicolumn{" + str(4 + len(db.PARAM_NAMES))
                     + r"}{@{}l}{(no member with two or more valid repeats)}")
@@ -1439,7 +1469,7 @@ def write_protocol_noise_matched(con, out: Path) -> bool:
                     f" per member with repeats, over the first {MATCHED_K} valid repeats (matched k)"
                     " and, where the member holds more on any scenario, over all of them (the"
                     " repeats column is the count pooled per scenario, min..max where scenarios"
-                    " differ)")
+                    " differ)" + staged_noise_note(staged))
     names = list(runs)
     crows = []
     for a in names:

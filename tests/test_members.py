@@ -265,3 +265,40 @@ def test_analysis_clis_select_the_subset_run(built, capsys):
         compare_models.main(["--study", str(study.root), "--binary", "p003", "--gaussian", "g001",
                              "--members", members])
     con.close()
+
+
+def test_health_members_restricts_every_count(built, capsys):
+    """health --members prints the subset's attempts by outcome, JSON
+    validity, constraint pass rate and slot validity, not every member's
+    under a header that says 'restricted'."""
+    study = built["study"]
+    con = study.connect()
+    pid = db.protocol_by_name(con, "p003")["id"]
+    slot = "scenario_id || '/' || provider || '/' || model || '/' || repeat_ix || '/' || COALESCE(stage, '')"
+
+    def counts(labels):
+        clause, args = db.member_filter(labels)
+        return con.execute(
+            f"SELECT COUNT(*), SUM(valid), COUNT(DISTINCT {slot}),"
+            f" COUNT(DISTINCT CASE WHEN valid=1 THEN {slot} END) FROM elicitations e"
+            f" WHERE protocol_id=?{clause}", (pid, *args)).fetchone()
+    n_all, v_all, s_all, vs_all = counts(None)
+    n_sub, v_sub, s_sub, vs_sub = counts(SUBSET)
+    con.close()
+    assert n_sub == v_sub == 9 * 5 and n_all == v_all + 1 == 9 * 8 + 1   # the invalid attempt is haiku's
+    health.main(["--study", str(study.root), "--protocol", "p003", "--members", ",".join(SUBSET)])
+    out = capsys.readouterr().out
+    assert f"({n_sub} attempts, 3 member(s); members restricted to claude_cli:opus, claude_cli:sonnet) ===" \
+        in out
+    assert "(every count below is over the attempts of the members listed)" in out
+    assert f"attempt counts by outcome: {{'valid': {n_sub}}}" in out
+    assert f"JSON validity rate (parse+schema): {n_sub}/{n_sub} = 100.0%" in out
+    assert f"constraint pass rate (of parsed): {n_sub}/{n_sub} = 100.0%" in out
+    assert f"slot validity (after retry): {vs_sub}/{s_sub} = 100.0%" in out
+    health.main(["--study", str(study.root), "--protocol", "p003"])
+    out = capsys.readouterr().out
+    assert f"({n_all} attempts, 3 member(s)) ===" in out and "every count below" not in out
+    assert f"'valid': {v_all}" in out and f"attempt counts by outcome: {{'valid': {v_all}}}" not in out
+    assert f"slot validity (after retry): {vs_all}/{s_all} = " in out
+    with pytest.raises(SystemExit, match="--members"):
+        health.main(["--study", str(study.root), "--protocol", "p003", "--members", "x:y"])

@@ -361,6 +361,19 @@ def n_group_texts(rows) -> int:
     return len({(r["agent"], r["decision"], r["theta_definition"]) for r in rows})
 
 
+def elicited_scenario_rows(con, protocol_id: int, ids: list[int]) -> dict[int, sqlite3.Row]:
+    """{id: scenario row} for the ids that hold a valid elicitation under the
+    protocol at any stage (the retired scenarios of a group that the one-
+    decision check must include: their text is the one the rows the readers
+    pool were elicited for)."""
+    if not ids:
+        return {}
+    marks = ",".join("?" * len(ids))
+    return {r["id"]: r for r in con.execute(
+        f"SELECT * FROM scenarios WHERE id IN ({marks}) AND EXISTS (SELECT 1 FROM elicitations e"
+        " WHERE e.scenario_id=scenarios.id AND e.protocol_id=? AND e.valid=1)", (*ids, protocol_id))}
+
+
 def check_group_decision_rows(con, protocol_id: int, gids: list[int], stage: str, value: str,
                               phash: str, key: str) -> None:
     """Refuse a group whose stored valid decision rows (on any of its
@@ -393,12 +406,16 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
     every selection, so a partial --scenarios or a representative that left
     scenarios.json never elicits a second set. Every staged plan, whichever
     --stage, checks that every selected scenario carries the group_key value,
-    that the group's scenarios (its active ones in the DB and the selected
-    ones) share the agent, decision and theta text, that the stage's
-    decision_contexts has an entry per group and that the decision rows the
-    group already holds were rendered from that text
-    (check_group_decision_rows). A job carries its stage and the stage's
-    parameter names; stage=NAME plans that stage only."""
+    that the group's scenarios (its active ones in the DB, the selected ones
+    and its retired ones holding a valid elicitation under the protocol at
+    either stage, whose text is what those rows were elicited for) share the
+    agent, decision and theta text, that the stage's decision_contexts has an
+    entry per group and that the decision rows the group already holds were
+    rendered from that text (check_group_decision_rows). A whole group
+    renamed under a new decision text after either stage is refused: its
+    retired rows would otherwise be pooled and ranked with the new decision's
+    p, B, K. A job carries its stage and the stage's parameter names;
+    stage=NAME plans that stage only."""
     gstage, sstage = db.group_stage(stages), db.scenario_stage(stages)
     if stage is not None and stage not in (gstage["name"], sstage["name"]):
         raise SystemExit(f"--stage {stage!r}: protocol {prot['name']} has stages"
@@ -421,15 +438,21 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
     contexts = gstage.get("decision_contexts", {})
     jobs = []
     for value, rows in sorted(groups.items()):
+        gids = db.scenario_group_ids(con, key, rows[0]["id"])
         checked = {**active.get(value, {}), **{r["id"]: r for r in rows}}
+        retired = elicited_scenario_rows(con, prot["id"], [g for g in gids if g not in checked])
+        checked.update(retired)
         n_texts = n_group_texts(checked.values())
         if n_texts > 1:
-            raise SystemExit(f"stage {gstage['name']}: group {value!r} (scenarios {sorted(checked)})"
-                             f" mixes {n_texts} different agent / decision / theta texts: not one decision")
+            raise SystemExit(
+                f"stage {gstage['name']}: group {value!r} (scenarios {sorted(checked)}) mixes {n_texts}"
+                " different agent / decision / theta texts: not one decision"
+                + (f" (scenarios {sorted(retired)} are retired rows holding valid elicitations under"
+                   f" {prot['name']}; give the changed scenarios a new {key} value, or start a new voi.db)"
+                   if retired else ""))
         if value not in contexts:
             raise SystemExit(f"stage {gstage['name']}: no decision_contexts entry for group {value!r}"
                              f" (groups: {sorted(groups)})")
-        gids = db.scenario_group_ids(con, key, rows[0]["id"])
         prompt = render_decision_prompt(template, rows[0], contexts[value])
         check_group_decision_rows(con, prot["id"], gids, gstage["name"], value, prompt_hash(prompt), key)
         if stage not in (None, gstage["name"]):

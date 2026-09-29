@@ -605,7 +605,7 @@ def test_protocol_noise_matched_and_compare_matrix(built, con, out):
     prot = db.protocol_by_name(con, "p001")
     matched, n_m = extra.member_noise(con, prot["id"], haiku, extra.MATCHED_K)
     full, n_f = extra.member_noise(con, prot["id"], haiku, None)
-    assert n_m == n_f == 9
+    assert n_m == n_f == dict.fromkeys(db.PARAM_NAMES, 9) and extra.noise_n_label(n_m, None) == "9"
     for name in db.PARAM_NAMES:  # a range over more repeats is never smaller
         assert full[name] >= matched[name] > 0.0
     # rows are labelled with the repeats actually pooled: an 'all k' row only
@@ -650,7 +650,8 @@ def test_protocol_noise_first_n_pools_valid_repeats_by_rank(tmp_path, out):
     matched, n = extra.member_noise(con, pid, five[0], extra.MATCHED_K)
     want = np.median([repeat_spread(db.elicited_p50s(con, pid, s, "C", "claude_cli", "haiku", first=3))
                       for s in b["sids"]["g"]])
-    assert n == 2 and matched["C"] == pytest.approx(float(want)) and matched["C"] > 0
+    assert n == dict.fromkeys(db.PARAM_NAMES, 2)
+    assert matched["C"] == pytest.approx(float(want)) and matched["C"] > 0
     three, two = [by_repeat[0], by_repeat[2], by_repeat[3]], [by_repeat[0], by_repeat[2]]
     assert repeat_spread(three) != repeat_spread(two)   # the index cap would have pooled two
     # the scale argument: relative by default, a plain max - min at scale 1, None at scale 0

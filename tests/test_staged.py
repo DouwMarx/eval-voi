@@ -513,7 +513,8 @@ def test_staged_plan_refuses_a_decision_text_changed_after_the_decision_stage(tm
     base = ["--study", str(study.root), "--protocol", "p004", "--members", HAIKU, "--k", "1", "--yes"]
     elicit.main([*base, "--stage", "decision"])
     assert "done: 2/2 slots valid" in capsys.readouterr().out
-    scen = json.loads(study.scenarios_json.read_text())
+    original = study.scenarios_json.read_text()
+    scen = json.loads(original)
     other = "A completely different decision: whether to buy a coffee machine"
     scen[4]["decision"] = other
     study.scenarios_json.write_text(json.dumps(scen))
@@ -524,19 +525,159 @@ def test_staged_plan_refuses_a_decision_text_changed_after_the_decision_stage(tm
                                              "\\) mixes 2 different agent / decision / theta texts"):
             elicit.main([*base, *extra_args, "--dry-run"])
     # the whole group changes its decision under new titles: the retired representative's
-    # rows are another decision's, so the plan refuses instead of eliciting beside them
+    # rows are another decision's, and it stays in the one-decision check because it holds
+    # them, so the plan refuses instead of eliciting beside them
     for sc in scen[:10]:
         sc["title"] += " v2"
         sc["decision"] = other
     study.scenarios_json.write_text(json.dumps(scen))
+    mixed = str([1] + list(range(16, 26)))
+    refusal = (f"\\(scenarios {re.escape(mixed)}\\) mixes 2 different agent / decision / theta texts: not one"
+               r" decision \(scenarios \[1\] are retired rows holding valid elicitations under p004; give the"
+               r" changed scenarios a new attributes.context_group value, or start a new voi.db\)")
+    for extra_args in (["--stage", "decision"], ["--stage", "instrument"]):
+        with pytest.raises(SystemExit, match=refusal):
+            elicit.main([*base, *extra_args, "--dry-run"])
+    # the stored rows' prompt hash is checked as well: decision rows rendered from another
+    # text than the group renders now (here a DB whose hashes were edited, since the seed
+    # refresh freezes an elicited row's text) are refused with the same remedy
+    study.scenarios_json.write_text(original)
+    con = study.connect()
+    con.execute("UPDATE elicitations SET prompt_hash=? WHERE stage='decision'", ("0" * 64,))
+    con.commit()
+    con.close()
     for extra_args in (["--stage", "decision"], ["--stage", "instrument"]):
         with pytest.raises(SystemExit, match=r"holds 1 valid decision row\(s\) elicited for a different agent"
-                                             r" / decision / theta text \(prompt hash \w{12} vs \w{12} now\)"
+                                             r" / decision / theta text \(prompt hash 0{12} vs \w{12} now\)"
                                              r".*new attributes.context_group value, or start a new voi.db"):
             elicit.main([*base, *extra_args, "--dry-run"])
     con = study.connect()
     assert con.execute("SELECT COUNT(*) FROM elicitations").fetchone()[0] == 2   # nothing written
     assert con.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0] == 15
+    con.close()
+
+
+def test_staged_plan_refuses_a_decision_text_changed_after_the_instrument_stage(tmp_path, monkeypatch,
+                                                                                   capsys):
+    """The mirror of the test above: the instrument stage first, then the
+    whole group renamed under a new decision text. No decision rows exist
+    yet, so the prompt-hash check cannot fire; the retired rungs hold valid
+    instrument rows elicited for the old decision and stay in the
+    one-decision check, so every plan (the decision stage first of all)
+    refuses instead of storing the new decision's p, B, K on the retired
+    representative and ranking the retired rungs with them."""
+    study = copy_study("sim2real", tmp_path)
+    monkeypatch.setattr(elicit, "get_provider", lambda name: StagedFake())
+    base = ["--study", str(study.root), "--protocol", "p004", "--members", HAIKU, "--k", "1", "--yes"]
+    elicit.main([*base, "--stage", "instrument"])
+    assert "done: 15/15 slots valid" in capsys.readouterr().out
+    original = json.loads(study.scenarios_json.read_text())
+    scen = json.loads(study.scenarios_json.read_text())
+    for sc in scen[:10]:
+        sc["title"] += " v2"
+        sc["decision"] = "A new decision: whether to ship a coffee machine"
+    study.scenarios_json.write_text(json.dumps(scen))
+    mixed = str(list(range(1, 11)) + list(range(16, 26)))
+    retired = str(list(range(1, 11)))
+    refusal = (f"stage decision: group '{HOME}' \\(scenarios {re.escape(mixed)}\\) mixes 2 different agent"
+               r" / decision / theta texts: not one decision"
+               f" \\(scenarios {re.escape(retired)} are retired rows holding valid elicitations under p004;"
+               r" give the changed scenarios a new attributes.context_group value, or start a new voi.db\)")
+    for extra_args in (["--stage", "decision"], ["--stage", "instrument"], [],
+                       ["--stage", "decision", "--scenarios", "16"]):
+        with pytest.raises(SystemExit, match=refusal):
+            elicit.main([*base, *extra_args])   # a real run, not a dry run: refused before any write
+    con = study.connect()
+    pid = db.protocol_by_name(con, "p004")["id"]
+    assert con.execute("SELECT COUNT(*) FROM elicitations WHERE stage='decision'").fetchone()[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0] == 15   # the plan copy refused first
+    assert mc.complete_fits(con, pid) == {}
+    con.close()
+    # renamed titles alone (the text unchanged) still plan: the retired rungs keep their
+    # instrument rows and the decision stage stores the group's rows on their representative
+    for sc, was in zip(scen[:10], original[:10], strict=True):
+        sc["decision"] = was["decision"]
+    study.scenarios_json.write_text(json.dumps(scen))
+    elicit.main([*base, "--stage", "decision", "--dry-run"])
+    assert f"member {HAIKU} (k=1 (override of 5)): 2 pending slots over 2 groups" in capsys.readouterr().out
+
+
+def _renamed_representative(tmp_path, monkeypatch) -> tuple:
+    """A p004 study (haiku, k=2) whose home representative was renamed after
+    the decision stage: the retired row 1 carries the group's decision rows,
+    rows 2..16 hold instrument rows and the run ranks 2..16. Returns (study,
+    con, run id)."""
+    study = copy_study("sim2real", tmp_path)
+    monkeypatch.setattr(elicit, "get_provider", lambda name: StagedFake())
+    base = ["--study", str(study.root), "--protocol", "p004", "--members", HAIKU, "--k", "2", "--yes"]
+    elicit.main([*base, "--stage", "decision"])
+    scen = json.loads(study.scenarios_json.read_text())
+    scen[0]["title"] += " (renamed)"
+    study.scenarios_json.write_text(json.dumps(scen))
+    elicit.main(base)
+    con = study.connect()
+    run_id = mc.run_mc(con, "p004", seed=5, n_draws=2000, quiet=True)
+    assert sorted(figures.ranked_ids(con, run_id)) == list(range(2, 17))   # 1 is retired and unranked
+    study.generated_dir.mkdir(parents=True, exist_ok=True)
+    return study, con, run_id
+
+
+def test_fig_param_medians_anchors_a_group_at_its_lowest_ranked_scenario(tmp_path, monkeypatch, capsys):
+    """A group whose representative is retired without instrument rows (so
+    unranked) keeps its p, B, K points: drawn at the rank of the group's
+    lowest-id ranked scenario. A group with no ranked scenario at all is
+    named in a printed note, never dropped silently."""
+    study, con, run_id = _renamed_representative(tmp_path, monkeypatch)
+    run = db.get_run(con, run_id)
+    pid = run["protocol_id"]
+    rank_of = {sid: i + 1 for i, sid in enumerate(figures.ranked_ids(con, run_id))}
+    data, notes = figures.param_median_points(con, run, list(db.PARAM_NAMES), rank_of)
+    assert notes == [] and set(data["p"]) == {HAIKU}
+    pts = data["p"][HAIKU]
+    assert sorted(x for x, _ in pts) == sorted([rank_of[2]] * 2 + [rank_of[11]] * 2)
+    assert {x for x, _ in data["B"][HAIKU]} == {x for x, _ in data["K"][HAIKU]} == {rank_of[2], rank_of[11]}
+    assert sorted(v for _, v in pts) == sorted(db.elicited_p50s(con, pid, 2, "p")
+                                               + db.elicited_p50s(con, pid, 11, "p"))
+    assert len(data["s"][HAIKU]) == 30 and {x for x, _ in data["s"][HAIKU]} == set(range(1, 16))
+    capsys.readouterr()
+    assert figures.fig_param_medians(con, run_id, study.generated_dir)
+    assert "fig_param_medians:" not in capsys.readouterr().out
+    # a group none of whose scenarios is ranked: a note names it, the other group still draws
+    data, notes = figures.param_median_points(con, run, ["p"], {s: r for s, r in rank_of.items() if s < 11})
+    assert notes == [f"group '{AV}' (decision rows on scenario 11) has no ranked scenario:"
+                     " its p, B, K points are not drawn"]
+    assert {x for x, _ in data["p"][HAIKU]} == {rank_of[2]}
+    con.close()
+
+
+def test_noise_tables_count_groups_and_scenarios_apart(tmp_path, monkeypatch):
+    """Under a staged protocol the decision-stage spreads are medians over
+    groups (one elicitation set per group), the instrument-stage ones over
+    scenarios: member_noise counts per parameter, the matched-k table's n
+    reads 'groups / scenarios' under a caption saying so, protocol_noise.tex
+    carries the same note and the noise figure's title names both units."""
+    study, con, run_id = _renamed_representative(tmp_path, monkeypatch)
+    prot = db.protocol_by_name(con, "p004")
+    stages = db.protocol_stages(prot)
+    haiku = db.protocol_members(prot)[0]
+    med, counts = extra.member_noise(con, prot["id"], haiku, extra.MATCHED_K)
+    assert counts == {"p": 2, "B": 2, "K": 2, "s": 15, "t": 15, "C": 15}
+    assert all(med[n] is not None for n in db.PARAM_NAMES)
+    assert extra.noise_n_label(counts, stages) == "2 / 15"
+    assert extra.noise_n_label(dict.fromkeys(db.PARAM_NAMES, 9), None) == "9"
+    out = study.generated_dir
+    assert extra.write_protocol_noise_matched(con, out)
+    tex = (out / "protocol_noise_matched.tex").read_text()
+    assert re.search(r"^p004 & claude\\_cli:haiku & first 2 &( [0-9.]+ &){6} 2 / 15", tex, re.M)
+    assert ("under a staged protocol (p004) the decision-stage cells are medians over groups (one"
+            " elicitation set per group, on its representative) and n reads groups / scenarios") in tex
+    tables.write_protocol_noise(con, out)
+    noise = (out / "protocol_noise.tex").read_text()
+    assert "under a staged protocol (p004) the decision-stage rows are medians over groups" in noise
+    sids_of = {n: set(db.param_scenario_ids(con, prot["id"], n)) for n in db.PARAM_NAMES}
+    assert figures.noise_units_label(stages, sids_of) == "2 groups for p, B, K; 15 scenarios for s, t, C"
+    assert figures.noise_units_label(None, {"p": {1, 2}, "s": {2, 3}}) == "3 scenarios"
+    assert figures.fig_elicitation_noise(con, run_id, out)
     con.close()
 
 

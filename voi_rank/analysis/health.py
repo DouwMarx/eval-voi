@@ -123,13 +123,14 @@ def decision_level_agreement(con, protocol_id: int, members: list[dict],
 
 def health(con, protocol_name: str, members: list[str] | None = None):
     """The protocol's health checks; `members` (labels) restricts every
-    per-member table, the pooled spread and the cross-member agreement to
-    that subset (a label the protocol does not list exits) and reads the
-    subset's latest run. A staged protocol gets per-stage validity and
-    spreads (the decision stage's over groups) and, since its decision-stage
-    spread across rungs is zero by construction, the cross-member
-    decision-level agreement per group in place of a per-scenario Spearman
-    on p, B, K."""
+    count and table to that subset (a label the protocol does not list
+    exits): the attempts by outcome, JSON validity, constraint pass rate and
+    slot validity included, so a restricted print is never read as the
+    subset's validity when it is every member's; and it reads the subset's
+    latest run. A staged protocol gets per-stage validity and spreads (the
+    decision stage's over groups) and, since its decision-stage spread across
+    rungs is zero by construction, the cross-member decision-level agreement
+    per group in place of a per-scenario Spearman on p, B, K."""
     prot = db.protocol_by_name(con, protocol_name)
     all_members = db.protocol_members(prot)
     try:
@@ -137,15 +138,19 @@ def health(con, protocol_name: str, members: list[str] | None = None):
     except ValueError as ex:
         raise SystemExit(f"--members: {ex}") from None
     members = all_members if labels is None else [m for m in all_members if db.member_label(m) in labels]
-    rows = con.execute("SELECT * FROM elicitations WHERE protocol_id=?",
-                       (prot["id"],)).fetchall()
+    clause, margs = db.member_filter(labels)   # every count below is over the subset's attempts
+    rows = con.execute(f"SELECT * FROM elicitations e WHERE protocol_id=?{clause}",
+                       (prot["id"], *margs)).fetchall()
     if not rows:
-        print(f"no elicitations under {protocol_name}")
+        print(f"no elicitations under {protocol_name}"
+              + (f" by {db.members_label(labels)}" if labels else ""))
         return
 
     print(f"=== health: protocol {protocol_name} ({len(rows)} attempts, "
           f"{len(all_members)} member(s)"
           + (f"; members restricted to {db.members_label(labels)}" if labels else "") + ") ===")
+    if labels:
+        print("(every count below is over the attempts of the members listed)")
     classes = {}
     for r in rows:
         classes[error_class(r["error"])] = classes.get(error_class(r["error"]), 0) + 1
@@ -164,7 +169,7 @@ def health(con, protocol_name: str, members: list[str] | None = None):
                 " COALESCE(stage, '')")
     slots = con.execute(
         f"SELECT COUNT(DISTINCT {slot_key}), COUNT(DISTINCT CASE WHEN valid=1 THEN {slot_key} END)"
-        " FROM elicitations WHERE protocol_id=?", (prot["id"],)).fetchone()
+        f" FROM elicitations e WHERE protocol_id=?{clause}", (prot["id"], *margs)).fetchone()
     print(f"slot validity (after retry): {slots[1]}/{slots[0]} = {slots[1]/slots[0]:.1%}")
 
     # per-member validity and cost
@@ -180,7 +185,8 @@ def health(con, protocol_name: str, members: list[str] | None = None):
     # staged protocols: validity per stage and member
     stages = db.protocol_stages(prot)
     if stages is not None:
-        print("\nper stage: attempts, valid, validity (all members; then per member)")
+        print("\nper stage: attempts, valid, validity ("
+              + ("the members listed" if labels else "all members") + "; then per member)")
         for st in stages:
             sr = [r for r in rows if r["stage"] == st["name"]]
             valid = sum(int(r["valid"] or 0) for r in sr)
@@ -231,7 +237,7 @@ def health(con, protocol_name: str, members: list[str] | None = None):
     fw = con.execute(
         "SELECT COUNT(*) FROM parameters p JOIN elicitations e ON e.id=p.elicitation_id"
         " WHERE e.protocol_id=? AND p.fit_warning=1 AND p.name IN"
-        f" ({','.join('?' * len(names))})", (prot["id"], *names)).fetchone()[0]
+        f" ({','.join('?' * len(names))}){clause}", (prot["id"], *names, *margs)).fetchone()[0]
     print(f"\nfit warnings: {fw}")
 
     # fraction of scenarios with median EVSI ~ 0, from the latest run (of the subset)
@@ -251,7 +257,7 @@ def health(con, protocol_name: str, members: list[str] | None = None):
         "SELECT s.title, p.name, p.p50, p.unit, p.reasoning FROM parameters p"
         " JOIN elicitations e ON e.id=p.elicitation_id"
         " JOIN scenarios s ON s.id=e.scenario_id"
-        " WHERE e.protocol_id=? AND e.valid=1", (prot["id"],)).fetchall()
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (prot["id"], *margs)).fetchall()
     if sample:
         rnd = random.Random(0)
         print("\n5 sample reasoning strings (spot-read for unit errors):")
