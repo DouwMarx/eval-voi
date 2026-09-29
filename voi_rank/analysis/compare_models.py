@@ -91,9 +91,10 @@ runs pooled:
   (macros \\voiGaussNoiseRatio<Member>), K over K and C over C.
 
 Usage: python -m voi_rank.analysis.compare_models --study PATH [--binary p001] [--gaussian g001]
-       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
+       [--members claude_cli:sonnet,claude_cli:opus] [--weights equal-member] [--tag NAME]
 (--members selects, for BOTH protocols, the latest run that pooled exactly
-that member subset, so the two framings are compared on the same elicitors;
+that member subset, and --weights the latest with that mixture weighting, so
+the two framings are compared on the same elicitors and weights;
 the derived-vs-elicited panel pools the binary protocol's medians over the
 same subset, and the member matrix and noise table cover that subset)
 """
@@ -200,12 +201,13 @@ def top_ids(med: dict[int, float], sids: list[int], k: int) -> set[int]:
     return set(sorted(sids, key=lambda s: (-med[s], s))[:k])
 
 
-def select_runs(con, binary: str, gaussian: str, members: list[str] | None = None):
+def select_runs(con, binary: str, gaussian: str, members: list[str] | None = None,
+                weights: str | None = None):
     """(binary run, gaussian run): the latest run of each protocol (of the
-    `members` subset when given), refused when a protocol is not of the
-    expected model kind."""
-    b = figures.select_run(con, None, binary, members)
-    g = figures.select_run(con, None, gaussian, members)
+    `members` subset and the mixture `weights` when given), refused when a
+    protocol is not of the expected model kind."""
+    b = figures.select_run(con, None, binary, members, weights)
+    g = figures.select_run(con, None, gaussian, members, weights)
     for run, want, name in ((b, db.BINARY_KIND, binary), (g, db.GAUSSIAN_KIND, gaussian)):
         kind = db.run_model_kind(con, run)
         if kind != want:
@@ -383,7 +385,7 @@ def redraw_gauss_member(con, run, member: dict) -> dict[str, dict[int, float]]:
     rng = np.random.default_rng(run["seed"])
     out: dict[str, dict[int, float]] = {m: {} for m in ACTION_MODELS}
     for sid, fits in gauss_member_fits(con, run, member).items():
-        draws = {name: extra.sample_mixture(rng, fits[name], run["n_draws"]) for name in GAUSS_PARAM_NAMES}
+        draws = {name: mc.sample_mixture(rng, fits[name], run["n_draws"]) for name in GAUSS_PARAM_NAMES}
         metrics = gaussian.scenario_metrics(draws)
         for m in ACTION_MODELS:
             out[m][sid] = float(np.median(metrics[f"eff_{m}"]))
@@ -938,12 +940,15 @@ def main(argv=None):
     ap.add_argument("--members", default=None,
                     help="comma-separated provider:model subset: the latest run of each protocol"
                          " that pooled exactly these members")
+    ap.add_argument("--weights", choices=db.WEIGHT_CHOICES, default=db.WEIGHTS_POOLED,
+                    help="the latest run of each protocol with this mixture weighting (default: pooled)")
     add_tag_arg(ap)
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     out, prefix = study.tagged(args.tag)
     con = study.connect()
-    b_run, g_run = select_runs(con, args.binary, args.gaussian, db.parse_member_labels(args.members))
+    b_run, g_run = select_runs(con, args.binary, args.gaussian, db.parse_member_labels(args.members),
+                               args.weights)
     result = make_all(con, b_run, g_run, out, prefix)
     ag = result["rank"]["agreement"]
     print(f"{len(result['rank']['shared'])} shared scenarios; Spearman binary vs "

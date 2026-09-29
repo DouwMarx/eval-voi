@@ -3,11 +3,12 @@ voi.db. Writes to <study>/report/generated/ (generated/TAG/ with --tag TAG,
 every macro then \\voiTAG...; study.Study.tagged).
 
 Usage: python -m voi_rank.analysis.tables --study studies/business [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
-(default: the latest all-member run of protocol p001; --members selects the
-latest run that pooled exactly that subset; --run overrides. The catalog's
-pooled medians, the member table, the attempt, validity, cost and noise
-macros describe the run's members; \voiRunMembers names them.)
+       [--members claude_cli:sonnet,claude_cli:opus] [--weights equal-member] [--tag NAME]
+(default: the latest all-member pooled run of protocol p001; --members selects
+the latest run that pooled exactly that subset, --weights the latest with
+that mixture weighting; --run overrides. The catalog's pooled medians, the
+member table, the attempt, validity, cost and noise macros describe the
+run's members; \voiRunMembers names them, \voiRunWeights the weighting.)
 """
 
 from __future__ import annotations
@@ -301,12 +302,13 @@ def rank_corr_between_runs(con, run_a: int, run_b: int) -> tuple[float, int] | N
 
 
 def latest_run_per_protocol(con, subsets: bool = True) -> dict[str, int]:
-    """{label: run id}: the latest all-member run of every protocol that has
-    one (label = the protocol name) and, with subsets, the latest run of
-    every member subset scored under it (label 'p003[opus+sonnet]')."""
+    """{label: run id}: the latest all-member pooled run of every protocol
+    that has one (label = the protocol name) and, with subsets, the latest
+    run of every member subset and weighting scored under it (labels
+    'p003[opus+sonnet]', 'p003/equal')."""
     out = {}
     for label, run in db.latest_runs_by_subset(con):
-        if subsets or db.run_member_labels(run) is None:
+        if subsets or (db.run_member_labels(run) is None and db.run_weights(run) is None):
             out[label] = run["id"]
     return out
 
@@ -492,6 +494,7 @@ def write_macros(con, run, out: Path, prefix: str = MACRO_PREFIX):
     macros = {
         "voiRunId": run["id"],
         "voiRunMembers": esc(db.members_label(labels)),
+        "voiRunWeights": esc(db.weights_label(db.run_weights(run))),
         "voiModelKind": esc(kind),
         "voiSeed": run["seed"],
         "voiNDraws": f"{run['n_draws']:,}".replace(",", r"\,"),
@@ -575,7 +578,7 @@ def main(argv=None):
     study = Study.resolve(args.study)
     out, prefix = study.tagged(args.tag)
     con = study.connect()
-    run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
+    run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members), args.weights)
     make_all(con, run, out, prefix)
     print(f"wrote catalog.tex, ranking.tex, macros.tex, members.tex, protocol_compare.tex,"
           f" protocol_noise.tex for run {run['id']} in {out}"

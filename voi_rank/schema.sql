@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS runs (
   id INTEGER PRIMARY KEY, created_at TEXT, seed INTEGER, n_draws INTEGER,
   code_hash TEXT, protocol_id INTEGER,
   data_hash TEXT,                                      -- v2: digest of the valid elicitations used
-  members_json TEXT                                    -- v2.2: pooled member subset (NULL = all)
+  members_json TEXT,                                   -- v2.2: pooled member subset (NULL = all)
+  weights TEXT                                         -- v2.4: 'equal-member' (NULL = pooled)
 );
 CREATE TABLE IF NOT EXISTS results (
   run_id INTEGER, scenario_id INTEGER, metric TEXT,

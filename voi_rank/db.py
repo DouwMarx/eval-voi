@@ -7,7 +7,9 @@ protocols.members_json/scenario_selector, runs.data_hash, a unique index on
 valid slots. v2.2: runs.members_json (the member subset a run pooled, NULL =
 every member of the protocol), protocols.stages_json and elicitations.stage
 (staged protocols: a decision stage elicited once per scenario group and an
-instrument stage per scenario, see "staged protocols" below). connect()
+instrument stage per scenario, see "staged protocols" below). v2.4:
+runs.weights (the mixture weighting a run used, NULL = pooled, see "mixture
+weights" below). connect()
 migrates pre-v2 databases in place; connect_copy() prepares an in-memory
 copy for dry runs.
 
@@ -45,7 +47,7 @@ V2_COLUMNS = {
     "elicitations": {"provider": "TEXT", "model": "TEXT", "stage": "TEXT"},
     "protocols": {"members_json": "TEXT", "scenario_selector": "TEXT", "model_kind": "TEXT",
                   "stages_json": "TEXT"},
-    "runs": {"data_hash": "TEXT", "members_json": "TEXT"},
+    "runs": {"data_hash": "TEXT", "members_json": "TEXT", "weights": "TEXT"},
 }
 # protocol model kinds (v2.1): the binary model of spec §2 (parameters
 # PARAM_NAMES, primary metric 'efficiency') and the Gaussian-state family
@@ -509,27 +511,83 @@ def members_label(labels: list[str] | None) -> str:
     return "all members" if labels is None else ", ".join(labels)
 
 
-def run_label(protocol_name: str, labels: list[str] | None) -> str:
+def run_label(protocol_name: str, labels: list[str] | None, weights: str | None = None) -> str:
     """Column label of a run in the cross-protocol tables: the protocol name,
     suffixed with the subset's model names ('p003[opus+sonnet]') for a
-    subset run."""
-    if labels is None:
-        return protocol_name
-    return f"{protocol_name}[{'+'.join(lab.split(':', 1)[-1] for lab in labels)}]"
+    subset run and with '/equal' for an equal-member run
+    ('p003[opus+sonnet]/equal')."""
+    label = protocol_name
+    if labels is not None:
+        label += f"[{'+'.join(lab.split(':', 1)[-1] for lab in labels)}]"
+    return label + ("/equal" if normalize_weights(weights) == WEIGHTS_EQUAL_MEMBER else "")
+
+
+def run_key_order(key: tuple) -> tuple:
+    """Sort key of a (members_json, weights) pair: the all-member pooled run
+    first, then the equal-member one, then the subsets in the same way."""
+    members, weights = key
+    return (members is not None, members or "", weights is not None, weights or "")
 
 
 def latest_runs_by_subset(con) -> list[tuple[str, sqlite3.Row]]:
-    """(run_label, run) for the latest run of every (protocol, member subset)
-    that has one, in protocol then subset order: the all-member run of each
-    protocol first, then its subset runs."""
+    """(run_label, run) for the latest run of every (protocol, member subset,
+    weights) that has one, in protocol then subset order: the all-member run
+    of each protocol first, then its subset runs, each pooled then
+    equal-member."""
     out = []
     for p in con.execute("SELECT * FROM protocols ORDER BY id"):
-        latest: dict[str | None, sqlite3.Row] = {}
+        latest: dict[tuple, sqlite3.Row] = {}
         for r in con.execute("SELECT * FROM runs WHERE protocol_id=? ORDER BY id", (p["id"],)):
-            latest[r["members_json"]] = r
-        for key in sorted(latest, key=lambda k: (k is not None, k or "")):
-            out.append((run_label(p["name"], run_member_labels(latest[key])), latest[key]))
+            latest[(r["members_json"], run_weights(r))] = r
+        for key in sorted(latest, key=run_key_order):
+            run = latest[key]
+            out.append((run_label(p["name"], run_member_labels(run), run_weights(run)), run))
     return out
+
+
+# --- mixture weights (v2.4) -------------------------------------------------------
+# How a run's Monte Carlo mixture weighs the valid fits of a scenario (mc
+# --weights): 'pooled' (every valid (member, repeat) fit the same weight, so a
+# member with more valid repeats weighs more; stored as NULL, the behaviour of
+# every run before v2.4) or 'equal-member' (each member's fits form a
+# sub-mixture and the members present weigh the same, whatever their repeat
+# counts). A run that pools one member stores NULL whatever was asked: both
+# rules draw the same mixture then.
+
+WEIGHTS_POOLED = "pooled"
+WEIGHTS_EQUAL_MEMBER = "equal-member"
+WEIGHT_CHOICES = (WEIGHTS_POOLED, WEIGHTS_EQUAL_MEMBER)
+
+
+def normalize_weights(value: str | None) -> str | None:
+    """The stored form of a weighting: None for pooled (or None), else
+    'equal-member'; ValueError for anything else."""
+    if value is None or value == WEIGHTS_POOLED:
+        return None
+    if value == WEIGHTS_EQUAL_MEMBER:
+        return value
+    raise ValueError(f"unknown weights {value!r}; known: {list(WEIGHT_CHOICES)}")
+
+
+def normalize_run_weights(n_members: int, value: str | None) -> str | None:
+    """The stored weights of a run pooling n_members members: None (pooled)
+    for one member, whose sub-mixture is the pooled mixture."""
+    weights = normalize_weights(value)
+    return None if n_members <= 1 else weights
+
+
+def run_weights(run) -> str | None:
+    """The weighting a stored run used (None = pooled, also for a row
+    written before the column existed)."""
+    try:
+        return run["weights"]
+    except (IndexError, KeyError):
+        return None
+
+
+def weights_label(weights: str | None) -> str:
+    """Printable form: 'pooled' or 'equal-member'."""
+    return WEIGHTS_POOLED if weights is None else weights
 
 
 def member_filter(labels: list[str] | None, alias: str = "e") -> tuple[str, list]:
@@ -1034,16 +1092,18 @@ def envelope_cost(raw: str) -> float:
 # --- runs, results, sensitivities ------------------------------------------
 
 def insert_run(con, seed: int, n_draws: int, protocol_id: int, data_hash: str | None = None,
-               code_hash: str | None = None, members: list[str] | None = None) -> int:
+               code_hash: str | None = None, members: list[str] | None = None,
+               weights: str | None = None) -> int:
     """No commit here: the runs row commits together with its results and
     sensitivities at the end of the MC run, so an interrupted run cannot
     become the (empty) latest run. code_hash defaults to git_hash(); members
-    is the pooled subset (labels), None for every member."""
+    is the pooled subset (labels), None for every member; weights the
+    mixture weighting (None = pooled)."""
     cur = con.execute(
-        "INSERT INTO runs (created_at, seed, n_draws, code_hash, protocol_id, data_hash, members_json)"
-        " VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO runs (created_at, seed, n_draws, code_hash, protocol_id, data_hash, members_json,"
+        " weights) VALUES (?,?,?,?,?,?,?,?)",
         (now_iso(), seed, n_draws, code_hash or git_hash(), protocol_id, data_hash,
-         run_members_json(members)))
+         run_members_json(members), normalize_weights(weights)))
     return cur.lastrowid
 
 
@@ -1064,22 +1124,33 @@ def insert_sensitivity(con, run_id: int, scenario_id: int, param: str,
 
 
 def latest_run(con, protocol_name: str | None = None,
-               members: list[str] | None = None) -> sqlite3.Row:
+               members: list[str] | None = None, weights: str | None = None) -> sqlite3.Row:
     """The latest run, of one protocol when named, that pooled exactly the
     member subset `members` (labels; None = every member, which is also what
-    a subset naming every protocol member means). A run is never selected
-    across subsets: a subset run is not 'the latest p003 run'."""
+    a subset naming every protocol member means) with the mixture weighting
+    `weights` (None or 'pooled' = pooled; a one-member selection is always
+    pooled, as mc stores it). A run is never selected across subsets or
+    weightings: a subset or equal-member run is not 'the latest p003 run'."""
+    try:
+        weights = normalize_weights(weights)
+    except ValueError as ex:
+        raise RuntimeError(str(ex)) from None
     if protocol_name:
         prot = protocol_by_name(con, protocol_name)
         try:
             members = normalize_run_members(protocol_members(prot), members)
         except ValueError as ex:
             raise RuntimeError(f"protocol {protocol_name!r}: {ex}") from None
+        weights = normalize_run_weights(len(protocol_members(prot)) if members is None else len(members),
+                                        weights)
     elif members is not None:
         members = sorted(set(members))
+        weights = normalize_run_weights(len(members), weights)
     want = run_members_json(members)
     clause = " AND r.members_json IS NULL" if want is None else " AND r.members_json=?"
     args: list = [] if want is None else [want]
+    clause += " AND r.weights IS NULL" if weights is None else " AND r.weights=?"
+    args += [] if weights is None else [weights]
     if protocol_name:
         row = con.execute(
             "SELECT r.* FROM runs r JOIN protocols p ON p.id = r.protocol_id"
@@ -1089,7 +1160,8 @@ def latest_run(con, protocol_name: str | None = None,
                           args).fetchone()
     if row is None:
         raise RuntimeError("no runs in DB" + (f" under protocol {protocol_name!r}" if protocol_name else "")
-                           + (f" with members [{members_label(members)}]" if members is not None else ""))
+                           + (f" with members [{members_label(members)}]" if members is not None else "")
+                           + (f" with weights {weights}" if weights is not None else ""))
     return row
 
 

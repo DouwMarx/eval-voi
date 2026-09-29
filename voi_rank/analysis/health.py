@@ -6,10 +6,11 @@ Usage:
   python -m voi_rank.analysis.health --study studies/business --protocol p001
   python -m voi_rank.analysis.health --study studies/business --protocol p002 --compare p001
   python -m voi_rank.analysis.health --study studies/X --protocol p003 \
-      --members claude_cli:sonnet,claude_cli:opus
+      --members claude_cli:sonnet,claude_cli:opus [--weights equal-member]
     (--members restricts the per-member tables, the pooled spread and the
     cross-member agreement to that subset and reads the subset's latest run;
-    --compare correlates that run with the other protocol's all-member run)
+    --weights reads the latest run with that mixture weighting; --compare
+    correlates that run with the other protocol's all-member pooled run)
 """
 
 from __future__ import annotations
@@ -134,13 +135,15 @@ def decision_level_agreement(con, protocol_id: int, members: list[dict],
     return rows
 
 
-def health(con, protocol_name: str, members: list[str] | None = None):
+def health(con, protocol_name: str, members: list[str] | None = None, weights: str | None = None):
     """The protocol's health checks; `members` (labels) restricts every
     count and table to that subset (a label the protocol does not list
     exits): the attempts by outcome, JSON validity, constraint pass rate and
     slot validity included, so a restricted print is never read as the
     subset's validity when it is every member's; and it reads the subset's
-    latest run. A staged protocol gets per-stage validity and spreads (the
+    latest run with the mixture `weights` (None or 'pooled' = pooled; the
+    elicitation counts do not depend on it). A staged protocol gets
+    per-stage validity and spreads (the
     decision stage's over groups) and, since its decision-stage spread across
     rungs is zero by construction, the cross-member decision-level agreement
     per group in place of a per-scenario Spearman on p, B, K."""
@@ -266,7 +269,7 @@ def health(con, protocol_name: str, members: list[str] | None = None):
 
     # fraction of scenarios with median EVSI ~ 0, from the latest run (of the subset)
     try:
-        run = db.latest_run(con, protocol_name, labels)
+        run = db.latest_run(con, protocol_name, labels, weights)
         evsi_name = db.evsi_metric(db.protocol_model_kind(prot))
         evsi = con.execute(
             "SELECT q50 FROM results WHERE run_id=? AND metric=?",
@@ -289,13 +292,15 @@ def health(con, protocol_name: str, members: list[str] | None = None):
             print(f"- [{r['title'][:40]}] {r['name']}={r['p50']} {r['unit']}: {r['reasoning'][:200]}")
 
 
-def compare(con, protocol_a: str, protocol_b: str, members: list[str] | None = None):
+def compare(con, protocol_a: str, protocol_b: str, members: list[str] | None = None,
+            weights: str | None = None):
     """Spearman rank correlation of median efficiency between the latest runs
-    of two protocols, over shared scenarios (`members`: the subset run of
-    protocol_a; protocol_b's all-member run)."""
+    of two protocols, over shared scenarios (`members`, `weights`: the run of
+    protocol_a; protocol_b's all-member pooled run)."""
     med = {}
     for name in (protocol_a, protocol_b):
-        run = db.latest_run(con, name, members if name == protocol_a else None)
+        run = (db.latest_run(con, name, members, weights) if name == protocol_a
+               else db.latest_run(con, name))
         metric = db.primary_metric(db.run_model_kind(con, run))   # each run's own efficiency
         med[name] = {r["scenario_id"]: r["q50"] for r in con.execute(
             "SELECT scenario_id, q50 FROM results WHERE run_id=? AND metric=?",
@@ -319,13 +324,15 @@ def main(argv=None):
     ap.add_argument("--compare", default=None, help="second protocol to compare against")
     ap.add_argument("--members", default=None,
                     help="comma-separated provider:model subset of the protocol's members")
+    ap.add_argument("--weights", choices=db.WEIGHT_CHOICES, default=db.WEIGHTS_POOLED,
+                    help="read the latest run with this mixture weighting (default: pooled)")
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
     members = db.parse_member_labels(args.members)
-    health(con, args.protocol, members)
+    health(con, args.protocol, members, args.weights)
     if args.compare:
-        compare(con, args.protocol, args.compare, members)
+        compare(con, args.protocol, args.compare, members, args.weights)
 
 
 if __name__ == "__main__":

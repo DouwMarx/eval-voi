@@ -2,10 +2,11 @@
 in <study>/report/generated/ (generated/TAG/ with --tag TAG; study.Study.tagged).
 
 Usage: python -m voi_rank.analysis.figures --study studies/business [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
-(default: the latest all-member run of protocol p001; --members selects the
-latest run of the protocol that pooled exactly that member subset; --run
-overrides both. Every figure reads the run's members only.)
+       [--members claude_cli:sonnet,claude_cli:opus] [--weights equal-member] [--tag NAME]
+(default: the latest all-member pooled run of protocol p001; --members selects
+the latest run of the protocol that pooled exactly that member subset,
+--weights the latest with that mixture weighting (mc --weights); --run
+overrides them. Every figure reads the run's members only.)
 """
 
 from __future__ import annotations
@@ -149,23 +150,31 @@ def add_run_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--members", default=None,
                     help="comma-separated provider:model subset: use the latest run of the protocol"
                          " that pooled exactly these members (default: the all-member run)")
+    ap.add_argument("--weights", choices=db.WEIGHT_CHOICES, default=db.WEIGHTS_POOLED,
+                    help="use the latest run with this mixture weighting (default: pooled)")
 
 
 def run_description(con, run) -> str:
-    """'run <id> (protocol <name>)', plus ', members a, b' for a subset run."""
+    """'run <id> (protocol <name>)', plus ', members a, b' for a subset run
+    and ', weights equal-member' for an equal-member run."""
     prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     name = prot["name"] if prot else "unknown"
     labels = db.run_member_labels(run)
-    return f"run {run['id']} (protocol {name}" + (f", members {', '.join(labels)}" if labels else "") + ")"
+    return (f"run {run['id']} (protocol {name}" + (f", members {', '.join(labels)}" if labels else "")
+            + (f", weights {db.run_weights(run)}" if db.run_weights(run) else "") + ")")
 
 
-def select_run(con, run_id: int | None, protocol: str, members: list[str] | None = None):
+def select_run(con, run_id: int | None, protocol: str, members: list[str] | None = None,
+               weights: str | None = None):
     """The run to analyse: --run when given, else the latest run of the
-    protocol that pooled exactly `members` (labels; None = every member). A
+    protocol that pooled exactly `members` (labels; None = every member)
+    with the mixture weighting `weights` (None or 'pooled' = pooled). A
     run made by the v1 model (no data_hash, or sensitivities for the retired
     parameter e) is refused: its numbers contradict the v2 commentary and
-    its draws do not replay. Prints 'run <id> (protocol <name>[, members ...])'."""
-    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol, members)
+    its draws do not replay. Prints 'run <id> (protocol <name>[, members
+    ...][, weights ...])'."""
+    run = (db.get_run(con, run_id) if run_id is not None
+           else db.latest_run(con, protocol, members, weights))
     prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     name = prot["name"] if prot else "unknown"
     reason = db.run_predates_v2(con, run)
@@ -631,7 +640,8 @@ def main(argv=None):
     study = Study.resolve(args.study)
     out, _ = study.tagged(args.tag)   # figures write no macros
     con = study.connect()
-    run_id = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))["id"]
+    run_id = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members),
+                        args.weights)["id"]
     for name in make_all(con, run_id, out):
         print(f"wrote {out / (name + '.pdf')}")
 

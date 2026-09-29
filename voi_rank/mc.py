@@ -2,12 +2,19 @@
 
 The parameters are drawn independently (stated assumption). Pooling: for
 each scenario, ALL valid elicitations under the protocol, over every ensemble
-member (provider, model) and every repeat, are pooled into ONE equal-weight
-mixture per parameter. A member with more valid repeats therefore carries
-more weight; there is no per-member reweighting. Cross-repeat and cross-model
-disagreement both widen the metric intervals. A 'point' family (the derived
-quantities of the Gaussian protocol) is drawn as a constant, so its mixture
-over repeats is the empirical distribution of the repeat values.
+member (provider, model) and every repeat, are pooled into ONE mixture per
+parameter. By default ('--weights pooled', stored as runs.weights NULL) the
+mixture is equal-weight over the fits, so a member with more valid repeats
+carries more weight. '--weights equal-member' (v2.4) makes each member's fits
+a sub-mixture and gives the members present equal weight, whatever their
+repeat counts (fit i of member m weighs 1 / (members x fits of m)); when
+every member holds the same number of fits the two coincide and draw the
+same numbers, and a run pooling one member is stored as pooled. The
+weighting is stored on the run, covered by data_hash and read back by the
+replay. Cross-repeat and cross-model disagreement both widen the metric
+intervals. A 'point' family (the derived quantities of the Gaussian
+protocol) is drawn as a constant, so its mixture over repeats is the
+empirical distribution of the repeat values.
 
 --members provider:model,... (v2.2) pools only those members' valid fits (a
 subset of the protocol's members, else the run is refused); the subset is
@@ -37,13 +44,14 @@ from). A dirty code tree, or one whose revision git cannot report, is refused
 unless --allow-dirty.
 
 Usage: python -m voi_rank.mc --study studies/business --protocol p001 [--seed 42] [--draws 100000]
-       [--allow-dirty] [--members claude_cli:sonnet,claude_cli:opus]
+       [--allow-dirty] [--members claude_cli:sonnet,claude_cli:opus] [--weights equal-member]
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 
 import numpy as np
 
@@ -73,12 +81,26 @@ def _draw(rng, family: str, params: dict, m: int) -> np.ndarray:
     raise ValueError(f"unknown family {family!r}")
 
 
-def sample_mixture(rng, fits: list[dict], m: int) -> np.ndarray:
-    """Equal-weight mixture over the fitted distributions of all valid
-    (member, repeat) elicitations."""
+def member_probs(fits: list[dict]) -> np.ndarray | None:
+    """Per-fit mixture probabilities that give every member present the same
+    total weight: fit i of member m weighs 1 / (members x fits of m). None
+    when every member holds the same number of fits, where they are uniform
+    (the pooled mixture, drawn by the same rng calls)."""
+    labels = [f"{f['provider']}:{f['model']}" for f in fits]
+    counts = Counter(labels)
+    if len(set(counts.values())) == 1:
+        return None
+    return np.array([1.0 / (len(counts) * counts[label]) for label in labels])
+
+
+def sample_mixture(rng, fits: list[dict], m: int, weights: str | None = None) -> np.ndarray:
+    """Mixture over the fitted distributions of all valid (member, repeat)
+    elicitations: equal weight per fit (weights None or 'pooled'), or equal
+    weight per member ('equal-member', member_probs)."""
     if len(fits) == 1:
         return _draw(rng, fits[0]["family"], fits[0]["params"], m)
-    idx = rng.integers(0, len(fits), size=m)
+    probs = member_probs(fits) if db.normalize_weights(weights) == db.WEIGHTS_EQUAL_MEMBER else None
+    idx = rng.integers(0, len(fits), size=m) if probs is None else rng.choice(len(fits), size=m, p=probs)
     out = np.empty(m)
     for r, f in enumerate(fits):
         mask = idx == r
@@ -136,30 +158,34 @@ def complete_fits(con, protocol_id: int,
     }
 
 
-def data_hash(fits_by_scenario: dict[int, dict[str, list[dict]]]) -> str:
+def data_hash(fits_by_scenario: dict[int, dict[str, list[dict]]], weights: str | None = None) -> str:
     """sha256 over the sorted distinct (elicitation_id, parameter name,
     fit_params) of the fits an MC run draws from: two runs with equal
     data_hash pooled exactly the same valid elicitations (a member subset
     changes it; a fit shared by several scenarios, as the decision stage of
-    a staged protocol is, counts once)."""
+    a staged protocol is, counts once). An equal-member run (weights, the
+    stored form) hashes {"weights", "fits"}, so it never shares a hash with
+    the pooled run of the same fits; a pooled run's hash is unchanged."""
     rows = sorted({(f["elicitation_id"], name, f["fit_params"])
                    for fits in fits_by_scenario.values()
                    for name, lst in fits.items() for f in lst})
-    return db.sha256(json.dumps(rows))
+    weights = db.normalize_weights(weights)
+    return db.sha256(json.dumps(rows if weights is None else {"weights": weights, "fits": rows}))
 
 
 def iter_scenario_draws(fits_by_scenario: dict[int, dict[str, list[dict]]], seed: int, n_draws: int,
-                        names: list[str] | None = None):
+                        names: list[str] | None = None, weights: str | None = None):
     """Deterministic generator of (scenario_id, draws dict) over a
     complete_fits() dict (sorted by scenario id). The rng stream is consumed
     in scenario-id, parameter-name order (PARAM_NAMES by default, the
-    protocol's names otherwise), so a replay with the same DB state
-    reproduces the run's draws exactly. run_mc passes the very dict its
-    data_hash was computed from, so the hash always describes the fits drawn."""
+    protocol's names otherwise), so a replay with the same DB state and
+    weights reproduces the run's draws exactly. run_mc passes the very dict
+    its data_hash was computed from, so the hash always describes the fits
+    drawn."""
     names = list(db.PARAM_NAMES if names is None else names)
     rng = np.random.default_rng(seed)
     for sid, fits in fits_by_scenario.items():
-        yield sid, {name: sample_mixture(rng, fits[name], n_draws) for name in names}
+        yield sid, {name: sample_mixture(rng, fits[name], n_draws, weights) for name in names}
 
 
 def replay_efficiency(con, run_id: int):
@@ -172,7 +198,8 @@ def replay_efficiency(con, run_id: int):
     metric, evsi_name = db.primary_metric(kind), db.evsi_metric(kind)
     ids, effs, ppos = [], [], []
     fits = complete_fits(con, run["protocol_id"], db.run_member_labels(run))   # the stored subset
-    for sid, draws in iter_scenario_draws(fits, run["seed"], run["n_draws"], db.param_names(kind)):
+    for sid, draws in iter_scenario_draws(fits, run["seed"], run["n_draws"], db.param_names(kind),
+                                          db.run_weights(run)):              # and weighting
         ids.append(sid)
         metrics = scenario_metrics(draws, kind)
         effs.append(metrics[metric])
@@ -202,7 +229,8 @@ def replay_efficiency(con, run_id: int):
 
 
 def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False,
-           allow_dirty: bool = False, members: list[str] | None = None) -> int:
+           allow_dirty: bool = False, members: list[str] | None = None,
+           weights: str | None = None) -> int:
     """Execute one MC run over all scenarios with valid elicitations under the
     protocol. Writes runs, results (incl. a p_top10 stability row per scenario)
     and sensitivities. Returns the run id. Uncommitted changes under
@@ -211,7 +239,9 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
     as '<hash>-dirty' or 'unknown' and a warning is printed). members (labels)
     pools only that subset of the protocol's members; a label the protocol
     does not list exits, and a subset naming every member is stored as the
-    all-member run (members_json NULL)."""
+    all-member run (members_json NULL). weights: 'pooled' (None) or
+    'equal-member' (sample_mixture), stored on the run (NULL = pooled, and
+    pooled for a run of one member) and hashed into data_hash."""
     protocol = db.protocol_by_name(con, protocol_name)
     kind = db.protocol_model_kind(protocol)
     names = db.param_names(kind)
@@ -220,6 +250,11 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
         members = db.normalize_run_members(db.protocol_members(protocol), members)
     except ValueError as ex:
         raise SystemExit(f"--members: {ex}") from None
+    try:
+        weights = db.normalize_run_weights(
+            len(db.protocol_members(protocol)) if members is None else len(members), weights)
+    except ValueError as ex:
+        raise SystemExit(f"--weights: {ex}") from None
     fits = complete_fits(con, protocol["id"], members)
     if not fits:
         raise RuntimeError(f"no scenarios with complete valid elicitations under {protocol_name}"
@@ -237,14 +272,15 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
             + "\n  ".join(dirty)
             + "\ncommit them, or pass --allow-dirty to store code_hash "
             f"{code_hash} (not reproducible from any commit)")
-    run_id = db.insert_run(con, seed, n_draws, protocol["id"], data_hash(fits), code_hash, members)
+    run_id = db.insert_run(con, seed, n_draws, protocol["id"], data_hash(fits, weights), code_hash, members,
+                           weights)
     if dirty or head == db.UNKNOWN_HEAD:
         print(f"WARNING: {'working tree has uncommitted changes' if dirty else 'code revision unknown'};"
               f" run {run_id} stores code_hash {code_hash} (commit, then re-run for a reproducible hash)")
 
     scenario_ids = []
     eff_rows = []
-    for sid, draws in iter_scenario_draws(fits, seed, n_draws, names):
+    for sid, draws in iter_scenario_draws(fits, seed, n_draws, names, weights):
         scenario_ids.append(sid)
         metrics = scenario_metrics(draws, kind)
         p_positive = float(np.mean(metrics[evsi_name] > draws["C"]))
@@ -262,7 +298,8 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
     if not quiet:
         print_ranking(con, run_id)
         print(f"\nrun {run_id}: code_hash {code_hash}, data_hash {db.get_run(con, run_id)['data_hash']}"
-              f" over {len(scenario_ids)} scenarios, members: {db.members_label(members)}")
+              f" over {len(scenario_ids)} scenarios, members: {db.members_label(members)},"
+              f" weights: {db.weights_label(weights)}")
     return run_id
 
 
@@ -276,7 +313,8 @@ def print_ranking(con, run_id: int, limit: int = 30):
         " WHERE r.run_id=? AND r.metric=? ORDER BY r.q50 DESC LIMIT ?",
         (run_id, metric, limit)).fetchall()
     print(f"\nRanking by median {metric} ({evsi_name}/C), run {run_id}"
-          f" (members: {db.members_label(db.run_member_labels(run))}):")
+          f" (members: {db.members_label(db.run_member_labels(run))}"
+          + (f", weights: {db.run_weights(run)}" if db.run_weights(run) else "") + "):")
     print(f"{'rank':>4} {'id':>4} {'eff q50':>10} {'eff q05':>10} {'eff q95':>10} {'P(EVSI>C)':>10}  title")
     for rank, r in enumerate(rows, 1):
         print(f"{rank:>4} {r['scenario_id']:>4} {r['q50']:>10.3g} {r['q05']:>10.3g}"
@@ -295,15 +333,20 @@ def main(argv=None):
     ap.add_argument("--members", default=None,
                     help="comma-separated provider:model subset of the protocol's members to pool"
                          " (default: all members)")
+    ap.add_argument("--weights", choices=db.WEIGHT_CHOICES, default=db.WEIGHTS_POOLED,
+                    help="pooled: every valid (member, repeat) fit weighs the same (default);"
+                         " equal-member: every member weighs the same, whatever its repeat count")
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
     members = db.parse_member_labels(args.members)
     run_id = run_mc(con, args.protocol, args.seed, args.draws, allow_dirty=args.allow_dirty,
-                    members=members)
+                    members=members, weights=args.weights)
+    run = db.get_run(con, run_id)
     print(f"\nrun {run_id} complete: study={study.name} protocol={args.protocol} "
           f"seed={args.seed} draws={args.draws}"
-          f" members={db.members_label(db.run_member_labels(db.get_run(con, run_id)))}")
+          f" members={db.members_label(db.run_member_labels(run))}"
+          f" weights={db.weights_label(db.run_weights(run))}")
 
 
 if __name__ == "__main__":

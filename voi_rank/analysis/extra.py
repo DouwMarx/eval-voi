@@ -108,7 +108,7 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    replicate statistic is plugin_point exactly. Needs no replay.
 
 Usage: python -m voi_rank.analysis.extra --study PATH [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME] [--boot N]
+       [--members claude_cli:sonnet,claude_cli:opus] [--weights equal-member] [--tag NAME] [--boot N]
 (default: the latest all-member run of protocol p001; --members selects the
 latest run that pooled exactly that subset; --run overrides; prints
 'run <id> (protocol <name>[, members ...])' like figures.py. Every analysis
@@ -120,9 +120,14 @@ with a printed reason and nothing aborts. Every other analysis reads the
 stored results or draws its own mixture. Analyses whose inputs are absent
 are skipped with a printed reason and their stale outputs removed.
 
-Helpers duplicated from figures.py / tables.py / mc.py (style constants, run
-selection, LaTeX escaping, mixture sampling) are copied here on purpose so
-this module depends only on db, model, sensitivity and study.
+Helpers duplicated from figures.py / tables.py (style constants, run
+selection, LaTeX escaping) are copied here on purpose; the mixture sampler
+is mc.sample_mixture itself, so the weighting rule of a run (mc --weights)
+lives in one place and every re-draw here consumes the rng as mc does.
+--weights selects the run by its mixture weighting as --members does by
+its subset; the ladder draws and the replay honour the run's weighting, the
+plug-in point and the bootstrap (medians of the elicited p50s) do not
+depend on it.
 """
 
 from __future__ import annotations
@@ -140,7 +145,7 @@ import matplotlib.ticker  # noqa: E402
 import numpy as np  # noqa: E402
 from scipy.stats import rankdata  # noqa: E402
 
-from voi_rank import db, model  # noqa: E402
+from voi_rank import db, mc, model  # noqa: E402
 from voi_rank.fit import FAMILY_BY_PARAM  # noqa: E402
 from voi_rank.sensitivity import spearman  # noqa: E402
 from voi_rank.study import (  # noqa: E402
@@ -358,12 +363,16 @@ def add_run_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--members", default=None,
                     help="comma-separated provider:model subset: use the latest run of the protocol"
                          " that pooled exactly these members (default: the all-member run)")
+    ap.add_argument("--weights", choices=db.WEIGHT_CHOICES, default=db.WEIGHTS_POOLED,
+                    help="use the latest run with this mixture weighting (default: pooled)")
 
 
-def select_run(con, run_id: int | None, protocol: str, members: list[str] | None = None):
+def select_run(con, run_id: int | None, protocol: str, members: list[str] | None = None,
+               weights: str | None = None):
     """As figures.select_run: a v1 run (no data_hash, or sensitivities for
     the retired parameter e) is refused."""
-    run = db.get_run(con, run_id) if run_id is not None else db.latest_run(con, protocol, members)
+    run = (db.get_run(con, run_id) if run_id is not None
+           else db.latest_run(con, protocol, members, weights))
     prot = con.execute("SELECT name FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
     name = prot["name"] if prot else "unknown"
     reason = db.run_predates_v2(con, run)
@@ -371,7 +380,8 @@ def select_run(con, run_id: int | None, protocol: str, members: list[str] | None
         raise RuntimeError(f"run {run['id']} (protocol {name}) predates the v2 model: {reason};"
                            f" run `python -m voi_rank.mc --protocol {name}` first")
     labels = db.run_member_labels(run)
-    print(f"run {run['id']} (protocol {name}" + (f", members {', '.join(labels)}" if labels else "") + ")")
+    print(f"run {run['id']} (protocol {name}" + (f", members {', '.join(labels)}" if labels else "")
+          + (f", weights {db.run_weights(run)}" if db.run_weights(run) else "") + ")")
     return run
 
 
@@ -416,29 +426,9 @@ def quantiles(vec: np.ndarray, qs=Q3) -> np.ndarray:
     return np.quantile(finite, qs)
 
 
-# --- mixture sampling (mirrors mc.py) ----------------------------------------
+# --- mixture sampling (mc's sampler) -------------------------------------------
 
-def _draw(rng, family: str, params: dict, m: int) -> np.ndarray:
-    if family == "lognormal":
-        return rng.lognormal(params["mu"], params["sigma"], m)
-    if family == "beta":
-        return rng.beta(params["alpha"], params["beta"], m)
-    if family == "point":
-        return np.full(m, float(params["value"]))
-    raise ValueError(f"unknown family {family!r}")
-
-
-def sample_mixture(rng, fits: list[dict], m: int) -> np.ndarray:
-    """Equal-weight mixture over fitted distributions (identical to
-    mc.sample_mixture so the rng stream is consumed the same way)."""
-    if len(fits) == 1:
-        return _draw(rng, fits[0]["family"], fits[0]["params"], m)
-    idx = rng.integers(0, len(fits), size=m)
-    out = np.empty(m)
-    for r, f in enumerate(fits):
-        mask = idx == r
-        out[mask] = _draw(rng, f["family"], f["params"], int(mask.sum()))
-    return out
+sample_mixture = mc.sample_mixture
 
 
 def complete_fits(fits_by_sid: dict[int, dict[str, list[dict]]]) -> dict[int, dict[str, list[dict]]]:
@@ -458,10 +448,12 @@ def unique_fits(fits: list[dict]) -> list[dict]:
     return out
 
 
-def draw_metrics(rng, fits: dict[str, list[dict]], n: int) -> dict[str, np.ndarray]:
-    """One scenario's EVSI / EVPI / C draw vectors from its pooled fits, the
-    rng consumed in PARAM_NAMES order."""
-    draws = {name: sample_mixture(rng, fits[name], n) for name in db.PARAM_NAMES}
+def draw_metrics(rng, fits: dict[str, list[dict]], n: int,
+                 weights: str | None = None) -> dict[str, np.ndarray]:
+    """One scenario's EVSI / EVPI / C draw vectors from its pooled fits
+    (mixture weighting `weights`, None = pooled), the rng consumed in
+    PARAM_NAMES order."""
+    draws = {name: sample_mixture(rng, fits[name], n, weights) for name in db.PARAM_NAMES}
     evsi, evpi = model.voi(draws["p"], draws["s"], draws["t"], draws["B"], draws["K"])
     return {"EVSI": evsi, "EVPI": evpi, "C": draws["C"]}
 
@@ -531,12 +523,13 @@ def ladder_draws(con, run, rungs: list[tuple[float, int]]) -> dict | None:
     if any(sid not in fits_all for sid in sids):
         return None
     rng = np.random.default_rng(run["seed"])
-    n = run["n_draws"]
-    shared = {name: sample_mixture(rng, unique_fits([f for sid in sids for f in fits_all[sid][name]]), n)
+    n, weights = run["n_draws"], db.run_weights(run)
+    shared = {name: sample_mixture(rng, unique_fits([f for sid in sids for f in fits_all[sid][name]]), n,
+                                   weights)
               for name in SHARED_PARAMS}
     per_rung = {}
     for sid in sids:
-        own = {name: sample_mixture(rng, fits_all[sid][name], n) for name in RUNG_PARAMS}
+        own = {name: sample_mixture(rng, fits_all[sid][name], n, weights) for name in RUNG_PARAMS}
         evsi, evpi = model.voi(shared["p"], own["s"], own["t"], shared["B"], shared["K"])
         per_rung[sid] = {"EVSI": evsi, "EVPI": evpi, "C": own["C"], "s": own["s"], "t": own["t"]}
     return {"shared": shared, "rungs": per_rung}
@@ -1408,20 +1401,21 @@ def write_simplicity(con, run, out: Path, prefix: str = MACRO_PREFIX) -> bool:
 
 def latest_run_per_protocol(con) -> dict[str, int]:
     """{label: run id}: the latest run of every protocol, and of every member
-    subset scored under it (label 'p003[opus+sonnet]'), that the v2 analyses
+    subset and weighting scored under it (label 'p003[opus+sonnet]',
+    'p003/equal'), that the v2 analyses
     accept (db.run_predates_v2 is None, the gate select_run applies); a
     protocol whose runs all predate the v2 model is left out rather than
     correlated against v2 runs."""
     out = {}
     for p in con.execute("SELECT * FROM protocols ORDER BY id"):
-        latest: dict[str | None, int] = {}
+        latest: dict[tuple, int] = {}
         for r in con.execute("SELECT * FROM runs WHERE protocol_id=? ORDER BY id DESC", (p["id"],)):
-            key = r["members_json"]
+            key = (r["members_json"], db.run_weights(r))
             if key not in latest and db.run_predates_v2(con, r) is None:
                 latest[key] = r["id"]
-        # protocol order, the all-member run first, then its subsets
-        for key in sorted(latest, key=lambda k: (k is not None, k or "")):
-            out[db.run_label(p["name"], json.loads(key) if key else None)] = latest[key]
+        # protocol order, the all-member run first, then its subsets (pooled, then equal-member)
+        for key in sorted(latest, key=db.run_key_order):
+            out[db.run_label(p["name"], json.loads(key[0]) if key[0] else None, key[1])] = latest[key]
     return out
 
 
@@ -1650,7 +1644,7 @@ def replay_run(con, run) -> tuple[dict[int, dict[str, float]] | None, str | None
     rng = np.random.default_rng(run["seed"])
     replay = {}
     for sid, f in fits.items():
-        d = draw_metrics(rng, f, run["n_draws"])
+        d = draw_metrics(rng, f, run["n_draws"], db.run_weights(run))   # the run's mixture weighting
         eff = d["EVSI"] / d["C"]
         if not np.all(np.isfinite(eff)):
             return None, f"replay of run {run['id']} gives a non-finite efficiency draw on scenario {sid}"
@@ -2413,7 +2407,7 @@ def main(argv=None):
     study = Study.resolve(args.study)
     out, prefix = study.tagged(args.tag)
     con = study.connect()
-    run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
+    run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members), args.weights)
     written, skipped = make_all(con, run, out, prefix, args.boot)
     for name in written:
         print(f"wrote {out / name}")
