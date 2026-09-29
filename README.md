@@ -91,6 +91,40 @@ main thread sees the result; with `--workers N` up to N of its calls can
 already be in flight, so it costs at most one call per worker (these errors
 are not billed; the slots are pending again on the next run).
 
+### Usage-limit outages (v2.3)
+
+During a claude.ai usage-limit window `claude -p` exits 1 with a zero-usage
+envelope (`is_error: true`, `total_cost_usd: 0`, `usage.input_tokens: 0`; no
+model call was made, nothing was billed), and before v2.3 the harness stored
+each such exit as a failed attempt and moved on (1,391 of them in one
+night). Now `claude_cli.call_claude` classifies a non-zero exit whose stdout
+is such an envelope as `cli: usage-limit (zero-usage exit 1): <message>`
+(a zero-usage exit that says "not logged in" still halts the member as
+before), and the harness treats it as an outage, not an attempt:
+
+- it is never stored (validity, attempt and cost statistics describe
+  elicitation attempts only; a paid failure whose immediate retry ran into
+  the outage is stored as usual) and its slot is re-planned; the run
+  summary counts the zero-usage results and the pauses;
+- the job launches no retry for it (`retry_delay` returns `OUTAGE_PAUSE`);
+  `run_jobs` keeps one streak counter across workers and after
+  `OUTAGE_STREAK = 5` consecutive zero-usage results stops dispatching (the
+  not-yet-started slots are held back), lets the running calls finish,
+  sleeps `OUTAGE_SLEEP_S = 300` s, probes with one call and resumes when
+  the probe is billed (its answer is stored like any slot); a zero-usage
+  probe sleeps again, and after `OUTAGE_MAX_PAUSES = 12` pauses the run
+  gives up with a clear message, everything completed stored and the rest
+  pending for the next run (re-run to resume once the limit resets). Fewer
+  than 5 in a row (a blip) are re-planned at the end of the batch without
+  a pause. Ctrl-C during a pause cancels the held-back slots like any
+  interrupt.
+- `health` prints rows the old harness stored during an outage (a
+  `cli: exit 1` error with a zero-usage envelope) as the class `outage`,
+  separately from the JSON failures, and leaves them out of every rate;
+  `tables` leaves them out of `\voiNAttempts`, `\voiValidityRate`, the
+  member table and the `\voiMember*` macros for the same reason (sim2real
+  `g001`: 227 billed attempts at 98.2% validity, not 279 at 79.9%).
+
 Paid work is never discarded: on Ctrl-C or any error in the main thread the
 pending slots are cancelled, no retry is launched (a retry's backoff is cut
 short), the running calls are awaited and their results stored, and the
@@ -316,9 +350,56 @@ the binary-only analyses of `extra` are skipped with a printed reason):
    efficiency, log-log, by group), `fig_derived_pst.pdf` (derived vs
    elicited `p, s, t`), `consistency_gauss.tex` (the residual distributions
    and their Spearman with the cross-repeat spread of the quantity they
-   check) and `macros_compare.tex` (`\voiGaussRhoQuad`, `\voiGaussRhoKg`,
+   check, plus the derived-vs-elicited `p, s, t` table with the mean signed
+   difference derived minus elicited, `\voiGaussBiasP/S/T`) and
+   `macros_compare.tex` (`\voiGaussRhoQuad`, `\voiGaussRhoKg`,
    `\voiGaussRhoStep`, `\voiGaussRhoStepfix`, `\voiGaussTopOverlapStepfix`,
    `\voiGaussRhoP/S/T`, `\voiGaussGateAgree`, `\voiGaussN`).
+
+### Cross-family comparison extensions (v2.3)
+
+`compare_models` also writes, over the members the two selected runs pooled
+(pass `--binary p003` to match the three-member `g001` member for member;
+`p001` has haiku only):
+
+- `compare_members.tex`, the member-matched matrix: for every member that
+  elicited both protocols, the Spearman of median efficiency between that
+  member's binary ranking and that member's Gaussian ranking, per action
+  model, plus a pooled-vs-pooled row for the two selected runs. A member's
+  ranking is read from its stored subset run when one exists
+  (`mc --members provider:model` under each protocol; a single-member
+  protocol's all-member run counts) and otherwise re-drawn locally from that
+  member's fits alone with the selected run's seed and draw count, as the
+  member-agreement analysis of `extra` does; the source column and the
+  caption say which. Macros `\voiGaussRhoMember<Model><Member>` (e.g.
+  `\voiGaussRhoMemberStepfixHaiku`; the member part is the model name's
+  letters, capitalised) and `\voiGaussNMembersMatched`.
+- `compare_plugin.tex` + `fig_compare_plugin.pdf`, the threshold-robust
+  comparison: the binary plug-in efficiency at the pooled medians of
+  `p, s, t, B, K, C` (the `plugin.tex` point) against the Gaussian plug-in
+  efficiency per action model at the pooled medians of
+  `d, x, k, L, kappa sigma0, B, K, sigma_b/sigma0, C`, and the two
+  threshold-free values, the fence `EVSI* = (B + K) p (1 - p) (s + t - 1)`
+  against the quad value `L R^2` (the `k = 2` loss, bias-corrected `R^2`),
+  as values and as efficiencies over each protocol's own median `C`;
+  Spearman, Kendall and top-k overlap each. The figure is log-log (zeros
+  floored, open markers). Macros `\voiGaussPluginRho/Tau/TopOverlap<Model>`,
+  `\voiFenceQuadRho/Tau/TopOverlap` (values), `\voiFenceQuadEffRho/...`
+  (efficiencies), `\voiGaussPluginN`.
+- `compare_noise.tex`, the joint noise table: per shared member at matched
+  k (the first 3 valid repeats of each scenario, as
+  `protocol_noise_matched.tex`), the median cross-repeat spread of
+  `p, s, t, B, K, C` next to that of `d` (max - min in prior-sd units),
+  `x, k, L, kappa sigma0, B, K, C`, and final rows with the ratio of the
+  median USD spreads, Gaussian over binary (`L` over `B`, macros
+  `\voiGaussNoiseRatio<Member>`; `K` over `K`; `C` over `C`): below 1 the
+  Gaussian question is the more reproducible at the same elicitor.
+
+The tests (`tests/test_compare_ext.py`) check the re-drawn member ranking
+against a stored subset run made afterwards with the same seed (identical
+to 1e-9), the plug-in points against the closed forms, and run the whole
+module on copies of the committed `sim2real` and `ai-safety-evals`
+databases.
 
 ## OpenRouter
 
