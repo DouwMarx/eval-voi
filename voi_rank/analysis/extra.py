@@ -1361,16 +1361,19 @@ def member_k_used(con, protocol_id: int, member: dict) -> int:
     return max(member_repeat_counts(con, protocol_id, member).values(), default=0)
 
 
-def member_noise(con, protocol_id: int, member: dict, first: int | None) -> tuple[dict, dict]:
+def member_noise(con, protocol_id: int, member: dict, first: int | None,
+                 names: list[str] | None = None) -> tuple[dict, dict]:
     """({param: median cross-repeat spread}, {param: n units with >= 2
-    repeats}) for one member, optionally truncated to the first `first`
-    valid repeats of each unit (in repeat_ix order). A unit is a scenario,
-    or a group for a decision-stage parameter of a staged protocol (its rows
-    sit once per group, on the representative), so the counts differ per
-    parameter there: p, B, K over 2 groups, s, t, C over 15 scenarios."""
+    repeats}) for one member over `names` (the binary parameters by
+    default; a Gaussian protocol's quantities when given), optionally
+    truncated to the first `first` valid repeats of each unit (in repeat_ix
+    order). A unit is a scenario, or a group for a decision-stage parameter
+    of a staged protocol (its rows sit once per group, on the
+    representative), so the counts differ per parameter there: p, B, K over
+    2 groups, s, t, C over 15 scenarios."""
     med, n = {}, {}
     label = [db.member_label(member)]
-    for name in db.PARAM_NAMES:
+    for name in db.PARAM_NAMES if names is None else names:
         # the scenarios carrying the parameter for this member (group
         # representatives for a decision-stage parameter of a staged protocol)
         spreads = [sp for sid in db.param_scenario_ids(con, protocol_id, name, label)
