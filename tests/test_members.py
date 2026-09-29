@@ -239,7 +239,7 @@ def test_analysis_clis_select_the_subset_run(built, capsys):
     assert "plugin: skipped" not in out and "member_agreement" not in out.split("wrote")[0]
     agreement = (study.generated_dir / "member_agreement.tex").read_text()
     assert "haiku" not in agreement and "sonnet" in agreement and "opus" in agreement
-    plugin = (study.generated_dir / "plugin.tex").read_text()
+    plugin = (study.generated_dir / "plugin_mc.tex").read_text()
     assert f"draws of run {sub}, replayed" in plugin
     st = extra.plugin_stats(con, run)
     assert st["rows"][0]["medians"]["p"] == p_sub

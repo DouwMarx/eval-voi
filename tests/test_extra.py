@@ -181,12 +181,13 @@ def test_level_uplift_stats_figure_and_table(built, con, out):
     assert extra.write_level_uplift(con, run, out, an)
     assert (out / "fig_level_uplift.pdf").stat().st_size > 0
     tex = (out / "level_uplift.tex").read_text()
-    crn, other = tex.split(r"\par\medskip")
+    crn, means, other = tex.split(r"\par\medskip")
     assert crn.count(r"\\") == 1 + 6 + 2  # header, 6 steps, 2 group headings
-    assert other.count(r"\\") == 1 + 6 + 2   # the mean, plug-in and fence marginals of the same steps
+    assert means.count(r"\\") == other.count(r"\\") == 1 + 6 + 2   # the same steps by other statistics
     assert r"\emph{home manipulator}" in crn and r"0$\to$1 &" in crn and other.count(r"0$\to$1 &") == 1
     assert r"$P(\Delta C>0)$" in crn and "within one decision" in crn and "ratio of those medians" in crn
-    assert r"$\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$" in other and "mean-based" in other
+    assert "mean-based" in means and means.count(r"0$\to$1 &") == 1
+    assert r"$\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$" in other and "bootstrap over elicitations" in other
     assert r"\toprule" in tex and r"\bottomrule" in tex
     # the plug-in and fence marginals sit at the ladder-pooled p, B, K (the caption says so, and
     # that fig_level_fence / plugin.tex use each scenario's own medians)
@@ -805,14 +806,26 @@ def test_plugin_equals_voi_at_the_pooled_medians(built, con, out, protocol):
     assert (out / "fig_plugin.pdf").stat().st_size > 0
     tex = (out / "plugin.tex").read_text()
     table, summary = tex.split(r"\par\medskip")
-    assert table.startswith("\\begin{longtable}{@{}rrrrrrrrrlrrrr@{}}\n\\caption{Plug-in vs Monte Carlo")
+    # footnotesize, 13 columns: the Monte Carlo columns moved to plugin_mc.tex so it fits the page
+    assert table.startswith("\\begingroup\\footnotesize\\setlength{\\tabcolsep}{3pt}\n"
+                            "\\begin{longtable}{@{}rrrrrrrrrrrlr@{}}\n\\caption{Plug-in values")
+    assert table.rstrip().endswith("\\end{longtable}\n\\endgroup")
     assert r"\label{tab:plugin}" in table and r"\endfirsthead" in table and r"\endfoot" in table
     assert table.count(r"\\") == 3 + 9 and table.count("& gate &") == 8 and table.count("& always &") == 1
     assert f"\n1 & {order[0]} & " in table and f"\n9 & {order[-1]} & " in table
-    assert "the catalog's $C$ is the run's mixture" in table
+    assert "the catalog's $C$ is the run's mixture" in table and r"\ref" not in table   # stands alone
     assert "$p$ &" not in table   # the catalog's p, s, t, B, K columns are not repeated
-    assert f"draws of run {run['id']}, replayed from the DB" in table
-    assert table.count(" & ") == 13 * (2 + 9)   # 14 columns in each header and row
+    assert "replayed" not in table and "bootstrap over elicitations, 2000 replicates" in table
+    assert table.count(" & ") == 12 * (2 + 9)   # 13 columns in each header and row
+    mc_table = (out / "plugin_mc.tex").read_text()
+    assert mc_table.startswith("\\begin{longtable}{@{}rrrrrrr@{}}\n\\caption{Monte Carlo summaries")
+    assert r"\label{tab:plugin-mc}" in mc_table and r"\ref" not in mc_table
+    assert f"draws of run {run['id']}, replayed from the DB" in mc_table
+    assert mc_table.count(" & ") == 6 * (2 + 9)   # 7 columns in each header and row
+    for r in st["rows"]:   # same order as plugin.tex, each row carrying its Monte Carlo summaries
+        assert (f"\n{r['rank']} & {r['sid']} & {extra.num(r['eff'])} & {extra.num(r['mc_median'])} &"
+                f" {extra.num(r['mc_mean'])} & {extra.pct(r['p_positive'])} & {extra.pct(r['p_gate'])}\\\\"
+                in mc_table)
     assert "scenarios in gate at the medians & 8 / 9" in summary
     assert f"MC median EVSI $= 0$ & {st['n_zero_median']} / 9" in summary
     assert f"top-5 overlap, plug-in vs MC median & {st['top_overlap']} / 5" in summary
@@ -927,7 +940,7 @@ def test_plugin_fence_columns_and_macros(built, con, out, protocol):
     assert extra.write_plugin(con, run, out, st)
     tex = (out / "plugin.tex").read_text()
     table, summary = tex.split(r"\par\medskip")
-    assert "EVSI$^\\star$ & eff & eff$^\\star$ & EVSI/EVSI$^\\star$ &" in table
+    assert "EVSI$^\\star$ & eff & [q05, q95] & eff$^\\star$ & [q05, q95] & EVSI/EVSI$^\\star$ &" in table
     assert "the buyer on the fence" in table and table.count(" & 0.00 & always &") == 1
     assert (f"Spearman $\\rho$(fence eff$^\\star$, plug-in eff), EVSI $>$ 0 & {st['fence_rho']:.2f}"
             " ($n$=8)") in summary
@@ -973,9 +986,10 @@ def test_level_uplift_marginals_are_differences_of_the_per_rung_plugin_values(bu
             assert s["meff_mean"] == pytest.approx(s["dEVSI_mean"] / s["dC_mean"], rel=1e-12)
             assert s["dC_plug"] > 0 and s["dC_mean"] > 0   # cost quadruples per rung
     assert extra.fig_level_uplift(con, run, out, an) and extra.write_level_uplift(con, run, out, an)
-    other = (out / "level_uplift.tex").read_text().split(r"\par\medskip")[1]
+    _, means, other = (out / "level_uplift.tex").read_text().split(r"\par\medskip")
     s0 = an["steps"]["AV AEB"][0]
-    assert f"1$\\to$3 & {s0['lo_id']}$\\to${s0['hi_id']} & {extra.money(s0['dEVSI_mean'])} &" in other
+    assert f"1$\\to$3 & {s0['lo_id']}$\\to${s0['hi_id']} & {extra.money(s0['dEVSI_mean'])} &" in means
+    assert f"1$\\to$3 & {s0['lo_id']}$\\to${s0['hi_id']} & {extra.money(s0['dEVSI_plug'])} &" in other
     assert f"& {extra.money(s0['dEVSI_star'])} & {extra.num(s0['meff_star'])}\\\\" in other
     assert extra.plugin_step_stats({"EVSI": 1.0, "EVSI_star": 2.0, "C": 5.0},
                                    {"EVSI": 3.0, "EVSI_star": 5.0, "C": 5.0}) == {
@@ -1079,7 +1093,9 @@ def test_fragments_compile_in_corl_template(built, tmp_path):
         "\\input{generated/" + f + "}" if r"\begin{longtable}" in (gen / f).read_text() else
         "\\begin{table}[h]\\centering\\caption{" + f.replace("_", " ") + "}"
         "\\input{generated/" + f + "}\\end{table}" for f in tex_files)
-    assert body.count("\\begin{table}") == len(tex_files) - 1
+    longtables = ["plugin.tex", "plugin_mc.tex", "plugin_ranks.tex"]
+    assert all(f in tex_files for f in longtables)
+    assert body.count("\\begin{table}") == len(tex_files) - len(longtables)
     macros = " ".join(
         "\\" + line.split("{")[1].lstrip("\\").rstrip("}") for line in
         (gen / "macros_extra.tex").read_text().splitlines())

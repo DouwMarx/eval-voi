@@ -575,8 +575,8 @@ def test_tagged_outputs_have_their_own_dir_and_macro_prefix(two_member_study, tm
                   "compare_plugin.tex", "fig_compare_plugin.pdf", "compare_noise.tex"):
             assert (gen / tag / f).stat().st_size > 0, (tag, f)
     assert "claude\\_cli:sonnet" not in (gen / "baseline" / "compare_noise.tex").read_text()
-    for name in ("catalog", "ranking", "plugin"):
-        f, label = f"{name}.tex", f"tab:{name}"
+    for name in ("catalog", "ranking", "plugin", "plugin_mc", "plugin_ranks"):
+        f, label = f"{name}.tex", f"tab:{name.replace('_', '-')}"
         assert f"\\label{{{label}}}" in (plain / f).read_text(), f   # untagged: unchanged
         for tag in ("headline", "baseline"):
             assert f"\\label{{{label}-{tag}}}" in (gen / tag / f).read_text(), (tag, f)
@@ -602,11 +602,13 @@ def test_tagged_outputs_have_their_own_dir_and_macro_prefix(two_member_study, tm
         f"\\begin{{table}}[h]\\centering\\input{{generated/{tag}/{f}}}\\end{{table}}\\clearpage"
         for tag in ("headline", "baseline")
         for f in ("compare_plugin.tex", "compare_noise.tex", "compare_members.tex"))
-    # the longtable fragments (catalog, ranking, plugin) are input outside a float
+    # the longtable fragments (catalog, ranking, plugin, plugin_mc, plugin_ranks) are input
+    # outside a float
     longtables = "".join(f"\\input{{generated/{tag}/{f}}}\\clearpage" for tag in ("headline", "baseline")
-                         for f in ("catalog.tex", "ranking.tex", "plugin.tex"))
+                         for f in ("catalog.tex", "ranking.tex", "plugin.tex", "plugin_mc.tex",
+                                   "plugin_ranks.tex"))
     refs = " ".join(f"\\ref{{tab:{t}-{tag}}}" for tag in ("headline", "baseline")
-                    for t in ("catalog", "ranking", "plugin"))
+                    for t in ("catalog", "ranking", "plugin", "plugin-mc", "plugin-ranks"))
     (doc / "main.tex").write_text(
         "\\documentclass{article}\\usepackage{booktabs,longtable,amsmath,amssymb,graphicx}"
         f"{inputs}\\begin{{document}}\n\\sloppy Macros: {uses}. Tables {refs}.\n{tables_tex}\n{longtables}\n"

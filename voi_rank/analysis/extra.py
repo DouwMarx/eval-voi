@@ -19,9 +19,14 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    per-rung plug-in values: model.voi at the ladder's pooled medians of p, B,
    K and the rung's medians of s, t, C, and the rung's median C) and the
    FENCE ones (differences of the per-rung fence value EVSI* = Lambda p (1 -
-   p) (s + t - 1) at the same medians, over the plug-in dC). The figure's
-   bottom panel shows the plug-in and fence marginal efficiencies per step,
-   with the CRN median ratio and P(dEVSI > dC) as a label.
+   p) (s + t - 1) at the same medians, over the plug-in dC), and for the
+   plug-in marginal the q05-q95 of dEVSI / dC and P(dEVSI > dC) under the
+   bootstrap over elicitations (item 9; a staged ladder's rungs share one
+   decision resample per replicate). Three tabulars: the CRN medians and
+   probabilities, the CRN means, the plug-in (with the bootstrap) and fence
+   marginals. The figure's bottom panel shows the plug-in (bar: its
+   bootstrap q05-q95) and fence marginal efficiencies per step, with the CRN
+   median ratio and P(dEVSI > dC) as a label.
 1b. fig_level_fence.pdf: per group of leveled scenarios, EVSI* (fence), EVSI
    (plug-in) and C at each scenario's pooled medians against its level.
 2. fig_within_group_consistency.pdf + consistency.tex: for groups whose
@@ -53,8 +58,10 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    pooled per scenario, min..max where scenarios differ), plus the Spearman
    compare matrix between the latest v2 runs of every protocol pair (a run
    the v2 analyses refuse, db.run_predates_v2, is skipped).
-7. plugin.tex + fig_plugin.pdf + macros in macros_extra.tex: the plug-in
-   summary next to the Monte Carlo one, a longtable like catalog.tex. Per
+7. plugin.tex + plugin_mc.tex + fig_plugin.pdf + macros in macros_extra.tex:
+   the plug-in summary (plugin.tex, a footnotesize longtable) with its
+   bootstrap intervals (item 9) and the Monte Carlo one (plugin_mc.tex, a
+   second longtable in the same row order), like catalog.tex. Per
    scenario (in the run's median efficiency order): EVSI, EVPI and
    efficiency from model.voi at the pooled elicited medians of p, s, t, B, K,
    C (median of the p50 across valid elicitations, as tables.write_catalog
@@ -64,7 +71,8 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    respond / never respond, from the threshold pi* = K / (B + K) against the
    posteriors pi1, pi0), the run's median and MEAN efficiency (the mean over
    the run's draws, replayed from the DB and verified against the stored
-   quantiles), P(EVSI > C) and P(EVSI > 0) over the draws. The figure
+   quantiles), P(EVSI > C) and P(EVSI > 0) over the draws (P_gate, not the
+   bootstrap's P_boot(gate), which resamples elicitations). The figure
    compares the three rankings pairwise (rank scatter, Spearman annotated).
    The elicited stakes vary several-fold across repeats, so the mixture can
    close the gate in more than half the draws (median EVSI 0) where the
@@ -79,11 +87,28 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    EVSI against the pooled-median C (log-log), coloured by group, shaped
    by attributes.risk_domain when present; scenarios outside the gate at
    the y floor (open), the fence value EVSI* on a thin stem above each
-   point (decision value against fence value), iso-efficiency diagonals.
-   Needs no replay. Binary runs only.
+   point (decision value against fence value), iso-efficiency diagonals,
+   and the bootstrap q05-q95 of the plug-in EVSI (vertical) and of C
+   (horizontal) as light bars. Needs no replay. Binary runs only.
+9. plugin_ranks.tex + the \voiBoot* macros: the bootstrap over elicitations
+   (bootstrap_draws). One replicate resamples every scenario's valid
+   elicitations of the run's members with replacement within each member
+   (each member keeps its count), recomputes the pooled median of every
+   parameter (pooled_p50's rule) and the plug-in EVSI, EVPI, eff, EVSI*,
+   eff* and regime at them; a staged protocol's decision stage is resampled
+   once per group and replicate and read by every scenario of the group.
+   N_BOOT = 2000 replicates (--boot), rng default_rng(run seed +
+   BOOT_SEED_OFFSET). plugin.tex gains the q05-q95 of eff and eff* and
+   P_boot(gate); plugin_ranks.tex gives per scenario the point, median and
+   q05-q95 of its replicate rank by plug-in eff and by fence eff* and
+   P(rank <= 3); \voiBootN, \voiBootTopOneId, \voiBootTopOneStable (share of
+   replicates in which the point top-1 by plug-in eff stays top-1),
+   \voiBootRhoEff and \voiBootRhoFence (median over replicates of the
+   Spearman between the replicate and the point ranking). The point of every
+   replicate statistic is plugin_point exactly. Needs no replay.
 
 Usage: python -m voi_rank.analysis.extra --study PATH [--protocol p001] [--run ID]
-       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME]
+       [--members claude_cli:sonnet,claude_cli:opus] [--tag NAME] [--boot N]
 (default: the latest all-member run of protocol p001; --members selects the
 latest run that pooled exactly that subset; --run overrides; prints
 'run <id> (protocol <name>[, members ...])' like figures.py. Every analysis
@@ -131,6 +156,7 @@ from voi_rank.study import (  # noqa: E402
 
 ACCENT = "#0072B2"
 INTERVAL = "#9aa5b1"
+BOOT_BAR = "#d3d9df"          # the bootstrap bars of the plug-in map: light, behind the stems
 CATEGORICAL = ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7",
                "#56B4E9", "#F0E442", "#000000"]
 MARKERS = ["o", "s", "^", "D", "v", "P", "X", "*"]
@@ -162,6 +188,8 @@ MATCHED_K = 3
 TOP_N_MEMBER = 5
 TOP_N_OVERLAP = 10
 TOP_N_PLUGIN = 5
+# fig_level_uplift: x offset of the plug-in (left) and fence (right) marginals around a step's midpoint
+STEP_OFFSET = 0.08
 # replay verification (mirrors mc.py): the stored efficiency summary a replay must reproduce
 REPLAY_RTOL = 1e-9
 SUMMARY_QS = (0.05, 0.25, 0.50, 0.75, 0.95)
@@ -183,8 +211,9 @@ OUTPUTS = {
     "domain_map": ("fig_domain_map.pdf", "domain_summary.tex"),
     "member_agreement": ("fig_member_agreement.pdf", "member_agreement.tex"),
     "simplicity": ("simplicity.tex", "macros_extra.tex"),
-    "plugin": ("fig_plugin.pdf", "plugin.tex", "macros_extra.tex"),
+    "plugin": ("fig_plugin.pdf", "plugin.tex", "plugin_mc.tex", "macros_extra.tex"),
     "plugin_map": ("fig_plugin_map.pdf",),
+    "plugin_ranks": ("plugin_ranks.tex", "macros_extra.tex"),
     "protocol_noise_matched": ("protocol_noise_matched.tex",),
 }
 MACROS_FILE = "macros_extra.tex"
@@ -211,7 +240,7 @@ def money(v) -> str:
 def num(v, fmt: str = "{:.3g}") -> str:
     if v is None or (isinstance(v, float) and not np.isfinite(v)):
         return "--"
-    return fmt.format(v)
+    return fmt.format(v + 0.0 if v == 0 else v)   # never '-0'
 
 
 def pct(v) -> str:
@@ -227,16 +256,22 @@ def tabular(colspec: str, header: str, rows: list[str], caption: str | None = No
     return (f"% {caption}\n" + text) if caption else text
 
 
-def longtable(colspec: str, header: str, rows: list[str], caption: str, label: str) -> str:
+def longtable(colspec: str, header: str, rows: list[str], caption: str, label: str,
+              small: bool = False) -> str:
     """A booktabs longtable fragment with the head and foot of
     tables.write_catalog (rows already joined with &, no \\\\); the caption is
-    part of the fragment, so the report inputs it outside any float."""
-    lines = [r"\begin{longtable}{" + colspec + "}",
+    part of the fragment, so the report inputs it outside any float. small
+    sets it (caption included) in footnotesize with a 3pt column gap, inside
+    a group, for a table too wide for the text width otherwise."""
+    lines = [r"\begingroup\footnotesize\setlength{\tabcolsep}{3pt}"] if small else []
+    lines += [r"\begin{longtable}{" + colspec + "}",
              r"\caption{" + caption + r"}\label{" + label + r"}\\",
              r"\toprule", header + r"\\", r"\midrule\endfirsthead",
              r"\toprule " + header + r"\\\midrule\endhead", r"\bottomrule\endfoot"]
     lines += [r + r"\\" for r in rows]
     lines.append(r"\end{longtable}")
+    if small:
+        lines.append(r"\endgroup")
     return "\n".join(lines) + "\n"
 
 
@@ -569,24 +604,34 @@ def ladder_plugin(con, run, rungs: list[tuple[float, int]]) -> dict[int, dict] |
     return out
 
 
-def level_uplift_analysis(con, run) -> dict:
+def level_uplift_analysis(con, run, boot: dict | None = None) -> dict:
     """{"rungs": {group: [(level, sid)]}, "draws": {group: ladder_draws},
+    "plugin": {group: ladder_plugin}, "boot": {group: ladder_bootstrap},
     "steps": {group: [step dict with lo/hi ids and levels]}, "skipped":
-    {group: reason}} over the run's ladders."""
+    {group: reason}} over the run's ladders. boot: the bootstrap_draws of
+    the run (drawn here when not passed); each step carries the bootstrap
+    interval of its plug-in marginal (boot_step_stats)."""
     ladders, skipped = leveled_rungs(con, run)
-    out = {"rungs": {}, "draws": {}, "plugin": {}, "steps": {}, "skipped": skipped}
+    out = {"rungs": {}, "draws": {}, "plugin": {}, "boot": {}, "steps": {}, "skipped": skipped}
+    if ladders and boot is None:
+        boot = bootstrap_draws(con, run)
+    if boot is not None:
+        out["n_boot"] = boot["n_boot"]
     for g, rungs in ladders.items():
         draws = ladder_draws(con, run, rungs)
         plug = ladder_plugin(con, run, rungs)
         if draws is None or plug is None:
             skipped[g] = "a rung has no complete valid elicitations under the run's protocol"
             continue
+        lb = ladder_bootstrap(boot, rungs)
         steps = []
         for (l0, a), (l1, b) in zip(rungs, rungs[1:], strict=False):
             steps.append({"lo_id": a, "hi_id": b, "lo_level": l0, "hi_level": l1,
                           **step_stats(draws["rungs"][a], draws["rungs"][b]),
-                          **plugin_step_stats(plug[a], plug[b])})
+                          **plugin_step_stats(plug[a], plug[b]),
+                          **(boot_step_stats(lb[a], lb[b]) if lb is not None else BOOT_STEP_NAN)})
         out["rungs"][g], out["draws"][g], out["plugin"][g], out["steps"][g] = rungs, draws, plug, steps
+        out["boot"][g] = lb
     return out
 
 
@@ -625,12 +670,18 @@ def fig_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
             top.legend(fontsize=6.5, frameon=False, loc="upper left")
         steps = stats[g]
         xs = np.array([(s["lo_level"] + s["hi_level"]) / 2 for s in steps])
-        # plug-in (differences of the per-rung values at the medians), fence
-        # (dEVSI* over the plug-in dC) and the CRN ratio of medians; a step
-        # whose dC is not positive gets an open marker
-        series = (("meff_plug", "dC_plug", "o", ACCENT, "plug-in", 0.0),
-                  ("meff_star", "dC_plug", "^", CATEGORICAL[2], "fence EVSI*", 0.0),
+        # plug-in (differences of the per-rung values at the medians) with its
+        # bootstrap q05-q95 as a bar, fence (dEVSI* over the plug-in dC) and
+        # the CRN ratio of medians, side by side; a step whose dC is not
+        # positive gets an open marker
+        series = (("meff_plug", "dC_plug", "o", ACCENT, "plug-in (bar: bootstrap q05-q95)", -STEP_OFFSET),
+                  ("meff_star", "dC_plug", "^", CATEGORICAL[2], "fence EVSI*", STEP_OFFSET),
                   ("meff", "dC_q50", "s", "#7f7f7f", "CRN median ratio", 0.0))
+        lo = np.array([s["meff_plug_q05"] for s in steps])
+        hi = np.array([s["meff_plug_q95"] for s in steps])
+        ok = np.isfinite(lo) & np.isfinite(hi)
+        bot.vlines(xs[ok] - STEP_OFFSET, lo[ok], hi[ok], color=ACCENT, lw=0.8, alpha=0.45, zorder=1,
+                   gid="boot_meff")
         for key, dc_key, marker, color, label, off in series:
             vals = np.array([s[key] for s in steps])
             ok = np.isfinite(vals)
@@ -641,7 +692,7 @@ def fig_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
         for x, s in zip(xs, steps, strict=True):
             y = s["meff_plug"] if np.isfinite(s["meff_plug"]) else s["meff"]
             if np.isfinite(y):
-                bot.annotate(f"{s['p_pays']:.0%}", (x, y), textcoords="offset points",
+                bot.annotate(f"{s['p_pays']:.0%}", (x - STEP_OFFSET, y), textcoords="offset points",
                              xytext=(0, 5), ha="center", fontsize=5.5, color="#555555")
         bot.axhline(1.0, color="#555555", lw=0.8, ls="--")
         bot.set_yscale("symlog", linthresh=0.1)
@@ -654,32 +705,41 @@ def fig_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
     handles, labels_ = axes[1][0].get_legend_handles_labels()
     fig.legend(handles, labels_, loc="outside lower center", ncol=3, fontsize=6.5, frameon=False)
     fig.suptitle("Top: value and cost per rung (CRN draws: median, q05-q95). Bottom: marginal efficiency"
-                 " per step,\nplug-in (dEVSI/dC of the per-rung values at the pooled medians), fence"
-                 " (dEVSI*/dC, EVSI* = (B+K) p (1-p) (s+t-1))\nand the CRN ratio of medians; labels:"
-                 " CRN P(dEVSI > dC); open markers: dC <= 0", fontsize=7)
+                 " per step:\nplug-in dEVSI/dC of the per-rung values at the pooled medians (bar: its"
+                 " bootstrap q05-q95),\nfence dEVSI*/dC with EVSI* = (B+K) p (1-p) (s+t-1), and the CRN"
+                 " ratio of medians;\nlabels: CRN P(dEVSI > dC); open markers: dC <= 0", fontsize=7)
     fig.savefig(out / "fig_level_uplift.pdf")
     plt.close(fig)
     return True
 
 
 def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
-    stats = level_uplift_stats(con, run, analysis)
+    """level_uplift.tex: three tabulars over the same steps, each within the
+    text width: the CRN medians and probabilities, the CRN means, and the
+    plug-in marginals with their bootstrap interval next to the fence
+    marginals (the last two at the ladder-pooled p, B, K)."""
+    analysis = analysis or level_uplift_analysis(con, run)
+    stats = analysis["steps"]
     if not stats:
         return False
-    rows, rows2 = [], []
+    rows, rows_mean, rows_plug = [], [], []
     for g, steps in stats.items():
         rows.append(r"\multicolumn{8}{@{}l}{\emph{" + esc(g) + "}}")
-        rows2.append(r"\multicolumn{10}{@{}l}{\emph{" + esc(g) + "}}")
+        rows_mean.append(r"\multicolumn{5}{@{}l}{\emph{" + esc(g) + "}}")
+        rows_plug.append(r"\multicolumn{9}{@{}l}{\emph{" + esc(g) + "}}")
         for s in steps:
             step = (f"{level_label(s['lo_level'])}$\\to${level_label(s['hi_level'])} &"
                     f" {s['lo_id']}$\\to${s['hi_id']}")
             rows.append(
                 f"{step} & {money(s['dEVSI_q50'])} & {money(s['dC_q50'])} &"
                 f" {num(s['meff'])} & {pct(s['p_dc_pos'])} & {pct(s['p_gain'])} & {pct(s['p_pays'])}")
-            rows2.append(
-                f"{step} & {money(s['dEVSI_mean'])} & {money(s['dC_mean'])} & {num(s['meff_mean'])} &"
-                f" {money(s['dEVSI_plug'])} & {money(s['dC_plug'])} & {num(s['meff_plug'])} &"
-                f" {money(s['dEVSI_star'])} & {num(s['meff_star'])}")
+            rows_mean.append(
+                f"{step} & {money(s['dEVSI_mean'])} & {money(s['dC_mean'])} & {num(s['meff_mean'])}")
+            boot_ci = interval((s["meff_plug_q05"], s["meff_plug_q95"])) + (
+                r"$^\dagger$" if sign_unstable(s) else "")
+            rows_plug.append(
+                f"{step} & {money(s['dEVSI_plug'])} & {money(s['dC_plug'])} & {num(s['meff_plug'])} &"
+                f" {boot_ci} & {pct(s['p_pays_plug'])} & {money(s['dEVSI_star'])} & {num(s['meff_star'])}")
     header = (r"step & ids & $\Delta$EVSI & $\Delta C$ & $\Delta$EVSI/$\Delta C$ &"
               r" $P(\Delta C>0)$ & $P(\Delta\mathrm{EVSI}>0)$ & $P(\Delta\mathrm{EVSI}>\Delta C)$")
     crn = tabular(
@@ -689,23 +749,32 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
         f" seeded like run {run['id']} (p, B, K drawn once per ladder from the pooled rung"
         " fits, s, t, C per rung; not the stored run's draws); medians of dEVSI and dC,"
         " dEVSI/dC is the ratio of those medians")
-    header2 = (r"step & ids & $\overline{\Delta\mathrm{EVSI}}$ & $\overline{\Delta C}$ &"
-               r" $\overline{\Delta\mathrm{EVSI}}/\overline{\Delta C}$ &"
-               r" $\Delta$EVSI$_\mathrm{pi}$ & $\Delta C_\mathrm{pi}$ &"
-               r" $\Delta$EVSI$_\mathrm{pi}/\Delta C_\mathrm{pi}$ &"
-               r" $\Delta$EVSI$^\star$ & $\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$")
-    other = tabular(
-        "@{}llrrrrrrrr@{}", header2, rows2,
-        "the same steps by three other statistics: mean-based (means of dEVSI and dC over the"
-        " same common-random-number draws and their ratio), plug-in (pi: differences of the"
-        " per-rung values at the pooled medians, p, B, K pooled over the ladder, s, t, C per"
-        " rung, EVSI from model.voi, C the rung's median) and fence (differences of the"
-        " per-rung EVSI* = (B + K) p (1 - p) (s + t - 1) at the same medians, over the"
-        " plug-in dC). Both use p, B, K pooled over the ladder, as the CRN draws do;"
-        " fig_level_fence and the EVSI* column of plugin.tex use each scenario's own"
-        " medians, so their per-rung values (and the sign of a step) can differ where"
-        " a single-stage protocol's p, B, K move across rungs")
-    _write(out, "level_uplift.tex", crn + "\\par\\medskip\n" + other)
+    means = tabular(
+        "@{}llrrr@{}",
+        r"step & ids & $\overline{\Delta\mathrm{EVSI}}$ & $\overline{\Delta C}$ &"
+        r" $\overline{\Delta\mathrm{EVSI}}/\overline{\Delta C}$", rows_mean,
+        "the same steps by the mean-based marginals: means of dEVSI and dC over the same"
+        " common-random-number draws and their ratio")
+    header_plug = (r"step & ids & $\Delta$EVSI$_\mathrm{pi}$ & $\Delta C_\mathrm{pi}$ &"
+                   r" $\Delta$EVSI$_\mathrm{pi}/\Delta C_\mathrm{pi}$ & [q05, q95] & $P_\mathrm{boot}$ &"
+                   r" $\Delta$EVSI$^\star$ & $\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$")
+    plug = tabular(
+        "@{}llrrrrrrr@{}", header_plug, rows_plug,
+        "the same steps by the plug-in marginals (pi: differences of the per-rung values at the"
+        " pooled medians, p, B, K pooled over the ladder, s, t, C per rung, EVSI from model.voi,"
+        " C the rung's median) with the bootstrap over elicitations"
+        f" ({analysis.get('n_boot', N_BOOT)} replicates seeded from the run's seed: each rung's"
+        " valid elicitations resampled within each member, p, B, K pooled over the resampled"
+        " rungs, a staged protocol's decision stage resampled once per replicate for the whole"
+        " group): [q05, q95] of dEVSI_pi / dC_pi over the replicates with dC_pi != 0 (a dagger"
+        f" marks a step whose dC_pi takes each sign in at least {BOOT_SIGN_FLAG:.0%} of them,"
+        " where the ratio straddles its pole) and P_boot = P(dEVSI_pi > dC_pi); and the fence"
+        " marginals (differences of the per-rung EVSI* = (B + K) p (1 - p) (s + t - 1) at the"
+        " same medians, over the plug-in dC). Both use p, B, K pooled over the ladder, as the"
+        " CRN draws do; fig_level_fence and the EVSI* column of plugin.tex use each scenario's"
+        " own medians, so their per-rung values (and the sign of a step) can differ where a"
+        " single-stage protocol's p, B, K move across rungs")
+    _write(out, "level_uplift.tex", "\\par\\medskip\n".join((crn, means, plug)))
     return True
 
 
@@ -1511,6 +1580,24 @@ def write_protocol_noise_matched(con, out: Path) -> bool:
 
 # --- 7. plug-in vs Monte Carlo ------------------------------------------------
 
+# regime code (gate_regime_codes) -> gate_regime's label
+REGIMES = ("in gate", "always respond", "never respond")
+
+
+def gate_regime_codes(p, s, t, B, K) -> np.ndarray:
+    """gate_regime over arrays: 0 in gate, 1 always respond, 2 never respond
+    (REGIMES), by the same float operations as the scalar rule."""
+    p, s, t, B, K = np.broadcast_arrays(*(np.asarray(v, dtype=float) for v in (p, s, t, B, K)))
+    P1 = p * s + (1.0 - p) * (1.0 - t)
+    P0 = 1.0 - P1
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pi1 = np.where(P1 > 0.0, p * s / P1, p)
+        pi0 = np.where(P0 > 0.0, p * (1.0 - s) / P0, p)
+    pi_star = K / (B + K)
+    lo, hi = np.minimum(pi0, pi1), np.maximum(pi0, pi1)
+    return np.where(pi_star <= lo, 1, np.where(pi_star >= hi, 2, 0))
+
+
 def gate_regime(p: float, s: float, t: float, B: float, K: float) -> str:
     """Where the decision sits at one parameter point: 'in gate' when the
     threshold pi* = K / (B + K) lies strictly between the two posteriors
@@ -1518,27 +1605,13 @@ def gate_regime(p: float, s: float, t: float, B: float, K: float) -> str:
     the action and EVSI > 0; 'always respond' when both posteriors are at or
     above pi*; 'never respond' when both are at or below it. A signal value
     of probability zero leaves the belief at the prior p."""
-    P1 = p * s + (1.0 - p) * (1.0 - t)
-    P0 = 1.0 - P1
-    pi1 = p * s / P1 if P1 > 0.0 else p
-    pi0 = p * (1.0 - s) / P0 if P0 > 0.0 else p
-    pi_star = K / (B + K)
-    lo, hi = min(pi0, pi1), max(pi0, pi1)
-    if pi_star <= lo:
-        return "always respond"
-    if pi_star >= hi:
-        return "never respond"
-    return "in gate"
+    return REGIMES[int(gate_regime_codes(p, s, t, B, K))]
 
 
-def plugin_point(con, run, sid: int) -> dict | None:
-    """model.voi at the pooled elicited medians of one scenario: {"medians":
-    {p, s, t, B, K, C}, "EVSI", "EVPI", "eff", "regime"}; None when a
-    parameter has no valid elicitation under the run's protocol."""
-    labels = db.run_member_labels(run)
-    med = {name: pooled_p50(con, run["protocol_id"], sid, name, labels) for name in db.PARAM_NAMES}
-    if any(v is None for v in med.values()):
-        return None
+def plugin_values(med: dict) -> dict:
+    """The plug-in point at one set of medians {p, s, t, B, K, C}: {"medians",
+    "EVSI", "EVPI", "eff", "regime", "EVSI_star", "eff_star", "C",
+    "fence_ratio"} (plugin_point, and the bootstrap's point estimate)."""
     evsi, evpi = model.voi(med["p"], med["s"], med["t"], med["B"], med["K"])
     star = float(model.voi_fence(med["p"], med["s"], med["t"], med["B"], med["K"]))
     return {"medians": med, "EVSI": float(evsi), "EVPI": float(evpi),
@@ -1546,6 +1619,17 @@ def plugin_point(con, run, sid: int) -> dict | None:
             "regime": gate_regime(med["p"], med["s"], med["t"], med["B"], med["K"]),
             "EVSI_star": star, "eff_star": star / med["C"], "C": med["C"],
             "fence_ratio": (float(evsi) / star if star > 0.0 else float("nan")) if evsi > 0.0 else 0.0}
+
+
+def plugin_point(con, run, sid: int) -> dict | None:
+    """model.voi at the pooled elicited medians of one scenario
+    (plugin_values); None when a parameter has no valid elicitation under
+    the run's protocol."""
+    labels = db.run_member_labels(run)
+    med = {name: pooled_p50(con, run["protocol_id"], sid, name, labels) for name in db.PARAM_NAMES}
+    if any(v is None for v in med.values()):
+        return None
+    return plugin_values(med)
 
 
 def replay_run(con, run) -> tuple[dict[int, dict[str, float]] | None, str | None]:
@@ -1681,22 +1765,39 @@ def fig_plugin(con, run, out: Path, st: dict | None = None) -> bool:
     return True
 
 
-def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACRO_PREFIX) -> bool:
+def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACRO_PREFIX,
+                 pb: dict | None = None) -> bool:
+    """plugin.tex (the plug-in and fence values with their bootstrap
+    intervals, pb = plugin_bootstrap, drawn here when not passed, then the
+    summary of the three rankings) and plugin_mc.tex (the Monte Carlo
+    summaries of the same scenarios in the same order): two longtables that
+    each fit the page. The plug-in macros go to macros_extra.tex (merged)."""
     st = st or plugin_stats(con, run)
     if st is None:
         return False
-    rows = []
+    pb = pb or plugin_bootstrap(con, run)
+    boot = pb["rows"] if pb is not None else {}
+    undefined = (float("nan"),) * 3
+    rows, mc_rows = [], []
     for r in st["rows"]:
+        b = boot.get(r["sid"], {})
         rows.append(
             f"{r['rank']} & {r['sid']} & {money(r['medians']['C'])} & {money(r['EVSI'])} &"
-            f" {money(r['EVPI'])} & {money(r['EVSI_star'])} & {num(r['eff'])} & {num(r['eff_star'])} &"
-            f" {num(r['fence_ratio'], '{:.2f}')} & {REGIME_CELL[r['regime']]} &"
-            f" {num(r['mc_median'])} & {num(r['mc_mean'])} & {pct(r['p_positive'])} & {pct(r['p_gate'])}")
-    header = (r"rank & id & $C$ & EVSI & EVPI & EVSI$^\star$ & eff & eff$^\star$ & EVSI/EVSI$^\star$ &"
-              r" regime & $\mathrm{eff}_{q50}$ & $\overline{\mathrm{eff}}$ & $P_+$ & $P_\mathrm{gate}$")
+            f" {money(r['EVPI'])} & {money(r['EVSI_star'])} & {num(r['eff'])} &"
+            f" {interval(b.get('eff_q', undefined))} & {num(r['eff_star'])} &"
+            f" {interval(b.get('eff_star_q', undefined))} & {num(r['fence_ratio'], '{:.2f}')} &"
+            f" {REGIME_CELL[r['regime']]} & {pct(b.get('p_gate', float('nan')))}")
+        mc_rows.append(
+            f"{r['rank']} & {r['sid']} & {num(r['eff'])} & {num(r['mc_median'])} & {num(r['mc_mean'])} &"
+            f" {pct(r['p_positive'])} & {pct(r['p_gate'])}")
+    header = (r"rank & id & $C$ & EVSI & EVPI & EVSI$^\star$ & eff & [q05, q95] & eff$^\star$ &"
+              r" [q05, q95] & EVSI/EVSI$^\star$ & regime & $P_\mathrm{boot}$")
+    replicates = (f"{pb['n_boot']} replicates (seed {pb['seed']})" if pb is not None
+                  else "no replicates")
     table = longtable(
-        "@{}rrrrrrrrrlrrrr@{}", header, rows,
-        r"Plug-in vs Monte Carlo per scenario, in the order of the run's median efficiency (rank)."
+        "@{}rrrrrrrrrrrlr@{}", header, rows,
+        r"Plug-in values per scenario, in the order of the run's median efficiency (rank; the"
+        r" Monte Carlo summaries of the same rows, in the same order, are a companion table)."
         r" EVSI, EVPI and eff $=$ EVSI$/C$ are \texttt{model.voi} at the pooled elicited medians"
         r" of $p$, $s$, $t$, $B$, $K$ (the catalog's values) and $C$ (median of the p50 across"
         r" valid elicitations, printed here because the catalog's $C$ is the run's mixture"
@@ -1707,11 +1808,25 @@ def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACR
         r" Regime at the medians from $\pi^* = K/(B+K)$ against the posteriors"
         r" $\pi_1$, $\pi_0$: gate ($\pi^*$ strictly between them, EVSI $>$ 0), always / never"
         r" respond (both posteriors at or above / below $\pi^*$, EVSI $=$ 0)."
+        r" [q05, q95] after eff and eff$^\star$ and $P_\mathrm{boot} = P_\mathrm{boot}(\mathrm{gate})$"
+        r" come from the bootstrap over elicitations, " + replicates + r", each resampling every"
+        r" scenario's valid elicitations of the run's members with replacement within each member"
+        r" (keeping each member's count; a staged protocol's decision stage once per group) and"
+        r" recomputing the pooled medians and the values at them: the interval over the"
+        r" replicates, and the share of replicates in the gate. USD in $C$, EVSI, EVPI,"
+        r" EVSI$^\star$.", tex_label("tab:plugin", prefix), small=True)
+    mc_header = (r"rank & id & eff & $\mathrm{eff}_{q50}$ & $\overline{\mathrm{eff}}$ & $P_+$ &"
+                 r" $P_\mathrm{gate}$")
+    _write(out, "plugin_mc.tex", longtable(
+        "@{}rrrrrrr@{}", mc_header, mc_rows,
+        r"Monte Carlo summaries per scenario, in the order of the run's median efficiency"
+        r" (rank), next to the plug-in eff of the companion plug-in table (same rows and order)."
         r" $\mathrm{eff}_{q50}$: the run's stored median efficiency; $\overline{\mathrm{eff}}$:"
         f" the mean over the {run['n_draws']} draws of run {run['id']}, replayed from the DB and"
         r" verified against the stored quantiles; $P_+ = P(\mathrm{EVSI} > C)$ stored by the run;"
-        r" $P_\mathrm{gate} = P(\mathrm{EVSI} > 0)$ over the replayed draws. USD in $B$, $K$, $C$,"
-        r" EVSI, EVPI, EVSI$^\star$.", tex_label("tab:plugin", prefix))
+        r" $P_\mathrm{gate} = P(\mathrm{EVSI} > 0)$ over the replayed draws (the Monte Carlo"
+        r" draws, not the bootstrap's elicitation resamples behind"
+        r" $P_\mathrm{boot}(\mathrm{gate})$).", tex_label("tab:plugin-mc", prefix)))
     summary = tabular("@{}lr@{}", "statistic & value", [
         r"Spearman $\rho$(plug-in eff, MC median eff) & " + num(st["rho_plugin_median"], "{:.2f}"),
         r"Spearman $\rho$(plug-in eff, MC mean eff) & " + num(st["rho_plugin_mean"], "{:.2f}"),
@@ -1756,20 +1871,25 @@ def plugin_map_points(con, run) -> list[dict]:
     return rows
 
 
-def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None) -> bool:
+def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None, pb: dict | None = None) -> bool:
     """fig_plugin_map.pdf, the headline map at the pooled medians: plug-in
     EVSI (y, log) against the pooled-median C (x, log), one point per
     scenario, coloured by group and shaped by attributes.risk_domain when
     any scenario has one. A scenario outside the gate (always / never
     respond, EVSI = 0) sits at the y floor as an open marker. The fence
     value EVSI* at the same medians is a small hollow marker on a thin
-    stem from the plug-in point: decision value against fence value.
+    dotted stem from the plug-in point: decision value against fence
+    value. Thin grey bars give the q05-q95 of the plug-in EVSI (vertical)
+    and of C (horizontal) under the bootstrap over elicitations (pb =
+    plugin_bootstrap, drawn here when not passed; floored like the points).
     Iso-efficiency diagonals and the 'better' arrow as in
     figures.fig_evsi_vs_cost; every id labelled. Artists carry gid
-    'plugin' / 'fence' (the test reads the plotted values back)."""
+    'plugin' / 'fence' / 'stem' / 'boot_evsi' / 'boot_c' (the test reads
+    the plotted values back)."""
     rows = plugin_map_points(con, run) if rows is None else rows
     if not rows:
         return False
+    pb = pb or plugin_bootstrap(con, run)
     xs = np.array([r["C"] for r in rows])
     evsi = np.array([r["EVSI"] for r in rows])
     star = np.array([r["EVSI_star"] for r in rows])
@@ -1786,7 +1906,16 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None) -> bool:
     marker = {d: MARKERS[i % len(MARKERS)] if has_domain else "o" for i, d in enumerate(dom_names)}
 
     fig, ax = plt.subplots(figsize=(6.2, 4.6))
-    ax.vlines(xs, y, ystar, color=INTERVAL, lw=0.6, alpha=0.9, zorder=1, gid="stem")
+    boot_at = [(i, pb["rows"][r["sid"]]) for i, r in enumerate(rows)
+               if pb is not None and r["sid"] in pb["rows"]]
+    e_hi = c_lo = c_hi = np.array([])
+    if boot_at:
+        at = np.array([i for i, _ in boot_at])
+        e_lo, e_hi = (np.maximum([b["EVSI_q"][k] for _, b in boot_at], EVSI_FLOOR) for k in (0, 2))
+        c_lo, c_hi = (np.array([b["C_q"][k] for _, b in boot_at]) for k in (0, 2))
+        ax.vlines(xs[at], e_lo, e_hi, color=BOOT_BAR, lw=1.6, zorder=0.9, gid="boot_evsi")
+        ax.hlines(y[at], c_lo, c_hi, color=BOOT_BAR, lw=1.6, zorder=0.9, gid="boot_c")
+    ax.vlines(xs, y, ystar, color="#6f7a86", lw=0.6, ls=(0, (1, 1.5)), zorder=1, gid="stem")
     for g in grp_names:
         for d in dom_names:
             mask = np.array([a == g and b == d for a, b in zip(grp_of, dom_of, strict=True)])
@@ -1805,9 +1934,10 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None) -> bool:
                     ha="left" if i % 2 == 0 else "right", fontsize=6, color="#333333", zorder=4)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    xlim = np.array([xs.min() / 3, xs.max() * 3])
+    xlim = np.array([min(xs.min(), *c_lo) / 3, max(xs.max(), *c_hi) * 3])
     # the floor only when a point sits on it; 1.5 decades of headroom keep the arrow clear
-    ylim = np.array([EVSI_FLOOR / 2 if floored.any() else y.min() / 30, max(ystar.max(), EVSI_FLOOR) * 30])
+    ylim = np.array([EVSI_FLOOR / 2 if floored.any() else y.min() / 30,
+                     max(ystar.max(), *e_hi, EVSI_FLOOR) * 30])
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
     iso_efficiency_lines(ax, xlim, ylim)
@@ -1824,8 +1954,11 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None) -> bool:
     if floored.any():
         handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec="#555555",
                                   label="EVSI = 0 (at floor)"))
-    handles.append(plt.Line2D([], [], marker="o", ls="-", lw=0.6, color=INTERVAL, mfc="white",
+    handles.append(plt.Line2D([], [], marker="o", ls=(0, (1, 1.5)), lw=0.6, color="#6f7a86", mfc="white",
                               mec="#555555", ms=3.2, label="fence EVSI$^\\star$"))
+    if boot_at:
+        handles.append(plt.Line2D([], [], ls="-", lw=1.6, color=BOOT_BAR,
+                                  label=f"bootstrap q05-q95 ({pb['n_boot']} replicates)"))
     title = ("colour: group; marker: risk domain" if len(grp_names) > 1 and has_domain
              else "colour: group" if len(grp_names) > 1 else "marker: risk domain" if has_domain else None)
     ax.legend(handles=handles, fontsize=6, loc="lower right", frameon=False, title=title, title_fontsize=6)
@@ -1838,6 +1971,329 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None) -> bool:
     return True
 
 
+# --- 9. bootstrap over elicitations ------------------------------------------------
+
+N_BOOT = 2000                 # replicates (extra --boot overrides)
+BOOT_SEED_OFFSET = 1_000_003  # the bootstrap's rng: default_rng(run seed + this)
+BOOT_TOP_K = 3                # P(rank <= BOOT_TOP_K) in plugin_ranks.tex
+# a step's bootstrap ratio dEVSI/dC is flagged when dC takes each sign in at
+# least this share of replicates: the ratio then straddles its pole and its
+# q05-q95 are not an interval of anything (P(dEVSI > dC) still is)
+BOOT_SIGN_FLAG = 0.05
+
+
+def bootstrap_units(con, run) -> tuple[dict, dict[int, dict[str, tuple]]]:
+    """The resampling units of the run's valid elicitations (the run's
+    members only): ({key: {"names": [params], "members": [(label, n)],
+    "base": (N, k) p50 matrix, rows grouped by member in label order, then
+    repeat and id}}, {sid: {param: key}}). Single-stage protocol: one unit
+    per scenario, key ('scenario', sid), with its six parameters. Staged
+    protocol: the group stage's rows form one unit per group, key ('group',
+    value), whichever scenario of the group holds them (as db._elicited_rows
+    reads them, retired scenarios included), and the scenario stage's rows
+    one unit per scenario. A column holds exactly the p50s that pooled_p50
+    takes the median of; a parameter missing from an elicitation is NaN.
+    Scenarios whose every parameter has a unit with a value are mapped (the
+    ones plugin_point is defined for)."""
+    prot = con.execute("SELECT * FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
+    stages = db.protocol_stages(prot)
+    clause, margs = db.member_filter(db.run_member_labels(run))
+    rows = con.execute(
+        "SELECT e.id, e.scenario_id, e.stage, e.provider || ':' || e.model AS member, e.repeat_ix,"
+        " p.name, p.p50 FROM elicitations e JOIN parameters p ON p.elicitation_id = e.id"
+        f" WHERE e.protocol_id=? AND e.valid=1{clause}", (run["protocol_id"], *margs)).fetchall()
+    group_of: dict[int, str | None] = {}
+    if stages is not None:
+        gstage, sstage = db.group_stage(stages), db.scenario_stage(stages)
+        group_of = {r["id"]: db.scenario_group_value(r, gstage["group_key"])
+                    for r in con.execute("SELECT * FROM scenarios")}
+
+    def unit_of(r) -> tuple | None:
+        if stages is None:
+            return ("scenario", r["scenario_id"]) if r["name"] in db.PARAM_NAMES else None
+        if r["stage"] == gstage["name"] and r["name"] in gstage["params"]:
+            value = group_of.get(r["scenario_id"])
+            return None if value is None else ("group", value)
+        if r["stage"] == sstage["name"] and r["name"] in sstage["params"]:
+            return ("scenario", r["scenario_id"])
+        return None
+
+    elic: dict[tuple, dict[int, dict]] = {}
+    for r in rows:
+        key = unit_of(r)
+        if key is not None:
+            e = elic.setdefault(key, {}).setdefault(
+                r["id"], {"member": r["member"], "repeat": r["repeat_ix"], "p50": {}})
+            e["p50"][r["name"]] = float(r["p50"])
+    units = {}
+    for key, by_id in elic.items():
+        names = [n for n in db.PARAM_NAMES
+                 if (stages is None or n in (gstage if key[0] == "group" else sstage)["params"])]
+        order = sorted(by_id, key=lambda i: (by_id[i]["member"], by_id[i]["repeat"], i))
+        base = np.array([[by_id[i]["p50"].get(n, np.nan) for n in names] for i in order], dtype=float)
+        counts: dict[str, int] = {}
+        for i in order:
+            counts[by_id[i]["member"]] = counts.get(by_id[i]["member"], 0) + 1
+        units[key] = {"names": names, "members": list(counts.items()), "base": base}
+    of = {}
+    for sid in ranked_ids(con, run["id"]):
+        if stages is None:
+            keys = dict.fromkeys(db.PARAM_NAMES, ("scenario", sid))
+        else:
+            keys = {n: ("group", group_of.get(sid)) for n in gstage["params"]}
+            keys.update({n: ("scenario", sid) for n in sstage["params"]})
+        if all(k in units and np.isfinite(units[k]["base"][:, units[k]["names"].index(n)]).any()
+               for n, k in keys.items()):
+            of[sid] = keys
+    return units, of
+
+
+def resample_indices(rng, counts: list[int], n_boot: int) -> np.ndarray:
+    """(n_boot, sum(counts)) row indices into a unit's base matrix,
+    stratified by member: column block m (after the blocks of the members
+    before it) draws counts[m] indices with replacement from member m's own
+    rows, so every replicate keeps each member's count."""
+    blocks, offset = [], 0
+    for n in counts:
+        blocks.append(offset + rng.integers(0, n, size=(n_boot, n)))
+        offset += n
+    return np.concatenate(blocks, axis=1)
+
+
+def _median(values: np.ndarray, axis: int) -> np.ndarray:
+    """np.median (pooled_p50's rule), np.nanmedian only where a parameter is
+    missing from an elicitation."""
+    return (np.nanmedian if np.isnan(values).any() else np.median)(values, axis=axis)
+
+
+def bootstrap_draws(con, run, n_boot: int = N_BOOT) -> dict:
+    """The bootstrap over elicitations of a binary run. One replicate
+    resamples, for every unit of bootstrap_units, its valid elicitations with
+    replacement within each member of the run (keeping each member's
+    count), and takes the pooled median of every parameter over the
+    resample. A staged protocol's decision stage is one unit per group, so a
+    replicate resamples it once and every scenario of the group reads the
+    same resample. rng = default_rng(run seed + BOOT_SEED_OFFSET), consumed
+    in sorted unit-key order, members in label order: deterministic for a
+    given DB state. Returns {"n_boot", "seed", "units" (each with "idx",
+    the (n_boot, N) resample, "boot", the (n_boot, k) replicate medians,
+    and "point", the (k,) medians of all rows), "of" ({sid: {param: key}}),
+    "sids" (in the run's ranking order)}."""
+    units, of = bootstrap_units(con, run)
+    seed = int(run["seed"]) + BOOT_SEED_OFFSET
+    rng = np.random.default_rng(seed)
+    for key in sorted(units):
+        u = units[key]
+        u["idx"] = resample_indices(rng, [n for _, n in u["members"]], n_boot)
+        u["boot"] = _median(u["base"][u["idx"]], axis=1)
+        u["point"] = _median(u["base"], axis=0)
+    return {"n_boot": n_boot, "seed": seed, "units": units, "of": of, "sids": list(of)}
+
+
+def boot_params(draws: dict, sid: int) -> tuple[dict[str, np.ndarray], dict[str, float]]:
+    """({param: (n_boot,) replicate medians}, {param: point median}) of one
+    scenario; under a staged protocol the decision parameters of every
+    scenario of a group are the group unit's arrays."""
+    reps, point = {}, {}
+    for name, key in draws["of"][sid].items():
+        u = draws["units"][key]
+        j = u["names"].index(name)
+        reps[name], point[name] = u["boot"][:, j], float(u["point"][j])
+    return reps, point
+
+
+def replicate_values(prm: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """plugin_values over arrays of replicate medians: EVSI, EVPI, eff,
+    EVSI*, eff*, C and the regime code (gate_regime_codes)."""
+    evsi, evpi = model.voi(prm["p"], prm["s"], prm["t"], prm["B"], prm["K"])
+    star = model.voi_fence(prm["p"], prm["s"], prm["t"], prm["B"], prm["K"])
+    return {"EVSI": evsi, "EVPI": evpi, "eff": evsi / prm["C"], "EVSI_star": star,
+            "eff_star": star / prm["C"], "C": prm["C"],
+            "regime": gate_regime_codes(prm["p"], prm["s"], prm["t"], prm["B"], prm["K"])}
+
+
+def rank_replicates(values: np.ndarray, point: np.ndarray) -> dict:
+    """Ranks (1 = largest, ties averaged, as average_ranks) of every
+    replicate row of values (n_boot, n) and of the point (n,), and the
+    per-replicate Spearman with the point ranking (the Pearson correlation of
+    the average ranks; NaN for a constant replicate)."""
+    ranks = rankdata(-values, axis=1, method="average")
+    pranks = average_ranks(point)
+    rc = ranks - ranks.mean(axis=1, keepdims=True)
+    pc = pranks - pranks.mean()
+    den = np.sqrt((rc**2).sum(axis=1) * (pc**2).sum())
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rho = np.where(den > 0.0, (rc @ pc) / den, np.nan)
+    return {"ranks": ranks, "point": pranks, "rho": rho}
+
+
+def plugin_bootstrap(con, run, n_boot: int = N_BOOT, draws: dict | None = None) -> dict | None:
+    """Intervals for the plug-in point from the bootstrap over elicitations
+    (bootstrap_draws; the draws are passed in when another analysis shares
+    them). Per scenario (the run's ranking order, those with a complete
+    plug-in point): "point" (plugin_values at the pooled medians, equal to
+    plugin_point), q05/q50/q95 of EVSI, C, eff and eff* over the replicates
+    (quantiles, over finite values), "p_gate" (P_boot(gate): the share of
+    replicates in the gate), and per ranking ("eff" plug-in, "eff_star"
+    fence) the point rank and the median, q05 and q95 of the replicate rank
+    (observed ranks, inverted_cdf) and P(rank <= BOOT_TOP_K). Headline:
+    "top1" (the unique largest point eff, None when absent or tied),
+    "top1_stable" (share of replicates where it ranks 1), "rho_eff" /
+    "rho_fence" (median over replicates of the Spearman between the
+    replicate ranking and the point ranking; None when undefined). None
+    when no scenario has a complete plug-in point."""
+    draws = draws or bootstrap_draws(con, run, n_boot)
+    sids = draws["sids"]
+    if not sids:
+        return None
+    rows, reps = {}, {"eff": [], "eff_star": []}
+    for sid in sids:
+        prm, med = boot_params(draws, sid)
+        rv = replicate_values(prm)
+        rows[sid] = {"point": plugin_values(med), "p_gate": float(np.mean(rv["regime"] == 0))}
+        for key in ("EVSI", "C", "eff", "eff_star"):
+            rows[sid][f"{key}_q"] = quantiles(rv[key])
+        for key in reps:
+            reps[key].append(rv[key])
+    out = {"n_boot": draws["n_boot"], "seed": draws["seed"], "sids": sids, "rows": rows, "draws": draws}
+    for key in ("eff", "eff_star"):
+        point = np.array([rows[s]["point"][key] for s in sids])
+        rr = rank_replicates(np.column_stack(reps[key]), point)
+        for i, sid in enumerate(sids):
+            col = rr["ranks"][:, i]
+            q05, q50, q95 = np.quantile(col, Q3, method="inverted_cdf")   # observed ranks
+            rows[sid][f"rank_{key}"] = {"point": float(rr["point"][i]), "q05": float(q05),
+                                        "q50": float(q50), "q95": float(q95),
+                                        "p_top": float(np.mean(col <= BOOT_TOP_K))}
+        rho = rr["rho"][np.isfinite(rr["rho"])]
+        out["rho_fence" if key == "eff_star" else "rho_eff"] = (
+            float(np.median(rho)) if len(sids) >= 3 and rho.size and np.ptp(point) > 0.0 else None)
+        if key == "eff":
+            top = [i for i, v in enumerate(point) if v == point.max()]
+            out["top1"] = sids[top[0]] if point.max() > 0.0 and len(top) == 1 else None
+            out["top1_stable"] = (float(np.mean(rr["ranks"][:, top[0]] == 1.0))
+                                  if out["top1"] is not None else None)
+    return out
+
+
+def interval(q, fmt: str = "{:.2g}") -> str:
+    """'[q05, q95]' of a quantile triple (quantiles), '--' when undefined;
+    two significant digits by default (the point carries three)."""
+    lo, hi = q[0], q[-1]
+    if not (np.isfinite(lo) and np.isfinite(hi)):
+        return "--"
+    return f"[{num(float(lo), fmt)}, {num(float(hi), fmt)}]"
+
+
+def rank_cell(v: float) -> str:
+    return f"{v:g}"
+
+
+def write_plugin_ranks(con, run, out: Path, pb: dict | None = None, prefix: str = MACRO_PREFIX) -> bool:
+    """plugin_ranks.tex (a longtable, label tab:plugin-ranks, plus a summary
+    tabular) and the \\voiBoot* macros in macros_extra.tex (merged)."""
+    pb = pb or plugin_bootstrap(con, run)
+    if pb is None:
+        return False
+    rows = pb["rows"]
+    order = sorted(pb["sids"], key=lambda s: (rows[s]["rank_eff"]["point"],
+                                              rows[s]["rank_eff_star"]["point"], s))
+    lines = []
+    for sid in order:
+        cells = [str(sid)]
+        for key in ("rank_eff", "rank_eff_star"):
+            r = rows[sid][key]
+            cells += [rank_cell(r["point"]), rank_cell(r["q50"]),
+                      f"[{rank_cell(r['q05'])}, {rank_cell(r['q95'])}]", num(r["p_top"], "{:.2f}")]
+        lines.append(" & ".join(cells))
+    k = BOOT_TOP_K
+    header = (r" & \multicolumn{4}{c}{plug-in eff} & \multicolumn{4}{c}{fence eff$^\star$}\\"
+              r" \cmidrule(lr){2-5}\cmidrule(lr){6-9}"
+              + " id" + f" & point & median & [q05, q95] & $P(\\le {k})$" * 2)
+    table = longtable(
+        "@{}rrrrrrrrr@{}", header, lines,
+        r"Rank stability of the plug-in and fence rankings under the bootstrap over elicitations:"
+        f" {pb['n_boot']} replicates (seed {pb['seed']}, the run's seed $+$ {BOOT_SEED_OFFSET:,}"
+        r"), each resampling every scenario's valid elicitations of the run's members with"
+        r" replacement within each member (keeping each member's count; a staged protocol's"
+        r" decision stage once per group, shared by the group's scenarios) and recomputing the"
+        r" pooled medians, EVSI and EVSI$^\star$ at them. Per ranking (rank 1 the largest,"
+        r" ties averaged): the rank at the point (the pooled medians of all elicitations), the"
+        r" median and q05--q95 of the replicate rank, and the share of replicates in which the"
+        f" scenario ranks in the top {k}. Rows in the point plug-in order.",
+        tex_label("tab:plugin-ranks", prefix))
+    top = pb["top1"]
+    summary = tabular("@{}lr@{}", "statistic & value", [
+        f"bootstrap replicates (seed) & {pb['n_boot']} ({pb['seed']})",
+        "top-1 by plug-in eff stays top-1 & "
+        + ("--" if top is None else f"{num(pb['top1_stable'], '{:.2f}')} (id {top})"),
+        r"median Spearman $\rho$(replicate, point), plug-in eff & " + num(pb["rho_eff"], "{:.2f}"),
+        r"median Spearman $\rho$(replicate, point), fence eff$^\star$ & " + num(pb["rho_fence"], "{:.2f}"),
+    ], "bootstrap over elicitations: stability of the point rankings of the table above")
+    _write(out, "plugin_ranks.tex", table + "\\par\\medskip\n" + summary)
+    write_macros(out, {
+        "voiBootN": pb["n_boot"],
+        "voiBootTopOneId": "--" if top is None else top,
+        "voiBootTopOneStable": num(pb["top1_stable"], "{:.2f}"),
+        "voiBootRhoEff": num(pb["rho_eff"], "{:.2f}"),
+        "voiBootRhoFence": num(pb["rho_fence"], "{:.2f}"),
+    }, merge=True, prefix=prefix)
+    return True
+
+
+def ladder_bootstrap(draws: dict, rungs: list[tuple[float, int]]) -> dict[int, dict] | None:
+    """ladder_plugin per bootstrap replicate: p, B, K the median over the
+    resampled rows of every rung's unit (a staged protocol's rungs share
+    their group's decision unit, so they read one resample per replicate;
+    a single-stage ladder pools the rungs' own resamples, as ladder_plugin
+    pools their elicitations), s, t, C the rung's own resampled median.
+    {sid: {"EVSI", "C"}: (n_boot,) arrays, "point": {"EVSI", "C"} at the
+    rows themselves, equal to ladder_plugin's}; None when a rung has no
+    complete plug-in point."""
+    sids = [sid for _, sid in rungs]
+    if any(sid not in draws["of"] for sid in sids):
+        return None
+    shared, shared_pt = {}, {}
+    for name in SHARED_PARAMS:
+        keys = list(dict.fromkeys(draws["of"][sid][name] for sid in sids))
+        cols, pts = [], []
+        for key in keys:
+            u = draws["units"][key]
+            j = u["names"].index(name)
+            cols.append(u["base"][:, j][u["idx"]])
+            pts.append(u["base"][:, j])
+        shared[name] = _median(np.concatenate(cols, axis=1), axis=1)
+        shared_pt[name] = float(_median(np.concatenate(pts), axis=0))
+    out = {}
+    for sid in sids:
+        prm, med = boot_params(draws, sid)
+        evsi, _ = model.voi(shared["p"], prm["s"], prm["t"], shared["B"], shared["K"])
+        pt, _ = model.voi(shared_pt["p"], med["s"], med["t"], shared_pt["B"], shared_pt["K"])
+        out[sid] = {"EVSI": evsi, "C": prm["C"], "point": {"EVSI": float(pt), "C": med["C"]}}
+    return out
+
+
+def boot_step_stats(lo: dict, hi: dict) -> dict:
+    """Bootstrap of one step's plug-in marginal: q05/q95 of dEVSI / dC over
+    the replicates with dC != 0, P(dEVSI > dC) and P(dC > 0)."""
+    d_evsi, d_c = hi["EVSI"] - lo["EVSI"], hi["C"] - lo["C"]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(d_c != 0.0, d_evsi / d_c, np.nan)
+    q = quantiles(ratio)
+    return {"meff_plug_q05": float(q[0]), "meff_plug_q95": float(q[2]),
+            "p_pays_plug": float(np.mean(d_evsi > d_c)), "p_dc_pos_plug": float(np.mean(d_c > 0.0))}
+
+
+BOOT_STEP_NAN = dict.fromkeys(("meff_plug_q05", "meff_plug_q95", "p_pays_plug", "p_dc_pos_plug"),
+                              float("nan"))
+
+
+def sign_unstable(step: dict) -> bool:
+    """dC takes each sign in at least BOOT_SIGN_FLAG of the replicates."""
+    p = step["p_dc_pos_plug"]
+    return bool(np.isfinite(p) and min(p, 1.0 - p) >= BOOT_SIGN_FLAG)
+
+
 # --- driver -------------------------------------------------------------------
 
 # analyses defined on the binary parameters (p, B, K shared per ladder; p50
@@ -1845,16 +2301,19 @@ def fig_plugin_map(con, run, out: Path, rows: list[dict] | None = None) -> bool:
 # EVPI/C ranking; the plug-in point through model.voi): a Gaussian run skips
 # them with a printed reason
 BINARY_ONLY = ("level_uplift", "level_fence", "consistency", "member_agreement", "simplicity", "plugin",
-               "plugin_map")
+               "plugin_map", "plugin_ranks")
+NOT_BINARY = "defined on the binary parameters; the run is a Gaussian-state protocol"
+NO_PLUGIN_POINT = "no ranked scenario has a valid elicitation of every parameter"
 
 
 def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[str, str]:
     """Why an analysis (or one of its ladders) does not apply to this run.
     plugin: the (stats, reason) pair of plugin_analysis, computed here when
-    not passed (the replay behind it is the costliest step of the module)."""
+    not passed (the replay behind it is the costliest step of the module).
+    plugin_map and plugin_ranks need a ranked scenario with a complete
+    plug-in point (the bootstrap is defined exactly there)."""
     if run_kind(con, run["id"]) == db.GAUSSIAN_KIND:
-        reasons = {name: "defined on the binary parameters; the run is a Gaussian-state protocol"
-                   for name in BINARY_ONLY}
+        reasons = dict.fromkeys(BINARY_ONLY, NOT_BINARY)
         if not scenario_domains(con):
             reasons["domain_map"] = "no scenario carries attributes.risk_domain"
         return reasons
@@ -1879,21 +2338,25 @@ def skip_reasons(con, run, uplift: dict, plugin: tuple | None = None) -> dict[st
     if why:
         reasons["plugin"] = why
     if not plugin_map_points(con, run):
-        reasons["plugin_map"] = "no ranked scenario has a valid elicitation of every parameter"
+        reasons["plugin_map"] = reasons["plugin_ranks"] = NO_PLUGIN_POINT
     return reasons
 
 
-def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX) -> tuple[list[str], list[str]]:
-    """Write every analysis that applies, macros under `prefix`. Returns
-    (written file names, skipped analysis names); a skipped analysis has its
-    stale outputs removed and its reason printed (as is every ladder the
-    level uplift leaves out)."""
+def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX,
+             n_boot: int = N_BOOT) -> tuple[list[str], list[str]]:
+    """Write every analysis that applies, macros under `prefix`, the
+    bootstrap over elicitations drawn once with n_boot replicates and shared
+    by plugin.tex, plugin_ranks.tex, the plug-in map and the level uplift.
+    Returns (written file names, skipped analysis names); a skipped analysis
+    has its stale outputs removed and its reason printed (as is every ladder
+    the level uplift leaves out)."""
     out.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(STYLE)
     binary = run_kind(con, run["id"]) == db.BINARY_KIND
-    uplift = level_uplift_analysis(con, run) if binary else {"steps": {}, "skipped": {}}
-    plugin = (plugin_analysis(con, run) if binary
-              else (None, "defined on the binary parameters; the run is a Gaussian-state protocol"))
+    draws = bootstrap_draws(con, run, n_boot) if binary else None
+    pb = plugin_bootstrap(con, run, draws=draws) if binary else None
+    uplift = level_uplift_analysis(con, run, draws) if binary else {"steps": {}, "skipped": {}}
+    plugin = plugin_analysis(con, run) if binary else (None, NOT_BINARY)
     for what, why in skip_reasons(con, run, uplift, plugin).items():
         print(f"{what}: skipped: {why}")
     mr_needed = binary and len(run_members(con, run)) > 1
@@ -1911,8 +2374,9 @@ def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX) -> tuple[list[str]
          and write_member_agreement(con, run, out)),
         ("simplicity", lambda: binary and write_simplicity(con, run, out, prefix)),
         ("plugin", lambda: binary and plugin[0] is not None
-         and fig_plugin(con, run, out, plugin[0]) and write_plugin(con, run, out, plugin[0], prefix)),
-        ("plugin_map", lambda: binary and fig_plugin_map(con, run, out)),
+         and fig_plugin(con, run, out, plugin[0]) and write_plugin(con, run, out, plugin[0], prefix, pb)),
+        ("plugin_map", lambda: binary and fig_plugin_map(con, run, out, pb=pb)),
+        ("plugin_ranks", lambda: pb is not None and write_plugin_ranks(con, run, out, pb, prefix)),
         ("protocol_noise_matched", lambda: write_protocol_noise_matched(con, out)),
     ]
     written, skipped = [], []
@@ -1925,18 +2389,32 @@ def make_all(con, run, out: Path, prefix: str = MACRO_PREFIX) -> tuple[list[str]
     return written, skipped
 
 
+def boot_count(text: str) -> int:
+    """--boot: a replicate count of at least 2 (a quantile over one replicate
+    is not an interval)."""
+    try:
+        n = int(text)
+    except ValueError:
+        n = 0
+    if n < 2:
+        raise argparse.ArgumentTypeError(f"--boot takes an integer >= 2, got {text!r}")
+    return n
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     add_study_arg(ap)
     add_run_args(ap)
     add_tag_arg(ap)
+    ap.add_argument("--boot", type=boot_count, default=N_BOOT,
+                    help=f"replicates of the bootstrap over elicitations (default {N_BOOT})")
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     out, prefix = study.tagged(args.tag)
     con = study.connect()
     run = select_run(con, args.run, args.protocol, db.parse_member_labels(args.members))
-    written, skipped = make_all(con, run, out, prefix)
+    written, skipped = make_all(con, run, out, prefix, args.boot)
     for name in written:
         print(f"wrote {out / name}")
     if skipped:
