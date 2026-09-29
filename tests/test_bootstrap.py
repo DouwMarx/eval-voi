@@ -330,11 +330,33 @@ def test_plugin_table_carries_the_bootstrap_columns(built, con, tmp_path):
         b = pb["rows"][r["sid"]]
         row = [ln for ln in table.splitlines() if ln.startswith(f"{r['rank']} & {r['sid']} & ")][0]
         cells = row.split(" & ")
-        assert cells[7] == extra.interval(b["eff_q"]) and cells[9] == extra.interval(b["eff_star_q"])
-        assert cells[12] == extra.pct(b["p_gate"]) + "\\\\"
-        assert cells[6] == extra.num(r["eff"]) and cells[8] == extra.num(r["eff_star"])
+        assert cells[6] == extra.interval(b["eff_q"]) and cells[8] == extra.interval(b["eff_star_q"])
+        assert cells[11] == extra.pct(b["p_gate"]) + "\\\\"
+        assert cells[5] == extra.num(r["eff"]) and cells[7] == extra.num(r["eff_star"])
     assert extra.interval((0.01234, 1.0, 5.678)) == "[0.012, 5.7]"
     assert extra.interval((float("nan"),) * 3) == "--" and extra.num(-0.0) == "0"
+
+
+def test_interval_prints_no_exponent_and_rounds_outward():
+    """Two significant digits without exponent notation (business run 22
+    printed '[87, 1.4e+02]'), q05 rounded down and q95 up, so the printed
+    interval contains the computed one (scenario 1 printed eff 5.88 next to
+    '[5.9, 5.9]'); values already at two digits are kept."""
+    cases = {(87.3, 143.2): "[87, 150]", (270.4, 449.1): "[270, 450]", (5.88, 5.88): "[5.8, 5.9]",
+             (-0.6312, 9.0): "[-0.64, 9]", (0.016, 0.032): "[0.016, 0.032]", (5.9, 5.9): "[5.9, 5.9]",
+             (-0.004, 0.0): "[-0.004, 0]", (-0.0, 0.0): "[0, 0]", (9.96, 9.96): "[9.9, 10]",
+             (1234.0, 56789.0): "[1.2k, 57k]", (1.6e-5, 2.3e-5): "[0.000016, 0.000023]"}
+    for (lo, hi), text in cases.items():
+        assert extra.interval((lo, 0.0, hi)) == text
+    rng = np.random.default_rng(0)
+    values = rng.choice([-1.0, 1.0], 4000) * 10.0 ** rng.uniform(-4.0, 2.99, 4000)
+    for lo, hi in np.sort(values.reshape(-1, 2), axis=1):
+        text = extra.interval((lo, 0.0, hi))
+        assert "e" not in text
+        a, b = (float(x) for x in text[1:-1].split(", "))
+        assert a <= lo and b >= hi                       # outward
+        for point in (lo, hi, (lo + hi) / 2.0):          # a 3-digit point inside stays inside
+            assert a <= float(extra.num(point)) <= b
 
 
 def test_ladder_bootstrap_of_a_single_stage_ladder(built, con, tmp_path):
@@ -365,8 +387,7 @@ def test_ladder_bootstrap_of_a_single_stage_ladder(built, con, tmp_path):
         q = np.quantile(d_evsi / d_c, (0.05, 0.95))
         assert (s["meff_plug_q05"], s["meff_plug_q95"]) == pytest.approx(tuple(q), rel=1e-12)
         assert s["p_pays_plug"] == float(np.mean(d_evsi > d_c)) and s["p_dc_pos_plug"] == 1.0
-        assert not extra.sign_unstable(s)
-    assert extra.sign_unstable({"p_dc_pos_plug": 0.5}) and not extra.sign_unstable({"p_dc_pos_plug": 0.97})
+        assert s["p_dc_neg_plug"] == 0.0 and not extra.sign_unstable(s)
     figs, real_close = [], extra.plt.close
     extra.plt.close = figs.append
     try:
@@ -385,6 +406,30 @@ def test_ladder_bootstrap_of_a_single_stage_ladder(built, con, tmp_path):
     assert (f"& {extra.num(s0['meff_plug'])} & {extra.interval((s0['meff_plug_q05'], s0['meff_plug_q95']))} &"
             f" {extra.pct(s0['p_pays_plug'])} & {extra.money(s0['dEVSI_star'])} &") in plug
     assert f"{N_BOOT} replicates seeded from the run's seed" in plug
+
+
+def sign_step(n_pos: int, n_zero: int, n_neg: int) -> dict:
+    """boot_step_stats of a step whose dC is 1e5, 0 and -1e5 in that many replicates."""
+    d_c = np.r_[np.full(n_pos, 1e5), np.zeros(n_zero), np.full(n_neg, -1e5)]
+    zeros = np.zeros(d_c.size)
+    return extra.boot_step_stats({"EVSI": zeros, "C": zeros}, {"EVSI": np.full(d_c.size, 2e5), "C": d_c})
+
+
+def test_sign_flag_counts_only_the_replicates_with_a_cost_difference():
+    """The dagger marks dC taking each sign in at least 5% of the replicates
+    with dC != 0 (those the ratio's q05-q95 are taken over); a tie dC == 0
+    is neither sign. sim2real run 12, AV AEB L4 to L6: P(dC > 0) 0.922, ties
+    0.064, P(dC < 0) 0.015; the old rule min(P(dC > 0), 1 - P(dC > 0))
+    counted the ties as negative and flagged it."""
+    s = sign_step(922, 64, 14)
+    assert (s["p_dc_pos_plug"], s["p_dc_neg_plug"]) == pytest.approx((0.922, 0.014))
+    assert not extra.sign_unstable(s)
+    assert not extra.sign_unstable(sign_step(900, 100, 0))       # ties only, no negative dC
+    assert not extra.sign_unstable(sign_step(0, 1000, 0))        # no dC != 0: no interval, no flag
+    assert extra.sign_unstable(sign_step(950, 0, 50))            # 5% of them negative
+    assert not extra.sign_unstable(sign_step(951, 0, 49))
+    assert extra.sign_unstable(sign_step(40, 950, 10))           # 20% of the 50 with dC != 0
+    assert not extra.sign_unstable(extra.BOOT_STEP_NAN)
 
 
 def test_plugin_map_draws_the_bootstrap_bars(built, con, tmp_path, monkeypatch):
@@ -433,22 +478,70 @@ def test_gaussian_run_skips_the_bootstrap(built, con, monkeypatch, tmp_path, cap
     assert extra.skip_reasons(con, run, {"steps": {}, "skipped": {}})["plugin_ranks"] == extra.NOT_BINARY
 
 
+# real-width cells: the widest the three committed studies print (ai-safety-evals run 5,
+# sim2real run 12, business run 22) plus a margin. 7-figure USD, 3-digit ranks, eff points
+# from 0.00123 to 353, intervals like [0.0011, 0.0046] and [270, 450], negative 3-digit
+# ratios and a daggered negative interval; the fixture's own numbers are short.
+WIDE_PLUGIN = [
+    {"rank": 100, "C": 1.234e6, "EVSI": 12.34e6, "EVPI": 12.34e6, "EVSI_star": 12.34e6, "eff": 0.00123,
+     "eff_star": 0.0281, "fence_ratio": 0.96, "regime": "always respond", "mc_median": 0.00123,
+     "mc_mean": 0.0452, "p_positive": 1.0, "p_gate": 1.0},
+    {"eff": 353.0, "eff_star": 0.00123},
+]
+WIDE_BOOT = [
+    {"eff_q": (0.00112, 0.002, 0.00456), "eff_star_q": (0.0243, 0.03, 0.0372), "p_gate": 1.0},
+    {"eff_q": (270.4, 353.0, 449.1), "eff_star_q": (0.00112, 0.002, 0.00456)},
+]
+WIDE_RANK = {"point": 67.5, "q50": 45.5, "q05": 10.5, "q95": 67.5, "p_top": 0.12}
+WIDE_STEP = {"lo_level": 8, "hi_level": 9, "lo_id": 114, "hi_id": 115,
+             "dEVSI_q50": -1.19e6, "dC_q50": -3.05e5, "meff": -0.0855,
+             "p_dc_pos": 1.0, "p_gain": 1.0, "p_pays": 1.0,
+             "dEVSI_mean": -1.19e6, "dC_mean": -3.05e5, "meff_mean": -0.0855,
+             "dEVSI_plug": -1.19e6, "dC_plug": -3.05e5, "meff_plug": -0.0855,
+             "meff_plug_q05": -0.06312, "meff_plug_q95": -0.02512, "p_pays_plug": 1.0,
+             "p_dc_pos_plug": 0.5, "p_dc_neg_plug": 0.5, "dEVSI_star": -1.35e6, "meff_star": -0.0855}
+
+
 @pytest.mark.skipif(shutil.which("pdflatex") is None, reason="pdflatex not installed")
 def test_new_fragments_compile_within_the_text_width(built, con, tmp_path):
-    """plugin.tex (footnotesize), plugin_mc.tex and plugin_ranks.tex compile
-    in the CoRL template with no overfull line: the bootstrap columns fit."""
+    """plugin.tex (footnotesize), plugin_mc.tex, plugin_ranks.tex and
+    level_uplift.tex (footnotesize, in a float) compile in the CoRL template
+    with no overfull line when their widest cells hold real-width values
+    (WIDE_*)."""
+    run = run_of(con, built, "p003")
     gen = tmp_path / "generated"
-    written, _ = extra.make_all(con, run_of(con, built, "p003"), gen, n_boot=N_BOOT)
-    names = ["plugin.tex", "plugin_mc.tex", "plugin_ranks.tex"]
-    assert all(n in written for n in names)
+    gen.mkdir()
+    st = extra.plugin_stats(con, run)
+    draws = extra.bootstrap_draws(con, run, N_BOOT)
+    pb = extra.plugin_bootstrap(con, run, draws=draws)
+    an = extra.level_uplift_analysis(con, run, draws)
+    for r, wide, boot in zip(st["rows"], WIDE_PLUGIN, WIDE_BOOT, strict=False):
+        r.update({k: v for k, v in wide.items() if k != "C"})
+        r["medians"] = {**r["medians"], "C": wide.get("C", r["medians"]["C"])}
+        pb["rows"][r["sid"]].update(boot)
+    pb["rows"][st["rows"][0]["sid"]].update(rank_eff=WIDE_RANK, rank_eff_star=WIDE_RANK)
+    for steps in an["steps"].values():
+        steps[0].update(WIDE_STEP)
+    assert extra.write_plugin(con, run, gen, st, pb=pb) and extra.write_plugin_ranks(con, run, gen, pb)
+    assert extra.write_level_uplift(con, run, gen, an)
+    tex = {n: (gen / n).read_text() for n in ("plugin.tex", "plugin_mc.tex", "plugin_ranks.tex",
+                                              "level_uplift.tex")}
+    assert ("100 & " in tex["plugin.tex"] and "& 1.23M & 12.3M & 12.3M & 0.00123 & [0.0011, 0.0046] &"
+            in tex["plugin.tex"] and "& 353 & [270, 450] & 0.00123 & [0.0011, 0.0046] &" in tex["plugin.tex"])
+    assert "& 12.3M & 0.00123 & 0.00123 & 0.0452 & 100\\% &" in tex["plugin_mc.tex"]
+    assert "[10.5, 67.5]" in tex["plugin_ranks.tex"]
+    assert "8$\\to$9 & 114$\\to$115 & -1.19M & -305k & -0.0855 & [-0.064, -0.025]$^\\dagger$ &" in tex[
+        "level_uplift.tex"]
     macros = " ".join("\\" + ln.split("{")[1].lstrip("\\").rstrip("}")
                       for ln in (gen / "macros_extra.tex").read_text().splitlines() if "Boot" in ln)
     (tmp_path / "main.tex").write_text(
         "\\documentclass{article}\\usepackage[final]{corl_2026}\\usepackage{booktabs,longtable}"
         "\\usepackage{amsmath,amssymb}\\input{generated/macros_extra.tex}\\title{T}\\author{A}"
         "\\begin{document}\\maketitle\n" + f"Macros: {macros}.\n"
-        + "\n".join("\\input{generated/" + n + "}" for n in names)
-        + "\nSee Tables~\\ref{tab:plugin}, \\ref{tab:plugin-mc} and \\ref{tab:plugin-ranks}.\n"
+        + "\n".join("\\input{generated/" + n + "}" for n in ("plugin.tex", "plugin_mc.tex",
+                                                              "plugin_ranks.tex"))
+        + "\n\\begin{table}[h]\\centering\\input{generated/level_uplift.tex}\\caption{Uplift}\\end{table}\n"
+        + "See Tables~\\ref{tab:plugin}, \\ref{tab:plugin-mc} and \\ref{tab:plugin-ranks}.\n"
         + "\\end{document}\n")
     env = {"TEXINPUTS": f"{CORL}//:", "PATH": "/run/current-system/sw/bin:/usr/bin:/bin"}
     for _ in range(2):
@@ -456,7 +549,8 @@ def test_new_fragments_compile_within_the_text_width(built, con, tmp_path):
                               cwd=tmp_path, capture_output=True, text=True, env=env)
         assert proc.returncode == 0, proc.stdout[-3000:]
     log = (tmp_path / "main.log").read_text(errors="replace")
-    assert "Overfull \\hbox" not in log and "undefined" not in log.lower()
+    assert re.findall(r"Overfull \\hbox \([\d.]+pt too wide\)", log) == []
+    assert "undefined" not in log.lower()
 
 
 def test_single_member_protocol_uses_one_block(built, con):

@@ -22,11 +22,12 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    p) (s + t - 1) at the same medians, over the plug-in dC), and for the
    plug-in marginal the q05-q95 of dEVSI / dC and P(dEVSI > dC) under the
    bootstrap over elicitations (item 9; a staged ladder's rungs share one
-   decision resample per replicate). Three tabulars: the CRN medians and
-   probabilities, the CRN means, the plug-in (with the bootstrap) and fence
-   marginals. The figure's bottom panel shows the plug-in (bar: its
-   bootstrap q05-q95) and fence marginal efficiencies per step, with the CRN
-   median ratio and P(dEVSI > dC) as a label.
+   decision resample per replicate; a dagger where dC takes each sign in at
+   least 5% of the replicates with dC != 0). Three footnotesize tabulars:
+   the CRN medians and probabilities, the CRN means, the plug-in (with the
+   bootstrap) and fence marginals. The figure's bottom panel shows the
+   plug-in (bar: its bootstrap q05-q95) and fence marginal efficiencies per
+   step, with the CRN median ratio and P(dEVSI > dC) as a label.
 1b. fig_level_fence.pdf: per group of leveled scenarios, EVSI* (fence), EVSI
    (plug-in) and C at each scenario's pooled medians against its level.
 2. fig_within_group_consistency.pdf + consistency.tex: for groups whose
@@ -42,7 +43,8 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    member only; pairwise p50 agreement per parameter and a per-member
    efficiency ranking (each member's fits pooled alone, mixture re-drawn
    locally with the run's seed and draw count: these draws are NOT the stored
-   run, whose mixture pools all members) with a Spearman matrix and top-5 ids.
+   run, whose mixture pools all members) with a Spearman matrix and top-5 ids
+   against the stored run (labelled 'run', 'run/equal' when equal-member).
 5. simplicity.tex + macros_extra.tex: is the EVSI/C ranking reproduced by
    the simpler EVPI/C ranking (Spearman, top-10 overlap, headroom), both
    rankings being medians of per-draw ratios stored by the run (metrics
@@ -60,14 +62,14 @@ with --tag TAG, the macros then named \\voiTAG...; study.Study.tagged):
    the v2 analyses refuse, db.run_predates_v2, is skipped).
 7. plugin.tex + plugin_mc.tex + fig_plugin.pdf + macros in macros_extra.tex:
    the plug-in summary (plugin.tex, a footnotesize longtable) with its
-   bootstrap intervals (item 9) and the Monte Carlo one (plugin_mc.tex, a
-   second longtable in the same row order), like catalog.tex. Per
-   scenario (in the run's median efficiency order): EVSI, EVPI and
-   efficiency from model.voi at the pooled elicited medians of p, s, t, B, K,
-   C (median of the p50 across valid elicitations, as tables.write_catalog
-   defines them for p, s, t, B, K, whose values the catalog already lists and
-   this table does not repeat; for C too, NOT the catalog's mixture median,
-   so C is printed here), the gate regime at the medians (in gate / always
+   bootstrap intervals (item 9) and the plug-in EVPI with the Monte Carlo
+   summary (plugin_mc.tex, a second longtable in the same row order), like
+   catalog.tex. Per scenario (in the run's median efficiency order): EVSI,
+   EVPI and efficiency from model.voi at the pooled elicited medians of p,
+   s, t, B, K, C (median of the p50 across valid elicitations, as
+   tables.write_catalog defines them for p, s, t, B, K, whose values the
+   catalog already lists and this table does not repeat; for C too, NOT the
+   catalog's mixture median, so C is printed here), the gate regime at the medians (in gate / always
    respond / never respond, from the threshold pi* = K / (B + K) against the
    posteriors pi1, pi0), the run's median and MEAN efficiency (the mean over
    the run's draws, replayed from the DB and verified against the stored
@@ -134,6 +136,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from itertools import combinations
 from pathlib import Path
 
@@ -252,11 +255,19 @@ def pct(v) -> str:
     return "--" if v is None or not np.isfinite(v) else f"{100.0 * v:.0f}\\%"
 
 
-def tabular(colspec: str, header: str, rows: list[str], caption: str | None = None) -> str:
-    """A booktabs tabular fragment (rows already joined with &, no \\\\)."""
-    lines = [r"\begin{tabular}{" + colspec + "}", r"\toprule", header + r"\\", r"\midrule"]
+# footnotesize with a 2pt tabcolsep (4pt between columns), in a group: a table too wide for
+# the CoRL text width otherwise (plugin.tex with real-width cells needs the 2pt)
+SMALL_OPEN, SMALL_CLOSE = r"\begingroup\footnotesize\setlength{\tabcolsep}{2pt}", r"\endgroup"
+
+
+def tabular(colspec: str, header: str, rows: list[str], caption: str | None = None,
+            small: bool = False) -> str:
+    """A booktabs tabular fragment (rows already joined with &, no \\\\);
+    small sets it in SMALL_OPEN ... SMALL_CLOSE, as longtable does."""
+    lines = [SMALL_OPEN] if small else []
+    lines += [r"\begin{tabular}{" + colspec + "}", r"\toprule", header + r"\\", r"\midrule"]
     lines += [r if r.startswith(r"\midrule") else r + r"\\" for r in rows]
-    lines += [r"\bottomrule", r"\end{tabular}"]
+    lines += [r"\bottomrule", r"\end{tabular}"] + ([SMALL_CLOSE] if small else [])
     text = "\n".join(lines) + "\n"
     return (f"% {caption}\n" + text) if caption else text
 
@@ -266,9 +277,8 @@ def longtable(colspec: str, header: str, rows: list[str], caption: str, label: s
     """A booktabs longtable fragment with the head and foot of
     tables.write_catalog (rows already joined with &, no \\\\); the caption is
     part of the fragment, so the report inputs it outside any float. small
-    sets it (caption included) in footnotesize with a 3pt column gap, inside
-    a group, for a table too wide for the text width otherwise."""
-    lines = [r"\begingroup\footnotesize\setlength{\tabcolsep}{3pt}"] if small else []
+    sets it (caption included) in SMALL_OPEN ... SMALL_CLOSE."""
+    lines = [SMALL_OPEN] if small else []
     lines += [r"\begin{longtable}{" + colspec + "}",
              r"\caption{" + caption + r"}\label{" + label + r"}\\",
              r"\toprule", header + r"\\", r"\midrule\endfirsthead",
@@ -276,7 +286,7 @@ def longtable(colspec: str, header: str, rows: list[str], caption: str, label: s
     lines += [r + r"\\" for r in rows]
     lines.append(r"\end{longtable}")
     if small:
-        lines.append(r"\endgroup")
+        lines.append(SMALL_CLOSE)
     return "\n".join(lines) + "\n"
 
 
@@ -707,10 +717,11 @@ def fig_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
 
 
 def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> bool:
-    """level_uplift.tex: three tabulars over the same steps, each within the
-    text width: the CRN medians and probabilities, the CRN means, and the
-    plug-in marginals with their bootstrap interval next to the fence
-    marginals (the last two at the ladder-pooled p, B, K)."""
+    """level_uplift.tex: three tabulars over the same steps, each in
+    footnotesize (tabular small) within the CoRL text width (the compile test
+    prints real-width values): the CRN medians and probabilities, the CRN
+    means, and the plug-in marginals with their bootstrap interval next to
+    the fence marginals (the last two at the ladder-pooled p, B, K)."""
     analysis = analysis or level_uplift_analysis(con, run)
     stats = analysis["steps"]
     if not stats:
@@ -741,13 +752,13 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
         f" agent, decision and theta text) over {run['n_draws']} common-random-number draws"
         f" seeded like run {run['id']} (p, B, K drawn once per ladder from the pooled rung"
         " fits, s, t, C per rung; not the stored run's draws); medians of dEVSI and dC,"
-        " dEVSI/dC is the ratio of those medians")
+        " dEVSI/dC is the ratio of those medians", small=True)
     means = tabular(
         "@{}llrrr@{}",
         r"step & ids & $\overline{\Delta\mathrm{EVSI}}$ & $\overline{\Delta C}$ &"
         r" $\overline{\Delta\mathrm{EVSI}}/\overline{\Delta C}$", rows_mean,
         "the same steps by the mean-based marginals: means of dEVSI and dC over the same"
-        " common-random-number draws and their ratio")
+        " common-random-number draws and their ratio", small=True)
     header_plug = (r"step & ids & $\Delta$EVSI$_\mathrm{pi}$ & $\Delta C_\mathrm{pi}$ &"
                    r" $\Delta$EVSI$_\mathrm{pi}/\Delta C_\mathrm{pi}$ & [q05, q95] & $P_\mathrm{boot}$ &"
                    r" $\Delta$EVSI$^\star$ & $\Delta$EVSI$^\star/\Delta C_\mathrm{pi}$")
@@ -759,14 +770,15 @@ def write_level_uplift(con, run, out: Path, analysis: dict | None = None) -> boo
         f" ({analysis.get('n_boot', N_BOOT)} replicates seeded from the run's seed: each rung's"
         " valid elicitations resampled within each member, p, B, K pooled over the resampled"
         " rungs, a staged protocol's decision stage resampled once per replicate for the whole"
-        " group): [q05, q95] of dEVSI_pi / dC_pi over the replicates with dC_pi != 0 (a dagger"
-        f" marks a step whose dC_pi takes each sign in at least {BOOT_SIGN_FLAG:.0%} of them,"
-        " where the ratio straddles its pole) and P_boot = P(dEVSI_pi > dC_pi); and the fence"
+        " group): [q05, q95] of dEVSI_pi / dC_pi over the replicates with dC_pi != 0, rounded"
+        " outward to two significant digits (a dagger marks a step whose dC_pi takes each sign in"
+        f" at least {BOOT_SIGN_FLAG:.0%} of them, where the ratio straddles its pole) and"
+        " P_boot = P(dEVSI_pi > dC_pi); and the fence"
         " marginals (differences of the per-rung EVSI* = (B + K) p (1 - p) (s + t - 1) at the"
         " same medians, over the plug-in dC). Both use p, B, K pooled over the ladder, as the"
         " CRN draws do; fig_level_fence and the EVSI* column of plugin.tex use each scenario's"
         " own medians, so their per-rung values (and the sign of a step) can differ where a"
-        " single-stage protocol's p, B, K move across rungs")
+        " single-stage protocol's p, B, K move across rungs", small=True)
     _write(out, "level_uplift.tex", "\\par\\medskip\n".join((crn, means, plug)))
     return True
 
@@ -1255,10 +1267,10 @@ def fig_member_agreement(con, run, out: Path) -> bool:
             if r == len(pairs) - 1:
                 ax.set_xlabel(labels[i], fontsize=6)
     staged = "" if len(names) == len(db.PARAM_NAMES) else (
-        f"; ${', '.join(names)}$ only: the decision stage is one number per group,"
+        f"\n${', '.join(names)}$ only: the decision stage is one number per group,"
         " see health's decision-level agreement")
-    fig.suptitle("Cross-member agreement of per-scenario pooled p50 (Spearman over shared scenarios"
-                 f"{staged})", fontsize=7.5 if staged else 8)
+    fig.suptitle("Cross-member agreement of each member's per-scenario median p50 (Spearman over"
+                 f" shared scenarios){staged}", fontsize=8)
     fig.savefig(out / "fig_member_agreement.pdf")
     plt.close(fig)
     return True
@@ -1268,7 +1280,10 @@ def write_member_agreement(con, run, out: Path) -> bool:
     if len(run_members(con, run)) < 2:
         return False
     mr = member_rankings(con, run)
-    names = mr["members"] + ["pooled (run)"]
+    # the stored run: 'run', 'run/equal' for an equal-member run (db.run_label); never 'pooled',
+    # which also names a weighting; the caption spells the weighting out
+    weights = db.weights_label(db.run_weights(run))
+    names = mr["members"] + [db.run_label("run", None, db.run_weights(run))]
     keys = mr["members"] + ["pooled"]
     rows = []
     for i, name in enumerate(names):
@@ -1279,7 +1294,7 @@ def write_member_agreement(con, run, out: Path) -> bool:
         "@{}l" + "r" * len(names) + "l@{}", header, rows,
         "Spearman of median efficiency between per-member rankings (each member's fits pooled"
         f" alone, mixture re-drawn locally with seed {run['seed']} and {run['n_draws']} draws;"
-        f" not the stored run) and the pooled run {run['id']}, over shared scenarios"))
+        f" not the stored run) and the stored run {run['id']} ({weights}), over shared scenarios"))
     return True
 
 
@@ -1763,9 +1778,11 @@ def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACR
                  pb: dict | None = None) -> bool:
     """plugin.tex (the plug-in and fence values with their bootstrap
     intervals, pb = plugin_bootstrap, drawn here when not passed, then the
-    summary of the three rankings) and plugin_mc.tex (the Monte Carlo
-    summaries of the same scenarios in the same order): two longtables that
-    each fit the page. The plug-in macros go to macros_extra.tex (merged)."""
+    summary of the three rankings) and plugin_mc.tex (the plug-in EVPI and
+    the Monte Carlo summaries of the same scenarios in the same order): two
+    longtables within the CoRL text width (plugin.tex in footnotesize, the
+    compile test prints real-width values). The plug-in macros go to
+    macros_extra.tex (merged)."""
     st = st or plugin_stats(con, run)
     if st is None:
         return False
@@ -1777,24 +1794,24 @@ def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACR
         b = boot.get(r["sid"], {})
         rows.append(
             f"{r['rank']} & {r['sid']} & {money(r['medians']['C'])} & {money(r['EVSI'])} &"
-            f" {money(r['EVPI'])} & {money(r['EVSI_star'])} & {num(r['eff'])} &"
+            f" {money(r['EVSI_star'])} & {num(r['eff'])} &"
             f" {interval(b.get('eff_q', undefined))} & {num(r['eff_star'])} &"
             f" {interval(b.get('eff_star_q', undefined))} & {num(r['fence_ratio'], '{:.2f}')} &"
             f" {REGIME_CELL[r['regime']]} & {pct(b.get('p_gate', float('nan')))}")
         mc_rows.append(
-            f"{r['rank']} & {r['sid']} & {num(r['eff'])} & {num(r['mc_median'])} & {num(r['mc_mean'])} &"
-            f" {pct(r['p_positive'])} & {pct(r['p_gate'])}")
-    header = (r"rank & id & $C$ & EVSI & EVPI & EVSI$^\star$ & eff & [q05, q95] & eff$^\star$ &"
-              r" [q05, q95] & EVSI/EVSI$^\star$ & regime & $P_\mathrm{boot}$")
+            f"{r['rank']} & {r['sid']} & {money(r['EVPI'])} & {num(r['eff'])} & {num(r['mc_median'])} &"
+            f" {num(r['mc_mean'])} & {pct(r['p_positive'])} & {pct(r['p_gate'])}")
+    header = (r"rank & id & $C$ & EVSI & EVSI$^\star$ & eff & [q05, q95] & eff$^\star$ & [q05, q95] &"
+              r" \begin{tabular}[b]{@{}r@{}}EVSI/\\EVSI$^\star$\end{tabular} & regime & $P_\mathrm{boot}$")
     replicates = (f"{pb['n_boot']} replicates (seed {pb['seed']})" if pb is not None
                   else "no replicates")
     table = longtable(
-        "@{}rrrrrrrrrrrlr@{}", header, rows,
+        "@{}rrrrrrrrrrlr@{}", header, rows,
         r"Plug-in values per scenario, in the order of the run's median efficiency (rank; the"
-        r" Monte Carlo summaries of the same rows, in the same order, are a companion table)."
-        r" EVSI, EVPI and eff $=$ EVSI$/C$ are \texttt{model.voi} at the pooled elicited medians"
-        r" of $p$, $s$, $t$, $B$, $K$ (the catalog's values) and $C$ (median of the p50 across"
-        r" valid elicitations, printed here because the catalog's $C$ is the run's mixture"
+        r" plug-in EVPI and the Monte Carlo summaries of the same rows, in the same order, are a"
+        r" companion table). EVSI and eff $=$ EVSI$/C$ are \texttt{model.voi} at the pooled"
+        r" elicited medians of $p$, $s$, $t$, $B$, $K$ (the catalog's values) and $C$ (median of"
+        r" the p50 across valid elicitations, printed here because the catalog's $C$ is the run's mixture"
         r" median). EVSI$^\star = (B+K)\,p(1-p)(s+t-1)$ at the same medians is the fence value,"
         r" the maximum of EVSI over the threshold $\pi^*$ at fixed stakes (the buyer on the"
         r" fence, $\pi^* = p$); eff$^\star = $ EVSI$^\star/C$; EVSI/EVSI$^\star$ is the share of"
@@ -1807,14 +1824,17 @@ def write_plugin(con, run, out: Path, st: dict | None = None, prefix: str = MACR
         r" scenario's valid elicitations of the run's members with replacement within each member"
         r" (keeping each member's count; a staged protocol's decision stage once per group) and"
         r" recomputing the pooled medians and the values at them: the interval over the"
-        r" replicates, and the share of replicates in the gate. USD in $C$, EVSI, EVPI,"
-        r" EVSI$^\star$.", tex_label("tab:plugin", prefix), small=True)
-    mc_header = (r"rank & id & eff & $\mathrm{eff}_{q50}$ & $\overline{\mathrm{eff}}$ & $P_+$ &"
+        r" replicates, and the share of replicates in the gate; the interval is rounded outward"
+        r" to two significant digits. USD in $C$, EVSI, EVSI$^\star$.",
+        tex_label("tab:plugin", prefix), small=True)
+    mc_header = (r"rank & id & EVPI & eff & $\mathrm{eff}_{q50}$ & $\overline{\mathrm{eff}}$ & $P_+$ &"
                  r" $P_\mathrm{gate}$")
     _write(out, "plugin_mc.tex", longtable(
-        "@{}rrrrrrr@{}", mc_header, mc_rows,
-        r"Monte Carlo summaries per scenario, in the order of the run's median efficiency"
-        r" (rank), next to the plug-in eff of the companion plug-in table (same rows and order)."
+        "@{}rrrrrrrr@{}", mc_header, mc_rows,
+        r"Plug-in EVPI and Monte Carlo summaries per scenario, in the order of the run's median"
+        r" efficiency (rank), next to the plug-in eff of the companion plug-in table (same rows"
+        r" and order). EVPI $= \min(pB, (1-p)K)$ (USD) at the same pooled elicited medians, the"
+        r" \texttt{model.voi} bound on EVSI."
         r" $\mathrm{eff}_{q50}$: the run's stored median efficiency; $\overline{\mathrm{eff}}$:"
         f" the mean over the {run['n_draws']} draws of run {run['id']}, replayed from the DB and"
         r" verified against the stored quantiles; $P_+ = P(\mathrm{EVSI} > C)$ stored by the run;"
@@ -1971,8 +1991,9 @@ N_BOOT = 2000                 # replicates (extra --boot overrides)
 BOOT_SEED_OFFSET = 1_000_003  # the bootstrap's rng: default_rng(run seed + this)
 BOOT_TOP_K = 3                # P(rank <= BOOT_TOP_K) in plugin_ranks.tex
 # a step's bootstrap ratio dEVSI/dC is flagged when dC takes each sign in at
-# least this share of replicates: the ratio then straddles its pole and its
-# q05-q95 are not an interval of anything (P(dEVSI > dC) still is)
+# least this share of the replicates with dC != 0 (those the ratio's q05-q95
+# are taken over): the ratio then straddles its pole and its q05-q95 are not
+# an interval of anything (P(dEVSI > dC) still is)
 BOOT_SIGN_FLAG = 0.05
 
 
@@ -2170,13 +2191,34 @@ def plugin_bootstrap(con, run, n_boot: int = N_BOOT, draws: dict | None = None) 
     return out
 
 
-def interval(q, fmt: str = "{:.2g}") -> str:
-    """'[q05, q95]' of a quantile triple (quantiles), '--' when undefined;
-    two significant digits by default (the point carries three)."""
+INTERVAL_DIGITS = 2           # significant digits of a printed bootstrap interval (the point carries 3)
+
+
+def round_outward(v: float, digits: int, up: bool) -> float:
+    """v rounded to `digits` significant digits toward +inf (up) or -inf."""
+    if v == 0.0:
+        return 0.0
+    e = math.floor(math.log10(abs(v))) - digits + 1
+    scaled = round(v * 10 ** -e if e < 0 else v / 10 ** e, 9)   # 5.9 / 0.1 is 59.000000000000007
+    return float(f"{math.ceil(scaled) if up else math.floor(scaled)}e{e}")
+
+
+def plain(v: float) -> str:
+    """A rounded value without exponent notation: positional below 1000,
+    money()'s k / M suffixes from 1000 on."""
+    return money(v) if abs(v) >= 1e3 else np.format_float_positional(v + 0.0, trim="-")   # never '-0'
+
+
+def interval(q) -> str:
+    """'[q05, q95]' of a quantile triple (quantiles), '--' when undefined:
+    INTERVAL_DIGITS significant digits, q05 rounded down and q95 up so the
+    printed interval contains the computed one, without exponent notation
+    (plain)."""
     lo, hi = q[0], q[-1]
     if not (np.isfinite(lo) and np.isfinite(hi)):
         return "--"
-    return f"[{num(float(lo), fmt)}, {num(float(hi), fmt)}]"
+    return (f"[{plain(round_outward(float(lo), INTERVAL_DIGITS, up=False))},"
+            f" {plain(round_outward(float(hi), INTERVAL_DIGITS, up=True))}]")
 
 
 def rank_cell(v: float) -> str:
@@ -2269,23 +2311,29 @@ def ladder_bootstrap(draws: dict, rungs: list[tuple[float, int]]) -> dict[int, d
 
 def boot_step_stats(lo: dict, hi: dict) -> dict:
     """Bootstrap of one step's plug-in marginal: q05/q95 of dEVSI / dC over
-    the replicates with dC != 0, P(dEVSI > dC) and P(dC > 0)."""
+    the replicates with dC != 0, P(dEVSI > dC), P(dC > 0) and P(dC < 0)
+    (over all replicates; the medians of few elicitations tie, so dC == 0
+    takes the rest)."""
     d_evsi, d_c = hi["EVSI"] - lo["EVSI"], hi["C"] - lo["C"]
     with np.errstate(divide="ignore", invalid="ignore"):
         ratio = np.where(d_c != 0.0, d_evsi / d_c, np.nan)
     q = quantiles(ratio)
     return {"meff_plug_q05": float(q[0]), "meff_plug_q95": float(q[2]),
-            "p_pays_plug": float(np.mean(d_evsi > d_c)), "p_dc_pos_plug": float(np.mean(d_c > 0.0))}
+            "p_pays_plug": float(np.mean(d_evsi > d_c)), "p_dc_pos_plug": float(np.mean(d_c > 0.0)),
+            "p_dc_neg_plug": float(np.mean(d_c < 0.0))}
 
 
-BOOT_STEP_NAN = dict.fromkeys(("meff_plug_q05", "meff_plug_q95", "p_pays_plug", "p_dc_pos_plug"),
-                              float("nan"))
+BOOT_STEP_NAN = dict.fromkeys(("meff_plug_q05", "meff_plug_q95", "p_pays_plug", "p_dc_pos_plug",
+                               "p_dc_neg_plug"), float("nan"))
 
 
 def sign_unstable(step: dict) -> bool:
-    """dC takes each sign in at least BOOT_SIGN_FLAG of the replicates."""
-    p = step["p_dc_pos_plug"]
-    return bool(np.isfinite(p) and min(p, 1.0 - p) >= BOOT_SIGN_FLAG)
+    """dC takes each sign in at least BOOT_SIGN_FLAG of the replicates with
+    dC != 0 (the ones the ratio's q05-q95 are taken over); a tie dC == 0
+    counts as neither sign."""
+    pos, neg = step["p_dc_pos_plug"], step["p_dc_neg_plug"]
+    nonzero = pos + neg
+    return bool(np.isfinite(nonzero) and nonzero > 0.0 and min(pos, neg) / nonzero >= BOOT_SIGN_FLAG)
 
 
 # --- driver -------------------------------------------------------------------

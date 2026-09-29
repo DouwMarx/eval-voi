@@ -250,3 +250,18 @@ def test_a_pre_v24_database_gains_the_column(tmp_path):
     run = db.latest_run(con, "p")
     assert run["weights"] is None and db.run_weights(run) is None and db.weights_label(None) == "pooled"
     con.close()
+
+
+def test_member_agreement_names_the_run_by_its_weights(built, con, tmp_path):
+    """member_agreement.tex labels the stored run with its weighting ('pooled'
+    is also a --weights value), so an equal-member run is never called the
+    pooled run."""
+    for key, label, weights in (("equal", "run/equal", EQUAL), ("pooled", "run", db.WEIGHTS_POOLED)):
+        run = db.get_run(con, built["runs"][key])
+        out = tmp_path / key
+        out.mkdir()
+        assert extra.write_member_agreement(con, run, out)
+        tex = (out / "member_agreement.tex").read_text()
+        assert f"& {label} & top-5 ids" in tex and f"\n{label} &" in tex
+        assert f"the stored run {run['id']} ({weights}), over shared scenarios" in tex
+        assert "pooled run" not in tex and "pooled (run)" not in tex

@@ -518,7 +518,8 @@ def test_member_rankings_matrix_and_files(built, con, out):
     assert extra.write_member_agreement(con, run, out)
     assert (out / "fig_member_agreement.pdf").stat().st_size > 0
     tex = (out / "member_agreement.tex").read_text()
-    assert "claude\\_cli:haiku & 1.00 &" in tex and "pooled (run) &" in tex
+    assert "claude\\_cli:haiku & 1.00 &" in tex and "\nrun &" in tex
+    assert f"the stored run {run['id']} (pooled)" in tex and "pooled run" not in tex
     assert "top-5 ids" in tex and "not the stored run" in tex
 
 
@@ -806,24 +807,28 @@ def test_plugin_equals_voi_at_the_pooled_medians(built, con, out, protocol):
     assert (out / "fig_plugin.pdf").stat().st_size > 0
     tex = (out / "plugin.tex").read_text()
     table, summary = tex.split(r"\par\medskip")
-    # footnotesize, 13 columns: the Monte Carlo columns moved to plugin_mc.tex so it fits the page
-    assert table.startswith("\\begingroup\\footnotesize\\setlength{\\tabcolsep}{3pt}\n"
-                            "\\begin{longtable}{@{}rrrrrrrrrrrlr@{}}\n\\caption{Plug-in values")
+    # footnotesize, 12 columns: EVPI and the Monte Carlo columns are in plugin_mc.tex so it fits the page
+    assert table.startswith(extra.SMALL_OPEN + "\n"
+                            "\\begin{longtable}{@{}rrrrrrrrrrlr@{}}\n\\caption{Plug-in values")
     assert table.rstrip().endswith("\\end{longtable}\n\\endgroup")
     assert r"\label{tab:plugin}" in table and r"\endfirsthead" in table and r"\endfoot" in table
-    assert table.count(r"\\") == 3 + 9 and table.count("& gate &") == 8 and table.count("& always &") == 1
+    # caption, the two-line EVSI/EVSI* header cell and its row in the first and repeated head, rows
+    assert table.count(r"\\") == 1 + 2 * 2 + 9
+    assert table.count("& gate &") == 8 and table.count("& always &") == 1
     assert f"\n1 & {order[0]} & " in table and f"\n9 & {order[-1]} & " in table
     assert "the catalog's $C$ is the run's mixture" in table and r"\ref" not in table   # stands alone
     assert "$p$ &" not in table   # the catalog's p, s, t, B, K columns are not repeated
     assert "replayed" not in table and "bootstrap over elicitations, 2000 replicates" in table
-    assert table.count(" & ") == 12 * (2 + 9)   # 13 columns in each header and row
+    assert table.count(" & ") == 11 * (2 + 9)   # 12 columns in each header and row
+    assert "EVPI" not in table.split(r"\label")[1]   # header and rows
     mc_table = (out / "plugin_mc.tex").read_text()
-    assert mc_table.startswith("\\begin{longtable}{@{}rrrrrrr@{}}\n\\caption{Monte Carlo summaries")
+    assert mc_table.startswith("\\begin{longtable}{@{}rrrrrrrr@{}}\n\\caption{Plug-in EVPI and Monte Carlo")
     assert r"\label{tab:plugin-mc}" in mc_table and r"\ref" not in mc_table
     assert f"draws of run {run['id']}, replayed from the DB" in mc_table
-    assert mc_table.count(" & ") == 6 * (2 + 9)   # 7 columns in each header and row
-    for r in st["rows"]:   # same order as plugin.tex, each row carrying its Monte Carlo summaries
-        assert (f"\n{r['rank']} & {r['sid']} & {extra.num(r['eff'])} & {extra.num(r['mc_median'])} &"
+    assert mc_table.count(" & ") == 7 * (2 + 9)   # 8 columns in each header and row
+    for r in st["rows"]:   # same order as plugin.tex, each row carrying its EVPI and Monte Carlo summaries
+        assert (f"\n{r['rank']} & {r['sid']} & {extra.money(r['EVPI'])} & {extra.num(r['eff'])} &"
+                f" {extra.num(r['mc_median'])} &"
                 f" {extra.num(r['mc_mean'])} & {extra.pct(r['p_positive'])} & {extra.pct(r['p_gate'])}\\\\"
                 in mc_table)
     assert "scenarios in gate at the medians & 8 / 9" in summary
@@ -940,7 +945,8 @@ def test_plugin_fence_columns_and_macros(built, con, out, protocol):
     assert extra.write_plugin(con, run, out, st)
     tex = (out / "plugin.tex").read_text()
     table, summary = tex.split(r"\par\medskip")
-    assert "EVSI$^\\star$ & eff & [q05, q95] & eff$^\\star$ & [q05, q95] & EVSI/EVSI$^\\star$ &" in table
+    assert ("EVSI$^\\star$ & eff & [q05, q95] & eff$^\\star$ & [q05, q95] &"
+            " \\begin{tabular}[b]{@{}r@{}}EVSI/\\\\EVSI$^\\star$\\end{tabular} &") in table
     assert "the buyer on the fence" in table and table.count(" & 0.00 & always &") == 1
     assert (f"Spearman $\\rho$(fence eff$^\\star$, plug-in eff), EVSI $>$ 0 & {st['fence_rho']:.2f}"
             " ($n$=8)") in summary
