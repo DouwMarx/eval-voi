@@ -24,7 +24,10 @@ from voi_rank.sensitivity import repeat_spread
 from voi_rank.study import Study
 
 ROOT = Path(__file__).resolve().parent.parent
-STUDIES = ROOT / "studies"
+# the pilot studies, archived at tag pilot-2026-09-30
+STUDY_DIRS = {"business": ROOT / "archive" / "business",
+              "ai-safety-evals": ROOT / "archive" / "pilots" / "ai-safety-evals",
+              "sim2real": ROOT / "archive" / "pilots" / "sim2real"}
 STUDY_NAMES = ("business", "ai-safety-evals", "sim2real")
 HAIKU = "claude_cli:haiku"   # the member the single-member tests elicit (g001 lists three)
 
@@ -50,7 +53,7 @@ ANCHOR = {
 
 def copy_study(name: str, tmp_path: Path) -> Study:
     """A study's inputs (scenarios, protocols, templates) without its voi.db."""
-    src, dst = STUDIES / name, tmp_path / name
+    src, dst = STUDY_DIRS[name], tmp_path / name
     dst.mkdir()
     shutil.copy(src / "scenarios.json", dst)
     shutil.copytree(src / "protocols", dst / "protocols")
@@ -85,7 +88,7 @@ def jittered_gauss(rng) -> dict:
 
 
 def jittered_binary(rng) -> dict:
-    seed = json.loads((STUDIES / "business" / "scenarios.json").read_text())[0]["manual"]
+    seed = json.loads((STUDY_DIRS["business"] / "scenarios.json").read_text())[0]["manual"]
     prm = copy.deepcopy(seed)
     for name in ("p", "s", "t"):
         f = rng.uniform(0.7, 1.1)

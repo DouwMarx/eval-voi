@@ -475,7 +475,7 @@ def test_study_notes_cite_p_gate_from_the_fragment_that_ends_with_it(built, con,
         last[name] = head.rsplit(" & ", 1)[1].removesuffix(r"\\")
     assert last["plugin_mc.tex"] == r"$P_\mathrm{gate}$"
     assert r"$P_\mathrm{boot}$\\(gate)" in last["plugin.tex"]
-    notes = "\n".join((ROOT / "studies" / f).read_text() for f in (
+    notes = "\n".join((ROOT / "archive" / "pilots" / f).read_text() for f in (
         "README_tracks.md", "ai-safety-evals/report/findings.md", "sim2real/report/findings.md"))
     cites = (re.findall(r"P_gate is [^(]*\(`(\w+\.tex)` run \d+, last column\)", notes)
              + re.findall(r"`(\w+\.tex)` \([^)]*\) P\(gate\) column", notes)

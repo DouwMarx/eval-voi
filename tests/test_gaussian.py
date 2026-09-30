@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 from scipy import integrate, optimize, stats
 
+from tests.test_gauss_pipeline import STUDY_DIRS
 from voi_rank import gauss_fit, model
 from voi_rank import gaussian as g
 from voi_rank.fit import GAUSS_PARAM_NAMES
@@ -477,7 +478,7 @@ def test_template_implied_lines_quote_the_fitters_numbers(study):
     listed answers (x, R^2 before and after the sigma_b correction, d, k, L,
     the shift, s and t at the corrected R^2), not the design values the
     answers were solved from."""
-    text = (ROOT / "studies" / study / "templates" / "elicitor_gauss.md").read_text()
+    text = (STUDY_DIRS[study] / "templates" / "elicitor_gauss.md").read_text()
     implied = re.findall(r"^- Implied: (.*)$", text, flags=re.M)
     assert len(implied) == 2
     anchors = ((implied[0], anchor_payload(), 0.08), (implied[1], anchor_a2_payload(), 0.15))

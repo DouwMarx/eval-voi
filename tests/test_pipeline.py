@@ -29,7 +29,7 @@ from voi_rank.study import Study
 from voi_rank.validate import fit_all, validate_payload
 
 ROOT = Path(__file__).resolve().parent.parent
-BUSINESS = ROOT / "studies" / "business"
+BUSINESS = ROOT / "archive" / "business"
 _REAL_GIT_STATE = db.git_state   # captured before the hermetic fixture replaces it
 
 

@@ -12,7 +12,7 @@ import yaml
 from voi_rank import db
 from voi_rank.fit import fit_param
 
-BUSINESS = Path(__file__).resolve().parent.parent / "studies" / "business"
+BUSINESS = Path(__file__).resolve().parent.parent / "archive" / "business"
 _REAL_GIT_STATE = db.git_state   # captured before the hermetic fixture replaces it
 
 V1_SCHEMA = """

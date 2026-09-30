@@ -506,7 +506,7 @@ def test_real_data_smoke_on_a_copy(name, tmp_path, capsys):
     otherwise (the source printed per row is checked against the database,
     so the test holds before and after subset runs are committed); 15
     scenarios carry both plug-in points."""
-    src = ROOT / "studies" / name
+    src = ROOT / "archive" / "pilots" / name
     if not (src / "voi.db").exists():
         pytest.skip(f"{name} has no committed voi.db")
     dst = tmp_path / name
