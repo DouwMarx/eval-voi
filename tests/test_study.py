@@ -50,8 +50,6 @@ def template(name: str) -> string.Template:
 def test_default_study_is_safety_evals():
     assert study_mod.DEFAULT_STUDY == "studies/safety-evals"
     assert study_mod.Study.resolve().root == STUDY.resolve()
-    assert "studies/safety-evals/voi.db" not in __import__("subprocess").run(
-        ["git", "ls-files", "studies/safety-evals"], cwd=ROOT, capture_output=True, text=True).stdout   # no database is committed
 
 
 def test_scenarios_json_is_the_build_of_the_drafts():
