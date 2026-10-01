@@ -69,7 +69,16 @@ def num(v, digits: int = 2) -> str:
 
 
 def pct(p, digits: int = 2) -> str:
-    return "--" if missing(p) else sig(100.0 * float(p), digits) + r"\%"
+    """Percent with 2 significant figures; a probability strictly inside
+    (0, 1) never prints as 0% or 100% (>99.5% / <0.5% instead)."""
+    if missing(p):
+        return "--"
+    p = float(p)
+    if 0.995 <= p < 1.0:
+        return r"\ensuremath{>}99.5\%"
+    if 0.0 < p < 0.005:
+        return r"\ensuremath{<}0.5\%"
+    return sig(100.0 * p, digits) + r"\%"
 
 
 def usd(v) -> str:
@@ -98,8 +107,8 @@ def camel(text: str) -> str:
 
 def scenario_keys(s: Summary) -> list[str]:
     """camel(short name) per scenario; S<id in words> where two would collide."""
-    keys = [camel(sc.short) or "S" + camel(str(sc.id)) for sc in s.scenarios]
-    return [k if keys.count(k) == 1 else "S" + camel(str(sc.id)) for k, sc in zip(keys, s.scenarios,
+    keys = ["Sc" + (camel(sc.short) or camel(str(sc.id))) for sc in s.scenarios]
+    return [k if keys.count(k) == 1 else "Sc" + camel(str(sc.id)) for k, sc in zip(keys, s.scenarios,
                                                                               strict=True)]
 
 
@@ -114,8 +123,17 @@ def newcommands(values: dict[str, str], tag: str | None = None) -> list[str]:
 
 # --- the macros ------------------------------------------------------------------
 
+class Unique(dict):
+    """A dict that refuses to overwrite: two macros with one name is a bug."""
+
+    def __setitem__(self, key, value):
+        if key in self:
+            raise RuntimeError(f"macro name {key!r} defined twice (a scenario short name collides)")
+        super().__setitem__(key, value)
+
+
 def collect(s: Summary) -> dict[str, str]:
-    o, m = s.out, {}
+    o, m = s.out, Unique()
     keys = scenario_keys(s)
     run = s.run
     m["RunId"] = str(run["id"])

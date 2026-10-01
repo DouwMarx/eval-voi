@@ -44,6 +44,15 @@ STYLE = {
 }
 
 
+def pct_text(p: float) -> str:
+    """Plain-text percent that never shows 0% or 100% for a probability inside (0, 1)."""
+    if 0.995 <= p < 1.0:
+        return ">99.5%"
+    if 0.0 < p < 0.005:
+        return "<0.5%"
+    return f"{100 * p:.0f}%"
+
+
 def color(group) -> str:
     return COLOR.get(group, COLOR[None])
 
@@ -192,7 +201,6 @@ def curve_panel(ax, s: Summary) -> None:
     ax.fill_between(CURVE_QS, lo, hi, color=COLOR[PHYS], alpha=0.25, lw=0, label="90% band over draws")
     ax.plot(CURVE_QS, med, color=COLOR[PHYS], lw=1.2, label="median over draws")
     ax.plot(CURVE_QS, o["curve_central"], color=INK, lw=0.9, ls="--", label="central estimate")
-    ax.plot([0, 100], [1, 0], color=MUTED, lw=0.6, ls=":", label="same distribution as LLM")
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 1)
     ax.yaxis.set_major_formatter(mticker.PercentFormatter(1.0))
@@ -298,7 +306,7 @@ def fig_breakeven(s: Summary, out: Path) -> Path | None:
                 _violins(ax, [v], [p], color(s.scenarios[i].group))
                 drawn = True
             ax.plot(math.log10(s.pooled["n"][i]), p, "x", color=INK, ms=4, mew=0.9)
-            ax.annotate(f"{100 * o['p_pays'][i]:.0f}%", (1.0, p), xycoords=("axes fraction", "data"),
+            ax.annotate(pct_text(o["p_pays"][i]), (1.0, p), xycoords=("axes fraction", "data"),
                         xytext=(3, 0), textcoords="offset points", va="center", fontsize=MIN_FONT,
                         color=INK, annotation_clip=False)
         if not drawn:

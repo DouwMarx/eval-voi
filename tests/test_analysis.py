@@ -41,13 +41,20 @@ def test_pairwise_share_is_one_when_every_physical_beats_every_llm():
     assert pairwise_share(np.zeros(3), np.zeros(5)) == 0.5
 
 
-def test_pairwise_share_equals_mann_whitney_u_and_the_p_value_is_scipys():
+def test_pairwise_share_equals_mann_whitney_u_and_the_exact_p_holds_under_ties():
     rng = np.random.default_rng(0)
     a = np.round(rng.lognormal(0, 1, 7), 1)
     b = np.concatenate([np.zeros(3), np.round(rng.lognormal(0, 1, 9), 1)])
     res = stats.mannwhitneyu(a, b, alternative="two-sided", method="exact")
     assert pairwise_share(a, b) == pytest.approx(res.statistic / (len(a) * len(b)))
-    assert mann_whitney_p(a, b) == pytest.approx(res.pvalue)
+    # no ties: scipy's exact p
+    c, d = rng.random(6), rng.random(9)
+    assert mann_whitney_p(c, d) == pytest.approx(stats.mannwhitneyu(c, d, method="exact").pvalue)
+    # ties (zeros, as at the central estimate): the full permutation enumeration, which
+    # scipy's 'exact' (no-ties null) does not match
+    a2, b2 = np.array([0.0, 0.0, 1.0, 2.0, 5.0]), np.array([0.0, 0.0, 0.0, 0.0, 1.0, 3.0, 3.0])
+    perm = stats.mannwhitneyu(a2, b2, method=stats.PermutationMethod(n_resamples=10**6)).pvalue
+    assert mann_whitney_p(a2, b2) == pytest.approx(perm)
     assert mann_whitney_p([], b) is None
 
 
@@ -82,6 +89,7 @@ def test_rank_intervals_of_a_dominant_scenario():
 
 
 def test_macro_formats():
+    assert macros.pct(0.996) == r"\ensuremath{>}99.5\%" and macros.pct(0.001) == r"\ensuremath{<}0.5\%"
     assert macros.pct(0.534) == r"53\%" and macros.pct(0.0123) == r"1.2\%" and macros.pct(1.0) == r"100\%"
     assert macros.usd(12345) == r"\$12k" and macros.usd(1.234e6) == r"\$1.2M" and macros.usd(850) == r"\$850"
     assert macros.usd(123456) == r"\$123k" and macros.usd(999_999) == r"\$1M"
@@ -168,11 +176,15 @@ def test_replay_mismatch_is_refused_and_invalid_rows_are_counted(elicited):
     study, _ = elicited
     con = study.connect()
     pid = db.protocol_by_name(con, "pS")["id"]
-    for err in ("refusal: I can't help", "json: result parse failed", "fit: x", "http: status 500"):
+    for err in ("refusal: I can't help", "json: result parse failed", "fit: x", "http: status 500",
+                "provider: ValueError: x", "duplicate slot"):
         db.insert_elicitation(con, 1, pid, "claude_cli", "sonnet", 9, "h", "{}", False, err, "instrument")
     con.commit()
     h = {r["member"]: r for r in summary.load(con, "pS").health}[SONNET]
-    assert (h["refusal"], h["json"], h["other"], h["http"], h["attempts"]) == (1, 1, 1, 1, 22)
+    assert (h["refusal"], h["json"], h["fit"], h["http"], h["provider"], h["other"], h["attempts"]) == \
+        (1, 1, 1, 1, 1, 1, 24)
+    with pytest.raises(RuntimeError, match="at least 1"):
+        summary.load(con, "pS", draws=0)
     eid = con.execute("SELECT id FROM elicitations WHERE protocol_id=? AND valid=1 AND stage='instrument'"
                       " ORDER BY id LIMIT 1", (pid,)).fetchone()[0]
     con.execute("UPDATE elicitations SET valid=0, error='other: test' WHERE id=?", (eid,))
@@ -210,7 +222,7 @@ def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys
     assert all(parsed), [c for c, m in zip(cmds, parsed, strict=True) if not m]
     names_ = [m.group(1) for m in parsed]
     assert len(names_) == len(set(names_))
-    assert {"EtaACentral", "EtaMWp", "CurveMedFifty", "PctRoboZeroCentral", "USD",
+    assert {"EtaACentral", "EtaMWp", "CurveMedFifty", "PctScRoboZeroCentral", "USD",
             "InvalidRefusal"} <= set(names_)
     body = ("\\input{macros.tex}\n" + "\n".join(f"\\voi{n}\\par" for n in names_)
             + "\n" + "\n".join(f"\\input{{{t}}}" for t in ("tab_scenarios", "tab_headline", "tab_health")))
@@ -238,6 +250,13 @@ def test_developer_ablation_is_tagged_and_takes_p_b_k_from_the_other_protocol(el
     assert np.array_equal(s.pooled["s"], head.pooled["s"])
     assert not np.array_equal(s.pooled["p"], head.pooled["p"])
     assert {r["member"] for r in s.health} == {HAIKU, SONNET}
+    # the ablation still verifies the headline run against the DB
+    con = study.connect()
+    con.execute("UPDATE elicitations SET valid=0, error='other: test' WHERE id=(SELECT MIN(id) FROM"
+                " elicitations WHERE valid=1 AND stage='instrument')")
+    con.commit()
+    with pytest.raises(RuntimeError, match="replay mismatch"):
+        summary.load(con, "pS", decision_from="pD")
     with pytest.raises(SystemExit, match="letters only"):
         cli.main(["--study", str(study.root), "--protocol", "pS", "--tag", "dev2"])
 

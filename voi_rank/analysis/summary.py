@@ -24,6 +24,7 @@ highest eta, ties averaged. Every pairwise share counts ties as one half.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -36,7 +37,7 @@ from voi_rank.sensitivity import spearman
 PHYS, LLM = "physical AI", "LLM"
 GROUPS = (PHYS, LLM)
 GROUP_ALIASES = {"frontier model": LLM}
-ERROR_CLASSES = ("json", "schema", "constraint", "refusal", "cli", "http", "api", "other")
+ERROR_CLASSES = ("json", "schema", "constraint", "fit", "refusal", "cli", "http", "api", "provider", "other")
 CURVE_QS = np.arange(101)
 QS = (0.05, 0.50, 0.95)
 TOP_K = (3, 5)
@@ -133,10 +134,25 @@ def quantiles(vec, qs=QS) -> list[float | None]:
 
 
 def mann_whitney_p(a, b) -> float | None:
-    """Exact two-sided Mann-Whitney p-value (scipy, method='exact')."""
-    if len(a) == 0 or len(b) == 0:
+    """Exact two-sided Mann-Whitney p-value that holds under ties (many
+    central etas are exactly 0; scipy's method='exact' assumes no ties):
+    the permutation distribution of a's rank sum under midranks, counted
+    exactly (doubled midranks are integers, so a subset-sum count over them
+    enumerates every split), two-sided as scipy does (twice the smaller
+    tail, capped at 1)."""
+    a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
+    na, n = len(a), len(a) + len(b)
+    if na == 0 or len(b) == 0:
         return None
-    return float(stats.mannwhitneyu(a, b, alternative="two-sided", method="exact").pvalue)
+    r2 = np.rint(2 * stats.rankdata(np.concatenate([a, b]))).astype(int)
+    tot = int(r2.sum())
+    f = np.zeros((na + 1, tot + 1), dtype=object)   # f[k, s]: subsets of size k with doubled sum s
+    f[0, 0] = 1
+    for r in r2:
+        f[1:, r:] = f[1:, r:] + f[:-1, :tot + 1 - r]
+    d, obs = f[na], int(r2[:na].sum())
+    tail = min(sum(d[:obs + 1]), sum(d[obs:]))
+    return float(min(1.0, 2 * tail / math.comb(n, na)))
 
 
 def spearman_or_none(x, y) -> float | None:
@@ -254,11 +270,18 @@ def load(con, protocol: str, members: list[str] | None = None, draws: int | None
     member_sets = {prot["id"]: _protocol_members(con, prot, labels)}
     stages = db.protocol_stages(prot)
     health_src: list[tuple[int, str | None]] = [(prot["id"], None)]
+    if draws is not None and int(draws) < 1:
+        raise RuntimeError(f"--draws {draws}: must be at least 1")
     if decision_from:
+        mc.replay_efficiency(con, run["id"])   # the headline run still matches the DB
         dprot = db.protocol_by_name(con, decision_from)
         dfits = decision_fits(con, dprot, labels)
+        dropped = sorted(sid for sid in fits if not all(dfits.get(sid, {}).get(n) for n in DECISION_PARAMS))
+        if dropped:
+            print(f"--decision-from {decision_from}: scenarios {dropped} have no complete valid decision"
+                  " stage there and are left out of this analysis")
         fits = {sid: {**f, **{n: dfits[sid][n] for n in DECISION_PARAMS}} for sid, f in fits.items()
-                if all(dfits.get(sid, {}).get(n) for n in DECISION_PARAMS)}
+                if sid not in dropped}
         if not fits:
             raise RuntimeError(f"--decision-from {decision_from}: no scenario of run {run['id']} has"
                                f" valid decision-stage elicitations under {decision_from}")
