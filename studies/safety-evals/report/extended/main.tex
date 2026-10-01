@@ -1,0 +1,335 @@
+\documentclass{article}
+
+\usepackage{tikz} % before corl_2026, so its colours are defined with xcolor
+\usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric,calc,backgrounds}
+\usepackage[preprint]{corl_2026}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{placeins}
+
+% The extended report: everything in the paper (the shared sections under ../sections/),
+% every alternative figure, the ablations, the elicitation details and the planned final
+% run. Numbers come from ../generated/macros.tex (and ../generated/dev/macros.tex when the
+% developer-perspective ablation exists), written by scripts/regen.sh.
+\graphicspath{{../generated/}}
+\input{../generated/macros.tex}
+\newcommand{\reportdir}{../}
+\input{../shared.tex}
+% as in ../main.tex: drop the template's first-page enlargement, which lands on page 2
+\makeatletter
+\renewcommand{\@notice}{\@float{noticebox}[b]\footnotesize\@noticestring\end@float}
+\makeatother
+\extendedtrue
+\newif\ifdev
+\IfFileExists{../generated/dev/macros.tex}{\input{../generated/dev/macros.tex}}{}
+% the ablation is reported only once it covers every evaluation of the headline run
+\ifdefined\voidevNScenarios\ifnum\voidevNScenarios=\voiNScenarios\relax\devtrue\fi\fi
+
+\lstset{basicstyle=\ttfamily\scriptsize, breaklines=true, columns=fullflexible, keepspaces=true,
+  frame=single, framerule=0.3pt, xleftmargin=2pt, xrightmargin=2pt}
+
+% "candidate for the paper because ...": one line under each alternative figure
+\newcommand{\candidate}[1]{\par\smallskip\noindent\emph{Candidate for the paper because} #1\par}
+
+\title{Do physical-AI safety evaluations pay for themselves? Extended report}
+
+\author{
+  Anonymous Author(s)\\
+  Affiliation\\
+  \texttt{email}
+}
+
+\begin{document}
+\maketitle
+
+\input{../sections/abstract.tex}
+
+\keywords{Safety evaluation, value of information, physical AI}
+
+\noindent This report carries the paper's text unchanged (Sections~\ref{sec:intro} to~\ref{sec:limitations}), then every figure and analysis that did not fit in four pages, each with a note on why it might replace or join a figure in the paper.
+
+\input{../sections/fig_headline.tex}
+
+\input{../sections/intro.tex}
+\input{../sections/method.tex}
+\input{../sections/results.tex}
+\input{../sections/limitations.tex}
+\input{../sections/disclosure.tex}
+
+%===============================================================================
+\FloatBarrier
+\section{Alternative figures}
+\label{sec:alternatives}
+
+Every figure below is written by the same analysis run as the paper's Figure~\ref{fig:headline}. Evaluation ids are listed in Table~\ref{tab:scenarios}.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.62\linewidth]{fig_indifference.pdf}
+  \caption{The indifference value $\EVSI^\circ$, the value of one run to a developer who is exactly undecided before the evaluation, against cost $C$. It is smooth in every input, so no evaluation sits on the zero row.}
+  \label{fig:indifference}
+\end{figure}
+\candidate{it removes the threshold from the comparison. A reader who doubts the elicited prior and stakes can still compare the evaluations' discriminating power per dollar, and no evaluation is hidden on a zero row.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_percentile_violins.pdf}
+  \caption{Per physical-AI evaluation, the distribution over Monte Carlo draws of its percentile among the LLM evaluations by $\eta$ (0: below every LLM evaluation, 100: above every one). Bar: median over draws; diamond: central estimate.}
+  \label{fig:violins}
+\end{figure}
+\candidate{it answers the per-evaluation version of the headline question ("which LLM evaluation is this one as good as?") and shows its uncertainty at a glance.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_rank_intervals.pdf}
+  \caption{Rank by $\eta$ per evaluation (1 = best): central estimate (marker), median over draws (tick) and 90\% interval over draws (bar). Evaluations whose result cannot change the decision on a draw share the average rank of the tied zeros.}
+  \label{fig:rank}
+\end{figure}
+\candidate{it shows per evaluation how settled its place is under the pooled uncertainty; a narrow bar means the place hardly moves across draws.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_breakeven.pdf}
+  \caption{Break-even reuse count $n^*=C_\mathrm{build}/(\EVSI-C_\mathrm{run})$ per evaluation over the draws where it is finite (violin), the elicited reuse count $n$ (cross) and the probability that building pays, $P(n\ge n^*)$ (right margin).}
+  \label{fig:breakeven}
+\end{figure}
+\candidate{it tests the intuition about build cost directly: an expensive physical-AI evaluation that is reused across product versions can pay where a single run cannot.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_params.pdf}
+  \caption{The elicited inputs. One panel per parameter; one point per valid elicitation (its median), coloured by member; black tick: pooled median, the value the central estimate uses. USD for $B$, $K$, $C_\mathrm{build}$ and $C_\mathrm{run}$.}
+  \label{fig:params}
+\end{figure}
+\candidate{it makes every input transparent in one figure, which answers a reviewer who asks what the members actually said, and it shows where they disagree.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_sensitivity.pdf}
+  \caption{Spearman correlation of each parameter's Monte Carlo draws with $\eta$, per evaluation. Large magnitudes mark the inputs whose uncertainty drives that evaluation's value per dollar.}
+  \label{fig:sensitivity}
+\end{figure}
+\candidate{it says which measurement would most sharpen each evaluation's price, which is the actionable output for an evaluation author.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_level.pdf}
+  \caption{Physical-AI evaluations by fidelity level (0: text question answering, 8: track testing): elicited Youden's index $J=s+t-1$ (left) and cost $C$ (right). Spearman correlation with level: \voiLevelRhoJ{} for $J$ and \voiLevelRhoC{} for $C$, over \voiNLevel{} evaluations.}
+  \label{fig:level}
+\end{figure}
+\candidate{it carries the sim-to-real result of the paper's fidelity paragraph, which a robotics audience will look for first.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_members.pdf}
+  \caption{Cross-member agreement. Per parameter, each member's median per evaluation (x) against the median of the other members (y). Points on the diagonal agree.}
+  \label{fig:members}
+\end{figure}
+\candidate{it shows how much the members agree before pooling. It is evidence about the inputs, not a result, so it belongs in the paper only if a reviewer asks for it.}
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Per-evaluation numbers at the central estimate, ordered by $\eta$. Rank 90\%: interval over draws. $P(\EVSI>0)$: share of draws on which the result can change the decision. $n^*$: break-even reuse count.}
+  \label{tab:headline}
+  \resizebox{\linewidth}{!}{\input{../generated/tab_headline.tex}}
+\end{table}
+\candidate{it gives every number behind Figure~\ref{fig:headline} in one place; in the paper it would replace the figure's labels, at the cost of half a page.}
+
+%===============================================================================
+\FloatBarrier
+\section{Ablations}
+\label{sec:ablations}
+
+\emph{Developer perspective.} The headline values $B$ and $K$ for society. A developer may weigh only its own exposure: liability, recall, regulatory action, reputation and lost revenue. We elicit the decision prompt again under that perspective and keep the instrument parameters of the headline run.
+\ifdev
+Under the developer perspective a random physical-AI evaluation beats a random LLM evaluation with probability \voidevEtaACentral{} at the central estimate (90\% interval over draws \voidevEtaAQLo{} to \voidevEtaAQHi{}; exact Mann-Whitney $p=\voidevEtaMWp$), against \voiEtaACentral{} for society. The result can change the decision for \voidevChangesSharePhysical{} of the physical-AI and \voidevChangesShareLLM{} of the LLM evaluations (society: \voiChangesSharePhysical{} and \voiChangesShareLLM). % CHECK-DATA
+Whose payoff the stakes measure does not change the placement. % CHECK-DATA
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{dev/fig_headline.pdf}
+  \caption{Figure~\ref{fig:headline} under the developer perspective for $B$ and $K$.}
+  \label{fig:dev}
+\end{figure}
+\candidate{it answers the reviewer who asks why society's value, not the buyer's, should price an evaluation.}
+\else
+The developer-perspective decision prompt has not yet been elicited for every evaluation; this section fills in when it has.
+\fi
+
+\emph{Run-only efficiency.} A developer who adopts a published evaluation pays only the run. Its efficiency is $\eta_\mathrm{run}=\EVSI/C_\mathrm{run}$, the value per dollar to an adopter of an evaluation that already exists. Under $\eta_\mathrm{run}$ a random physical-AI evaluation beats a random LLM evaluation with probability \voiEtaRunACentral{} at the central estimate (90\% interval over draws \voiEtaRunAQLo{} to \voiEtaRunAQHi{}; exact Mann-Whitney $p=\voiEtaRunMWp$), against \voiEtaACentral{} under $\eta$. % CHECK-DATA
+Removing the build cost does not lift the physical-AI evaluations, consistent with build costs that are similar in the two groups. % CHECK-DATA
+
+\emph{Indifference value.} Under $\eta^\circ=\EVSI^\circ/C$ the probability is \voiEtaIndACentral{} (90\% interval \voiEtaIndAQLo{} to \voiEtaIndAQHi{}; $p=\voiEtaIndMWp$).
+
+\emph{Sensitivity.} Averaged over evaluations, the absolute Spearman correlation of each parameter's draws with $\eta$ is \voiRhoP{} for $p$, \voiRhoS{} for $s$, \voiRhoT{} for $t$, \voiRhoB{} for $B$, \voiRhoK{} for $K$, \voiRhoCBuild{} for $C_\mathrm{build}$, \voiRhoCRun{} for $C_\mathrm{run}$ and \voiRhoN{} for $n$ ($n$ does not enter $\eta$; its row checks that the draws are independent).
+
+\emph{Planned ablations, not yet run.} Numeric anchors in the prompts (the template has an optional block, empty in the headline); the context mode (curated facts only, facts plus source abstracts, facts plus full source text); drawing whole elicitations instead of independent parameters, which keeps each member's story coherent; and the number of evaluations per group.
+
+%===============================================================================
+\FloatBarrier
+\section{Elicitation details}
+\label{sec:elicitation}
+
+\emph{Prompts.} Each evaluation gets two prompts, rendered from the two templates below. The decision prompt fills in the agent, the decision, the definition of $\theta$ and the decision facts; it never describes the evaluation. The instrument prompt fills in the evaluation's title, agent, decision, definition of $\theta$, the instrument and the instrument facts; it never states $p$, $B$ or $K$. The two are separate calls because a single prompt lets the instrument text move the elicited prior. The perspective (society or developer) is a template variable set by the protocol. The facts are sentences taken from the cited sources, each traceable to a cached copy of its source text.
+
+\emph{Order and format.} Per parameter, the member writes a short reasoning paragraph, then the 5th and 95th percentiles as exclusion questions ("a value you would be surprised to see the true value fall below or above"), then the median. Extremes first is standard practice against anchoring on the best guess~\citep{ohagan2006uncertain}. Numbers are plain decimals; the parser also reads scientific notation.
+
+\emph{Validation.} An answer is valid when it is strict JSON with exactly the parameters of its prompt, each with $p_5<p_{50}<p_{95}$; probabilities lie in $(0,1)$; USD amounts and $n$ are positive and $n\ge1$ at the median; the median $s$ exceeds one minus the median $t$ (the evaluation is informative); and the prior's median lies in $[0.001,0.999]$. A failed attempt is retried once. Failures are classed as unparseable JSON, wrong schema, a violated constraint, a failed fit, a refusal (no JSON and the text declines, or a content filter), a truncated answer, or a transport error.
+
+\emph{Fitting and pooling.} Each elicitation's three percentiles are fitted by least squares on the quantiles: a Beta distribution for $p$, $s$ and $t$, a lognormal for $B$, $K$, $C_\mathrm{build}$, $C_\mathrm{run}$ and $n$. Two parameters fitted to three quantiles leave a residual, stored as a quality flag. The pooled belief is the equal-weight mixture of the fitted distributions over every valid elicitation, the linear opinion pool~\citep{stone1961opinionpool,clemen1999combining}. A single distribution fitted to all members' quantiles would be forced to one mode and one width; the mixture keeps disagreement visible, which is what the uncertainty statements should carry.
+
+\emph{Members and health.} Table~\ref{tab:health} gives attempts, the valid share, the failures by class and the cost per member. Of \voiAttempts{} attempts, \voiValidShare{} were valid, \voiInvalidRefusal{} were refused, \voiInvalidJson{} were unparseable and \voiInvalidConstraint{} violated a constraint; the run cost \voiUSD.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{Elicitation health per member: attempts, share valid after the one retry, failures by class, cost in USD.}
+  \label{tab:health}
+  \resizebox{\linewidth}{!}{\input{../generated/tab_health.tex}}
+\end{table}
+
+\emph{Decision template.}
+\lstinputlisting{../../templates/decision.md}
+
+\emph{Instrument template.}
+\lstinputlisting{../../templates/instrument.md}
+
+%===============================================================================
+\FloatBarrier
+\section{The evaluations}
+\label{sec:catalogue}
+
+Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain or fidelity level. The LLM safety evaluations come from a ranked list of evaluations reported in LLM system cards; the physical-AI safety evaluations from a ranked list of published evaluations of embodied systems, chosen to span fidelity levels. Table~\ref{tab:provenance} gives the primary source of each evaluation's instrument facts; every decision and instrument fact cites a source, and the source texts are cached in the repository.
+
+\begin{table}[!htbp]
+  \centering
+  \caption{The evaluations. Domain for LLM evaluations; fidelity level (0 to 8) for physical-AI evaluations.}
+  \label{tab:scenarios}
+  \input{../generated/tab_scenarios.tex}
+\end{table}
+
+{\footnotesize
+\begin{longtable}{@{}p{0.42\linewidth}p{0.54\linewidth}@{}}
+  \caption{Provenance: the primary source of each evaluation's instrument facts, in the order of Table~\ref{tab:scenarios}. ``System cards'': the facts also quote LLM system cards that report the evaluation.}
+  \label{tab:provenance}\\
+  \toprule
+  evaluation & primary sources\\
+  \midrule
+  \endfirsthead
+  \toprule
+  evaluation & primary sources\\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+  CyberGym targeted vulnerability reproduction & \citet{wang2025cybergym}; system cards\\
+  Exploit development (ExploitGym) & \citet{wang2026exploitgym}\\
+  Virology Capabilities Test & \citet{gotting2025vct}; system cards\\
+  Cyber range & \citet{folkerts2026cyberranges}; system cards\\
+  LAB-Bench & \citet{laurent2024labbench}; system cards\\
+  Exploit development (ExploitBench) & \citet{lee2026exploitbench}; system cards\\
+  StrongREJECT jailbreak robustness & \citet{souly2024strongreject}; system cards\\
+  CTF suites (Cybench) & \citet{zhang2024cybench,aisi2024o1}\\
+  CVE-Bench & \citet{zhu2025cvebench}; system cards\\
+  MASK honesty under pressure & \citet{ren2025mask}; system cards\\
+  WMDP hazardous-knowledge questions & \citet{li2024wmdp,vanderweij2024sandbagging}\\
+  SHADE-Arena covert sabotage & \citet{kutasov2025shade}; system cards\\
+  Automated behavioral audit (Petri) & \citet{anthropic2025petri}\\
+  Bloom & \citet{anthropic2025bloom}; system cards\\
+  AI control setting (ControlArena) & \citet{ukaisi2025controlarena}\\
+  Agentic misalignment & \citet{lynch2025agentic}; system cards\\
+  ABC-Bench & \citet{liu2026abcbench}\\
+  AgentHarm & \citet{andriushchenko2024agentharm}; system cards\\
+  Unguided vulnerability discovery & \citet{anthropic2026opus55}; system cards\\
+  FORTRESS & \citet{knight2025fortress}; system cards\\
+  BBQ demographic bias & \citet{parrish2021bbq}; system cards\\
+  BioTIER biology refusal & \citet{marshall2026biotier}; system cards\\
+  HarmBench & \citet{mazeika2024harmbench}; system cards\\
+  Scenario-based offensive cyber operations & \citet{irregular2025cyscenariobench}; system cards\\
+  Human Pathogen Capabilities Test & \citet{securebio2026hpct}; system cards\\
+  DeceptionBench & \citet{huang2025deceptionbench}; system cards\\
+  Pedestrian AEB track protocol & \citet{iihs2024paeb}\\
+  RoboPAIR robot jailbreaking & \citet{robey2024robopair,ravichandran2025roboguard}\\
+  World-model policy evaluation (Veo) & \citet{geminirobotics2025veo}\\
+  RedVLA physical red teaming & \citet{zhang2026redvla}\\
+  ISO 10218 power-and-force-limiting contact tests & \citet{svarny2022skins}\\
+  ManiGuard-Bench & \citet{peng2026maniguard}\\
+  SafeAgentBench & \citet{yin2024safeagentbench}\\
+  IS-Bench & \citet{lu2025isbench}\\
+  ASIMOV semantic physical safety & \citet{jindal2025danger}\\
+  ASIMOV agentic safety orchestration & \citet{deepmind2026gr2safety}; system cards\\
+  EgoSafetyBench & \citet{panpatil2026egosafetybench}\\
+  Robot-command refusal suites (SafePlan) & \citet{obi2025safeplan,obi2026safegate}\\
+  LLM-orchestrator humanoid safety & \citet{bajrami2026robotignores}\\
+\end{longtable}
+}
+
+%===============================================================================
+\FloatBarrier
+\section{The final ensemble (planned run)}
+\label{sec:final}
+
+The final run uses six members from six developers through one routing service, one call per member and prompt, the society perspective, no numeric anchors and the curated facts. Three members come from Chinese developers and three from US developers. Members were chosen for developer diversity, reliable JSON output and price. Some evaluations come from member developers (Google DeepMind's ASIMOV and Veo evaluations), and three LLM evaluations from Anthropic, which has no member; we treat this as a limitation, not a correction. Each member is pinned to one endpoint with fallbacks disabled, so the weights and the price cannot change during the run; endpoints were chosen among those that keep no data. Reasoning effort is set low for the two members that reason longest at their default and medium for the others. Requests ask for a JSON object and refuse endpoints that ignore the request options.
+
+\begin{table}[!htbp]
+  \centering\footnotesize
+  \caption{The planned members (protocol \texttt{final}).}
+  \label{tab:final}
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    model & developer & endpoint & reasoning effort\\
+    \midrule
+    \texttt{deepseek/deepseek-v4.1-flash} & DeepSeek & DeepInfra (fp8) & low\\
+    \texttt{z-ai/glm-5.3} & Z.ai & Z.ai (fp8) & low\\
+    \texttt{xiaomi/mimo-v2.6-flash} & Xiaomi & DeepInfra (fp8) & medium\\
+    \texttt{openai/gpt-6-luna} & OpenAI & Azure & medium\\
+    \texttt{google/gemini-3.8-flash} & Google & Vertex & medium\\
+    \texttt{x-ai/grok-4.7} & xAI & xAI & medium\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Why many members and no repeats. In the pilots the variance between members was comparable to the variance between repeats of one member, even with members from one developer, so a call spent on a new member buys at least as much as a call spent on a repeat. A diverse crowd of LLMs forecasts about as well as a human crowd~\citep{schoenegger2024wisdom}, and models of different developers make less correlated errors than models of one developer~\citep{kim2025correlated}. The counter-argument, that a few strong models beat a mix, assumes a verifier that tells which model is best; for elicited priors there is none.
+
+Cost. The dry run of the protocol estimates USD 5.7 for the headline run (low USD 3.1, high USD 11) from the routing service's published prices and token counts measured in a smoke test, and USD 2.8 (low USD 1.6, high USD 5.4) for the developer-perspective decision prompt. % SOURCE: voi_rank.elicit --dry-run --protocol final (and final_dev --stage decision), catalogue of 2026-10-01; not a generated macro
+Prompt caching saves little at one call per member and prompt, and the estimate ignores it.
+
+%===============================================================================
+\FloatBarrier
+\section{The most damaging things a reviewer could say}
+\label{sec:reviewer}
+
+Each objection is stated as a reviewer would put it, followed by our answer.
+
+\begin{enumerate}
+\item \emph{``Language models made up the numbers.''} They did, and the paper says so. The claim is comparative: where one group sits relative to the other, under one set of beliefs applied to both. Every member answers every evaluation from the same template and the same kind of sourced facts, so a bias common to all evaluations moves both groups. A bias specific to physical-AI knowledge would not cancel, and the Monte Carlo interval does not capture it, because members are drawn independently per evaluation; a leave-one-member-out analysis is the planned check. Where a measured sensitivity, specificity or cost exists, it can replace the elicited one without changing the method.
+\item \emph{``The members are one population. Their agreement proves nothing.''} Agreement between models trained on similar data cannot separate shared knowledge from shared bias~\citep{kim2025correlated}. The analysed run uses two Claude models, so this objection applies in full; the planned final ensemble uses six models from six other developers (Section~\ref{sec:final}). We report cross-member agreement only as evidence about the inputs (Fig.~\ref{fig:members}). It remains a limitation.
+\item \emph{``You wrote the decisions, so you rank the decisions, not the evaluations.''} The pilots found exactly this: most of the variance of the indifference value per dollar came from the stakes per dollar of the decision attached to each evaluation. Here each decision is the release decision the evaluation's own sources describe, written to a fixed schema, and the decision prompt never sees the evaluation. The question asked is the one a developer faces: what is this evaluation worth for the decision it is used for. Pricing physical-AI and LLM evaluations against one shared decision, matched pairs, would separate the two.
+\item \emph{``A binary pass or fail is a caricature of an evaluation that returns a score.''} The model is deliberately simple and aims at orders of magnitude and rankings. A score read against a threshold set for the decision can only widen the range of priors for which the result changes the decision. The indifference value, which does not depend on the threshold, places the groups the same way and more sharply (Section~\ref{sec:ablations}). % CHECK-DATA
+\item \emph{``Half of your physical-AI evaluations test a language model inside a robot, and one is a car.''} That is what published physical-AI safety evaluation looks like today. The set spans fidelity levels from text question answering to track testing, and the fidelity analysis (Fig.~\ref{fig:level}) uses that spread.
+\item \emph{``The groups are small and chosen by different rules.''} The two lists are ranked by fixed inclusion rules, and the test is exact. It separates the groups despite low power and many ties, and the separation has a named cause, the stakes per decision, that a reader can check against Figure~\ref{fig:params}. % CHECK-DATA
+\item \emph{``Society's stakes are arbitrary.''} The developer-perspective ablation re-elicits $B$ and $K$ as the developer's own exposure (Section~\ref{sec:ablations}).
+\item \emph{``Many evaluations have zero value, so the ranking is mostly ties.''} Ties count as one half in every comparison, and the zeros are themselves a finding: for those decisions the developer should mitigate first and evaluate the mitigated system. The indifference value has no zeros and gives a full ranking.
+\item \emph{``Drawing parameters independently distorts the uncertainty.''} It does, in a direction we cannot sign: EVSI is not monotone in $p$, $B$ and $K$, and independence across evaluations narrows the interval of $A$. The planned ablation that draws whole elicitations measures the effect.
+\item \emph{``Models refuse biosecurity and cyber prompts, so the sample is biased.''} Refusals are counted per member and class (Table~\ref{tab:health}); a slot with no valid answer after one retry is missing, not imputed.
+\item \emph{``The context is cherry-picked.''} The facts are sentences we selected from the sources, so selection is possible. Every fact cites a source whose text is fetched programmatically and cached in the repository, the same facts go to every member, and the planned context-mode ablation replaces our selection with the sources' abstracts or full text.
+\end{enumerate}
+
+%===============================================================================
+\FloatBarrier
+\section{What the pilots found}
+\label{sec:pilots}
+
+Two pilot studies preceded this one, with fewer evaluations and members from a single developer. The first priced ten LLM and five physical-AI evaluations. Its ranking by indifference value per dollar was stable across members, but mostly because the members agreed on the stakes of the decisions; whether a single result could change the decision varied between members. With five physical-AI evaluations it could not place the groups. The second priced evaluations of increasing fidelity for two fixed decisions. A single prompt let the instrument description move the elicited prior; separate decision and instrument prompts removed that effect. Its indifference value per dollar fell with fidelity level on both decisions. This study adopts both lessons: separate prompts, more evaluations per group, members from several developers, and fidelity as one discussion point.
+
+%===============================================================================
+\FloatBarrier
+\section{Future work}
+\label{sec:future}
+
+Two extensions follow directly from the model. \emph{Growth over time}: as robot fleets grow, the stakes of a physical-AI release and the number of decisions a built evaluation informs grow with them, and the scale paragraph of Section~\ref{sec:results} gives the factor at which the comparison flips. \emph{Other decision-makers}: a regulator permitting deployment, a funder building an evaluation for the field (whose value is $n\,\EVSI-C_\mathrm{build}-n\,C_\mathrm{run}$), and an insurer setting a premium. The project's future-work notes (docs/FUTURE\_WORK.md in the repository) list these in more detail.
+
+\bibliography{../refs}
+
+\end{document}

@@ -1,0 +1,7 @@
+# latexmk configuration: the CoRL 2026 style and bst live in the shared templates dir.
+$pdf_mode = 1;
+$bibtex_use = 2;
+$pdflatex = 'pdflatex -interaction=nonstopmode -halt-on-error -file-line-error %O %S';
+ensure_path('TEXINPUTS', '../../../templates/corl_2026//');
+ensure_path('BSTINPUTS', '../../../templates/corl_2026//');
+$clean_ext = 'bbl synctex.gz run.xml';

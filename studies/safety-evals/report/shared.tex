@@ -1,0 +1,13 @@
+% Notation and macros shared by the paper (main.tex) and the extended report (extended/main.tex).
+\newcommand{\EVSI}{\mathrm{EVSI}}
+\newcommand{\EVPI}{\mathrm{EVPI}}
+\newcommand{\pist}{\pi^\star}
+\newcommand{\anonlink}{anonymous repository (link in submission)}
+% colours of the two elicitation prompts in the method figure
+\definecolor{decisioncol}{HTML}{009E73}
+\definecolor{instrumentcol}{HTML}{CC79A7}
+% \reportdir: path from the compiling document to this directory; \inextended{x}: "the
+% extended report" in the paper, x in the extended report (which sets \extendedtrue first).
+\providecommand{\reportdir}{}
+\newif\ifextended
+\newcommand{\inextended}[1]{\ifextended #1\else the extended report\fi}

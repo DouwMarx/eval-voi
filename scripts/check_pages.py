@@ -3,7 +3,10 @@
 
 Reads report/main.aux for the page number recorded by \\label{lastbodypage}
 (placed immediately before the \\clearpage that precedes the bibliography)
-and fails if that exceeds the limit. Also prints total pages via pdfinfo.
+and, when present, \\label{refsstart} (placed right after that \\clearpage): a
+float deferred past the last line of text is flushed by the \\clearpage and
+pushes refsstart, so the body is max(lastbodypage, refsstart - 1) pages. Fails
+if that exceeds the limit. Also prints total pages via pdfinfo.
 
 Usage: check_pages.py <study-dir-or-report-dir> [--limit 4]
 """
@@ -14,14 +17,20 @@ import sys
 from pathlib import Path
 
 
+def label_page(text: str, name: str) -> int | None:
+    # hyperref form: \newlabel{name}{{}{4}{...}{...}{}}
+    # plain form:    \newlabel{name}{{}{4}}
+    m = re.search(r"\\newlabel\{" + name + r"\}\{\{[^{}]*\}\{(\d+)\}", text)
+    return int(m.group(1)) if m else None
+
+
 def body_pages(aux: Path) -> int:
     text = aux.read_text(errors="replace")
-    # hyperref form: \newlabel{lastbodypage}{{}{4}{...}{...}{}}
-    # plain form:    \newlabel{lastbodypage}{{}{4}}
-    m = re.search(r"\\newlabel\{lastbodypage\}\{\{[^{}]*\}\{(\d+)\}", text)
-    if not m:
+    last = label_page(text, "lastbodypage")
+    if last is None:
         sys.exit(f"check_pages: no \\label{{lastbodypage}} found in {aux}")
-    return int(m.group(1))
+    refs = label_page(text, "refsstart")
+    return max(last, refs - 1) if refs is not None else last
 
 
 def total_pages(pdf: Path) -> int | None:

@@ -1,0 +1,52 @@
+% The method figure: the pipeline with the decision model (an influence diagram) nested in
+% the elicitation step. Drawn at the CoRL text width (13.97 cm). Shared by the paper and
+% the extended report; needs shared.tex and the TikZ libraries loaded in the preamble.
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[font=\scriptsize, >={Stealth[length=3.5pt]}, line width=0.5pt,
+    box/.style={draw, rounded corners=3pt, fill=gray!7, inner sep=3pt},
+    title/.style={align=center, font=\scriptsize\itshape, anchor=south},
+    sub/.style={draw, rounded corners=2pt, fill=white, align=center, text width=1.85cm, inner sep=2pt},
+    chance/.style={draw, circle, fill=white, inner sep=0.5pt, minimum size=5.5mm},
+    dec/.style={draw, rectangle, fill=white, minimum size=5mm},
+    util/.style={draw, diamond, aspect=1.3, fill=white, inner sep=0.3pt, minimum size=6mm},
+    flow/.style={->, line width=0.8pt, gray!65!black},
+    dp/.style={text=decisioncol!75!black},
+    ip/.style={text=instrumentcol!75!black},
+    txt/.style={align=center, text width=2.35cm}]
+  % frames (drawn first, so everything else sits on top)
+  \draw[box] (0.00,-1.75) rectangle (2.30, 1.05);
+  \draw[box] (2.75,-1.75) rectangle (8.05, 1.05);
+  \draw[box] (8.50,-1.75) rectangle (11.05, 1.05);
+  \draw[box] (11.50,-1.75) rectangle (13.95, 1.05);
+  \node[title] at (1.15, 1.08) {1. choose candidate\\evaluations};
+  \node[title] at (5.40, 1.08) {2. elicit eight parameters per evaluation\\from an ensemble of \voiNMembers{} LLMs};
+  \node[title] at (9.775, 1.08) {3. Monte Carlo\\over the pooled belief};
+  \node[title] at (12.725, 1.08) {4. compare value\\per dollar};
+  % 1. the two groups
+  \node[sub] at (1.15, 0.35) {LLM safety\\evaluations (\voiNLLM)};
+  \node[sub] at (1.15, -0.95) {physical-AI safety\\evaluations (\voiNPhysical)};
+  % 2. the decision model
+  \node[chance] (th) at (3.55, 0.35) {$\theta$};
+  \node[chance] (x) at (5.15, 0.35) {$x$};
+  \node[dec] (a) at (6.75, 0.35) {$a$};
+  \node[util] (u) at (5.15, -0.50) {$U$};
+  \node[dp, anchor=south] at (th.north) {$p$};
+  \draw[->] (th) -- node[above, ip] {$s,\,t$} (x);
+  \draw[->] (x) -- (a);
+  \draw[->] (th) |- (u);
+  \draw[->] (a) |- (u);
+  \node[dp, anchor=south east] at ($(u.west)+(-0.3,0)$) {$B,\,K$};
+  \node[ip, anchor=west, align=left] at (7.05, -0.25) {$C_\mathrm{build}$\\$C_\mathrm{run}$\\$n$};
+  \node[anchor=south west, align=left, font=\tiny] at (2.80, -1.72)
+    {\textcolor{decisioncol!75!black}{decision prompt: $p, B, K$}\\
+     \textcolor{instrumentcol!75!black}{instrument prompt: $s, t, C_\mathrm{build}, C_\mathrm{run}, n$}};
+  % 3. Monte Carlo
+  \node[txt] at (9.775, -0.35) {Beta or lognormal fit\\per elicitation\\[3pt] equal-weight mixture\\over the elicitations\\[3pt] \voiDraws{} draws};
+  % 4. compare
+  \node[txt] at (12.725, -0.35) {$\eta=\EVSI/C$ per draw\\[3pt] $A$: chance that a\\physical-AI evaluation\\beats an LLM one\\[3pt] percentile curve};
+  % flow
+  \draw[flow] (2.30,-0.30) -- (2.75,-0.30);
+  \draw[flow] (8.05,-0.30) -- (8.50,-0.30);
+  \draw[flow] (11.05,-0.30) -- (11.50,-0.30);
+\end{tikzpicture}%
+}

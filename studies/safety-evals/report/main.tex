@@ -1,0 +1,60 @@
+\documentclass{article}
+
+\usepackage{tikz} % before corl_2026, so its colours are defined with xcolor
+\usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric,calc,backgrounds}
+\usepackage{corl_2026} % anonymous submission mode (no option)
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+
+% Every number comes from generated/macros.tex, written by scripts/regen.sh from the
+% study database alone. Sentences whose direction depends on the data carry % CHECK-DATA.
+\graphicspath{{generated/}}
+\input{generated/macros.tex}
+\input{shared.tex}
+
+% corl_2026.sty enlarges "the first page" by two lines from inside \maketitle; with this
+% title block the enlargement lands on page 2, whose last line then runs into the page
+% number. Keep the notice and drop the enlargement (page 1 keeps the standard height).
+\makeatletter
+\renewcommand{\@notice}{\@float{noticebox}[b]\footnotesize\@noticestring\end@float}
+\makeatother
+
+\title{Do physical-AI safety evaluations pay for themselves? Pricing them against LLM safety evaluations by value of information}
+
+\author{
+  Anonymous Author(s)\\
+  Affiliation\\
+  \texttt{email}
+}
+
+\begin{document}
+\maketitle
+
+\input{sections/abstract.tex}
+
+\keywords{Safety evaluation, value of information, physical AI}
+
+\input{sections/fig_headline.tex}
+
+%===============================================================================
+\input{sections/intro.tex}
+
+%===============================================================================
+\input{sections/method.tex}
+
+%===============================================================================
+\input{sections/results.tex}
+
+%===============================================================================
+\input{sections/limitations.tex}
+
+\input{sections/disclosure.tex}
+
+\label{lastbodypage}
+\clearpage
+\label{refsstart}
+
+\bibliography{refs}
+
+\end{document}

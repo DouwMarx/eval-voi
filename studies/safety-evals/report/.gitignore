@@ -1,0 +1,5 @@
+# PDFs built here compile against whatever generated/ holds (synthetic until the real
+# run): build them with scripts/build_paper.sh, do not commit them.
+main.pdf
+extended/main.pdf
+__pycache__/
