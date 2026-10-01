@@ -388,8 +388,8 @@ def test_planning_checks_groups_and_the_templates(tmp_path, monkeypatch):
     study = _edited(tmp_path / "f", edit_template=lambda t: t + "\nTitle: $title\n")
     with pytest.raises(SystemExit, match=r"uses \$title"):
         elicit.main(["--study", str(study.root), *dry])
-    # a template variable renders in either template; an undefined one is refused
-    study = _edited(tmp_path / "g", edit_template=lambda t: t + "\n$anchors_instrument\n")
+    # a shared template variable renders in either template; an undefined one is refused
+    study = _edited(tmp_path / "g", edit_template=lambda t: t + "\nContext mode: $context_mode\n")
     elicit.main(["--study", str(study.root), *dry])
     study = _edited(tmp_path / "h", edit_template=lambda t: t + "\n$undefined_var\n")
     with pytest.raises(SystemExit, match=r"decision template uses \$undefined_var: it renders only"):
@@ -666,3 +666,30 @@ def test_archived_single_stage_protocol_cannot_be_elicited(tmp_path):
     with pytest.raises(SystemExit, match="archived single-prompt protocol"):
         elicit.plan_jobs(con, study, prot["id"], None, None, None)
     con.close()
+
+
+@pytest.mark.parametrize("stage, var, other", [
+    ("instrument", "anchors_decision", "decision"),
+    ("instrument", "decision_numbers", "decision"),
+    ("decision", "anchors_instrument", "instrument"),
+    ("decision", "instrument_notes", "instrument"),
+])
+def test_template_variables_are_scoped_to_their_prompt(tmp_path, monkeypatch, stage, var, other):
+    """DESIGN section 4: the instrument prompt never carries a decision-level
+    number, the decision prompt nothing of the instrument. A template
+    variable named decision_* or anchors_decision renders only in the
+    decision template, instrument_* or anchors_instrument only in the
+    instrument one: the other template naming it is refused at planning,
+    before any call or write, whatever the variable's text."""
+    monkeypatch.setattr(elicit, "get_provider", lambda name: StagedFake())
+    study = build(tmp_path)
+    cfg = cfg_of(study, "pS")
+    cfg["template_vars"][var] = "Anchor: p 0.02 / 0.08 / 0.25, B 1.5e5, K 1e4"
+    write_cfg(study, cfg)
+    path = study.root / "templates" / f"{stage}.md"
+    path.write_text(path.read_text() + f"\n${var}\n")
+    refused = (rf"^{stage} template uses \${var}: a template variable named {other}_\* or anchors_{other}"
+               rf" renders only in the {other} template")
+    with pytest.raises(SystemExit, match=refused):
+        elicit.main(["--study", str(study.root), "--protocol", "pS", "--dry-run"])
+    assert not list(study.root.glob("voi.db*"))

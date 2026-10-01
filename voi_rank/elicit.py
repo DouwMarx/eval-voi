@@ -8,9 +8,12 @@ scenario is its own group) and stored on the group's representative scenario
 (its lowest id); and an instrument stage asking s, t, C_build, C_run, n,
 rendered from the title, agent, decision, theta text, instrument and
 instrument_context (as $context). Both templates also render the protocol's
-template_vars ($perspective, $anchors_decision, ...). A slot is (scenario,
-protocol, provider, model, repeat_ix, stage); a slot that already holds a
-valid elicitation is skipped, so runs resume per member and per stage. Both
+template_vars ($perspective, $context_mode, ...); a variable named decision_*
+or anchors_decision renders only in the decision template, instrument_* or
+anchors_instrument only in the instrument template (TEMPLATE_VAR_OWNER; the
+other template naming it is refused). A slot is (scenario, protocol,
+provider, model, repeat_ix, stage); a slot that already holds a valid
+elicitation is skipped, so runs resume per member and per stage. Both
 stages are planned at once (--stage NAME restricts to one); they are
 independent (the instrument prompt carries no decision-level number, the
 decision prompt nothing of the instrument), so their calls share one pool.
@@ -100,6 +103,13 @@ DECISION_FIELDS = ("agent", "decision", "theta_definition", "decision_context")
 # placeholder -> scenario column, per template (empty_fields)
 INSTRUMENT_COLUMNS = {f: ("instrument_context" if f == "context" else f) for f in INSTRUMENT_FIELDS}
 DECISION_COLUMNS = {f: f for f in DECISION_FIELDS}
+# a template variable's name can pin it to one prompt: decision_* and
+# anchors_decision render only in the decision template, instrument_* and
+# anchors_instrument only in the instrument template (DESIGN section 4: the
+# instrument prompt never carries a decision-level number); any other name
+# ($perspective, $context_mode) renders in both
+TEMPLATE_VAR_OWNER = {"decision": re.compile(r"^(?:decision_|anchors_decision$)"),
+                      "instrument": re.compile(r"^(?:instrument_|anchors_instrument$)")}
 # a plain-text answer (no JSON) that declines: stored as 'refusal: <text>'
 REFUSAL_RE = re.compile(
     r"I can.t help|I cannot (?:help|assist)|I.m not able to provide|I must decline|against my guidelines"
@@ -204,12 +214,32 @@ def billed(attempts: list[dict]) -> bool:
                or a["error"].split(":", 1)[0] not in _UNBILLED_PREFIXES for a in attempts)
 
 
+def refuse_foreign_template_vars(template: string.Template, template_vars: dict[str, str],
+                                 stage: str) -> None:
+    """Exit when the template of `stage` renders a protocol template variable
+    the other prompt owns (TEMPLATE_VAR_OWNER): the instrument prompt never
+    carries a decision-level number, the decision prompt nothing of the
+    instrument (DESIGN section 4). A name that is not a template variable
+    falls through to the renderer's own field check."""
+    names = template.get_identifiers()
+    for other, owner in TEMPLATE_VAR_OWNER.items():
+        if other == stage:
+            continue
+        leaked = ", ".join("$" + n for n in sorted(names) if n in template_vars and owner.match(n))
+        if leaked:
+            raise SystemExit(f"{stage} template uses {leaked}: a template variable named {other}_* or"
+                             f" anchors_{other} renders only in the {other} template"
+                             " (DESIGN section 4: the two prompts are independent)")
+
+
 def render_prompt(template: string.Template, sc, template_vars: dict[str, str]) -> str:
     """The instrument prompt: substitute $title $agent $decision
     $theta_definition $instrument $context (the scenario's
     instrument_context; empty when absent) and the protocol's template
     variables. A template naming any other field (e.g. $decision_context,
-    which only the decision template renders) is refused."""
+    which only the decision template renders) or a template variable the
+    decision prompt owns (decision_*, anchors_decision) is refused."""
+    refuse_foreign_template_vars(template, template_vars, "instrument")
     fields = {f: (sc[f] if sc[f] is not None else "") for f in INSTRUMENT_FIELDS if f != "context"}
     fields["context"] = sc["instrument_context"] if sc["instrument_context"] is not None else ""
     try:
@@ -225,7 +255,9 @@ def render_decision_prompt(template: string.Template, sc, template_vars: dict[st
     $decision_context and the protocol's template variables only: a
     decision template that names the instrument, the instrument context or
     the title is refused, so the decision-level numbers cannot be
-    contaminated by the evaluation."""
+    contaminated by the evaluation; so is a template variable the instrument
+    prompt owns (instrument_*, anchors_instrument)."""
+    refuse_foreign_template_vars(template, template_vars, "decision")
     fields = {f: (sc[f] if sc[f] is not None else "") for f in DECISION_FIELDS}
     try:
         return template.substitute({**template_vars, **fields})

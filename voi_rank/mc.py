@@ -31,6 +31,11 @@ they have uncommitted changes) and data_hash (sha256 over the sorted
 from). A dirty code tree, or one whose revision git cannot report, is refused
 unless --allow-dirty.
 
+The console table after a run (print_run_table) lists every scenario ordered
+by the central estimate of eta (central_estimate: the model at the pooled
+medians, DESIGN section 6) with the run's eta quantiles and P(EVSI > C); the
+MC median is not a ranking, so there is no rank column.
+
 Usage: python -m voi_rank.mc --study studies/X --protocol p001 [--seed 42] [--draws 100000]
        [--allow-dirty] [--members claude_cli:sonnet,claude_cli:opus]
 """
@@ -231,26 +236,53 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
     con.commit()
 
     if not quiet:
-        print_ranking(con, run_id)
+        print_run_table(con, run_id)
         print(f"\nrun {run_id}: code_hash {code_hash}, data_hash {db.get_run(con, run_id)['data_hash']}"
               f" over {len(scenario_ids)} scenarios, members: {db.members_label(members)}")
     return run_id
 
 
-def print_ranking(con, run_id: int, limit: int = 30):
+def pooled_medians(con, protocol_id: int, scenario_id: int,
+                   members: list[str] | None = None) -> dict[str, float]:
+    """The pooled median of every parameter of one scenario: the median over
+    the valid elicitations under the protocol (the `members` subset, else
+    all) of each elicited median (DESIGN section 2)."""
+    return {name: float(np.median(db.elicited_p50s(con, protocol_id, scenario_id, name, members=members)))
+            for name in db.PARAM_NAMES}
+
+
+def central_estimate(con, protocol_id: int, scenario_id: int,
+                     members: list[str] | None = None) -> dict[str, float]:
+    """The central estimate of one scenario: the model at its pooled medians
+    (DESIGN section 6: point tables and the headline figure use it; the MC
+    median is not a ranking). Every metric of METRIC_NAMES as a float."""
+    draws = pooled_medians(con, protocol_id, scenario_id, members)
+    return {name: float(value) for name, value in model.metrics(draws).items()}
+
+
+def print_run_table(con, run_id: int, limit: int = 30):
+    """The per-scenario table of a run: the central estimate of eta (the
+    ordering), the run's eta quantiles and P(EVSI > C). No rank column: the
+    MC median is not a ranking (DESIGN section 6)."""
     run = db.get_run(con, run_id)
+    members = db.run_member_labels(run)
     rows = con.execute(
         "SELECT r.scenario_id, s.title, r.q05, r.q50, r.q95,"
         " (SELECT q50 FROM results p WHERE p.run_id=r.run_id AND p.scenario_id=r.scenario_id"
         "  AND p.metric='p_positive') AS p_positive"
         " FROM results r JOIN scenarios s ON s.id = r.scenario_id"
-        " WHERE r.run_id=? AND r.metric=? ORDER BY r.q50 DESC LIMIT ?",
-        (run_id, PRIMARY_METRIC, limit)).fetchall()
-    print(f"\nRanking by median {PRIMARY_METRIC} (EVSI/C), run {run_id}"
-          f" (members: {db.members_label(db.run_member_labels(run))}):")
-    print(f"{'rank':>4} {'id':>4} {'eta q50':>10} {'eta q05':>10} {'eta q95':>10} {'P(EVSI>C)':>10}  title")
-    for rank, r in enumerate(rows, 1):
-        print(f"{rank:>4} {r['scenario_id']:>4} {r['q50']:>10.3g} {r['q05']:>10.3g}"
+        " WHERE r.run_id=? AND r.metric=? ORDER BY r.scenario_id",
+        (run_id, PRIMARY_METRIC)).fetchall()
+    central = {r["scenario_id"]: central_estimate(con, run["protocol_id"], r["scenario_id"], members)
+               for r in rows}
+    rows = sorted(rows, key=lambda r: -central[r["scenario_id"]][PRIMARY_METRIC])[:limit]
+    print(f"\nPer-scenario {PRIMARY_METRIC} (EVSI/C) of run {run_id}, ordered by the central estimate"
+          f" (model at the pooled medians; members: {db.members_label(members)}):")
+    print(f"{'id':>4} {'eta central':>12} {'eta q05':>10} {'eta q50':>10} {'eta q95':>10}"
+          f" {'P(EVSI>C)':>10}  title")
+    for r in rows:
+        c = central[r["scenario_id"]][PRIMARY_METRIC]
+        print(f"{r['scenario_id']:>4} {c:>12.3g} {r['q05']:>10.3g} {r['q50']:>10.3g}"
               f" {r['q95']:>10.3g} {r['p_positive']:>10.2f}  {r['title'][:60]}")
 
 
@@ -270,8 +302,11 @@ def main(argv=None):
     study = Study.resolve(args.study)
     con = study.connect()
     members = db.parse_member_labels(args.members)
-    run_id = run_mc(con, args.protocol, args.seed, args.draws, allow_dirty=args.allow_dirty,
-                    members=members)
+    try:
+        run_id = run_mc(con, args.protocol, args.seed, args.draws, allow_dirty=args.allow_dirty,
+                        members=members)
+    except RuntimeError as ex:   # an unregistered protocol, a dirty tree, no complete fits: no traceback
+        raise SystemExit(str(ex)) from None
     run = db.get_run(con, run_id)
     print(f"\nrun {run_id} complete: study={study.name} protocol={args.protocol} "
           f"seed={args.seed} draws={args.draws}"

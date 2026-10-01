@@ -79,7 +79,11 @@ eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
    a re-run resumes.
 4. `uv run python -m voi_rank.mc --study studies/safety-evals --protocol p001 --seed 42 --draws 100000 [--members claude_cli:sonnet]`
    draws the pooled belief and stores the run (refused on uncommitted code
-   under `voi_rank/`, `pyproject.toml` or `uv.lock` unless `--allow-dirty`).
+   under `voi_rank/`, `pyproject.toml` or `uv.lock` unless `--allow-dirty`),
+   then prints every scenario's eta quantiles ordered by the central
+   estimate (the model at the pooled medians, DESIGN section 6; the MC
+   median is not a ranking). A usage error (an unregistered protocol, no
+   complete fits, uncommitted code) exits with the message.
    `--members` pools one subset of the protocol's members as its own stored
    run (an ablation scores one elicitor); a subset naming every member is the
    ordinary run.
@@ -115,7 +119,10 @@ $decision $theta_definition $decision_context` and the template variables,
 never the instrument, the title or the instrument context; the instrument
 prompt renders `$title $agent $decision $theta_definition $instrument
 $context` (the scenario's `instrument_context`) and the template variables. A
-template naming anything else is refused. `group_key: self` makes every
+template naming anything else is refused; a template variable named
+`decision_*` or `anchors_decision` renders only in the decision template,
+`instrument_*` or `anchors_instrument` only in the instrument one (the other
+names in both). `group_key: self` makes every
 scenario its own decision; `group` or `attributes.<key>` elicits the decision
 stage once per group of scenarios that share agent, decision, theta and
 decision_context text, stored on the group's lowest id. A protocol file is
@@ -173,6 +180,7 @@ or migrates a copy in place by adding the new columns; it cannot elicit
 their protocols or replay their runs (a dry run of one exits with the
 registration's refusal, `mc.replay_efficiency` with a message naming the
 run). Never write to a database under
-`archive/`: `Study.connect` refuses a study there, so `elicit` (the paid
-path) and `mc` exit before touching the file; copy the study outside
-`archive/` to migrate it.
+`archive/`: `Study.connect` refuses a study whose path has an `archive`
+component (this checkout's or any other's), so `elicit` (the paid path)
+and `mc` exit before touching the file; copy the study outside `archive/`
+to migrate it.

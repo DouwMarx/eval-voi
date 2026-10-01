@@ -69,9 +69,12 @@ class Study:
 
     @property
     def archived(self) -> bool:
-        """Whether the study lies under <repo>/archive/ (the pilots, frozen at
-        tag pilot-2026-09-30): read through connect_copy only."""
-        return self.root.resolve().is_relative_to((db.ROOT / "archive").resolve())
+        """Whether the study lies under an archive/ directory (the pilots,
+        frozen at tag pilot-2026-09-30): read through connect_copy only. The
+        test is on the path's shape (any `archive` component), not on this
+        checkout's root, so the archive of another checkout or worktree is
+        refused too."""
+        return "archive" in self.root.resolve().parts
 
     def check_writable(self) -> None:
         """DESIGN section 9: never write to a database under archive/. Called

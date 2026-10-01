@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 import yaml
 
-from voi_rank import db, elicit, mc
+from voi_rank import db, elicit, mc, model
 from voi_rank.fit import DECISION_PARAMS, INSTRUMENT_PARAMS
 from voi_rank.providers import openrouter
 from voi_rank.study import Study
@@ -532,11 +532,11 @@ def test_mc_refuses_dirty_code_unless_allowed_and_stores_data_hash(study, monkey
     assert run["data_hash"] == expect and len(expect) == 64
     # the CLI: refused without --allow-dirty, stored and printed with it
     con.close()
-    with pytest.raises(RuntimeError, match="--allow-dirty"):
+    with pytest.raises(SystemExit, match="--allow-dirty"):   # a usage error: the message, no traceback
         mc.main(["--study", str(study.root), "--protocol", "p001", "--draws", "200"])
     mc.main(["--study", str(study.root), "--protocol", "p001", "--draws", "200", "--allow-dirty"])
     out = capsys.readouterr().out
-    assert f"code_hash deadbeef-dirty, data_hash {expect}" in out and "Ranking by median eta (EVSI/C)" in out
+    assert f"code_hash deadbeef-dirty, data_hash {expect}" in out and "ordered by the central estimate" in out
     con = study.connect()
     # same elicitations, other seed: same data_hash; one more valid elicitation changes it
     monkeypatch.setattr(db, "git_state", lambda cwd=None: ("deadbeef", []))
@@ -1272,3 +1272,57 @@ def test_cli_timeout_setting_and_signal_exit(monkeypatch, tmp_path):
 
     monkeypatch.setattr(claude_cli.subprocess, "run", hang)
     assert claude_cli.call_claude("prompt", "haiku", "sys") == (None, "", "cli: timeout after 0.2s")
+
+
+def test_mc_cli_exits_with_the_message_on_a_usage_error(study, monkeypatch):
+    """An unregistered protocol (nothing elicited yet) or one without a
+    scenario of complete fits is a usage error: mc.main exits with the
+    message, as elicit does, instead of a traceback."""
+    with pytest.raises(SystemExit, match=r"^protocol 'p001' not registered in DB$"):
+        mc.main(["--study", str(study.root), "--protocol", "p001"])
+    elicit_haiku(study, monkeypatch, stage="decision")
+    with pytest.raises(SystemExit, match=r"^no scenarios with complete valid elicitations under p001"):
+        mc.main(["--study", str(study.root), "--protocol", "p001"])
+    con = study.connect()
+    assert con.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
+
+
+def test_mc_console_table_is_ordered_by_the_central_estimate(study, monkeypatch, capsys):
+    """DESIGN section 6: the MC median is not a ranking; point tables use the
+    central estimate (the model at the pooled medians). The table printed
+    after a run orders the scenarios by it and carries no rank column. Two
+    extra valid instrument repeats move one scenario's pooled C_build down
+    and another's up, so their central eta is the highest and the lowest."""
+    elicit_haiku(study, monkeypatch)
+    con = study.connect()
+    pid = db.protocol_by_name(con, "p001")["id"]
+    medians = {k: SEED[k]["p50"] for k in db.PARAM_NAMES}
+    assert mc.pooled_medians(con, pid, 1) == medians
+    for sid, (p5, p50, p95) in ((2, (500.0, 2000.0, 8000.0)), (3, (5e5, 2e6, 1e7))):
+        seed = {**_seed_payload(), "C_build": {"reasoning": "r", "p5": p5, "p50": p50, "p95": p95}}
+        payload = {"parameters": {k: seed[k] for k in INSTRUMENT_PARAMS}}
+        clean, err = validate_payload(payload, INSTRUMENT_PARAMS)
+        assert err is None
+        fits, err = fit_all(clean)
+        assert err is None
+        for repeat in (1, 2):
+            elicit.store_attempts(con, sid, pid, {"provider": "claude_cli", "model": "haiku"}, repeat, "h",
+                                  [{"raw": "{}", "error": None, "clean": clean, "fits": fits, "cost": 0.0}],
+                                  stage="instrument")
+    assert mc.pooled_medians(con, pid, 2) == {**medians, "C_build": 2000.0}   # median of (20e3, 2e3, 2e3)
+    assert mc.pooled_medians(con, pid, 3) == {**medians, "C_build": 2e6}
+    central = {sid: mc.central_estimate(con, pid, sid) for sid in range(1, 9)}
+    want = model.metrics(medians)
+    assert set(central[1]) == set(mc.METRIC_NAMES)
+    assert central[1]["eta"] == pytest.approx(float(want["eta"])) and central[1]["eta"] > 0
+    assert central[2]["eta"] > central[1]["eta"] > central[3]["eta"]
+    run_id = mc.run_mc(con, "p001", seed=1, n_draws=500)
+    out = capsys.readouterr().out
+    header = (f"Per-scenario eta (EVSI/C) of run {run_id}, ordered by the central estimate"
+              " (model at the pooled medians; members: all members):")
+    assert header in out and "Ranking" not in out
+    lines = out.split(header)[1].split("\nrun ")[0].strip().splitlines()
+    assert lines[0].split()[:3] == ["id", "eta", "central"] and "rank" not in lines[0]
+    ids = [int(line.split()[0]) for line in lines[1:]]
+    assert ids == sorted(central, key=lambda s: -central[s]["eta"]) and ids[0] == 2 and ids[-1] == 3
+    assert f"{central[2]['eta']:>12.3g}" in lines[1]

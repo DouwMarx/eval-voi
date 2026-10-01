@@ -325,6 +325,19 @@ def test_archived_study_is_refused_by_connect_and_mc(tmp_path, monkeypatch):
     assert not Study.resolve(other).archived
     Study.resolve(other).connect().close()
     assert (other / "voi.db").exists()
+    # the guard is on the path's shape, not this checkout's root: the archive/
+    # of another checkout (db.ROOT elsewhere) is refused before the file changes
+    elsewhere = root / "elsewhere" / "archive" / "pilots" / "x"
+    elsewhere.mkdir(parents=True)
+    shutil.copy(src, elsewhere / "voi.db")
+    monkeypatch.setattr(db, "ROOT", root / "checkout")
+    foreign = Study.resolve(elsewhere)
+    assert foreign.archived and not foreign.root.is_relative_to(db.ROOT)
+    with pytest.raises(SystemExit, match="archived study .*read-only"):
+        foreign.connect()
+    with pytest.raises(SystemExit, match="archived study"):
+        mc.main(["--study", str(elsewhere), "--protocol", "p004", "--allow-dirty"])
+    assert (elsewhere / "voi.db").read_bytes() == before
 
 
 def test_unique_index_on_valid_slots(tmp_path):
