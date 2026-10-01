@@ -147,6 +147,21 @@ def usage_limit_reset(error: str | None, now: datetime) -> datetime | None:
     return reset
 
 
+REFUSAL_ERROR = "refusal: the API stopped with stop_reason refusal (no answer)"
+
+
+def refusal_envelope(raw: str | None) -> dict | None:
+    """The parsed CLI envelope when the API refused the prompt
+    (stop_reason 'refusal', e.g. a safety classifier on a biosecurity
+    prompt), else None. The CLI exits 1 on it; it is billed (the prompt
+    was read), so it is a refusal, not an outage or a CLI failure."""
+    try:
+        data = json.loads(raw or "")
+    except (TypeError, ValueError):
+        return None
+    return data if isinstance(data, dict) and data.get("stop_reason") == "refusal" else None
+
+
 def cli_timeout_s() -> float:
     """Wall-clock cap per call, from VOI_CLI_TIMEOUT_S (environment, else
     .env), else DEFAULT_CLI_TIMEOUT_S."""
@@ -209,6 +224,9 @@ def call_claude(prompt: str, model: str, system_prompt: str):
     raw = proc.stdout
     if proc.returncode < 0:
         return None, raw or proc.stderr, f"cli: killed by signal {-proc.returncode}: {proc.stderr[-300:]}"
+    refused = refusal_envelope(raw)
+    if refused is not None:
+        return refused, raw, REFUSAL_ERROR
     if proc.returncode != 0:
         envelope = zero_usage_envelope(raw)
         if envelope is not None:

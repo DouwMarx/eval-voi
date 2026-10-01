@@ -953,3 +953,16 @@ def test_a_paid_cli_exit_records_its_cost_and_counts_as_billed():
     assert not claude_cli.is_usage_limit("cli: exit 1: ", raw)
     att = elicit.attempt_once(lambda p, m, s: (None, "Not logged in", "cli: exit 1: Not logged in"), "p", "m")
     assert att["cost"] == 0.0 and not elicit.billed([att])
+
+
+def test_call_claude_classifies_an_api_refusal(monkeypatch):
+    """A biosecurity prompt the API refuses: the CLI exits 1 with a billed
+    envelope whose stop_reason is 'refusal' (seen on the HPCT decision
+    prompt, 2026-10-01). It is a refusal, not a CLI failure."""
+    raw = json.dumps({"stop_reason": "refusal", "is_error": True, "result": "", "total_cost_usd": 0.02,
+                      "usage": {"input_tokens": 4, "output_tokens": 0}})
+    monkeypatch.setattr(claude_cli.subprocess, "run",
+                        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, raw, ""))
+    envelope, got_raw, err = claude_cli.call_claude("p", "sonnet", "sys")
+    assert err == claude_cli.REFUSAL_ERROR and err.startswith("refusal: ")
+    assert got_raw == raw and envelope["stop_reason"] == "refusal"

@@ -267,3 +267,11 @@ def test_optional_ablation_without_data_is_skipped(elicited, capsys):
               "--tag", "dev"])
     assert "skipped" in capsys.readouterr().out
     assert not (study.generated_dir / "dev").exists()
+
+
+def test_api_refusal_envelope_counts_as_refusal():
+    from voi_rank.analysis.summary import error_class
+    raw = '{"stop_reason": "refusal", "total_cost_usd": 0.02}'
+    assert error_class("cli: exit 1: ", raw) == "refusal"
+    assert error_class("cli: exit 1: ", '{"stop_reason": "end_turn"}') == "cli"
+    assert error_class("json: bad", None) == "json"

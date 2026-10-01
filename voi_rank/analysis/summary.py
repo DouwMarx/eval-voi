@@ -161,7 +161,13 @@ def spearman_or_none(x, y) -> float | None:
     return float(stats.spearmanr(x, y).statistic)
 
 
-def error_class(error: str | None) -> str:
+def error_class(error: str | None, raw: str | None = None) -> str:
+    """The class of an invalid attempt: the error's prefix, except that an
+    API refusal stored before the provider classified it ('cli: exit 1'
+    with stop_reason 'refusal' in the envelope) counts as a refusal."""
+    from voi_rank.providers.claude_cli import refusal_envelope
+    if refusal_envelope(raw) is not None:
+        return "refusal"
     head = (error or "").split(":", 1)[0].strip()
     return head if head in ERROR_CLASSES else "other"
 
@@ -227,7 +233,7 @@ def health_rows(con, sources: list[tuple[int, str | None]], members: list[dict],
             if r["valid"]:
                 h["valid"] += 1
             else:
-                h[error_class(r["error"])] += 1
+                h[error_class(r["error"], r["raw_response"])] += 1
     return list(out.values())
 
 
