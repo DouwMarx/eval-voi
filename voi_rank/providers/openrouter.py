@@ -11,11 +11,14 @@ never burns a slot. Nothing in the repository calls this provider by
 default: it runs only for protocol members declared with provider:
 openrouter.
 
-Error strings (first token is the class the health report counts):
+Error strings (first token is the error class):
   'http: status <code>[ retry-after <n>s]: <body>'  HTTP error response
   'http: <reason>'                                   transport failure
-  'api: ...'      top-level error, choices[0].error, finish_reason error /
-                  content_filter, or a truncated (length) answer
+  'api: ...'      top-level error, choices[0].error, finish_reason error,
+                  or a truncated (length) answer
+  'refusal: ...'  finish_reason content_filter (the first 200 characters of
+                  the answer, else the finish reason); the harness classifies
+                  a declining plain-text answer the same way (elicit.refusal)
   'json: ...' / 'schema: ...'                        unparseable body
 """
 
@@ -45,7 +48,8 @@ MAX_TOKENS = 4000
 # sent for compatibility)
 REFERER = "https://voi-rank.invalid"
 TITLE = "voi-rank"
-_ERROR_FINISH_REASONS = ("error", "content_filter")
+REFUSAL_FINISH_REASON = "content_filter"
+REFUSAL_CHARS = 200
 
 
 def _read_env_file(path: Path | None = None) -> dict[str, str]:
@@ -169,7 +173,10 @@ def call_openrouter(prompt: str, model: str, system_prompt: str):
     if choice.get("error"):
         return envelope, raw, f"api: choices[0].error: {json.dumps(choice['error'])[:300]}"
     finish = choice.get("finish_reason")
-    if finish in _ERROR_FINISH_REASONS:
+    if finish == REFUSAL_FINISH_REASON:
+        text_part = envelope["result"][:REFUSAL_CHARS] or f"finish_reason={finish}"
+        return envelope, raw, f"refusal: {text_part}"
+    if finish == "error":
         return envelope, raw, f"api: finish_reason={finish}"
     if text is None:
         return envelope, raw, "schema: no choices[0].message.content in response"

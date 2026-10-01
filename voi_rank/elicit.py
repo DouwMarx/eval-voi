@@ -1,23 +1,29 @@
-"""Elicitation harness (spec §6): renders the protocol's template per scenario
-and sends it to every protocol member (provider + model) k_repeats times.
+"""Elicitation harness (DESIGN section 4): two prompts per scenario, each
+sent to every protocol member (provider + model) k_repeats times.
 
-A slot is (scenario, protocol, provider, model, repeat_ix, stage); a slot that
-already holds a valid elicitation is skipped, so runs resume per member and
-per stage. A staged protocol (db.normalize_stages: a decision stage asking
-p, B, K once per scenario group, rendered from the group's shared agent,
-decision, theta text and the protocol's decision context and stored on the
-group's representative scenario, its lowest id; and an instrument stage
-asking s, t, C per scenario, rendered like a single-stage template) plans
-both stages at once (--stage NAME restricts to one); the stages are
-independent (the instrument prompt carries no decision-level number), so
-their calls share one pool. Every attempt
-(valid or not) is stored with its raw response. The plan (pending slots and
+A protocol has two stages (db.normalize_stages): a decision stage asking p,
+B, K, rendered from the scenario's agent, decision, theta text and its own
+decision_context, elicited once per scenario group (group_key 'self': every
+scenario is its own group) and stored on the group's representative scenario
+(its lowest id); and an instrument stage asking s, t, C_build, C_run, n,
+rendered from the title, agent, decision, theta text, instrument and
+instrument_context (as $context). Both templates also render the protocol's
+template_vars ($perspective, $anchors_decision, ...). A slot is (scenario,
+protocol, provider, model, repeat_ix, stage); a slot that already holds a
+valid elicitation is skipped, so runs resume per member and per stage. Both
+stages are planned at once (--stage NAME restricts to one); they are
+independent (the instrument prompt carries no decision-level number, the
+decision prompt nothing of the instrument), so their calls share one pool.
+Every attempt (valid or not) is stored with its raw response; a plain-text
+answer that declines (REFUSAL_RE) or an OpenRouter content_filter finish is
+stored with error 'refusal: <first 200 chars>'. The plan (pending slots and
 estimated cost per member) is made on an in-memory copy of the study DB, so
---dry-run and a declined plan write nothing, not even voi.db, and register no
-protocol; a paid run needs --yes, or an interactive confirmation on a TTY.
-Once confirmed, the preflight checks the members' credentials (a logged-in
-claude CLI, an OpenRouter key the free /auth/key accepts) and only then the
-real DB is opened, seeded, the protocol registered and the jobs submitted.
+--dry-run and a declined plan write nothing, not even voi.db, and register
+no protocol; a paid run needs --yes, or an interactive confirmation on a
+TTY. Once confirmed, the preflight checks the members' credentials (a
+logged-in claude CLI, an OpenRouter key the free /auth/key accepts) and
+only then the real DB is opened, seeded, the protocol registered and the
+jobs submitted.
 
 Paid work is never discarded: an interrupted run (Ctrl-C, a failed DB write,
 any error in the main thread) cancels the pending slots, launches no retry,
@@ -85,10 +91,16 @@ from voi_rank.validate import fit_all, strip_fences, validate_payload
 SYSTEM_PROMPT = ("You are an expert decision analyst performing structured "
                  "quantitative elicitation. Follow the instructions exactly. "
                  "Output only what is asked for.")
-TEMPLATE_FIELDS = ("title", "agent", "decision", "theta_definition", "instrument", "context")
-# a decision-stage template renders the group's shared decision text and the
-# protocol's decision context, and nothing of the instrument
-DECISION_FIELDS = ("agent", "decision", "theta_definition")
+# the instrument prompt renders the scenario ($context is instrument_context)
+INSTRUMENT_FIELDS = ("title", "agent", "decision", "theta_definition", "instrument", "context")
+# the decision prompt renders the decision text and the scenario's
+# decision_context, and nothing of the instrument
+DECISION_FIELDS = ("agent", "decision", "theta_definition", "decision_context")
+# a plain-text answer (no JSON) that declines: stored as 'refusal: <text>'
+REFUSAL_RE = re.compile(
+    r"I can.t help|I cannot (?:help|assist)|I.m not able to provide|I must decline|against my guidelines"
+    r"|content_filter", re.IGNORECASE)
+REFUSAL_CHARS = 200
 # retry policy (at most one retry per slot)
 TRANSPORT_RETRY_DELAY_S = 5.0       # 429 / 5xx without Retry-After, and transport errors
 MAX_RETRY_DELAY_S = 120.0           # cap on a server's Retry-After (a worker never sleeps longer)
@@ -188,32 +200,43 @@ def billed(attempts: list[dict]) -> bool:
                or a["error"].split(":", 1)[0] not in _UNBILLED_PREFIXES for a in attempts)
 
 
-def render_prompt(template: string.Template, sc) -> str:
-    """Substitute $title $agent $decision $theta_definition $instrument
-    $context (empty string when the scenario has no context). A template
-    naming any other field (e.g. $decision_context, which only a
-    decision-stage template renders) is refused."""
-    fields = {f: (sc[f] if sc[f] is not None else "") for f in TEMPLATE_FIELDS}
+def render_prompt(template: string.Template, sc, template_vars: dict[str, str]) -> str:
+    """The instrument prompt: substitute $title $agent $decision
+    $theta_definition $instrument $context (the scenario's
+    instrument_context; empty when absent) and the protocol's template
+    variables. A template naming any other field (e.g. $decision_context,
+    which only the decision template renders) is refused."""
+    fields = {f: (sc[f] if sc[f] is not None else "") for f in INSTRUMENT_FIELDS if f != "context"}
+    fields["context"] = sc["instrument_context"] if sc["instrument_context"] is not None else ""
     try:
-        return template.substitute(fields)
+        return template.substitute({**template_vars, **fields})
     except KeyError as ex:
-        raise SystemExit(f"scenario-stage template uses ${ex.args[0]}: it renders only "
-                         f"{', '.join('$' + f for f in TEMPLATE_FIELDS)}") from None
+        raise SystemExit(f"instrument template uses ${ex.args[0]}: it renders only "
+                         f"{', '.join('$' + f for f in INSTRUMENT_FIELDS)} and the protocol's template_vars"
+                         f" {sorted(template_vars)}") from None
 
 
-def render_decision_prompt(template: string.Template, sc, decision_context: str) -> str:
-    """Substitute $agent $decision $theta_definition $decision_context only:
-    a decision-stage template that names the instrument, the scenario
-    context or the title is refused, so the decision-level numbers cannot
-    be contaminated by the rung."""
+def render_decision_prompt(template: string.Template, sc, template_vars: dict[str, str]) -> str:
+    """The decision prompt: substitute $agent $decision $theta_definition
+    $decision_context and the protocol's template variables only: a
+    decision template that names the instrument, the instrument context or
+    the title is refused, so the decision-level numbers cannot be
+    contaminated by the evaluation."""
     fields = {f: (sc[f] if sc[f] is not None else "") for f in DECISION_FIELDS}
-    fields["decision_context"] = decision_context
     try:
-        return template.substitute(fields)
+        return template.substitute({**template_vars, **fields})
     except KeyError as ex:
-        raise SystemExit(f"decision-stage template uses ${ex.args[0]}: it renders only "
-                         f"{', '.join('$' + f for f in DECISION_FIELDS)} and $decision_context"
-                         " (no $instrument, $context or $title)") from None
+        raise SystemExit(f"decision template uses ${ex.args[0]}: it renders only "
+                         f"{', '.join('$' + f for f in DECISION_FIELDS)} and the protocol's template_vars"
+                         f" {sorted(template_vars)} (no $instrument, $context or $title)") from None
+
+
+def refusal(text: str) -> str | None:
+    """The 'refusal: <first 200 chars>' error for a plain-text answer that
+    declines (REFUSAL_RE); None when the text does not read as a refusal."""
+    if REFUSAL_RE.search(text) is None:
+        return None
+    return f"refusal: {' '.join(text.split())[:REFUSAL_CHARS]}"
 
 
 def prompt_hash(prompt: str) -> str:
@@ -228,7 +251,7 @@ def failed_attempt(error: str) -> dict:
 
 def parse_payload(obj, names: list[str] | None = None) -> tuple[dict | None, dict | None, str | None]:
     """Validate and fit one parsed JSON answer. Returns (rows, fits, error):
-    rows[name] = {p5, p50, p95, unit, reasoning} and fits[name] a FitResult,
+    rows[name] = {p5, p50, p95, reasoning} and fits[name] a FitResult,
     one per stored parameter (PARAM_NAMES, or the stage's `names` under a
     staged protocol), in storage order."""
     clean, err = validate_payload(obj, names)
@@ -253,7 +276,7 @@ def attempt_once(call, prompt: str, model: str, names: list[str] | None = None) 
         try:
             obj = json.loads(payload)
         except json.JSONDecodeError as ex:
-            err = f"json: result parse failed: {ex}"
+            err = refusal(payload) or f"json: result parse failed: {ex}"
         else:
             clean, fits, err = parse_payload(obj, names)
     # without an envelope (a paid CLI exit 1, e.g. a max-output-tokens stop)
@@ -339,7 +362,7 @@ def store_attempts(con, scenario_id, protocol_id, member, repeat_ix, phash, atte
             for name in att["clean"]:   # the protocol's parameter names, in storage order
                 d = att["clean"][name]
                 db.insert_parameter(con, eid, name, d["p5"], d["p50"], d["p95"],
-                                    d["unit"], d["reasoning"], att["fits"][name])
+                                    d["reasoning"], att["fits"][name])
             slot_valid = True
     con.commit()
     return slot_valid
@@ -428,9 +451,9 @@ def job_label(job: dict) -> str:
 
 
 def n_group_texts(rows) -> int:
-    """The number of distinct (agent, decision, theta) texts over scenario
-    rows; 1 for one decision."""
-    return len({(r["agent"], r["decision"], r["theta_definition"]) for r in rows})
+    """The number of distinct (agent, decision, theta, decision_context)
+    texts over scenario rows; 1 for one decision."""
+    return len({(r["agent"], r["decision"], r["theta_definition"], r["decision_context"]) for r in rows})
 
 
 def elicited_scenario_rows(con, protocol_id: int, ids: list[int]) -> dict[int, sqlite3.Row]:
@@ -461,43 +484,44 @@ def check_group_decision_rows(con, protocol_id: int, gids: list[int], stage: str
         f" AND protocol_id=? AND valid=1 AND prompt_hash<>?{clause}",
         (*gids, protocol_id, phash, *args)).fetchone()
     if n:
+        remedy = ("change the scenario's title (a new scenario)" if key == db.SELF_GROUP
+                  else f"give the changed scenarios a new {key} value")
         raise SystemExit(
             f"stage {stage}: group {value!r} (scenarios {gids}) already holds {n} valid decision"
-            f" row(s) elicited for a different agent / decision / theta text (prompt hash"
-            f" {other[:12]} vs {phash[:12]} now): not one decision. Give the changed scenarios a new"
-            f" {key} value, or start a new voi.db")
+            f" row(s) elicited for a different agent / decision / theta / decision_context text"
+            f" (prompt hash {other[:12]} vs {phash[:12]} now): not one decision. {remedy[0].upper()}"
+            f"{remedy[1:]}, or start a new voi.db")
 
 
 def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[dict], selector: str,
                      k_override: int | None, stage: str | None) -> list[dict]:
-    """Pending slots of a staged protocol: the group stage once per scenario
-    group, then the scenario stage per scenario. The group is the DB's
+    """Pending slots: the decision stage once per scenario group, then the
+    instrument stage per scenario. The group is the DB's
     (db.scenario_group_ids: every scenario with the group value, retired ones
-    included), not the selection: the decision rows are stored on the
-    group's representative (its lowest id) and a repeat they fill is done for
-    every selection, so a partial --scenarios or a representative that left
-    scenarios.json never elicits a second set. Every staged plan, whichever
-    --stage, checks that every selected scenario carries the group_key value,
-    that the group's scenarios (its active ones in the DB, the selected ones
-    and its retired ones holding a valid elicitation under the protocol at
-    either stage, whose text is what those rows were elicited for) share the
-    agent, decision and theta text, that the stage's decision_contexts has an
-    entry per group and that the decision rows the group already holds were
-    rendered from that text (check_group_decision_rows). A whole group
-    renamed under a new decision text after either stage is refused: its
-    retired rows would otherwise be pooled and ranked with the new decision's
-    p, B, K. A job carries its stage and the stage's parameter names;
-    stage=NAME plans that stage only."""
+    included; the scenario itself under group_key 'self'), not the selection:
+    the decision rows are stored on the group's representative (its lowest
+    id) and a repeat they fill is done for every selection, so a partial
+    --scenarios or a representative that left scenarios.json never elicits a
+    second set. Every plan, whichever --stage, checks that every selected
+    scenario carries the group_key value, that the group's scenarios (its
+    active ones in the DB, the selected ones and its retired ones holding a
+    valid elicitation under the protocol at either stage, whose text is what
+    those rows were elicited for) share the agent, decision, theta and
+    decision_context text, and that the decision rows the group already holds
+    were rendered from that text (check_group_decision_rows). A job carries
+    its stage and the stage's parameter names; stage=NAME plans that stage
+    only."""
     gstage, sstage = db.group_stage(stages), db.scenario_stage(stages)
     if stage is not None and stage not in (gstage["name"], sstage["name"]):
         raise SystemExit(f"--stage {stage!r}: protocol {prot['name']} has stages"
                          f" {[gstage['name'], sstage['name']]}")
+    template_vars = db.protocol_template_vars(prot)
     scenarios = db.get_scenarios(con, selector)
     key = gstage["group_key"]
     missing = [sc["id"] for sc in scenarios if db.scenario_group_value(sc, key) is None]
     if missing:
-        raise SystemExit(f"staged protocol {prot['name']}: scenarios {missing} carry no {key} value;"
-                         " every scenario of a staged protocol must belong to a group")
+        raise SystemExit(f"protocol {prot['name']}: scenarios {missing} carry no {key} value;"
+                         " every scenario must belong to a decision group")
     groups: dict[str, list] = {}
     for sc in scenarios:
         groups.setdefault(db.scenario_group_value(sc, key), []).append(sc)
@@ -507,9 +531,8 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
         if value is not None:
             active.setdefault(value, {})[r["id"]] = r
     template = string.Template((study.root / gstage["template_path"]).read_text())
-    contexts = gstage.get("decision_contexts", {})
     jobs = []
-    for value, rows in sorted(groups.items()):
+    for value, rows in sorted(groups.items(), key=lambda kv: min(r["id"] for r in kv[1])):
         gids = db.scenario_group_ids(con, key, rows[0]["id"])
         checked = {**active.get(value, {}), **{r["id"]: r for r in rows}}
         retired = elicited_scenario_rows(con, prot["id"], [g for g in gids if g not in checked])
@@ -518,14 +541,11 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
         if n_texts > 1:
             raise SystemExit(
                 f"stage {gstage['name']}: group {value!r} (scenarios {sorted(checked)}) mixes {n_texts}"
-                " different agent / decision / theta texts: not one decision"
+                " different agent / decision / theta / decision_context texts: not one decision"
                 + (f" (scenarios {sorted(retired)} are retired rows holding valid elicitations under"
                    f" {prot['name']}; give the changed scenarios a new {key} value, or start a new voi.db)"
                    if retired else ""))
-        if value not in contexts:
-            raise SystemExit(f"stage {gstage['name']}: no decision_contexts entry for group {value!r}"
-                             f" (groups: {sorted(groups)})")
-        prompt = render_decision_prompt(template, rows[0], contexts[value])
+        prompt = render_decision_prompt(template, checked[min(checked)], template_vars)
         check_group_decision_rows(con, prot["id"], gids, gstage["name"], value, prompt_hash(prompt), key)
         if stage not in (None, gstage["name"]):
             continue
@@ -540,7 +560,7 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
     if stage in (None, sstage["name"]):
         template = string.Template((study.root / sstage["template_path"]).read_text())
         for sc in scenarios:
-            prompt = render_prompt(template, sc)
+            prompt = render_prompt(template, sc, template_vars)
             for m in members:
                 done = db.valid_repeats(con, sc["id"], prot["id"], m["provider"], m["model"], sstage["name"])
                 for rix in range(effective_k(m, k_override)):
@@ -565,9 +585,8 @@ def plan_jobs(con, study: Study, protocol_id: int, scenarios: str | None, k_over
     scenarios=None uses the protocol's 'scenarios' selector; an explicit
     selector overrides a scoped protocol with a printed warning (warn=False
     keeps the second, real-DB plan of main quiet). Returns (members, jobs);
-    a job is {scenario_id, member, repeat_ix, prompt} (+ stage, names and,
-    for a decision-stage slot, group under a staged protocol; stage=NAME
-    plans one stage of such a protocol)."""
+    a job is {scenario_id, member, repeat_ix, prompt, stage, names} plus,
+    for a decision-stage slot, group; stage=NAME plans one stage."""
     prot = con.execute("SELECT * FROM protocols WHERE id=?", (protocol_id,)).fetchone()
     members = db.protocol_members(prot)
     if members_filter is not None:
@@ -586,31 +605,21 @@ def plan_jobs(con, study: Study, protocol_id: int, scenarios: str | None, k_over
             print(f"warning: protocol {prot['name']} scopes scenarios to {scope!r}; "
                   f"--scenarios {selector!r} overrides it")
     stages = db.protocol_stages(prot)
-    if stages is not None:
-        return members, plan_staged_jobs(con, study, prot, stages, members, selector, k_override, stage)
-    if stage is not None:
-        raise SystemExit(f"--stage: protocol {prot['name']} has no stages")
-    template = string.Template((study.root / prot["template_path"]).read_text())
-    jobs = []
-    for sc in db.get_scenarios(con, selector):
-        prompt = render_prompt(template, sc)
-        for m in members:
-            done = db.valid_repeats(con, sc["id"], protocol_id, m["provider"], m["model"])
-            for rix in range(effective_k(m, k_override)):
-                if rix not in done:
-                    jobs.append({"scenario_id": sc["id"], "member": m,
-                                 "repeat_ix": rix, "prompt": prompt})
-    return members, jobs
+    if stages is None:
+        raise SystemExit(f"protocol {prot['name']} is an archived single-prompt protocol: it cannot be"
+                         " elicited by the current harness (every protocol has two stages)")
+    return members, plan_staged_jobs(con, study, prot, stages, members, selector, k_override, stage)
 
 
-def dry_run_staged(prot, stages: list[dict], members, jobs, k_override: int | None = None,
-                   stage: str | None = None):
-    """The dry run of a staged protocol: pending slots per stage and member
-    (over groups for the decision stage, scenarios for the instrument stage)
-    and the first pending prompt of each stage; a stage --stage left out is
-    marked as not planned."""
+def dry_run(prot, members, jobs, k_override: int | None = None, stage: str | None = None):
+    """Render prompts and list pending slots per stage and member (over
+    groups for the decision stage, scenarios for the instrument stage) and
+    print the first pending prompt of each stage; a stage --stage left out
+    is marked as not planned. Nothing is called."""
+    stages = db.protocol_stages(prot)
     print(f"DRY RUN: protocol {prot['name']} (stages {' + '.join(s['name'] for s in stages)},"
-          f" hash {prot['template_hash'][:12]}, scenarios {db.protocol_selector(prot)})")
+          f" hash {prot['template_hash'][:12]}, scenarios {db.protocol_selector(prot)},"
+          f" template_vars {sorted(db.protocol_template_vars(prot))})")
     for st in stages:
         grouped = "group_key" in st
         sjobs = [j for j in jobs if j["stage"] == st["name"]]
@@ -638,30 +647,6 @@ def dry_run_staged(prot, stages: list[dict], members, jobs, k_override: int | No
             print(f"\nfirst pending prompt of stage {st['name']} ({where}, {len(first['prompt'])} chars,"
                   f" hash {prompt_hash(first['prompt'])[:12]}):\n")
             print(first["prompt"])
-    print(f"\n{len(jobs)} slots would be elicited; no provider was called.")
-
-
-def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str | None = None):
-    """Render prompts and list pending slots per member; call nothing."""
-    stages = db.protocol_stages(prot)
-    if stages is not None:
-        return dry_run_staged(prot, stages, members, jobs, k_override, stage)
-    print(f"DRY RUN: protocol {prot['name']} (template {prot['template_path']},"
-          f" hash {prot['template_hash'][:12]}, scenarios {db.protocol_selector(prot)})")
-    by_member = {}
-    for j in jobs:
-        by_member.setdefault(db.member_label(j["member"]), []).append(j)
-    for m in members:
-        pending = by_member.get(db.member_label(m), [])
-        sids = sorted({j["scenario_id"] for j in pending})
-        print(f"  member {db.member_label(m)} ({k_label(m, k_override)}): {len(pending)} pending "
-              f"slots over {len(sids)} scenarios"
-              + (f" (ids {sids[0]}..{sids[-1]})" if sids else ""))
-    if jobs:
-        first = jobs[0]
-        print(f"\nfirst pending prompt (scenario {first['scenario_id']}, "
-              f"{len(first['prompt'])} chars, hash {prompt_hash(first['prompt'])[:12]}):\n")
-        print(first["prompt"])
     print(f"\n{len(jobs)} slots would be elicited; no provider was called.")
 
 
@@ -717,10 +702,8 @@ def print_plan(con, prot, members, jobs):
     for m in members:
         mine = [j for j in jobs if db.member_label(j["member"]) == db.member_label(m)]
         n = len(mine)
-        by_stage = ""
-        if stages is not None:
-            by_stage = " (" + ", ".join(
-                f"{s['name']} {sum(1 for j in mine if j['stage'] == s['name'])}" for s in stages) + ")"
+        by_stage = " (" + ", ".join(
+            f"{s['name']} {sum(1 for j in mine if j['stage'] == s['name'])}" for s in stages) + ")"
         est = member_mean_cost(con, m)
         if est is None:
             cost, unknown = "unknown (no stored attempts of this member in this study)", True
@@ -1059,7 +1042,7 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
             status = "ok" if ok else f"INVALID ({error})"
             print(f"[{n_done}/{len(jobs)}] {job_label(j)}: {status}")
             if rejected_request(error):
-                print(f"scenario {j['scenario_id']} {label}: the request was rejected (http 400/403:"
+                print(f"{job_label(j)}: the request was rejected (http 400/403:"
                       " invalid params, guardrail or moderation flag on this prompt, or permissions);"
                       " stored invalid, not retried, not billed; the slot is pending on the next run")
             if label in halted:
@@ -1207,7 +1190,7 @@ def main(argv=None):
     ap.add_argument("--members", default=None,
                     help="comma-separated provider:model filter (default: all members)")
     ap.add_argument("--stage", default=None,
-                    help="staged protocols: plan and elicit this stage only (default: both)")
+                    help="plan and elicit this stage only, decision or instrument (default: both)")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true",
                     help="plan on an in-memory copy of the DB, render prompts and list pending"
@@ -1224,7 +1207,7 @@ def main(argv=None):
     plan_con = study.connect_copy()
     _, prot, members, jobs = plan(plan_con, study, args, preview=True)
     if args.dry_run:
-        dry_run(plan_con, prot, members, jobs, args.k, args.stage)
+        dry_run(prot, members, jobs, args.k, args.stage)
         return
     if not jobs:
         print("nothing to do: all requested slots already have valid elicitations (nothing written)")

@@ -23,7 +23,14 @@ from datetime import UTC, datetime
 
 import pytest
 
-from tests.test_pipeline import _seed_payload, study  # noqa: F401  (the temporary study fixture)
+from tests.test_pipeline import (  # noqa: F401  (the temporary study fixture)
+    INSTRUMENT,
+    OR_MEMBER,
+    _seed_payload,
+    answer,
+    protocol_cfg,
+    study,
+)
 from voi_rank import db, dotenv, elicit
 from voi_rank.providers import claude_cli
 
@@ -242,16 +249,17 @@ class Outage:
                 limited = self.active if self.fail_calls is None else n <= self.fail_calls
             if limited:
                 return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
-            text = json.dumps({"parameters": self.seed})
+            text = answer(prompt, self.seed)
             return {"result": text, "total_cost_usd": 0.01}, text, None
         return call
 
 
 def plan(st, k: int = 1, scenarios: str = "1,2,3,4,5,6,7,8"):
+    """The instrument-stage slots of haiku over the scenarios (one per scenario at k=1)."""
     con = st.connect()
     db.seed_scenarios(con, st.scenarios_json)
     pid = db.get_or_create_protocol(con, st.protocol_path("p001"), st.root)
-    _, jobs = elicit.plan_jobs(con, st, pid, scenarios, k, {"claude_cli:haiku"})
+    _, jobs = elicit.plan_jobs(con, st, pid, scenarios, k, {"claude_cli:haiku"}, stage="instrument")
     return con, pid, jobs
 
 
@@ -289,7 +297,8 @@ def test_outage_pauses_after_the_streak_probes_and_resumes(study, monkeypatch, c
     assert ("usage-limit outage: pausing 300s (pause 1; claude_cli:haiku 300s of 21600s) with 8 slot(s)"
             " pending, then probing with one call per held member") in out
     assert out.count("usage-limit outage: pausing") == 1 and "giving up" not in out
-    assert re.search(r"\[8/8\] scenario \d claude_cli:haiku repeat 0: ok", out) and "[9/8]" not in out
+    assert re.search(r"\[8/8\] scenario \d stage instrument claude_cli:haiku repeat 0: ok", out)
+    assert "[9/8]" not in out
     assert elicit.outage_summary(summary) == (f", {summary['results']} zero-usage usage-limit result(s) not"
                                               " stored as attempts (1 pause(s), 300s paused)")
     # the resumed run has nothing left to do
@@ -337,7 +346,7 @@ def test_outage_gives_up_after_the_wait_budget_with_everything_stored(study, mon
     fine = Outage(seed, fail_calls=0)
     monkeypatch.setattr(elicit, "get_provider", fine.get_provider)
     elicit.main(["--study", str(study.root), "--protocol", "p001", "--members", "claude_cli:haiku",
-                 "--k", "1", "--scenarios", "1,2,3,4,5,6,7,8", "--yes", "--workers", "3"])
+                 "--k", "1", "--scenarios", "1,2,3,4,5,6,7,8", "--yes", "--workers", "3", *INSTRUMENT])
     out = capsys.readouterr().out
     assert "done: 8/8 slots valid (100.0%), total elicitation cost $0.08\n" in out
     assert len(rows_of(con)) == 8 and len(fine.calls) == 8
@@ -365,7 +374,7 @@ def test_main_summary_counts_the_outage_and_stores_paid_attempts_before_it(study
 
     monkeypatch.setattr(elicit, "get_provider", get_provider)
     elicit.main(["--study", str(study.root), "--protocol", "p001", "--members", "claude_cli:haiku",
-                 "--k", "1", "--scenarios", "1,2,3,4,5,6,7,8", "--yes", "--workers", "1"])
+                 "--k", "1", "--scenarios", "1,2,3,4,5,6,7,8", "--yes", "--workers", "1", *INSTRUMENT])
     out = capsys.readouterr().out
     assert re.search(r"done: 8/8 slots valid \(100\.0%\), total elicitation cost \$0\.11, [5-8] zero-usage"
                      r" usage-limit result\(s\) not stored as attempts \(1 pause\(s\), 300s paused\)", out)
@@ -420,7 +429,7 @@ def replanned_provider(seed: dict, calls: list, lock: threading.Lock, on_call: i
             if n == on_call:
                 os.kill(os.getpid(), signal.SIGINT)
                 time.sleep(0.5)   # the main thread handles the interrupt and waits for this call
-            text = json.dumps({"parameters": seed})
+            text = answer(prompt, seed)
             return {"result": text, "total_cost_usd": 0.01}, text, None
         return call
     return get_provider
@@ -520,13 +529,10 @@ def _fake_ok(seed: dict, calls: list, lock: threading.Lock):
         def call(prompt, model, system_prompt):
             with lock:
                 calls.append(prompt)
-            text = json.dumps({"parameters": seed})
+            text = answer(prompt, seed)
             return {"result": text, "total_cost_usd": 0.01}, text, None
         return call
     return get_provider
-
-
-OR_MEMBER = "openrouter:fake/model"
 
 
 def test_member_halted_after_the_hold_has_its_held_slots_cancelled(study, monkeypatch, capsys):  # noqa: F811
@@ -591,7 +597,7 @@ def test_the_wait_budget_restarts_at_every_billed_result(study, monkeypatch, cap
                 state["billed"] += 1
                 if state["billed"] == 2:
                     state["active"] = True   # the second window opens after two billed answers
-            text = json.dumps({"parameters": seed})
+            text = answer(prompt, seed)
             return {"result": text, "total_cost_usd": 0.01}, text, None
         return call
 
@@ -620,9 +626,8 @@ def test_the_wait_budget_restarts_at_every_billed_result(study, monkeypatch, cap
     con.close()
 
 
-PROTOCOL_3 = {"name": "p007", "template_path": "templates/elicitor.md",
-              "members": [{"provider": "claude_cli", "model": m, "k_repeats": 1}
-                          for m in ("haiku", "sonnet", "opus")]}
+PROTOCOL_3 = protocol_cfg("p007", [{"provider": "claude_cli", "model": m, "k_repeats": 1}
+                                   for m in ("haiku", "sonnet", "opus")])
 
 
 def test_one_members_limit_never_holds_the_other_members(study, monkeypatch, capsys):  # noqa: F811
@@ -637,7 +642,7 @@ def test_one_members_limit_never_holds_the_other_members(study, monkeypatch, cap
     opus call, and the give-up cancels opus's slots only."""
     import yaml
 
-    (study.protocols_dir / "p007.yaml").write_text(yaml.safe_dump(PROTOCOL_3))
+    (study.protocols_dir / "p007.yaml").write_text(yaml.safe_dump(PROTOCOL_3))   # two stages, three members
     seed = _seed_payload()
     state = {"opus_limited": True}
     calls, lock = [], threading.Lock()
@@ -649,7 +654,7 @@ def test_one_members_limit_never_holds_the_other_members(study, monkeypatch, cap
             time.sleep(0.01)   # a call takes time: the hold catches not-yet-started slots
             if model == "opus" and state["opus_limited"]:
                 return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
-            text = json.dumps({"parameters": seed})
+            text = answer(prompt, seed)
             return {"result": text, "total_cost_usd": 0.01}, text, None
         return call
 
@@ -657,7 +662,7 @@ def test_one_members_limit_never_holds_the_other_members(study, monkeypatch, cap
         con = study.connect()
         db.seed_scenarios(con, study.scenarios_json)
         pid = db.get_or_create_protocol(con, study.protocol_path("p007"), study.root)
-        _, jobs = elicit.plan_jobs(con, study, pid, "1,2,3", 5, None)
+        _, jobs = elicit.plan_jobs(con, study, pid, "1,2,3", 5, None, stage="instrument")
         return con, pid, jobs
 
     monkeypatch.setattr(elicit, "get_provider", get_provider)
@@ -719,7 +724,7 @@ def test_a_limited_member_never_stalls_a_slower_healthy_one(study, monkeypatch, 
             if name == "claude_cli":
                 return LIMIT_ENVELOPE, LIMIT_RAW, LIMIT_ERROR
             time.sleep(0.2)
-            text = json.dumps({"parameters": seed})
+            text = answer(prompt, seed)
             return {"choices": [{"message": {"content": text}}], "result": text}, text, None
         return call
 
@@ -728,7 +733,8 @@ def test_a_limited_member_never_stalls_a_slower_healthy_one(study, monkeypatch, 
     con = study.connect()
     db.seed_scenarios(con, study.scenarios_json)
     pid = db.get_or_create_protocol(con, study.protocol_path("p001"), study.root)
-    _, jobs = elicit.plan_jobs(con, study, pid, "1,2,3,4,5,6,7,8", 1, {"claude_cli:haiku", OR_MEMBER})
+    _, jobs = elicit.plan_jobs(con, study, pid, "1,2,3,4,5,6,7,8", 1, {"claude_cli:haiku", OR_MEMBER},
+                               stage="instrument")
     n_valid, _, n_cancelled, summary = elicit.run_jobs(con, study, pid, jobs, workers=8,
                                                        sleep=lambda s: None)
     out = capsys.readouterr().out
@@ -746,7 +752,7 @@ def test_cost_estimate_leaves_legacy_zero_usage_rows_out(study, monkeypatch, cap
     seed = _seed_payload()
     monkeypatch.setattr(elicit, "get_provider", Outage(seed, fail_calls=0).get_provider)
     elicit.main(["--study", str(study.root), "--protocol", "p001", "--members", "claude_cli:haiku",
-                 "--k", "1", "--scenarios", "1,2,3,4", "--yes"])
+                 "--k", "1", "--scenarios", "1,2,3,4", "--yes", *INSTRUMENT])
     con = study.connect()
     pid = db.protocol_by_name(con, "p001")["id"]
     # three rows as the pre-v2.3 harness stored them during the outage, plus one real JSON failure
@@ -871,7 +877,7 @@ def test_a_billed_answer_in_flight_since_before_the_hold_does_not_skip_the_pause
             with lock:
                 state["calls"] += 1
                 first = state["calls"] == 1
-            text = json.dumps({"parameters": seed})
+            text = answer(prompt, seed)
             if first:
                 time.sleep(0.6)
                 return {"result": text, "total_cost_usd": 0.01}, text, None

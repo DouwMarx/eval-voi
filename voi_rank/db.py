@@ -4,11 +4,12 @@ under a new protocol.
 
 connect() adds any column an older database lacks (V2_COLUMNS) and backfills
 the member identity of pre-v2 elicitations; connect_copy() prepares an
-in-memory copy for dry runs. Protocol rows carry members_json,
-scenario_selector and stages_json (a staged protocol: a decision stage
-elicited once per scenario group and an instrument stage per scenario, see
-"staged protocols" below); runs carry members_json (the member subset a run
-pooled, NULL = every member). The protocols.model_kind and runs.weights
+in-memory copy for dry runs and for reading an archived database. Protocol
+rows carry members_json, scenario_selector, stages_json (the two stages: a
+decision stage elicited once per scenario group and an instrument stage per
+scenario, see "staged protocols" below) and template_vars_json (the
+resolved template variables); runs carry members_json (the member subset a
+run pooled, NULL = every member). The protocols.model_kind and runs.weights
 columns stay in the schema for archived databases; every protocol is the
 binary model now, a protocol file that sets another model is refused, and
 every run pools its fits with equal weight.
@@ -40,10 +41,11 @@ __all__ = ["PARAM_NAMES", "ROOT", "connect"]
 
 # columns added after v1; (table -> {column: type}) checked on every connect
 V2_COLUMNS = {
-    "scenarios": {"context": "TEXT", "grp": "TEXT", "attributes": "TEXT"},
+    "scenarios": {"context": "TEXT", "grp": "TEXT", "attributes": "TEXT", "decision_context": "TEXT",
+                  "instrument_context": "TEXT", "sources": "TEXT"},
     "elicitations": {"provider": "TEXT", "model": "TEXT", "stage": "TEXT"},
     "protocols": {"members_json": "TEXT", "scenario_selector": "TEXT", "model_kind": "TEXT",
-                  "stages_json": "TEXT"},
+                  "stages_json": "TEXT", "template_vars_json": "TEXT"},
     "runs": {"data_hash": "TEXT", "members_json": "TEXT", "weights": "TEXT"},
 }
 # the one model kind the code knows; the column keeps the value of archived rows
@@ -204,36 +206,38 @@ def migrate(con) -> list[str]:
 
 # --- scenarios -------------------------------------------------------------
 
-def insert_scenario(con, sc: dict, source: str) -> int:
-    attrs = sc.get("attributes")
-    cur = con.execute(
-        "INSERT INTO scenarios (created_at, title, agent, decision, theta_definition,"
-        " instrument, domain_tags, source, raw_json, context, grp, attributes)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-        (now_iso(), sc["title"], sc["agent"], sc["decision"], sc["theta_definition"],
-         sc["instrument"], json.dumps(sc.get("domain_tags", [])), source, json.dumps(sc),
-         sc.get("context"), sc.get("group"),
-         json.dumps(attrs) if attrs is not None else None),
-    )
-    con.commit()
-    return cur.lastrowid
-
-
 # scenario columns refreshed from scenarios.json while a seed row has no
 # elicitations yet (the title is the identity and is never refreshed)
 SEED_MUTABLE = ("agent", "decision", "theta_definition", "instrument", "context",
+                "decision_context", "instrument_context", "sources",
                 "grp", "attributes", "domain_tags", "raw_json")
-JSON_COLUMNS = ("attributes", "domain_tags", "raw_json")
+JSON_COLUMNS = ("attributes", "domain_tags", "raw_json", "sources")
+
+
+def _json_or_none(value) -> str | None:
+    return None if value is None else json.dumps(value)
 
 
 def _seed_values(sc: dict) -> dict:
-    """Column values a scenarios.json entry maps to."""
-    attrs = sc.get("attributes")
+    """Column values a scenarios.json entry maps to (raw_json keeps the whole
+    entry; the archived 'context' column is filled only by an entry that
+    still carries that key)."""
     return {"agent": sc["agent"], "decision": sc["decision"],
             "theta_definition": sc["theta_definition"], "instrument": sc["instrument"],
-            "context": sc.get("context"), "grp": sc.get("group"),
-            "attributes": json.dumps(attrs) if attrs is not None else None,
+            "context": sc.get("context"), "decision_context": sc.get("decision_context"),
+            "instrument_context": sc.get("instrument_context"), "sources": _json_or_none(sc.get("sources")),
+            "grp": sc.get("group"), "attributes": _json_or_none(sc.get("attributes")),
             "domain_tags": json.dumps(sc.get("domain_tags", [])), "raw_json": json.dumps(sc)}
+
+
+def insert_scenario(con, sc: dict, source: str) -> int:
+    values = _seed_values(sc)
+    cols = ("created_at", "title", "source", *SEED_MUTABLE)
+    cur = con.execute(
+        f"INSERT INTO scenarios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+        (now_iso(), sc["title"], source, *(values[c] for c in SEED_MUTABLE)))
+    con.commit()
+    return cur.lastrowid
 
 
 def _seed_diff(row, want: dict) -> list[str]:
@@ -460,30 +464,46 @@ def protocol_selector(row) -> str:
 
 
 # --- staged protocols -------------------------------------------------------
-# A protocol may split the parameters over two stages: a GROUP stage (name
+# Every protocol has two stages (DESIGN section 4): a GROUP stage (name
 # 'decision' by convention) elicited once per scenario group and stored on
 # the group's representative scenario (its lowest id) with
 # elicitations.stage = the stage name, and a SCENARIO stage ('instrument')
 # elicited per scenario. Protocol YAML:
 #   stages:
-#     - {name: decision, template_path: templates/decision.md, params: [p, B, K],
-#        group_key: attributes.context_group, decision_contexts: {<group>: text}}
-#     - {name: instrument, template_path: templates/instrument.md, params: [s, t, C]}
-# Stored as protocols.stages_json (with each stage's template hash) and part
-# of the immutability check. scenario_param_fits assembles a scenario's fits
-# from its group's decision rows and its own instrument rows.
+#     - {name: decision, template_path: templates/decision.md, params: [p, B, K], group_key: self}
+#     - {name: instrument, template_path: templates/instrument.md,
+#        params: [s, t, C_build, C_run, n]}
+#   template_vars: {perspective: society, anchors_decision: '@file:templates/anchors_decision.md'}
+# group_key 'self' makes every scenario its own group (the representative is
+# the scenario itself); 'group' or 'attributes.<key>' groups scenarios that
+# share one decision (and the same agent, decision, theta and
+# decision_context text). template_vars are substituted into both templates;
+# a value '@file:<path relative to the study root>' inlines that file.
+# Stored as protocols.stages_json (with each stage's template hash) and
+# protocols.template_vars_json (resolved); both are part of the template hash
+# and of the immutability check. scenario_param_fits assembles a scenario's
+# fits from its group's decision rows and its own instrument rows.
 
 STAGE_GROUP_PREFIX = "attributes."
+SELF_GROUP = "self"
+FILE_VAR_PREFIX = "@file:"
+# the fields the templates render from the scenario row; a template variable
+# may not take one of these names
+SCENARIO_FIELDS = ("title", "agent", "decision", "theta_definition", "instrument", "context",
+                   "decision_context")
 
 
-def normalize_stages(cfg: dict, study_root: str | Path) -> list[dict] | None:
-    """The stored form of a protocol's 'stages' (None when single-stage):
-    [{name, template_path, template_hash, params, group_key?,
-    decision_contexts?}]. Exactly two stages, one with a group_key (the
-    group stage) and one without, whose params partition PARAM_NAMES."""
+def normalize_stages(cfg: dict, study_root: str | Path) -> list[dict]:
+    """The stored form of a protocol's 'stages': [{name, template_path,
+    template_hash, params, group_key?}]. Exactly two stages, one with a
+    group_key (the group stage) and one without, whose params partition
+    PARAM_NAMES. A protocol without stages, or with a template_path or
+    decision_contexts (the pilots' single-prompt and protocol-level context
+    forms), is refused."""
     raw = cfg.get("stages")
     if raw is None:
-        return None
+        raise ValueError("a protocol lists two stages (a decision stage and an instrument stage);"
+                         " single-prompt protocols were retired on 2026-09-30")
     if cfg.get("template_path") is not None:
         raise ValueError("a staged protocol names its templates per stage, not a template_path")
     if not isinstance(raw, list) or len(raw) != 2:
@@ -497,18 +517,18 @@ def normalize_stages(cfg: dict, study_root: str | Path) -> list[dict] | None:
         if not params or unknown:
             raise ValueError(f"stage {st['name']}: params must be a non-empty subset of {PARAM_NAMES}"
                              f" (got {params})")
+        if st.get("decision_contexts") is not None:
+            raise ValueError(f"stage {st['name']}: protocol-level decision_contexts are gone; the decision"
+                             " prompt renders each scenario's own decision_context field")
         path = Path(study_root) / str(st["template_path"])
         out = {"name": str(st["name"]), "template_path": str(st["template_path"]),
                "template_hash": sha256(path.read_text()), "params": params}
         if st.get("group_key") is not None:
             key = str(st["group_key"])
-            if key != "group" and not key.startswith(STAGE_GROUP_PREFIX):
-                raise ValueError(f"stage {st['name']}: group_key must be 'group' or 'attributes.<key>'")
+            if key not in (SELF_GROUP, "group") and not key.startswith(STAGE_GROUP_PREFIX):
+                raise ValueError(f"stage {st['name']}: group_key must be 'self', 'group' or"
+                                 " 'attributes.<key>'")
             out["group_key"] = key
-            contexts = st.get("decision_contexts") or {}
-            if not isinstance(contexts, dict):
-                raise ValueError(f"stage {st['name']}: decision_contexts must map group values to text")
-            out["decision_contexts"] = {str(k): str(v) for k, v in contexts.items()}
         stages.append(out)
         seen_params += params
     if len({s["name"] for s in stages}) != 2:
@@ -520,13 +540,54 @@ def normalize_stages(cfg: dict, study_root: str | Path) -> list[dict] | None:
     return stages
 
 
+def normalize_template_vars(cfg: dict, study_root: str | Path) -> dict[str, str]:
+    """The protocol's 'template_vars' as substituted into both templates: a
+    mapping of identifiers to strings, a value '@file:<path>' replaced by
+    that file's text (path relative to the study root). A name of a scenario
+    field is refused."""
+    raw = cfg.get("template_vars") or {}
+    if not isinstance(raw, dict):
+        raise ValueError("template_vars must map variable names to strings")
+    out = {}
+    for key, value in raw.items():
+        name = str(key)
+        if not name.isidentifier():
+            raise ValueError(f"template_vars: {name!r} is not a valid $variable name")
+        if name in SCENARIO_FIELDS:
+            raise ValueError(f"template_vars: {name!r} is a scenario field, which the templates render"
+                             " from the scenario; choose another name")
+        text = str(value)
+        if text.startswith(FILE_VAR_PREFIX):
+            path = Path(study_root) / text[len(FILE_VAR_PREFIX):]
+            if not path.is_file():
+                raise ValueError(f"template_vars: {name} points at {text!r}, which is not a file"
+                                 f" under the study root")
+            text = path.read_text()
+        out[name] = text
+    return out
+
+
+def template_vars_json(template_vars: dict[str, str]) -> str:
+    return json.dumps(template_vars, sort_keys=True)
+
+
+def protocol_template_vars(row) -> dict[str, str]:
+    """The resolved template variables of a stored protocol row ({} for a
+    row registered before the column existed)."""
+    try:
+        raw = row["template_vars_json"]
+    except (IndexError, KeyError):
+        return {}
+    return json.loads(raw) if raw else {}
+
+
 def stages_json(stages: list[dict] | None) -> str | None:
     return None if stages is None else json.dumps(stages, sort_keys=True)
 
 
 def protocol_stages(row) -> list[dict] | None:
-    """The stored stages of a protocol row (None for a single-stage one, or
-    for a missing row)."""
+    """The stored stages of a protocol row (None for an archived single-stage
+    one, or for a missing row)."""
     if row is None:
         return None
     try:
@@ -551,10 +612,12 @@ def stage_of_param(stages: list[dict] | None, name: str) -> dict | None:
 
 
 def scenario_group_value(row, group_key: str) -> str | None:
-    """The group a scenario row belongs to under a stage's group_key
-    ('group' -> the grp column, 'attributes.<key>' -> that attribute), as a
-    string; None when absent."""
-    if group_key == "group":
+    """The group a scenario row belongs to under a stage's group_key ('self'
+    -> the scenario's own id, 'group' -> the grp column, 'attributes.<key>'
+    -> that attribute), as a string; None when absent."""
+    if group_key == SELF_GROUP:
+        value = row["id"]
+    elif group_key == "group":
         value = row["grp"]
     else:
         value = scenario_attributes(row).get(group_key[len(STAGE_GROUP_PREFIX):])
@@ -575,7 +638,10 @@ def scenario_groups_by_key(con, group_key: str, selector: str = "all") -> dict[s
 def scenario_group_ids(con, group_key: str, scenario_id: int) -> list[int]:
     """Every scenario (retired ones included, so a representative that left
     scenarios.json keeps carrying its group's decision rows) in the same
-    group as scenario_id, sorted; [scenario_id] when it has no group value."""
+    group as scenario_id, sorted; [scenario_id] when it has no group value
+    (or under group_key 'self')."""
+    if group_key == SELF_GROUP:
+        return [scenario_id]
     row = con.execute("SELECT * FROM scenarios WHERE id=?", (scenario_id,)).fetchone()
     value = scenario_group_value(row, group_key) if row else None
     if value is None:
@@ -597,22 +663,22 @@ def stage_clause(stage: str | None, alias: str = "e") -> tuple[str, list]:
 def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -> int:
     """Register a protocol YAML (template paths relative to the study root).
     Protocol files are immutable: re-registering a name with a changed
-    template hash, member list, scenario scope or stages is an error (make a
-    new protocol file)."""
+    template (either stage's file, or a file a template variable inlines),
+    template variable, member list, scenario scope or stage config is an
+    error (make a new protocol file)."""
     yaml_path = Path(yaml_path)
     cfg = yaml.safe_load(yaml_path.read_text())
     try:
         members = normalize_members(cfg)
         kind = check_model(cfg.get("model"))
         stages = normalize_stages(cfg, study_root)
+        template_vars = normalize_template_vars(cfg, study_root)
     except ValueError as ex:
         raise RuntimeError(f"protocol {cfg['name']}: {ex}") from None
-    if stages is None:
-        template_path_text = cfg["template_path"]
-        template_hash = sha256((Path(study_root) / template_path_text).read_text())
-    else:   # the row's template columns describe both stages; stages_json is authoritative
-        template_path_text = " + ".join(s["template_path"] for s in stages)
-        template_hash = sha256(stages_json(stages))   # covers both templates and the stage config
+    # the row's template columns describe both stages; stages_json is authoritative
+    template_path_text = " + ".join(s["template_path"] for s in stages)
+    # covers both templates, the stage config and the resolved template variables
+    template_hash = sha256(stages_json(stages) + "\n" + template_vars_json(template_vars))
     selector = normalize_selector(cfg.get("scenarios"))
     row = con.execute("SELECT * FROM protocols WHERE name=?", (cfg["name"],)).fetchone()
     if row:
@@ -622,6 +688,8 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
             ("scenarios", protocol_selector(row), selector),
             ("model", row["model_kind"] or BINARY_KIND, kind),
             ("stages", stages_json(protocol_stages(row)), stages_json(stages)),
+            ("template_vars", template_vars_json(protocol_template_vars(row)),
+             template_vars_json(template_vars)),
         ) if got != want]
         if changed:
             raise RuntimeError(
@@ -635,13 +703,13 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
         return row["id"]
     cur = con.execute(
         "INSERT INTO protocols (name, template_path, template_hash, model_alias,"
-        " k_repeats, cli_version, notes, members_json, scenario_selector, model_kind, stages_json)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        " k_repeats, cli_version, notes, members_json, scenario_selector, model_kind, stages_json,"
+        " template_vars_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (cfg["name"], template_path_text, template_hash,
          ",".join(member_label(m) for m in members),
          sum(m["k_repeats"] for m in members),
          claude_cli_version(), cfg.get("notes", ""), members_json(members), selector, kind,
-         stages_json(stages)),
+         stages_json(stages), template_vars_json(template_vars)),
     )
     con.commit()
     return cur.lastrowid
@@ -674,12 +742,13 @@ def insert_elicitation(con, scenario_id: int, protocol_id: int, provider: str,
 
 
 def insert_parameter(con, elicitation_id: int, name: str, p5: float, p50: float,
-                     p95: float, unit: str, reasoning: str, fit) -> int:
-    """No commit here: see insert_elicitation."""
+                     p95: float, reasoning: str, fit) -> int:
+    """No commit here: see insert_elicitation. The archived unit column stays
+    NULL: the units are fixed by the template."""
     cur = con.execute(
-        "INSERT INTO parameters (elicitation_id, name, p5, p50, p95, unit, reasoning,"
-        " dist_family, fit_params, fit_residual, fit_warning) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-        (elicitation_id, name, p5, p50, p95, unit, reasoning,
+        "INSERT INTO parameters (elicitation_id, name, p5, p50, p95, reasoning,"
+        " dist_family, fit_params, fit_residual, fit_warning) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (elicitation_id, name, p5, p50, p95, reasoning,
          fit.family, fit.params_json(), fit.residual, int(fit.warning)),
     )
     return cur.lastrowid
@@ -707,9 +776,10 @@ def scenario_param_fits(con, protocol_id: int, names: list[str] | None = None,
     list of labels), in (provider, model, repeat_ix, elicitation_id) order.
     Only the parameter names asked for (PARAM_NAMES by default) are
     returned; stored rows of other names (an archived database's retired
-    parameters) are ignored. Each fit row carries elicitation_id, provider,
-    model, family, fit_params (the stored JSON string), params (parsed),
-    p5/p50/p95."""
+    parameters) are ignored. An archived single-stage protocol (stages
+    None) reads every row from the scenario itself. Each fit row carries
+    elicitation_id, provider, model, family, fit_params (the stored JSON
+    string), params (parsed), p5/p50/p95."""
     prot = _protocol_row(con, protocol_id)
     names = list(PARAM_NAMES if names is None else names)
     stages = protocol_stages(prot) if prot else None
@@ -852,13 +922,15 @@ def insert_run(con, seed: int, n_draws: int, protocol_id: int, data_hash: str | 
     return cur.lastrowid
 
 
-def insert_result(con, run_id: int, scenario_id: int, metric: str,
-                  qs: dict, p_positive: float | None):
+def insert_result(con, run_id: int, scenario_id: int, metric: str, qs: dict):
+    """One results row: a metric's quantiles ({0.05: .., ..., 0.95: ..}), or a
+    probability ({0.5: value}, the other columns NULL). The archived
+    p_positive column is left NULL."""
     con.execute(
-        "INSERT INTO results (run_id, scenario_id, metric, q05, q25, q50, q75, q95,"
-        " p_positive) VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO results (run_id, scenario_id, metric, q05, q25, q50, q75, q95)"
+        " VALUES (?,?,?,?,?,?,?,?)",
         (run_id, scenario_id, metric, qs.get(0.05), qs.get(0.25), qs.get(0.50),
-         qs.get(0.75), qs.get(0.95), p_positive))
+         qs.get(0.75), qs.get(0.95)))
 
 
 def insert_sensitivity(con, run_id: int, scenario_id: int, param: str,

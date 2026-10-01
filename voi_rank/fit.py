@@ -1,7 +1,8 @@
 """Percentile triples (q05, q50, q95) -> fitted distributions.
 
-Lognormal for B, K, C; Beta for p, s, t. Fits are performed once at
-elicitation time and stored in the DB; never re-fit at analysis time.
+Beta for p, s, t; lognormal for B, K, C_build, C_run, n (DESIGN section 4).
+Fits are performed once at elicitation time and stored in the DB; never
+re-fit at analysis time.
 """
 
 from __future__ import annotations
@@ -20,9 +21,13 @@ _EPS = 1e-6
 
 FAMILY_BY_PARAM = {
     "p": "beta", "s": "beta", "t": "beta",
-    "B": "lognormal", "K": "lognormal", "C": "lognormal",
+    "B": "lognormal", "K": "lognormal", "C_build": "lognormal", "C_run": "lognormal", "n": "lognormal",
 }
 PARAM_NAMES = list(FAMILY_BY_PARAM)
+# the two prompts (DESIGN section 4): the decision prompt asks p, B, K; the
+# instrument prompt s, t, C_build, C_run, n
+DECISION_PARAMS = ["p", "B", "K"]
+INSTRUMENT_PARAMS = ["s", "t", "C_build", "C_run", "n"]
 
 
 @dataclass

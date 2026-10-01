@@ -1,21 +1,29 @@
-"""Monte Carlo over elicitation uncertainty.
+"""Monte Carlo over the pooled belief (DESIGN section 6).
 
-The parameters are drawn independently (stated assumption). Pooling: for
-each scenario, ALL valid elicitations under the protocol, over every ensemble
-member (provider, model) and every repeat, are pooled into ONE equal-weight
-mixture per parameter (the linear opinion pool), so a member with more valid
-repeats carries more weight. Cross-repeat and cross-model disagreement both
-widen the metric intervals.
+Pooled belief per parameter per scenario: the equal-weight mixture over the
+fitted distributions of every valid elicitation under the protocol (all
+members, all repeats; the linear opinion pool), so a member with more valid
+repeats carries more weight. The eight parameters are drawn independently
+(stated assumption), aligned across scenarios by one seeded rng stream.
 
 --members provider:model,... pools only those members' valid fits (a subset
 of the protocol's members, else the run is refused); the subset is stored on
 the run (runs.members_json, NULL = every member) and read back by the replay.
 A subset naming every member is the ordinary all-member run.
 
-Per scenario the run stores q05/q25/q50/q75/q95 of EVSI, EVPI, efficiency,
-margin, headroom, C (the pooled cost mixture) and evpi_efficiency (EVPI / C
-per draw), P(EVSI > C), local Spearman sensitivities against efficiency and
-P(top 10).
+Stored per scenario (results rows, one per metric name):
+- q05/q25/q50/q75/q95 of every metric of model.METRIC_NAMES: EVSI, EVPI,
+  EVSI_ind (EVSI°), C, eta, eta_ind, eta_run, net_n, eta_n, n_star (inf where
+  EVSI <= C_run; the quantiles are over the finite draws, NULL when none is)
+  and pays;
+- the probabilities p_positive = P(EVSI > C), p_changes = P(EVSI > 0),
+  p_pays = P(n >= n_star) and p_top5 = P(rank <= 5 by eta, ties at zero
+  never counting), each its own metric row with q50 holding the probability
+  and the other columns NULL. This keeps one reader for everything a run
+  stores (SELECT q50 ... WHERE metric=?); the archived results.p_positive
+  column stays NULL for new runs.
+Sensitivities: Spearman of each parameter's draws against eta, one row per
+(scenario, parameter).
 
 Provenance: a run stores code_hash (git HEAD of the code paths, '-dirty' when
 they have uncommitted changes) and data_hash (sha256 over the sorted
@@ -35,15 +43,16 @@ import json
 import numpy as np
 
 from voi_rank import db, model
+from voi_rank.model import METRIC_NAMES
 from voi_rank.sensitivity import rank_stability, spearman
 from voi_rank.study import Study, add_study_arg
 
-METRIC_NAMES = ["EVSI", "EVPI", "efficiency", "margin", "headroom", "C", "evpi_efficiency"]
-PRIMARY_METRIC = "efficiency"
+PRIMARY_METRIC = "eta"
+PROBABILITY_NAMES = ["p_positive", "p_changes", "p_pays", "p_top5"]
 SUMMARY_QS = (0.05, 0.25, 0.50, 0.75, 0.95)
 RESULT_COLUMNS = ("q05", "q25", "q50", "q75", "q95")
 REPLAY_RTOL = 1e-9
-TOP_N_STABILITY = 10
+TOP_N_STABILITY = 5
 
 
 def _draw(rng, family: str, params: dict, m: int) -> np.ndarray:
@@ -68,24 +77,20 @@ def sample_mixture(rng, fits: list[dict], m: int) -> np.ndarray:
 
 
 def scenario_metrics(draws: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-    """Per-draw metrics of one scenario from its parameter draws, keyed by
-    METRIC_NAMES."""
-    evsi, evpi = model.voi(draws["p"], draws["s"], draws["t"], draws["B"], draws["K"])
-    C = draws["C"]
-    headroom = np.where(evpi > 0.0, evsi / np.where(evpi > 0.0, evpi, 1.0), np.nan)
-    return {
-        "EVSI": evsi,
-        "EVPI": evpi,
-        "efficiency": evsi / C,
-        "margin": evsi - C,
-        "headroom": headroom,
-        "C": C,
-        "evpi_efficiency": evpi / C,
-    }
+    """Per-draw metrics of one scenario from its parameter draws (model.metrics)."""
+    return model.metrics(draws)
+
+
+def probabilities(metrics: dict[str, np.ndarray]) -> dict[str, float]:
+    """P(EVSI > C), P(EVSI > 0) and P(n >= n*) over the draws of one scenario."""
+    return {"p_positive": float(np.mean(metrics["EVSI"] > metrics["C"])),
+            "p_changes": float(np.mean(metrics["EVSI"] > 0.0)),
+            "p_pays": float(np.mean(metrics["pays"]))}
 
 
 def summarize(vec: np.ndarray) -> dict:
-    finite = vec[~np.isnan(vec)]
+    """Quantiles over the finite draws (NaN and inf left out; None when none is)."""
+    finite = vec[np.isfinite(vec)]
     if finite.size == 0:
         return {q: None for q in SUMMARY_QS}
     qs = np.quantile(finite, SUMMARY_QS)
@@ -107,7 +112,7 @@ def data_hash(fits_by_scenario: dict[int, dict[str, list[dict]]]) -> str:
     fit_params) of the fits an MC run draws from: two runs with equal
     data_hash pooled exactly the same valid elicitations (a member subset
     changes it; a fit shared by several scenarios, as the decision stage of
-    a staged protocol is, counts once)."""
+    a grouped protocol is, counts once)."""
     rows = sorted({(f["elicitation_id"], name, f["fit_params"])
                    for fits in fits_by_scenario.values()
                    for name, lst in fits.items() for f in lst})
@@ -126,10 +131,18 @@ def iter_scenario_draws(fits_by_scenario: dict[int, dict[str, list[dict]]], seed
         yield sid, {name: sample_mixture(rng, fits[name], n_draws) for name in db.PARAM_NAMES}
 
 
+def stored_probability(con, run_id: int, scenario_id: int, name: str) -> float | None:
+    """A stored probability row (PROBABILITY_NAMES) of one scenario of a run."""
+    row = con.execute("SELECT q50 FROM results WHERE run_id=? AND scenario_id=? AND metric=?",
+                      (run_id, scenario_id, name)).fetchone()
+    return None if row is None else row[0]
+
+
 def replay_efficiency(con, run_id: int):
-    """Recompute the efficiency draw matrix of a stored run from the DB alone
-    (seed, n_draws and fitted params are all persisted). Guards against the
-    valid-elicitation set having changed since the run."""
+    """Recompute the eta draw matrix of a stored run from the DB alone (seed,
+    n_draws and fitted params are all persisted). Guards against the
+    valid-elicitation set having changed since the run: every stored eta
+    quantile and p_positive is verified."""
     run = db.get_run(con, run_id)
     ids, effs, ppos = [], [], []
     fits = complete_fits(con, run["protocol_id"], db.run_member_labels(run))   # the stored subset
@@ -137,11 +150,8 @@ def replay_efficiency(con, run_id: int):
         ids.append(sid)
         metrics = scenario_metrics(draws)
         effs.append(metrics[PRIMARY_METRIC])
-        ppos.append(float(np.mean(metrics["EVSI"] > draws["C"])))  # as run_mc stores it
+        ppos.append(probabilities(metrics)["p_positive"])
     eff = np.vstack(effs)
-    # any change to the valid-elicitation set since the run (new scenarios OR
-    # extra repeats on existing ones) desynchronizes the shared rng stream, so
-    # verify the replay against every stored efficiency summary per scenario
     stored = {r["scenario_id"]: r for r in con.execute(
         "SELECT * FROM results WHERE run_id=? AND metric=?", (run_id, PRIMARY_METRIC))}
     if set(ids) != set(stored):
@@ -150,28 +160,28 @@ def replay_efficiency(con, run_id: int):
             f"({len(ids)} scenarios now vs {len(stored)} stored)")
     for i, sid in enumerate(ids):
         got = summarize(eff[i])
-        got["p_positive"] = ppos[i]
-        for key, col in (*zip(SUMMARY_QS, RESULT_COLUMNS, strict=True), ("p_positive", "p_positive")):
-            want = stored[sid][col]
-            if abs(got[key] - want) > REPLAY_RTOL * max(1.0, abs(want)):
+        checks = [(col, got[q], stored[sid][col]) for q, col in zip(SUMMARY_QS, RESULT_COLUMNS, strict=True)]
+        checks.append(("p_positive", ppos[i], stored_probability(con, run_id, sid, "p_positive")))
+        for label, value, want in checks:
+            if want is None or abs(value - want) > REPLAY_RTOL * max(1.0, abs(want)):
                 raise RuntimeError(
-                    f"run {run_id} replay mismatch on scenario {sid}: {PRIMARY_METRIC} {col} "
-                    f"{got[key]} vs stored {want}: valid elicitations changed "
+                    f"run {run_id} replay mismatch on scenario {sid}: {PRIMARY_METRIC} {label} "
+                    f"{value} vs stored {want}: valid elicitations changed "
                     "since the run (e.g. repeats added under the same protocol)")
     return ids, eff
 
 
 def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False,
            allow_dirty: bool = False, members: list[str] | None = None) -> int:
-    """Execute one MC run over all scenarios with valid elicitations under the
-    protocol. Writes runs, results (incl. a p_top10 stability row per scenario)
-    and sensitivities. Returns the run id. Uncommitted changes under
-    db.CODE_PATHS, or a code revision that cannot be determined (no git, not
-    a repository), are refused unless allow_dirty (then code_hash is stored
-    as '<hash>-dirty' or 'unknown' and a warning is printed). members (labels)
-    pools only that subset of the protocol's members; a label the protocol
-    does not list exits, and a subset naming every member is stored as the
-    all-member run (members_json NULL)."""
+    """Execute one MC run over all scenarios with complete valid elicitations
+    under the protocol. Writes runs, results (every metric's quantiles and the
+    probability rows, p_top5 included) and sensitivities. Returns the run id.
+    Uncommitted changes under db.CODE_PATHS, or a code revision that cannot
+    be determined (no git, not a repository), are refused unless allow_dirty
+    (then code_hash is stored as '<hash>-dirty' or 'unknown' and a warning is
+    printed). members (labels) pools only that subset of the protocol's
+    members; a label the protocol does not list exits, and a subset naming
+    every member is stored as the all-member run (members_json NULL)."""
     protocol = db.protocol_by_name(con, protocol_name)
     try:
         members = db.normalize_run_members(db.protocol_members(protocol), members)
@@ -204,16 +214,17 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
     for sid, draws in iter_scenario_draws(fits, seed, n_draws):
         scenario_ids.append(sid)
         metrics = scenario_metrics(draws)
-        p_positive = float(np.mean(metrics["EVSI"] > draws["C"]))
         for name in METRIC_NAMES:
-            db.insert_result(con, run_id, sid, name, summarize(metrics[name]), p_positive)
+            db.insert_result(con, run_id, sid, name, summarize(metrics[name]))
+        for name, value in probabilities(metrics).items():
+            db.insert_result(con, run_id, sid, name, {0.50: value})
         for name in db.PARAM_NAMES:
             db.insert_sensitivity(con, run_id, sid, name, spearman(draws[name], metrics[PRIMARY_METRIC]))
         eff_rows.append(metrics[PRIMARY_METRIC])
 
     p_top = rank_stability(np.vstack(eff_rows), top=TOP_N_STABILITY)
     for i, sid in enumerate(scenario_ids):
-        db.insert_result(con, run_id, sid, "p_top10", {}, float(p_top[i]))
+        db.insert_result(con, run_id, sid, "p_top5", {0.50: float(p_top[i])})
     con.commit()
 
     if not quiet:
@@ -226,13 +237,15 @@ def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False
 def print_ranking(con, run_id: int, limit: int = 30):
     run = db.get_run(con, run_id)
     rows = con.execute(
-        "SELECT r.scenario_id, s.title, r.q05, r.q50, r.q95, r.p_positive"
+        "SELECT r.scenario_id, s.title, r.q05, r.q50, r.q95,"
+        " (SELECT q50 FROM results p WHERE p.run_id=r.run_id AND p.scenario_id=r.scenario_id"
+        "  AND p.metric='p_positive') AS p_positive"
         " FROM results r JOIN scenarios s ON s.id = r.scenario_id"
         " WHERE r.run_id=? AND r.metric=? ORDER BY r.q50 DESC LIMIT ?",
         (run_id, PRIMARY_METRIC, limit)).fetchall()
     print(f"\nRanking by median {PRIMARY_METRIC} (EVSI/C), run {run_id}"
           f" (members: {db.members_label(db.run_member_labels(run))}):")
-    print(f"{'rank':>4} {'id':>4} {'eff q50':>10} {'eff q05':>10} {'eff q95':>10} {'P(EVSI>C)':>10}  title")
+    print(f"{'rank':>4} {'id':>4} {'eta q50':>10} {'eta q05':>10} {'eta q95':>10} {'P(EVSI>C)':>10}  title")
     for rank, r in enumerate(rows, 1):
         print(f"{rank:>4} {r['scenario_id']:>4} {r['q50']:>10.3g} {r['q05']:>10.3g}"
               f" {r['q95']:>10.3g} {r['p_positive']:>10.2f}  {r['title'][:60]}")
