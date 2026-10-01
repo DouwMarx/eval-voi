@@ -657,7 +657,7 @@ def test_rejected_openrouter_key_aborts_before_any_call(study, monkeypatch, caps
     monkeypatch.setattr(elicit, "get_provider", lambda name: lambda *a: calls.append(name))
     monkeypatch.setenv("OPENROUTER_API_KEY", "wrong-key-not-real")
 
-    def reject(req, timeout=None):
+    def reject(req, timeout=None, context=None):
         assert req.full_url == openrouter.AUTH_URL and req.get_method() == "GET"
         assert req.get_header("Authorization") == "Bearer wrong-key-not-real"
         raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", {},
@@ -702,7 +702,7 @@ class _Resp(io.BytesIO):
         self.close()
 
 
-def _key_ok(req, timeout=None):
+def _key_ok(req, timeout=None, context=None):
     return _Resp(b'{"data": {"label": "team", "usage": 2.5, "limit": 10}}')
 
 

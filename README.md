@@ -14,7 +14,7 @@ lab notebook.
   (authenticated) for `claude_cli` members, `latexmk` for the report.
 - `uv sync` installs numpy, scipy, matplotlib, pyyaml (+ pytest, ruff, poethepoet).
 - Optional `.env` (copy `.env.example`, git-ignored): `OPENROUTER_API_KEY` for
-  `openrouter` members, `VOI_CLI_TIMEOUT_S`, `VOI_OUTAGE_SLEEP_S`,
+  `openrouter` members, `SSL_CERT_FILE`, `VOI_CLI_TIMEOUT_S`, `VOI_OUTAGE_SLEEP_S`,
   `VOI_OUTAGE_MAX_WAIT_S`.
 - `uv run poe test` runs the tests, `uv run poe lint` runs ruff.
 
@@ -60,9 +60,11 @@ eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
 1. `uv run pytest -q`
 2. `uv run python -m voi_rank.elicit --study studies/safety-evals --protocol p001 --dry-run`
    plans on an in-memory copy of the DB: both stages' pending slots per
-   member, the cost estimate (from the members' stored attempt costs,
-   `unknown` without history) and the first rendered prompt of each stage;
-   nothing is called or written, not even `voi.db`. It warns when a planned
+   member, the cost estimate (from the members' stored attempt costs; for
+   an `openrouter` member without history from catalogue prices, see
+   OpenRouter below; else `unknown`) and the first rendered prompt of each
+   stage; no provider is called and no `voi.db` is written (only the
+   OpenRouter price cache). It warns when a planned
    prompt would render an empty scenario field (p001's decision prompt
    renders `decision_context`, empty until `decision_facts` are written:
    `SCENARIOS_TODO.md`). `--stage
@@ -139,7 +141,8 @@ probabilities in (0, 1), USD and `n` > 0, `n >= 1` at the median, median `s`
 > 1 - median `t`, prior median in [0.001, 0.999]; no unit field. Error classes
 stored in `elicitations.error`: `json`, `schema`, `constraint`, `fit`,
 `refusal` (a plain-text answer that declines, or an OpenRouter
-`content_filter` finish), `cli`, `http`, `api`, `provider`. A failed attempt
+`content_filter` finish), `truncated` (an OpenRouter answer cut at
+`max_tokens`), `cli`, `http`, `api`, `provider`. A failed attempt
 is retried once (at once for answer failures, after the server's Retry-After
 for HTTP 429/5xx, never for a rejected request or an error of the member's
 environment, which halts that member). Every attempt is stored with its raw
@@ -170,6 +173,34 @@ Nothing calls OpenRouter unless a protocol lists an `openrouter` member. Set
 checked before the plan is printed and the key itself is verified with one
 free request after the run is confirmed. The test suite monkeypatches the
 HTTP layer: no test or default command reaches the network.
+
+Each `openrouter` member may set request options next to `provider`,
+`model` and `k_repeats` (all optional):
+
+| field | default | sent as |
+|---|---|---|
+| `reasoning_effort` | none | `reasoning.effort` (low, medium, high) |
+| `max_tokens` | 32000 | `max_tokens` (high on purpose: GLM 5.3 spent 16k tokens on reasoning in a smoke test; length is set with `reasoning_effort`) |
+| `json_mode` | true | `response_format: json_object` plus `provider.require_parameters` |
+| `provider_order` | none | `provider.order` with `allow_fallbacks: false` (endpoint tags from `GET /api/v1/models/<id>/endpoints`) |
+| `temperature` | omitted for `openai/*`, else 1.0 | `temperature`; `omit` sends none (an endpoint without the parameter) |
+| `est_output_tokens` | 6000 | not sent: the cost estimate's output tokens per call |
+
+The user message carries an ephemeral `cache_control` breakpoint (Anthropic
+needs it; other providers ignore it). An answer cut at `max_tokens`
+(`finish_reason` length) is error class `truncated` and retried once. The
+plan prints a cost per member: the mean stored cost of its past attempts,
+else catalogue prices (`GET /api/v1/models` and the pinned endpoint's
+price, cached in `<study>/.openrouter_models.json` for 24 h; offline, the
+prices in `research/ensemble_members.json`) times the prompt length / 4
+input tokens and `est_output_tokens` output tokens, as low / central /
+high with output x0.5 / x1 / x2. If HTTPS fails with a certificate error
+(uv's standalone Python on some Linux systems), set `SSL_CERT_FILE` in the
+environment or `.env`; without it the harness falls back to
+`/etc/ssl/certs/ca-certificates.crt` when Python's default context has no
+CA. `protocols/final.yaml` is the final run (six members, k=1), and
+`final_dev.yaml` its developer-perspective decision-stage ablation; each
+registers only when named with `--protocol`.
 
 ## Archived databases
 

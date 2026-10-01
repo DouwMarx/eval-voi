@@ -1,0 +1,84 @@
+name: final
+stages:
+  - name: decision
+    template_path: templates/decision.md       # renders $agent $decision $theta_definition $decision_context
+    params: [p, B, K]
+    group_key: self                            # every scenario is its own decision
+  - name: instrument
+    template_path: templates/instrument.md     # renders the scenario and $context (instrument_context)
+    params: [s, t, C_build, C_run, n]
+template_vars:
+  perspective: society
+  anchors_decision: ''
+  anchors_instrument: ''
+  context_mode: curated
+# provider_order: one endpoint per member (tag from GET
+# /api/v1/models/<id>/endpoints, 2026-10-01), pinned with allow_fallbacks
+# false, so price and weights cannot change under the run. The first-party
+# endpoint where it passes a zero-data-retention (ZDR) account setting:
+# Z.AI and xAI. The account of the 2026-10-01 smoke test enforces ZDR, which
+# removed the first-party endpoints of DeepSeek, Xiaomi, OpenAI and Google AI
+# Studio (HTTP 404, research/smoke_final_protocol.json); those four are
+# pinned to a ZDR endpoint instead: DeepInfra fp8 for DeepSeek and MiMo
+# (the first-party endpoints are fp8 too; DeepInfra is the cheapest ZDR host
+# with response_format and over 99.7% uptime), Azure for GPT-6 Luna (same
+# price as OpenAI's), Google Vertex for Gemini (same price as AI Studio;
+# Vertex lists no temperature parameter, so none is sent).
+# reasoning_effort low for the two members that reason longest at their
+# default (DeepSeek 5k-8k, GLM 8k-16k reasoning tokens in the 2026-10-01
+# smoke test), medium otherwise; MiMo lists no reasoning_effort parameter,
+# but its DeepInfra endpoint accepts reasoning.effort under
+# require_parameters (probe, 2026-10-01). est_output_tokens (cost estimate
+# only): the mean completion tokens (answer plus reasoning) per valid call
+# of the member in the smoke test of this protocol, rounded up
+# (research/smoke_final_protocol.json, 4 calls each).
+members:
+  - provider: openrouter
+    model: deepseek/deepseek-v4.1-flash
+    k_repeats: 1
+    est_output_tokens: 3500
+    reasoning_effort: low
+    provider_order: [deepinfra/fp8]
+  - provider: openrouter
+    model: z-ai/glm-5.3
+    k_repeats: 1
+    est_output_tokens: 1000
+    reasoning_effort: low
+    provider_order: [z-ai/fp8]
+  - provider: openrouter
+    model: xiaomi/mimo-v2.6-flash
+    k_repeats: 1
+    est_output_tokens: 4000
+    reasoning_effort: medium
+    provider_order: [deepinfra/fp8]
+  - provider: openrouter
+    model: openai/gpt-6-luna
+    k_repeats: 1
+    est_output_tokens: 2000
+    reasoning_effort: medium
+    provider_order: [azure]
+  - provider: openrouter
+    model: google/gemini-3.8-flash
+    k_repeats: 1
+    est_output_tokens: 2500
+    reasoning_effort: medium
+    provider_order: [google-vertex/global]
+    temperature: omit                        # Vertex does not take the parameter
+  - provider: openrouter
+    model: x-ai/grok-4.7
+    k_repeats: 1
+    est_output_tokens: 8000
+    reasoning_effort: medium
+    provider_order: [xai]
+notes: >
+  Final-run protocol (run only with --protocol final, with the dedicated key
+  in OPENROUTER_API_KEY). Stages and template variables mirror p001's
+  headline: society perspective, no anchors, curated context. Six members
+  from six developers, three Chinese (DeepSeek, Z.ai, Xiaomi) and three US
+  (OpenAI, Google, xAI); k=1 each, because between-member variance is at
+  least the within-member repeat variance (HANDOVER section 2), so a call
+  spent on a member is worth more than one spent on a repeat. No Anthropic
+  member: three of the frontier-model evaluations are Anthropic's own
+  (Agentic Misalignment, Petri, Bloom), and the pilots' main objection was
+  Claude agreeing with Claude; the iteration runs use claude_cli. Request
+  options per member: see the comment above members.

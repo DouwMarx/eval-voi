@@ -1,5 +1,5 @@
 """Settings from the environment or the repo-root .env file (git-ignored, see
-.env.example): OPENROUTER_API_KEY, VOI_CLI_TIMEOUT_S, VOI_OUTAGE_SLEEP_S and
+.env.example): OPENROUTER_API_KEY, SSL_CERT_FILE, VOI_CLI_TIMEOUT_S, VOI_OUTAGE_SLEEP_S and
 VOI_OUTAGE_MAX_WAIT_S. A KEY=VALUE line may
 carry a leading 'export ', surrounding quotes and a trailing ' # comment'.
 Callers never print a value."""
