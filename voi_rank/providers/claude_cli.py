@@ -1,5 +1,5 @@
-"""Headless `claude -p` provider (spec §6.1, deviations recorded in
-LEARNINGS.md and verified against `claude --help` on CLI 2.1.220):
+"""Headless `claude -p` provider (deviations recorded in LEARNINGS.md and
+verified against `claude --help` on CLI 2.1.220):
 - `--bare` exists but restricts Anthropic auth to ANTHROPIC_API_KEY, which is
   absent under OAuth login. Context is instead isolated with `--tools ""`,
   `--setting-sources ""` and an explicit `--system-prompt`; verified
@@ -34,8 +34,8 @@ Any other zero-usage exit is 'cli: exit <n> (zero-usage, api <status>):
 <result>' (an unknown model id is api 404; 'api none' when the CLI names
 no status), an ordinary failed attempt, and elicit halts the member on
 api 401/402/403/404 or a login message. is_usage_limit applies the same
-test to a legacy 'cli: exit <n>' row, so health and the report macros
-read the stored rows exactly as the harness classifies new results.
+test to a legacy 'cli: exit <n>' row, so every reader of stored rows (the
+plan's cost estimate, a later analysis) classifies them as the harness does.
 usage_limit_reset reads the reset time the message names.
 """
 
@@ -60,7 +60,7 @@ USAGE_LIMIT_STATUS = 429         # the API status of a usage-limit exit (every s
 AUTH_PATTERN = r"not logged in|invalid api key|authentication"
 _AUTH_RE = re.compile(AUTH_PATTERN, re.IGNORECASE)
 _USAGE_LIMIT_RE = re.compile(r"^cli: usage-limit \(zero-usage exit \d+\)")
-_LEGACY_EXIT_RE = re.compile(r"^cli: exit \d+: ")   # before v2.3 every non-zero exit read so
+_LEGACY_EXIT_RE = re.compile(r"^cli: exit \d+: ")   # before 2026-09-29 every non-zero exit read so
 # 'resets 4:30am (Europe/Brussels)', 'resets 9pm (UTC)': the CLI's usage-limit message
 _RESET_RE = re.compile(r"\bresets\s+(\d{1,2})(?::(\d{2}))?\s*([ap]m)\s*\(([^)\s]+)\)", re.IGNORECASE)
 
@@ -115,8 +115,7 @@ def is_usage_limit(error: str | None, raw: str | None = None) -> bool:
     legacy 'cli: exit <n>: ...' row (stored before the class existed) whose
     raw response is a zero-usage envelope that usage_limit_envelope accepts;
     never an error that names a login or key problem. The one test the harness
-    (elicit.usage_limit), health, the report macros and the plan's cost
-    estimate apply."""
+    (elicit.usage_limit) and the plan's cost estimate apply."""
     if not error or _AUTH_RE.search(error):
         return False   # a login or key problem is never an outage
     if _USAGE_LIMIT_RE.match(error):

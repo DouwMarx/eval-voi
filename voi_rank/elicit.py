@@ -32,7 +32,7 @@ further Ctrl-C during that wait is reported and ignored; claude CLI children
 run in their own session so the terminal's SIGINT never reaches them); a
 result the DB refuses is appended to <study>/elicit_unstored.jsonl.
 
-Usage-limit outages (v2.3): during a claude.ai usage-limit window the CLI
+Usage-limit outages: during a claude.ai usage-limit window the CLI
 exits 1 with a zero-usage envelope of API status 429 (no model call,
 nothing billed; claude_cli.usage_limit_envelope), classified 'cli:
 usage-limit (zero-usage exit 1)'. Such a result is NOT stored as an attempt
@@ -174,7 +174,7 @@ def cli_timeout(error: str | None) -> bool:
 
 def usage_limit(error: str | None) -> bool:
     """A usage-limit outage result (claude_cli.is_usage_limit, the one test
-    health and the report macros apply to stored rows too): the CLI exited
+    every reader of stored rows applies too): the CLI exited
     without a model call, nothing was billed. A zero-usage exit of another
     API status, or one that names a login or key problem, is not one."""
     return claude_cli.is_usage_limit(error)
@@ -686,7 +686,7 @@ def member_mean_cost(con, member: dict) -> tuple[float, int] | None:
     """(mean recorded USD cost per billed attempt, billed attempts) of one
     member over every protocol in the study; None when the member has no
     such attempts. A usage-limit outage row (a zero-usage CLI exit stored
-    before v2.3, claude_cli.is_usage_limit) made no model call and is left
+    before 2026-09-29, claude_cli.is_usage_limit) made no model call and is left
     out: counted, it understated the pilots' estimates by 13-21%."""
     rows = con.execute(
         "SELECT e.raw_response, e.error FROM elicitations e WHERE e.provider=? AND e.model=?",

@@ -1,617 +1,167 @@
 # voi-rank
 
-Ranks scenarios by the value of a single measurement sold to a single agent
-facing a single binary decision: expected value of sample information (EVSI)
-per dollar of measurement cost. Parameters are elicited from LLMs under
-frozen prompt protocols (optionally an ensemble of models), fitted to
-distributions, and propagated by Monte Carlo. See `spec.md` for the model and
-`LEARNINGS.md` for the lab notebook.
+How much is a safety evaluation worth, per dollar, to the developer who must
+decide whether to release? One deployment decision per scenario, the expected
+value of sample information (EVSI) of one run of the evaluation, parameters
+elicited from an ensemble of language models in two independent prompts,
+propagated by Monte Carlo over the pooled belief. `docs/DESIGN.md` is the
+authority on the model, the elicitation and the outputs; `LEARNINGS.md` is the
+lab notebook.
 
 ## Install
 
-- Requires Python >= 3.11, [uv](https://docs.astral.sh/uv/), `latexmk` for
-  reports, and the `claude` CLI (authenticated) for `claude_cli` elicitation.
+- Python >= 3.11, [uv](https://docs.astral.sh/uv/), the `claude` CLI
+  (authenticated) for `claude_cli` members, `latexmk` for the report.
 - `uv sync` installs numpy, scipy, matplotlib, pyyaml (+ pytest, ruff, poethepoet).
-- Optional `.env` settings (copy `.env.example`, git-ignored): `OPENROUTER_API_KEY` and
-  `VOI_CLI_TIMEOUT_S` (wall-clock cap per `claude -p` call, default 600 s).
+- Optional `.env` (copy `.env.example`, git-ignored): `OPENROUTER_API_KEY` for
+  `openrouter` members, `VOI_CLI_TIMEOUT_S`, `VOI_OUTAGE_SLEEP_S`,
+  `VOI_OUTAGE_MAX_WAIT_S`.
 - `uv run poe test` runs the tests, `uv run poe lint` runs ruff.
 
 ## Layout
 
 ```
-voi_rank/                 library: model, fit, mc, sensitivity, db, study, elicit, propose,
-                          drop_runs, validate, providers/{claude_cli,openrouter},
-                          gaussian, gauss_fit (the Gaussian-state family, see below),
-                          analysis/{figures,tables,extra,health,compare_models}
-tests/
-studies/<name>/           one study = scenarios.json, protocols/, templates/, voi.db, report/
-  business/               the original v1 study (68 business scenarios, protocols p000..p004)
-  ai-safety-evals/        track 1
-  sim2real/               track 2
-templates/corl_2026/      conference template
-research/                 shared literature and system-card mining
+voi_rank/              model, fit, mc, db, study, elicit, validate, sensitivity, dotenv,
+                       providers/{claude_cli, openrouter}
+studies/safety-evals/  scenarios.json, protocols/, templates/, SCENARIOS_TODO.md (voi.db and report/ later)
+research/              literature catalogue, refs.bib, system-card mining
+archive/               business/ (the external chapter reads its voi.db) and pilots/ (frozen at tag
+                       pilot-2026-09-30; read-only, not re-runnable by the current code)
+scripts/               build_paper.sh, check_pages.py
+docs/                  DESIGN.md, QUESTIONS.md
 ```
 
-A study is self-contained: `scenarios.json` (the scenario list), `protocols/`
-(immutable YAML protocol files), `templates/` (prompt templates referenced by
-protocols, paths relative to the study root), `voi.db` (every scenario,
-prompt hash, raw response, fit, run, result) and `report/` (LaTeX, with
-`report/generated/` written by the analysis scripts).
+A study is self-contained: `scenarios.json`, `protocols/` (immutable YAML
+files), `templates/` (prompt templates and the files they inline, paths
+relative to the study root) and `voi.db` (every scenario, prompt hash, raw
+response, fit, run and result). `--study` defaults to `studies/safety-evals`.
 
-`scenarios.json` is a list of objects: `title, agent, decision,
-theta_definition, instrument` (required), `context` (factual background
-substituted into the template as `$context`), `domain_tags`, `group` (short
-label for figure colouring), `attributes` (free JSON, e.g. `level`), and
-optionally `manual` (hand percentiles for the `p000_manual` protocol).
+`scenarios.json` is a list of objects (DESIGN section 5): `title, agent,
+decision, theta_definition, instrument` (required), `group` ("physical AI" |
+"frontier model"), `attributes` {risk_domain, level, eval_family, ...},
+`sources` (list of {key, kind, ref, role}), `decision_facts`,
+`instrument_facts`, `decision_context` (rendered by the decision prompt),
+`instrument_context` (rendered as `$context` by the instrument prompt),
+`domain_tags`. The whole entry is stored as `raw_json`.
 
-## Run order (from the repo root; `--study` defaults to `studies/business`)
+## The model (DESIGN section 3)
 
-1. `uv run pytest`
-2. `uv run python -m voi_rank.elicit --study studies/X --manual [--dry-run]` (optional: hand percentiles; `--dry-run` lists what would be loaded and writes nothing; a study without `protocols/p000_manual.yaml` or without any `manual` key is reported and gets no `voi.db`)
-3. `uv run python -m voi_rank.propose --study studies/X --n 6 --yes [--dry-run]` (optional: generate scenarios via claude_cli; needs `templates/proposer.md` in the study, else it exits with a message; prints the plan, calls and estimated cost first and needs `--yes` or a TTY confirmation like step 5; the plan is made on an in-memory copy, so a declined plan or `--dry-run` creates nothing, not even `voi.db`)
-4. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --dry-run` (plan on an in-memory copy of the DB: render prompts, list pending slots per member with the effective k, call nothing, write nothing, not even `voi.db`; a staged protocol lists both stages and the first pending prompt of each)
-5. `uv run python -m voi_rank.elicit --study studies/X --protocol p001 --yes [--k 5] [--members claude_cli:haiku] [--stage decision]` (prints the plan and estimated cost, then submits; without `--yes` it asks for confirmation on a TTY and aborts otherwise; the plan is made on an in-memory copy, so a declined plan writes nothing, not even `voi.db`, and registers no protocol; only a confirmed run whose preflight passed opens the real DB)
-6. `uv run python -m voi_rank.mc --study studies/X --protocol p001 --seed 42 --draws 100000 [--members claude_cli:sonnet,claude_cli:opus] [--weights equal-member]` (refuses to run with uncommitted changes under `voi_rank/`, `pyproject.toml` or `uv.lock`, or when git cannot report the revision at all, unless `--allow-dirty`, which stores `code_hash` as `<hash>-dirty` or `unknown`; `--members` pools only that subset of the protocol's members, see "Member subsets"; `--weights` sets the mixture weighting, see "Member weights")
-7. `uv run python -m voi_rank.analysis.health --study studies/X --protocol p001 [--compare p002] [--members ...] [--weights ...]`
-8. `uv run python -m voi_rank.analysis.figures --study studies/X --protocol p001` and `uv run python -m voi_rank.analysis.tables --study studies/X --protocol p001` (the latest all-member run of that protocol, default `p001`; `--members a:b,c:d` selects the latest run that pooled exactly that subset and `--weights equal-member` the latest equal-member run; `--run ID` overrides them; both print `run <id> (protocol <name>[, members ...][, weights ...])`; a run made by the v1 model, without a `data_hash` or with sensitivities for the retired parameter `e`, is refused: re-run step 6)
-9. `uv run python -m voi_rank.analysis.extra --study studies/X --protocol p001 [--members ...] [--boot N]` (same run selection; the eval-study analyses, each skipped with a printed reason when its inputs are absent and its stale outputs removed): `fig_level_uplift.pdf` + `level_uplift.tex` (adjacent-rung marginals within one decision, for groups whose leveled scenarios share the agent, decision and theta text: common-random-number draws, p, B, K once per ladder, s, t, C per rung, marginal efficiency as median dEVSI / median dC with P(dC > 0), P(dEVSI > 0) and P(dEVSI > dC); a second tabular gives the same steps by the mean-based marginals (means over the same draws) and a third the plug-in marginals (differences of the per-rung `model.voi` values at the pooled medians, p, B, K pooled over the ladder with each elicitation once, so a staged ladder spanning two decision groups weighs their rows alike, s, t, C per rung) with their bootstrap q05-q95 and P_boot(dEVSI > dC) (see "Bootstrap over elicitations" below) and the fence marginals (differences of the per-rung fence value, see below, at the same ladder-pooled p, B, K, over the plug-in dC; `fig_level_fence.pdf` and the EVSI* column of `plugin.tex` use each scenario's own medians, so where a single-stage protocol's p, B, K move across rungs their per-rung values, and the sign of a step, can differ from these marginals); the figure's top panel plots per rung the values of the plug-in tabular: the plug-in EVSI and C with their bootstrap q05-q95 as bars and the fence value EVSI* (a zero EVSI in the zero row, see "Paper figures" below the run order), its bottom panel the plug-in (with its bootstrap q05-q95 as a bar) and fence marginal efficiencies per step next to the CRN median ratio, with the CRN P(dEVSI > dC) printed above each step), `fig_level_fence.pdf` (per group of leveled scenarios: EVSI*, plug-in EVSI and C at each scenario's pooled medians against its level), `fig_within_group_consistency.pdf` + `consistency.tex` (same groups: is the elicited p, B, K flat across levels while s, t, C move), `fig_domain_map.pdf` + `domain_summary.tex` (needs `attributes.risk_domain`), `fig_member_agreement.pdf` + `member_agreement.tex` (protocols with more than one member), `simplicity.tex` + `macros_extra.tex` (does the EVPI/C ranking reproduce the EVSI/C ranking, both as medians of the per-draw ratio the run stores; needs a run with the `evpi_efficiency` metric; the global |rho| rows count the scenarios with a defined rho) and `protocol_noise_matched.tex` (cross-repeat spread per member over the first 3 valid repeats and, where a member holds more on any scenario, over all of them, labelled with the count pooled per scenario, `min..max` where scenarios differ; the compare matrix takes each protocol's latest run the v2 analyses accept) and `plugin.tex` + `plugin_mc.tex` + `fig_plugin.pdf` + the `\voiPlugin*`, `\voiMedianMeanRho` and `\voiMcZeroMedian` macros in `macros_extra.tex` (the plug-in summary next to the MC one: per scenario, EVSI and efficiency from `model.voi` at the pooled elicited medians of the six parameters, `C` included and printed since the catalog's `C` is the mixture median, the gate regime at those medians from `pi* = K/(B+K)` against the posteriors and the bootstrap q05-q95 of eff and eff* and P_boot(gate) in `plugin.tex`; the plug-in EVPI, the run's median and mean efficiency, `P(EVSI > C)` and `P(EVSI > 0)` (P_gate, over the MC draws) in `plugin_mc.tex`, same rows and order; with a three-panel rank scatter of plug-in vs MC median vs MC mean; both are `longtable`s like `catalog.tex`, input outside a float, `plugin.tex` set in footnotesize with a 2 pt `tabcolsep` so its 12 columns fit the CoRL text width at the magnitudes the three studies print, which the compile test checks with cells as wide as theirs). The plug-in table also carries the fence value `EVSI* = (B + K) p (1 - p) (s + t - 1)` at the same medians (chapter, "The buyer on the fence, and bounds": the maximum of EVSI over the threshold pi* at fixed stakes, reached at pi* = p; `model.voi_fence`), `eff* = EVSI*/C` and the share `EVSI/EVSI*` (0 outside the gate), with `\voiFenceRhoPlugin` (Spearman of eff* against the plug-in eff over the scenarios with EVSI > 0, `\voiFenceN` of them) and `\voiFenceTopOverlap` (top-k overlap of the fence and plug-in rankings) in `macros_extra.tex`: a smooth ranking that needs no gate, next to the gated one. Only the plug-in analysis replays the stored run, for the mean over its draws, verified against the stored quantiles; repeats added under the protocol after the run make it skip with a printed reason and never abort anything. `fig_plugin_map.pdf` (binary runs; no replay needed) is the headline map at the pooled medians: plug-in EVSI (log) against the pooled-median `C` (log), one point per scenario coloured by group and shaped by `attributes.risk_domain` when present, scenarios outside the gate (always / never respond, EVSI = 0) as open markers in the zero row, the fence value `EVSI*` as a small hollow marker on a thin stem above each point (decision value against fence value), iso-efficiency diagonals labelled `eff = 10^k`, a "better" arrow up-left and every id labelled, in the style of `fig_evsi_vs_cost.pdf`, and the bootstrap q05-q95 of the plug-in EVSI (vertical) and of `C` (horizontal) as light bars behind the points; the stems to the fence value are dotted. `plugin_ranks.tex` + the `\voiBoot*` macros: the rank stability of the plug-in and fence rankings under the bootstrap.
-10. `cd studies/X/report && latexmk -pdf main.tex`
+Eight elicited parameters: decision level `p, B, K`; instrument level `s, t,
+C_build, C_run, n`. Beta fits for `p, s, t`, lognormal for the rest, fitted
+once at elicitation time. Per draw: EVSI, EVPI, the indifference value EVSI°
+= (B+K) p(1-p)(s+t-1), C = C_build + C_run, eta = EVSI/C, eta° = EVSI°/C,
+eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
+(C_build + n C_run), the break-even reuse count n* = C_build/(EVSI - C_run)
+(infinite where EVSI <= C_run) and pays = 1[n >= n*] (`voi_rank/model.py`).
 
-Paper figures (`fig_plugin_map`, `fig_level_uplift`, `fig_level_fence`, `fig_by_level`, `fig_plugin`, `fig_member_agreement`, `fig_within_group_consistency`, `fig_domain_map`, `fig_evsi_vs_cost` and the three `compare_models` figures) are drawn at the CoRL text width (`figures.FIG_W`, 5.5 in) with no text below 6.5 pt (`figures.MIN_FONT`), so they are input at `\linewidth` without scaling. A log axis that must show zero values draws them in a zero row at the data-driven floor (`figures.data_floor`: the decade at or below a tenth of the smallest positive plotted value), its tick labelled 0, a light band and a `//` break on the spine marking the empty decade above it; point ids are placed where they overlap least (`figures.place_labels`).
+## Run order (from the repo root)
 
-### Bootstrap over elicitations (v2.4)
+1. `uv run pytest -q`
+2. `uv run python -m voi_rank.elicit --study studies/safety-evals --protocol p001 --dry-run`
+   plans on an in-memory copy of the DB: both stages' pending slots per member
+   and the first rendered prompt of each stage; nothing is called or written,
+   not even `voi.db`. `--stage decision|instrument` plans one stage, `--k N`
+   overrides every member's repeats, `--members a:b,c:d` restricts the
+   members, `--scenarios all|seed|1,2,3` the scenarios.
+3. `uv run python -m voi_rank.elicit --study studies/safety-evals --protocol p001 --yes [--workers 8]`
+   prints the plan and the cost estimate (from the members' stored attempt
+   costs, `unknown` without history), checks the members' credentials, then
+   seeds the scenarios, registers the protocol and submits. Without `--yes` it
+   asks on a TTY and otherwise writes nothing. A slot is (scenario, protocol,
+   member, repeat, stage); slots with a valid answer are skipped, so a re-run
+   resumes.
+4. `uv run python -m voi_rank.mc --study studies/safety-evals --protocol p001 --seed 42 --draws 100000 [--members claude_cli:sonnet]`
+   draws the pooled belief and stores the run (refused on uncommitted code
+   under `voi_rank/`, `pyproject.toml` or `uv.lock` unless `--allow-dirty`).
+   `--members` pools one subset of the protocol's members as its own stored
+   run (an ablation scores one elicitor); a subset naming every member is the
+   ordinary run.
+5. The analyses of DESIGN sections 6 and 7 (`voi_rank/analysis/`,
+   `scripts/regen.sh`, `studies/safety-evals/report/`) are the next step and
+   do not exist yet.
 
-Both workshop papers rank by the plug-in point and by the fence value,
-because the MC median is zero on most eval-study scenarios, and several
-decisions sit inside the gate by 0.01-0.02 in posterior units. `extra`
-gives those points intervals that reflect elicitation disagreement: one
-replicate resamples, for every scenario, its valid elicitations of the
-run's members with replacement within each member (each member keeps its
-count, so a 5-repeat member cannot crowd out a 1-repeat one), recomputes
-the pooled median of every parameter (the rule of `plugin_point`) and the
-plug-in EVSI, EVPI, eff, EVSI*, eff* and gate regime at them. Under a
-staged protocol the decision stage is resampled once per group and
-replicate and every rung of the group reads that same resample; the
-instrument stage per scenario. 2000 replicates (`--boot N`), seed
-run seed + 1_000_003 with one generator per resampling unit (spawned from
-the seed and the unit's scenario id or group value), so a unit's resample
-depends only on its own rows: an elicitation added to one scenario or group
-leaves every other unit's resample unchanged. About 0.3 s for the 68
-business scenarios. The replicate at the rows themselves is
-`plugin_point` exactly. Outputs:
-
-- `plugin.tex`: q05-q95 of eff and eff*, and `P_boot(gate)`, the share of
-  replicates inside the gate (not the MC `P_gate`, which counts draws).
-  Every printed interval has two significant digits, q05 rounded down and
-  q95 up (it contains the computed one), and no exponent notation at any
-  magnitude (k / M / G suffixes from 1000 on).
-- `plugin_ranks.tex` (longtable, `tab:plugin-ranks`): per scenario the
-  point rank, the median and q05-q95 of the replicate rank (ties averaged,
-  observed ranks) and P(rank <= 3), by plug-in eff and by fence eff*;
-  macros `\voiBootN`, `\voiBootTopOneId`, `\voiBootTopOneStable` (the share
-  of replicates in which the point top-1 by plug-in eff stays top-1),
-  `\voiBootRhoEff`, `\voiBootRhoFence` (median over replicates of the
-  Spearman between the replicate ranking and the point ranking).
-- `fig_plugin_map.pdf`: the q05-q95 bars of plug-in EVSI and C.
-- `level_uplift.tex` / `fig_level_uplift.pdf`: per step the q05-q95 of the
-  plug-in marginal efficiency dEVSI/dC (over the replicates with dC != 0;
-  a dagger marks a step whose dC takes each sign in at least 5% of them,
-  where the ratio straddles its pole; a tie dC = 0 is neither sign) and
-  `P_boot(dEVSI > dC)`; the three tabulars are set in footnotesize. A staged
-  ladder's rungs share their group's decision resample; a single-stage
-  ladder resamples each rung and pools p, B, K over the resampled rungs,
-  as the plug-in marginal pools them.
-
-The bootstrap needs no replay, so it is written even when repeats added
-after the run skip `plugin.tex`.
-
-Tagged outputs: `figures`, `tables`, `extra` and `compare_models` take
-`--tag NAME` (lowercase letters only: it becomes part of LaTeX macro
-names, and an uppercase tag can recreate an untagged name, `Gauss` +
-`RunId` being `compare_models`' `\voiGaussRunId`).
-Their files then go to `report/generated/NAME/` instead of
-`report/generated/`, every macro they write is renamed from `\voiX` to
-`\voiNAMEX` and every table label from `tab:X` to `tab:X-NAME`
-(`tab:catalog`, `tab:ranking`, `tab:plugin`; `study.tex_label`), so a
-paper can input the headline run's macros and tables next to a baseline
-run's:
-
-```
-uv run python -m voi_rank.analysis.tables --study studies/X --protocol p003 --tag headline
-uv run python -m voi_rank.analysis.tables --study studies/X --protocol p003 --members claude_cli:haiku --tag baseline
-```
-
-```latex
-\input{generated/headline/macros.tex}\input{generated/baseline/macros.tex}
-... \voiheadlineValidityRate against \voibaselineValidityRate ...
-```
-
-Without `--tag` nothing changes. A lowercase tag can never collide with an
-untagged macro (each continues with an uppercase letter after `\voi`).
-`health` writes no files and takes no tag. `study.Study.tagged` maps the
-tag to the output directory and the macro prefix; `study.newcommands` is
-the one macro writer every module uses.
-
-Elicitation resumes: a slot is (scenario, protocol, provider, model,
-repeat, stage) and slots with a valid response are skipped, so re-running step 5
-only fills what is missing (per stage for a staged protocol; `--stage NAME`
-plans one stage only). Before submitting, step 5 checks that every
-selected provider has its credentials (a missing OpenRouter key aborts with
-zero calls made) and prints the plan: pending slots per member and the
-estimated cost (slots times the member's mean stored cost per billed attempt
-under protocols of the same model kind in this study, or `unknown`; a first
-`g001` batch has no history to quote). Once confirmed, and before `voi.db` is touched, a
-run with a `claude_cli` member checks `claude auth status` (free; a CLI that
-is not logged in aborts with zero calls; the CLI does not verify an
-`ANTHROPIC_API_KEY`, see the timeout rule below) and a run with an
-OpenRouter member verifies the key against the free `GET /api/v1/auth/key`
-endpoint; a rejected (401/403) or unverifiable key aborts before the first
-paid call. A failed attempt is retried once: at once for
-json/schema/constraint/fit failures, after the server's `Retry-After` (else
-5 s, capped at 120 s and the cap recorded in the attempt's error) for HTTP
-429/5xx and transport errors, and never for a rejected request (HTTP
-400/403: invalid params, or a guardrail / moderation flag on that one
-prompt; the slot is stored invalid, unbilled, and pending again on the next
-run), for an error of the member's environment (HTTP 401/402/404: auth,
-credit, unknown model id; a `claude` executable missing or not logged in;
-a zero-usage `claude -p` exit of API status 401-404, see below)
-or for a CLI call that did not finish (timeout, killed by a signal). Every
-attempt is stored with its raw response; a provider exception or a crashed
-job is stored as an invalid attempt and the run continues. A member has its
-pending slots cancelled on an environment error, when its rejected requests
-name the key or permissions or reach a second distinct scenario, or after
-two consecutive CLI timeouts (an invalid `ANTHROPIC_API_KEY` makes the CLI
-hang with no output; the cap per call is `VOI_CLI_TIMEOUT_S`, default 600 s,
-from the environment or `.env`). The cancellation happens as soon as the
-main thread sees the result; with `--workers N` up to N of its calls can
-already be in flight, so it costs at most one call per worker (these errors
-are not billed; the slots are pending again on the next run).
-
-### Usage-limit outages (v2.3)
-
-During a claude.ai usage-limit window `claude -p` exits 1 with a zero-usage
-envelope (`is_error: true`, `api_error_status: 429`, `total_cost_usd: 0`,
-`usage.input_tokens: 0`; no model call was made, nothing was billed), and
-before v2.3 the harness stored each such exit as a failed attempt and moved
-on (1,620 of them on 2026-09-29 between 00:03 and 04:58 UTC: 1,488 in
-`business`, 80 in `ai-safety-evals`, 52 in `sim2real`). Any API error the
-CLI meets before a model answers gives the same zero-usage shape (an
-unknown model id is `api_error_status: 404`), so the status decides. Now
-`claude_cli.call_claude` classifies a non-zero exit whose stdout is a
-zero-usage envelope of status 429 (or of no status, an older CLI) as
-`cli: usage-limit (zero-usage exit 1): <message>`, and any other one as
-`cli: exit 1 (zero-usage, api <status>): <message>`: an ordinary failed
-attempt, which halts the member for status 401-404 (auth, billing,
-permission, unknown model id) or a "not logged in" message, as the
-equivalent OpenRouter errors do. The harness treats a usage-limit result as
-an outage, not an attempt:
-
-- it is never stored (validity, attempt and cost statistics describe
-  elicitation attempts only; a paid failure whose immediate retry ran into
-  the outage is stored as usual, and its slot counts as pending) and its
-  slot is re-planned; the run summary counts the zero-usage results, the
-  pauses and the seconds paused;
-- the job launches no retry for it (`retry_delay` returns `OUTAGE_PAUSE`).
-  `run_jobs` tracks outages per member (a model-specific limit holds that
-  model only; a healthy member is never held back or cancelled because
-  another is limited): after `OUTAGE_STREAK = 5` consecutive zero-usage
-  results of one member across workers it stops dispatching that member
-  (its not-yet-started slots are held back) and lets its running calls
-  finish, while the other members go on. Once only held members' slots are
-  left the run pauses, probes each held member with one call and releases
-  a member when its probe is billed (the answer is stored like any slot);
-  a zero-usage probe keeps it held and the run pauses again. A pause lasts
-  until 60 s after the reset time the CLI's message names ("resets 4:30am
-  (Europe/Brussels)") when that is at most one 5-hour session window away,
-  else `VOI_OUTAGE_SLEEP_S` (default 300 s), the shortest over the held
-  members. Once a member has paused `VOI_OUTAGE_MAX_WAIT_S` since its last
-  billed result (default 21,600 s, 6 h: one session window plus margin;
-  the last pause is cut to fit) the run gives up on that member with a
-  clear message, its slots pending for the next run (re-run to resume once
-  the limit resets), everything completed stored and the other members
-  going on. A billed result restarts the member's budget, so an unattended
-  run that spans several windows waits out each (the two 2026-09-29
-  windows needed 8,823 s and 9,312 s: with one budget per run a third
-  window would have had 58 minutes). Both settings come from the
-  environment or `.env`. The run summary reports the time actually paused
-  (a pause cut short by Ctrl-C counts what elapsed).
-- Fewer than 5 in a row (a blip) are re-planned at the end of the batch
-  without a pause. Only a billed result of the member (parsed, or with a
-  recorded cost, a paid CLI exit 1 included) resets its streak; an
-  unbilled failure (http 401, a transport error) leaves it. Once a member
-  is held, a billed answer of its call already in flight no longer resets
-  the streak: a held member always pauses. A member halted after a hold
-  has its held-back slots cancelled. Ctrl-C during a pause cancels the
-  held-back slots like any interrupt.
-- the plan's cost estimate (`elicit.member_mean_cost`) averages over the
-  billed attempts only, as the report macros below do.
-- `health` prints rows the old harness stored during an outage (a
-  `cli: exit 1` error with a zero-usage envelope that the same status test
-  accepts, `claude_cli.is_usage_limit`) as the class `outage`,
-  separately from the JSON failures, and leaves them out of every rate;
-  `tables` leaves them out of `\voiNAttempts`, `\voiValidityRate`, the
-  member table and the `\voiMember*` macros for the same reason (sim2real
-  `g001`: 227 billed attempts at 98.2% validity, not 279 at 79.9%).
-
-Paid work is never discarded: on Ctrl-C or any error in the main thread the
-pending slots are cancelled, no retry is launched (a retry's backoff is cut
-short), the running calls are awaited and their results stored, and the
-error is re-raised (re-run to resume). `claude -p` children run in their own
-session, so the terminal's Ctrl-C (SIGINT to the foreground process group)
-reaches only the harness and the running calls finish; a harness killed
-with SIGKILL leaves them to finish unobserved. A further Ctrl-C during the
-wait is reported and ignored, and a slot the interrupt caught between its
-commit and its bookkeeping is recognised in the DB by its own final attempt
-(raw response and error, written after its batch was submitted), never
-stored twice; a re-planned slot's earlier paid failure never passes for
-its re-run. A DB write that fails is retried once after 1 s; if it still
-fails, the slot's attempts are appended to `<study>/elicit_unstored.jsonl`,
-the path is printed and the run stops. `propose` follows the same rule
-(running calls are awaited and their scenarios inserted; a domain the DB
-refuses during that salvage is appended to `<study>/propose_unstored.jsonl`
-and the others are still inserted).
-
-Scenarios come from `scenarios.json` at every run: a seed row whose text or
-metadata changed is refreshed in place while it has no elicitations, and is
-frozen (a differing file is an error) once it has any. To change a frozen
-scenario, give it a new title: the new row is seeded and the old one is
-retired (kept with its elicitations, printed as `retired`, left out of the
-`all` and `seed` selections, restored if its title returns). A dry run
-reports these as `would refresh` / `would be retired` and changes nothing.
-
-## Protocols and ensembles
-
-A protocol YAML is immutable once registered (template hash, member list,
-scenario scope and model kind are checked; change something, make a new
-file):
+## Protocols
 
 ```yaml
 name: p001
-model: binary                             # optional: binary (default) | gaussian
-template_path: templates/elicitor.md      # relative to the study root
-members:
-  - {provider: claude_cli, model: haiku, k_repeats: 5}
-  - {provider: openrouter, model: openai/gpt-4o-mini, k_repeats: 3}
-scenarios: all                            # optional scope: all | seed | 5,13,22
-notes: one change per protocol
-```
-
-The legacy form `model_alias: haiku` + `k_repeats: 3` is read as a single
-`claude_cli` member (`model_alias: manual` is the hand-percentile member of
-`p000_manual`, never a callable provider, and that name takes no other
-member). Hand percentiles are frozen per scenario, not per file: a loaded
-scenario whose `manual` block changed is refused by `--manual`, a scenario
-with a new `manual` block loads under the same `p000_manual` at any time,
-and metadata edits to un-elicited scenarios still refresh. `scenarios` scopes the protocol
-(stored, part of the immutability check) and is the default selection of
-step 4/5; `--scenarios` overrides it with a printed warning. Monte Carlo
-pools every valid (member, repeat) elicitation of a scenario into one
-equal-weight mixture per parameter, so a member with more valid repeats
-carries more weight (`mc --weights equal-member` weighs the members
-equally instead, see "Member weights"). `--k N` (N >= 1) overrides every member's `k_repeats`;
-`--members a:b,c:d` restricts an elicitation run to those members.
-
-### Member subsets
-
-Pooling incoherent members yields a ranking that belongs to nobody
-(LEARNINGS, iteration 2: the pooled `p003` ranking correlates 0.3 with any
-member), so `mc --members provider:model,...` scores a subset of a
-protocol's members as its own stored run: only those members' valid fits
-are pooled, the subset (sorted labels) is stored in `runs.members_json`
-(NULL = every member; a subset naming every member is the ordinary run),
-`data_hash` covers exactly the fits drawn, and the replay reads the subset
-back. A label the protocol does not list is refused. `health`, `figures`,
-`tables`, `extra` and `compare_models` take the same `--members` and select
-the latest run of the protocol with exactly that subset (`--run` overrides);
-without it they select the latest all-member run, never a subset run.
-Everything they print about the run is about its members: the catalog's
-pooled medians, the plug-in point, the ladder and per-member re-draws, the
-member table and the attempt, validity, cost, noise and `\voiKUsed` macros;
-`\voiRunMembers` names the subset ("all members" otherwise), `print_ranking`
-and the run summary print it, and `health --members` restricts the
-per-member tables, the pooled spread and the cross-member agreement to it
-(`--compare` then correlates the subset run with the other protocol's
-all-member run). The cross-protocol Spearman matrices
-(`protocol_compare.tex`, `protocol_noise_matched.tex`) carry each subset run
-as its own column, labelled `p003[opus+sonnet]`; a constant ranking (every
-median EVSI zero) prints `n/a`.
-
-### Member weights (v2.4)
-
-`mc --weights pooled` (the default, the only rule before v2.4) gives every
-valid (member, repeat) fit of a scenario the same weight in the mixture, so
-a member holding 5 valid repeats weighs five times one holding 1.
-`mc --weights equal-member` makes each member's fits a sub-mixture and
-gives the members present equal weight: fit i of member m weighs
-1 / (members x fits of m) (`mc.member_probs`). The two rules give the same
-mixture on a scenario whose members hold the same number of valid fits,
-and draw the same numbers when that holds on every scenario of the run.
-From the first uneven scenario on, the shared rng stream shifts (the
-weighted draw takes `rng.choice` where the pooled one takes
-`rng.integers`), so every later scenario differs by Monte Carlo noise even
-where its counts are equal. A run pooling one member is stored as
-pooled. The weighting is stored in `runs.weights` (NULL = pooled; added
-to older databases on connect), hashed into `data_hash` (a pooled run's
-hash is unchanged) and read back by `mc.replay_efficiency` and the `extra`
-replay and ladder draws. `health`, `figures`, `tables`, `extra` and `compare_models` take
-`--weights` and select the latest run with exactly that weighting, as
-they do by `--members` (without it: pooled); the cross-protocol matrices
-carry an equal-member run as its own column, labelled `p003/equal` or
-`p003[opus+sonnet]/equal`; `\voiRunWeights` names it. The plug-in point and
-its bootstrap are medians of the elicited p50s and do not depend on it.
-On the committed studies the members hold 5 valid repeats almost
-everywhere (every scenario of ai-safety-evals `p003`, sim2real `p004`,
-business `p005` and `g001`; 1 of 15 in sim2real `p003`, 2 of 15 in each eval
-study's `g001` differ), so an equal-member run there equals the pooled run
-(ai-safety-evals `p003` sonnet+opus: identical results) or differs by Monte
-Carlo noise plus the uneven scenario.
-
-### Staged protocols (decision stage + instrument stage)
-
-The model says `p, B, K` belong to the decision and `s, t, C` to the
-instrument, yet a single prompt lets the instrument description move the
-decision-level numbers across the rungs of a ladder (LEARNINGS, iteration
-1: CV(p) 0.14-0.31 across rungs whose decision text is byte-identical). A
-staged protocol asks each level its own questions:
-
-```yaml
-name: p004
-model: binary                                  # stages exist for the binary model only
 stages:
-  - name: decision
-    template_path: templates/decision.md       # renders $agent $decision $theta_definition $decision_context
+  - name: decision                      # once per scenario group
+    template_path: templates/decision.md
     params: [p, B, K]
-    group_key: attributes.context_group        # or 'group'; every scenario must carry a value
-    decision_contexts:                         # decision-level facts per group value
-      home manipulator: "..."
-      AV AEB: "..."
-  - name: instrument
-    template_path: templates/instrument.md     # renders the scenario as a single-stage template does
-    params: [s, t, C]
-members: [...]
+    group_key: self                     # self | group | attributes.<key>
+  - name: instrument                    # once per scenario
+    template_path: templates/instrument.md
+    params: [s, t, C_build, C_run, n]
+template_vars:                          # substituted into both templates
+  perspective: society                  # society | developer
+  anchors_decision: '@file:templates/anchors_decision.md'   # '@file:' inlines a study file
+  anchors_instrument: '@file:templates/anchors_instrument.md'
+  context_mode: curated
+members:
+  - {provider: claude_cli, model: haiku, k_repeats: 3}
+  - {provider: openrouter, model: openai/gpt-4o-mini, k_repeats: 3}
+scenarios: all                          # optional scope: all | seed | 5,13,22
 ```
 
-The decision stage is elicited once per group x member x repeat from the
-group's shared agent, decision and theta text plus the protocol's decision
-context (a decision template that names `$instrument`, `$context` or
-`$title` is refused, so no rung can contaminate it; a group whose scenarios
-differ in that text, a scenario without a group value or a group without a
-context entry stops the plan, whichever `--stage`; the scenarios checked
-are the group's active ones in the DB plus the selected ones, and a group
-whose stored decision rows were rendered from another text than its current
-one is refused rather than elicited again), and its rows are stored on the
-group's representative scenario (its lowest id in the DB, retired rows
-included, whatever `--scenarios` selects; a repeat found on any scenario of
-the group is done) with `elicitations.stage = 'decision'`; the instrument
-stage is elicited per scenario with `$context` and stored with `stage =
-'instrument'`. The stages are independent (the
-instrument prompt carries no decision-level number), so one run submits
-both. Validation accepts a stage's parameter subset (the informativeness
-check needs both `s` and `t`, the prior check `p`). The stages, each with
-its template hash, are stored as `protocols.stages_json` and are part of
-the immutability check; the unique valid-slot index includes the stage.
-`db.scenario_param_fits` assembles every scenario's `p, B, K` from its
-group's decision rows and `s, t, C` from its own instrument rows (a group
-without a complete decision stage leaves its scenarios incomplete), so MC,
-`data_hash` (each shared decision fit counted once), the replay and the
-member subsets work unchanged. The analyses know the stages: `health`
-prints per-stage validity and spreads (the decision stage's over groups)
-and, since the decision-stage spread across a group's rungs is zero by
-construction, the cross-member decision-level agreement per group instead
-of a per-scenario Spearman on `p, B, K`; `fig_member_agreement` correlates
-the scenario-stage parameters only, for the same reason; `fig_param_medians`
-shows the decision-level points once per group (at the rank of the group's
-lowest-id ranked scenario, so a retired representative without instrument
-rows hides no group); `db.param_scenario_ids` gives every noise statistic
-one id per group for `p, B, K` (a group whose rows sit on two scenarios
-counts once), and the noise tables and figure say so: their `n` reads
-`groups / scenarios` and the decision-stage cells are medians over groups; the
-catalog marks the shared `p, B, K` with a dagger; `consistency.tex` reports
-`CV(p) / mean(CV(s), CV(t))`, 0 by design under a staged protocol; the
-level-uplift ladders draw `p, B, K` from the decision stage. `sim2real` has
-`p004` (`templates/decision.md`, `templates/instrument.md`: the `p003`
-anchors and instructions split by stage); `ai-safety-evals` has none, every
-scenario there being its own decision.
+Every protocol has these two stages. The decision prompt renders `$agent
+$decision $theta_definition $decision_context` and the template variables,
+never the instrument, the title or the instrument context; the instrument
+prompt renders `$title $agent $decision $theta_definition $instrument
+$context` (the scenario's `instrument_context`) and the template variables. A
+template naming anything else is refused. `group_key: self` makes every
+scenario its own decision; `group` or `attributes.<key>` elicits the decision
+stage once per group of scenarios that share agent, decision, theta and
+decision_context text, stored on the group's lowest id. A protocol file is
+immutable once registered: both templates, every inlined file, the template
+variables, the stage config, the members and the scope are hashed and a
+changed file is refused (make a new protocol file). Scenarios are seeded from
+`scenarios.json` at every run; a scenario without elicitations is refreshed
+in place, an elicited one is frozen (change its title to make a new row; the
+old one is retired, kept with its elicitations).
 
-## Gaussian-state family (protocols with `model: gaussian`)
+Validation of an answer (DESIGN section 4): strict JSON with exactly the
+stage's parameters, each with `reasoning` and `p5 < p50 < p95`;
+probabilities in (0, 1), USD and `n` > 0, `n >= 1` at the median, median `s`
+> 1 - median `t`, prior median in [0.001, 0.999]; no unit field. Error classes
+stored in `elicitations.error`: `json`, `schema`, `constraint`, `fit`,
+`refusal` (a plain-text answer that declines, or an OpenRouter
+`content_filter` finish), `cli`, `http`, `api`, `provider`. A failed attempt
+is retried once (at once for answer failures, after the server's Retry-After
+for HTTP 429/5xx, never for a rejected request or an error of the member's
+environment, which halts that member). Every attempt is stored with its raw
+response and cost. During a claude.ai usage-limit window the CLI's
+zero-usage exits are never stored; the harness holds the limited member,
+pauses once only held members remain (until the stated reset, else
+`VOI_OUTAGE_SLEEP_S`), probes it, and gives up on it after
+`VOI_OUTAGE_MAX_WAIT_S` of pausing. Ctrl-C cancels the pending slots, waits
+for the running calls and stores them; paid work is never discarded. A DB
+write that fails twice spills the slot to `<study>/elicit_unstored.jsonl`.
 
-A second framing of the same scenarios, from the chapter sections "The
-linear-Gaussian model", "Action models: one state, one sensor, three
-decisions" and "An elicitation protocol for the Gaussian-state model". The
-state is continuous, `theta ~ N(mu0, sigma0^2)` in the expert's own unit with
-bad-is-high; the instrument reports `y = theta + v`, `v ~ N(0, r)`, so one
-number `x = sqrt(r)/sigma0` replaces `(s, t)` and `R^2 = 1/(1 + x^2)` is the
-fraction of prior variance one measurement removes (a common-mode bias
-`sigma_b` that repeats would not reveal adds `sigma_b^2 (1 - 2/pi)` to `r`).
-A threshold `theta_c` gives `d = (mu0 - theta_c)/sigma0` and `p = Phi(d)`.
-From one elicitation four action models are computed on every MC draw
-(`voi_rank/gaussian.py`, each formula annotated with its chapter equation):
+## What a run stores
 
-- `quad`: graded response, loss `c |a - theta|^k`: `EVPI = L`,
-  `EVSI = L (1 - (1 - R^2)^(k/2))` (`L R^2` at `k = 2`), with `L = c_k sigma0^k`
-  the minimal expected loss under the prior (the optimal action shifts by a
-  fixed multiple of `sigma0` under asymmetric costs; `gaussian.min_expected_loss`).
-- `kg`: respond or not, payoff linear in `theta - theta_c`:
-  `EVSI = kappa sigtilde Psi(d/R)`, `EVPI = kappa sigma0 Psi(d)`,
-  `Psi(z) = phi(z) - |z| Phi(-|z|)`.
-- `step`: respond or not with the step payoff `B` / `-K`, the agent sees the
-  continuous reading: the chapter's one-dimensional integral, evaluated
-  exactly through the decision-optimal cutoff (the binary closed form at the
-  orthant probabilities of correlation `R`; the 64-node Gauss-Hermite
-  quadrature of the design is kept as `voi_step_gh` for the tests only, it
-  misses up to 1.6% of `B + K` at `R^2 = 0.99` and 4% at `R^2 = 0.999`). The primary ranking metric
-  of a Gaussian run is `eff_step = EVSI_step / C`.
-- `stepfix`: the same decision with a pass/fail report at the fixed mark
-  `theta_c`: `s, t` derived from `(d, R)`, then `voi_rank.model.voi(p, s, t, B, K)`.
-  This is the model that maps one-to-one onto the binary protocol.
-
-The elicitor (`templates/elicitor_gauss.md`, protocol `g001` in every study)
-first names the continuous state variable and its unit, then answers eight
-over-determined questions with reasoning before numbers: the `p5/p50/p95`
-of `theta`; `theta_c` and `P(theta > theta_c)` (must equal `Phi(d)`); three
-routes to `x` (test-retest width `W_rr`, the 90% width after the result
-`W1`, the probability `c` that the result moves the estimate by more than
-half the prior half-width); four loss numbers (under- and over-response by
-one and two `sigma0`, giving the exponent `k` per side and, by minimising
-the expected loss over the action, `L`; `x` pools its routes by the median
-of their logs); `kappa
-sigma0`; `B`, `K`; `sigma_b`; and the `C` triple. The two anchors are the
-binary anchors re-expressed as Gaussian answers (`p = Phi(d)` reproduces
-their `p50` of `p`). `voi_rank/gauss_fit.py` validates the JSON (errors
-`schema:` / `constraint:` / `fit:` as for the binary payload) and stores
-`g_mu0, g_sigma0, g_d, g_x, g_k, g_L, g_kappa_sigma0, g_B, g_K,
-g_sigma_b_rel` as `point` rows (`fit_params {"value": v}`, MC draws them as
-constants, so the mixture over repeats is the empirical distribution of the
-repeat values) and `C` as the usual lognormal; `fit_residual` carries the
-over-determination residual of the questions behind each row (theta
-asymmetry, `d` mismatch, `x` route spread in log units, `k` mismatch) and
-`fit_warning` flags a residual past its threshold (0.25, 0.5 prior sd, 0.5, 1.0) or
-a `c` route too close to the Gaussian bound to resolve `x` (`c > 0.40`; the
-bound is 0.4108). Cross-repeat noise is `(max - min) / pooled p50` per
-quantity except `d`, `sigma_b/sigma0` and `mu0`, which are reported as a
-`max - min` in prior-sd units (`fit.GAUSS_SPREAD_SCALE`), since `d` crosses
-zero exactly where EVSI is largest.
-
-Run order, per study (steps 1, 6 to 9 of the main run order apply unchanged;
-the binary-only analyses of `extra` are skipped with a printed reason):
-
-1. `uv run python -m voi_rank.elicit --study studies/X --protocol g001 --dry-run`
-2. `uv run python -m voi_rank.elicit --study studies/X --protocol g001 --yes`
-3. `uv run python -m voi_rank.mc --study studies/X --protocol g001` (stores
-   `EVSI_<m>`, `EVPI_<m>`, `eff_<m>` for `m` in quad, kg, step, stepfix, plus
-   `R2, d, x, k, p_derived, s_derived, t_derived, C`; `p_positive =
-   P(EVSI_step > C)`; sensitivities against `eff_step` of the quantities
-   that enter the metrics, i.e. all but `g_mu0` and `g_sigma0`; `p_top10`
-   on `eff_step`)
-4. `health`, `figures`, `tables`, `extra` with `--protocol g001`
-5. `uv run python -m voi_rank.analysis.compare_models --study studies/X [--binary p001] [--gaussian g001]`
-   writes `compare_models.tex` (Spearman and Kendall of median efficiency,
-   binary vs each action model and among them, top-10 overlaps, and the
-   gate-agreement confusion table between binary median EVSI = 0 and
-   stepfix median EVSI = 0), `fig_compare_models.pdf` (binary vs stepfix
-   efficiency, log-log, by group), `fig_derived_pst.pdf` (derived vs
-   elicited `p, s, t`), `consistency_gauss.tex` (the residual distributions
-   and their Spearman with the cross-repeat spread of the quantity they
-   check, plus the derived-vs-elicited `p, s, t` table with the mean signed
-   difference derived minus elicited, `\voiGaussBiasP/S/T`) and
-   `macros_compare.tex` (`\voiGaussRhoQuad`, `\voiGaussRhoKg`,
-   `\voiGaussRhoStep`, `\voiGaussRhoStepfix`, `\voiGaussTopOverlapStepfix`,
-   `\voiGaussRhoP/S/T`, `\voiGaussGateAgree`, `\voiGaussN`).
-
-### Cross-family comparison extensions (v2.3)
-
-`compare_models` also writes, over the members the two selected runs pooled
-(pass `--binary p003` to match the three-member `g001` member for member;
-`p001` has haiku only):
-
-- `compare_members.tex`, the member-matched matrix: for every member that
-  elicited both protocols, the Spearman of median efficiency between that
-  member's binary ranking and that member's Gaussian ranking, per action
-  model, plus a pooled-vs-pooled row for the two selected runs. A member's
-  ranking is read from its stored subset run when one exists and still
-  describes the member's valid elicitations (`mc --members provider:model`
-  under each protocol; a single-member protocol's all-member run counts;
-  its `data_hash` must equal that of the member's current fits, and a v1
-  run is never read) and otherwise re-drawn locally from that member's
-  fits alone with the selected run's seed and draw count, as the
-  member-agreement analysis of `extra` does; the source column and the
-  caption say which (`re-drawn (run <id> stale)` when a stored run exists
-  but repeats were added or rows invalidated since). Each row also counts
-  the scenarios whose median efficiency is 0 (median EVSI 0), binary and
-  stepfix, as the gate table does, and a Spearman is printed `--` when
-  either ranking has fewer than 3 distinct values: a gated ranking that is
-  a block of zeros plus one or two scenarios records only where those
-  rank (sim2real `p003`: binary zero medians haiku 12, sonnet 14, opus 15
-  of 15). Macros `\voiGaussZeroMemberBinary<Member>`,
-  `\voiGaussZeroMemberStepfix<Member>`, `\voiGaussZeroMemberN<Member>`,
-  `\voiGaussRhoMember<Model><Member>` (e.g.
-  `\voiGaussRhoMemberStepfixHaiku`; the member part is the model name's
-  letters capitalised with digits spelled out, `claude-3-5-sonnet` ->
-  `ClaudeThreeFiveSonnet`, and two members mapping to one name are
-  refused) and `\voiGaussNMembersMatched`.
-- `compare_plugin.tex` + `fig_compare_plugin.pdf`, the threshold-robust
-  comparison: the binary plug-in efficiency at the pooled medians of
-  `p, s, t, B, K, C` (the `plugin.tex` point) against the Gaussian plug-in
-  efficiency per action model at the pooled medians of
-  `d, x, k, L, kappa sigma0, B, K, sigma_b/sigma0, C`, and the binary fence
-  value `EVSI* = (B + K) p (1 - p) (s + t - 1)` (eq. fence: the binary EVSI
-  maximised over the threshold `pi*` at fixed stakes and fixed `p, s, t`)
-  against three Gaussian values that no gate can zero:
-  1. the stepfix fence, the same eq. fence at `p = Phi(d)` and the derived
-     `s, t` with the same stakes `B + K`: same formula, same stakes, only
-     the family's elicitation differs;
-  2. the step value on the fence, `gaussian.voi_step_fence`: the
-     continuous-signal step value at `d* = Phi^-1(K / (B + K))`, where the
-     prior sits on the fence. This is the chapter's own Gaussian analog
-     (fig:action: the step models peak "where [their] own decision is on
-     the fence") and the exact maximum of the step value over `d`; it
-     removes `d` at the elicited `pi*` where `EVSI*` removes `pi*` at the
-     elicited `p`;
-  3. the quad value `L R^2` (the `k = 2` loss, bias-corrected `R^2`), which
-     has no threshold at all. Pairing it with `EVSI*` is this repo's choice
-     of two quantities that are each threshold-free; the chapter does not
-     pair them. The pair compares two action models and two stakes
-     elicitations (`B + K` against `L`).
-
-  Each as values and as efficiencies over each protocol's own median `C`;
-  Spearman, Kendall and top-k overlap each. The figure (2 x 2) is log-log
-  (zeros floored, open markers). Macros
-  `\voiGaussPluginRho/Tau/TopOverlap<Model>`,
-  `\voiFenceStepfixRho/Tau/TopOverlap`, `\voiFenceStepRho/...` and
-  `\voiFenceQuadRho/...` (values), `\voiFenceStepfixEffRho/...`,
-  `\voiFenceStepEffRho/...` and `\voiFenceQuadEffRho/...` (efficiencies),
-  `\voiGaussPluginN`.
-- `compare_noise.tex`, the joint noise table: per shared member at matched
-  k (the first 3 valid repeats of each scenario, as
-  `protocol_noise_matched.tex`), the median cross-repeat spread of
-  `p, s, t, B, K, C` next to that of `d` (max - min in prior-sd units),
-  `x, k, L, kappa sigma0, B, K, C`, and final rows with the ratio of the
-  median USD spreads, Gaussian over binary (`L` over `B`, macros
-  `\voiGaussNoiseRatio<Member>`; `K` over `K`; `C` over `C`): below 1 the
-  Gaussian question is the more reproducible at the same elicitor.
-
-The tests (`tests/test_compare_ext.py`) check the re-drawn member ranking
-against a stored subset run made afterwards with the same seed (identical
-to 1e-9), the plug-in points against the closed forms, and run the whole
-module on copies of the committed `sim2real` and `ai-safety-evals`
-databases.
+`runs`: seed, draw count, `code_hash` (git HEAD of the code paths, `-dirty`
+when uncommitted), `data_hash` (digest of the valid elicitations drawn),
+`members_json`. `results`: per scenario the q05..q95 of every metric named in
+the model section, and the probabilities `p_positive` = P(EVSI > C),
+`p_changes` = P(EVSI > 0), `p_pays` = P(n >= n*) and `p_top5` (rank <= 5 by
+eta) as their own metric rows with `q50` holding the probability.
+`sensitivities`: the Spearman of each parameter's draws against eta.
+`mc.replay_efficiency` recomputes a run's eta draws from the DB alone and
+refuses when the valid elicitations changed since.
 
 ## OpenRouter
 
-Nothing calls OpenRouter unless a protocol lists an `openrouter` member.
-Then set `OPENROUTER_API_KEY` in the environment or copy `.env.example` to
-`.env` (git-ignored; quoted values and trailing `# comments` are handled)
-and fill it in. The key's presence is checked before the plan is printed and
-the key itself is verified with one free request after the run is confirmed,
-so a wrong key costs nothing; it is read only for the calls and never printed.
-Calls go through `urllib` to
-`https://openrouter.ai/api/v1/chat/completions` with temperature 1.0 and the
-full response body (which always carries `usage.cost`) stored as the raw
-elicitation record. The test suite monkeypatches the HTTP layer; no test or
-default command reaches the network.
+Nothing calls OpenRouter unless a protocol lists an `openrouter` member. Set
+`OPENROUTER_API_KEY` in the environment or `.env`; the key's presence is
+checked before the plan is printed and the key itself is verified with one
+free request after the run is confirmed. The test suite monkeypatches the
+HTTP layer: no test or default command reaches the network.
 
-## Reproduction
+## Archived databases
 
-Given a study's committed `voi.db`, steps 6 to 9 reproduce every number,
-figure and table exactly (the stored seed makes the MC deterministic; a rerun
-mints a fresh run id in the report's reproduction appendix; a subset run is
-reproduced with the same `--members`). Each run stores
-two provenance hashes: `code_hash`, the git HEAD of the code paths
-(`voi_rank/`, `pyproject.toml`, `uv.lock`), suffixed `-dirty` when they have
-uncommitted changes (step 6 refuses such a tree unless `--allow-dirty`; a
-rewritten `voi.db` or report never dirties it, since study inputs are frozen
-by the protocol template hashes and prompt hashes), and `data_hash`, the
-SHA-256 over the sorted (elicitation id, parameter, fitted parameters) of the
-valid elicitations the run drew from (equal hashes mean the same inputs).
-The report macros carry both (`\voiCodeHash`, `\voiDataHash`) and the
-reproduction appendix prints them. A run whose provenance is wrong (made
-from an uncommitted tree before the dirty check existed) is removed with
-`uv run python -m voi_rank.drop_runs --study studies/X --runs 9-13 [--yes]`
-(prints each run's protocol, hashes and row counts, asks for confirmation,
-deletes its runs/results/sensitivities rows and VACUUMs; elicitations are
-never touched) and re-made by step 6. Steps 2, 3 and 5 call an LLM and are
-not bit-reproducible; their outputs are stored in the DB with prompt hashes
-and raw responses. Databases created by v1 are
-migrated in place on first connect (new columns added, legacy elicitations
-tagged as `claude_cli` / the protocol's model; a v1 database holding two
-valid rows for one slot is refused with the repair SQL printed).
+`archive/business/voi.db` and `archive/pilots/*/voi.db` were written by the
+retired code (six parameters, single-prompt and Gaussian protocols). The
+current code opens them read-only (`db.connect_copy`, used by every dry run)
+or migrates a copy in place by adding the new columns; it cannot elicit
+their protocols or replay their runs. Never write to a database under
+`archive/`.
