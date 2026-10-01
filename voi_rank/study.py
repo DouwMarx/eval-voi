@@ -1,20 +1,10 @@
 """A study is one directory: scenarios.json, protocols/, templates/, voi.db
 and report/. Every CLI entry point takes --study PATH and derives all paths
-from it (default: studies/business).
-
-Tagged outputs: every analysis CLI that writes report files (figures,
-tables, extra, compare_models) takes --tag NAME (lowercase letters only). Its files
-then land in report/generated/NAME/ instead of report/generated/, and every
-LaTeX macro it writes is renamed from \\voiX to \\voiNAMEX, so a paper can
-input the headline run's macros and a baseline run's side by side.
-Study.tagged maps a tag to (output dir, macro prefix) and newcommands
-writes the macros under that prefix; no tag leaves both unchanged.
-"""
+from it (default: DEFAULT_STUDY)."""
 
 from __future__ import annotations
 
 import argparse
-import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,8 +12,6 @@ from pathlib import Path
 from voi_rank import db
 
 DEFAULT_STUDY = "studies/business"
-MACRO_PREFIX = "voi"            # every macro an analysis writes is \\voi<Name>
-TAG_RE = re.compile(r"[a-z]+")   # a LaTeX control word, lowercase: never an untagged name
 
 
 @dataclass(frozen=True)
@@ -68,13 +56,6 @@ class Study:
     def generated_dir(self) -> Path:
         return self.root / "report" / "generated"
 
-    def tagged(self, tag: str | None = None) -> tuple[Path, str]:
-        """(output dir, macro prefix) of an analysis CLI: (generated/, 'voi')
-        without a tag, (generated/<tag>/, 'voi<tag>') with one."""
-        if tag is None:
-            return self.generated_dir, MACRO_PREFIX
-        return self.generated_dir / check_tag(tag), MACRO_PREFIX + tag
-
     def protocol_path(self, name_or_path: str | Path) -> Path:
         """'p001' -> protocols/p001.yaml; an explicit path is used as given
         (relative to the study root first, then to the current directory)."""
@@ -98,39 +79,3 @@ class Study:
 def add_study_arg(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--study", default=DEFAULT_STUDY,
                     help=f"study directory (default: {DEFAULT_STUDY})")
-
-
-def check_tag(text: str) -> str:
-    """The --tag value: lowercase letters only. It becomes part of LaTeX
-    macro names (a control word has no digits or punctuation), and a
-    lowercase tag can never recreate an untagged macro, whose name continues
-    with an uppercase letter after \\voi; an uppercase one can ('Gauss'
-    turns the tables' \\voiRunId into compare_models' \\voiGaussRunId)."""
-    if not TAG_RE.fullmatch(text or ""):
-        raise argparse.ArgumentTypeError(f"--tag takes lowercase letters only (a-z), got {text!r}")
-    return text
-
-
-def add_tag_arg(ap: argparse.ArgumentParser) -> None:
-    ap.add_argument("--tag", type=check_tag, default=None,
-                    help="write to report/generated/TAG/, rename every macro \\voiX to \\voiTAGX and"
-                         " every table label tab:X to tab:X-TAG (lowercase letters only; default:"
-                         " report/generated/, \\voiX and tab:X)")
-
-
-def tex_label(name: str, prefix: str = MACRO_PREFIX) -> str:
-    """A LaTeX \\label of a generated fragment under the macro prefix:
-    'tab:catalog' untagged, 'tab:catalog-<tag>' under --tag, so a paper that
-    inputs two tags' tables side by side gets no multiply-defined labels."""
-    return name if prefix == MACRO_PREFIX else f"{name}-{prefix[len(MACRO_PREFIX):]}"
-
-
-def newcommands(macros: dict, prefix: str = MACRO_PREFIX) -> list[str]:
-    """One \\newcommand line per macro; every key is 'voi<Name>' and is
-    written as '<prefix><Name>' (Study.tagged gives the prefix)."""
-    lines = []
-    for key, value in macros.items():
-        if not key.startswith(MACRO_PREFIX):
-            raise ValueError(f"macro {key!r} does not start with {MACRO_PREFIX!r}")
-        lines.append(f"\\newcommand{{\\{prefix}{key[len(MACRO_PREFIX):]}}}{{{value}}}")
-    return lines

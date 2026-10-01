@@ -1,4 +1,4 @@
-"""Percentile triples (q05, q50, q95) -> fitted distributions (spec §3).
+"""Percentile triples (q05, q50, q95) -> fitted distributions.
 
 Lognormal for B, K, C; Beta for p, s, t. Fits are performed once at
 elicitation time and stored in the DB; never re-fit at analysis time.
@@ -14,8 +14,8 @@ from scipy import optimize, stats
 
 Z95 = float(stats.norm.ppf(0.95))
 QLEVELS = np.array([0.05, 0.50, 0.95])
-BETA_RESIDUAL_FLAG = 0.02       # spec §3: flag beta fits with residual > 0.02
-LOGNORMAL_ASYMMETRY_FLAG = 0.25  # spec §3: flag asymmetric log-quantiles
+BETA_RESIDUAL_FLAG = 0.02       # flag beta fits with residual > 0.02
+LOGNORMAL_ASYMMETRY_FLAG = 0.25  # flag asymmetric log-quantiles
 _EPS = 1e-6
 
 FAMILY_BY_PARAM = {
@@ -23,49 +23,17 @@ FAMILY_BY_PARAM = {
     "B": "lognormal", "K": "lognormal", "C": "lognormal",
 }
 PARAM_NAMES = list(FAMILY_BY_PARAM)
-# Gaussian-state family (spec v2.1): the quantities derived from the eight
-# over-determined questions, stored one row each. 'point' rows carry the
-# derived value (fit_params {"value": v}, p5 = p50 = p95 = v) and the
-# over-determination residual of the questions they come from; C is the
-# lognormal triple as in the binary protocol.
-GAUSS_FAMILY_BY_PARAM = {
-    "g_mu0": "point", "g_sigma0": "point", "g_d": "point", "g_x": "point", "g_k": "point",
-    "g_L": "point", "g_kappa_sigma0": "point", "g_B": "point", "g_K": "point",
-    "g_sigma_b_rel": "point", "C": "lognormal",
-}
-GAUSS_PARAM_NAMES = list(GAUSS_FAMILY_BY_PARAM)
-# quantities in USD (log axes in figures); the rest are in state units
-# (g_mu0, g_sigma0) or dimensionless
-GAUSS_USD_PARAMS = ("g_L", "g_kappa_sigma0", "g_B", "g_K", "C")
-GAUSS_LOG_PARAMS = GAUSS_USD_PARAMS + ("g_sigma0", "g_x")
-# cross-repeat spread rule (db.elicited_spread, sensitivity.repeat_spread): the
-# spread of a stored quantity is (max - min) / |pooled p50| of the quantity
-# itself, except for these, whose max - min is divided by the pooled p50 of the
-# named quantity (None: taken as is). d is signed and crosses zero, so a
-# relative spread diverges where EVSI is largest; sigma_b / sigma0 may be 0;
-# both are already in prior-sd units. The location mu0 (any sign, any unit) is
-# scaled by sigma0 so its noise is in prior-sd units too. Reported as
-# "max - min, sd units".
-GAUSS_SPREAD_SCALE = {"g_d": None, "g_sigma_b_rel": None, "g_mu0": "g_sigma0"}
 
 
 @dataclass
 class FitResult:
-    family: str      # "lognormal" | "beta" | "point"
-    params: dict     # {"mu", "sigma"} | {"alpha", "beta"} | {"value"}
-    residual: float  # RMS error over the three target quantiles (log space for lognormal);
-                     # for a point row, the over-determination residual (gauss_fit)
+    family: str      # "lognormal" | "beta"
+    params: dict     # {"mu", "sigma"} | {"alpha", "beta"}
+    residual: float  # RMS error over the three target quantiles (log space for lognormal)
     warning: bool
 
     def params_json(self) -> str:
         return json.dumps(self.params)
-
-
-def fit_point(value: float, residual: float = 0.0, warning: bool = False) -> FitResult:
-    """A derived scalar stored as a degenerate distribution: MC draws it as a
-    constant, and the mixture over repeats is the empirical distribution of
-    the repeat values."""
-    return FitResult("point", {"value": float(value)}, float(residual), bool(warning))
 
 
 def fit_param(name: str, q05: float, q50: float, q95: float) -> FitResult:

@@ -1,14 +1,14 @@
-"""Harness pause on usage-limit outages (spec v2.3, feature E). During a
-claude.ai usage-limit window the CLI exits 1 with a zero-usage envelope
-(no model call, nothing billed): the provider classifies it, the job never
-retries it, run_jobs stores nothing for it, holds a member after
-OUTAGE_STREAK such results of it in a row while the others go on, pauses
-once only held members are left, probes each with one call and resumes it,
-or gives up on it once it has paused VOI_OUTAGE_MAX_WAIT_S since its last
-billed result; health and the report macros read
-legacy rows of that kind as outages. A zero-usage exit of another API
-status (an unknown model id) is an ordinary attempt that halts the member.
-Fake providers, injected sleep and clock, no CLI, no network."""
+"""Harness pause on usage-limit outages. During a claude.ai usage-limit
+window the CLI exits 1 with a zero-usage envelope (no model call, nothing
+billed): the provider classifies it, the job never retries it, run_jobs
+stores nothing for it, holds a member after OUTAGE_STREAK such results of
+it in a row while the others go on, pauses once only held members are
+left, probes each with one call and resumes it, or gives up on it once it
+has paused VOI_OUTAGE_MAX_WAIT_S since its last billed result; the plan's
+cost estimate reads legacy rows of that kind as outages. A zero-usage exit
+of another API status (an unknown model id) is an ordinary attempt that
+halts the member. Fake providers, injected sleep and clock, no CLI, no
+network."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ import json
 import os
 import re
 import signal
-import string
 import subprocess
 import threading
 import time
@@ -25,8 +24,7 @@ from datetime import UTC, datetime
 import pytest
 
 from tests.test_pipeline import _seed_payload, study  # noqa: F401  (the temporary study fixture)
-from voi_rank import db, dotenv, elicit, propose
-from voi_rank.analysis import health, tables
+from voi_rank import db, dotenv, elicit
 from voi_rank.providers import claude_cli
 
 # the envelope the CLI printed during the 2026-09-29 outage (LEARNINGS), verbatim in shape
@@ -141,25 +139,24 @@ def test_a_zero_usage_exit_of_another_api_status_is_not_an_outage(monkeypatch):
     envelope, raw, err = claude_cli.call_claude("p", "claude-nonexistent-model-xyz", "sys")
     assert err == NOTFOUND_ERROR and raw == NOTFOUND_RAW and envelope["api_error_status"] == 404
     assert not elicit.usage_limit(err) and elicit.halts_member(err) and elicit.retry_delay(err) is None
-    assert not claude_cli.is_usage_limit(err, raw) and health.error_class(err, raw) == "cli"
+    assert not claude_cli.is_usage_limit(err, raw)
     _, _, err = claude_cli.call_claude("p", "haiku", "sys")
     assert err == "cli: exit 1 (zero-usage, api 401): Invalid API key · Fix external API key"
     assert elicit.halts_member(err) and not elicit.usage_limit(err)
     _, raw, err = claude_cli.call_claude("p", "haiku", "sys")
     assert err == "cli: exit 1 (zero-usage, api none): Not logged in · Please run /login"
-    assert elicit.halts_member(err) and not elicit.usage_limit(err) and health.error_class(err, raw) == "cli"
+    assert elicit.halts_member(err) and not elicit.usage_limit(err)
     _, raw, err = claude_cli.call_claude("p", "haiku", "sys")   # a server error: retried once at once
     assert err == "cli: exit 1 (zero-usage, api 529): Overloaded"
     assert not elicit.halts_member(err) and not elicit.usage_limit(err) and elicit.retry_delay(err) == 0.0
     _, raw, err = claude_cli.call_claude("p", "haiku", "sys")   # an empty result, the login text on stderr
     assert err == "cli: exit 1 (zero-usage, api none): Not logged in" and elicit.halts_member(err)
-    assert not claude_cli.is_usage_limit(err, raw) and health.error_class(err, raw) == "cli"
-    assert health.error_class("cli: exit 1: Not logged in", raw) == "cli"
+    assert not claude_cli.is_usage_limit(err, raw)
     # legacy rows ('cli: exit 1' with the envelope) are read the same way
-    assert health.error_class("cli: exit 1: ", NOTFOUND_RAW) == "cli"
-    assert health.error_class("cli: exit 1: ", LIMIT_RAW) == "outage"
+    assert not claude_cli.is_usage_limit("cli: exit 1: ", NOTFOUND_RAW)
+    assert claude_cli.is_usage_limit("cli: exit 1: ", LIMIT_RAW)
     login = "cli: usage-limit (zero-usage exit 1): Not logged in · Please run /login"
-    assert not claude_cli.is_usage_limit(login) and health.error_class(login, LIMIT_RAW) == "cli"
+    assert not claude_cli.is_usage_limit(login)
 
 
 def test_an_unknown_model_halts_the_member_without_a_pause(study, monkeypatch, capsys):  # noqa: F811
@@ -379,12 +376,6 @@ def test_main_summary_counts_the_outage_and_stores_paid_attempts_before_it(study
     assert [r["error"] for r in rows if not r["valid"]] == ["json: result parse failed: Expecting value:"
                                                              " line 1 column 1 (char 0)"]
     assert "usage-limit" not in "".join(r["error"] or "" for r in rows)
-    capsys.readouterr()
-    health.health(con, "p001")
-    out = capsys.readouterr().out
-    counts = [ln for ln in out.splitlines() if ln.startswith("attempt counts by outcome:")][0]
-    assert "'valid': 8" in counts and "'json': 1" in counts and "outage" not in counts
-    assert "usage-limit outage rows" not in out
     con.close()
 
 
@@ -749,14 +740,13 @@ def test_a_limited_member_never_stalls_a_slower_healthy_one(study, monkeypatch, 
     con.close()
 
 
-# --- health and the report macros on legacy rows -------------------------------------
+# --- the plan's cost estimate on legacy rows -----------------------------------------
 
-def test_health_and_macros_show_legacy_zero_usage_rows_as_outage(study, monkeypatch, capsys):  # noqa: F811
+def test_cost_estimate_leaves_legacy_zero_usage_rows_out(study, monkeypatch, capsys):  # noqa: F811
     seed = _seed_payload()
     monkeypatch.setattr(elicit, "get_provider", Outage(seed, fail_calls=0).get_provider)
     elicit.main(["--study", str(study.root), "--protocol", "p001", "--members", "claude_cli:haiku",
                  "--k", "1", "--scenarios", "1,2,3,4", "--yes"])
-    study.generated_dir.mkdir(parents=True, exist_ok=True)
     con = study.connect()
     pid = db.protocol_by_name(con, "p001")["id"]
     # three rows as the pre-v2.3 harness stored them during the outage, plus one real JSON failure
@@ -765,37 +755,11 @@ def test_health_and_macros_show_legacy_zero_usage_rows_as_outage(study, monkeypa
     db.insert_elicitation(con, 4, pid, "claude_cli", "haiku", 5, "h",
                           '{"result": "x", "total_cost_usd": 0.02}', False, "json: result parse failed: x")
     con.commit()
-    assert health.error_class("cli: exit 1: ", LIMIT_RAW) == "outage"
-    assert health.error_class(LIMIT_ERROR) == "outage"
-    assert health.error_class("cli: exit 1: ", PAID_RAW) == "cli"
-    assert health.error_class(None) == "valid" and health.error_class("json: x") == "json"
-    capsys.readouterr()
-    health.health(con, "p001")
-    out = capsys.readouterr().out
-    assert "=== health: protocol p001 (8 rows, 3 usage-limit outage, 5 attempts, 2 member(s)) ===" in out
-    assert "attempt counts by outcome: {'valid': 4, 'outage': 3, 'json': 1}" in out
-    # the plan's cost estimate averages over the billed attempts only (the fake stores no cost,
-    # the JSON failure $0.02: 0.02 / 5, not 0.02 / 8)
-    assert elicit.member_mean_cost(con, {"provider": "claude_cli", "model": "haiku"}, "binary") == \
+    # the estimate averages over the billed attempts only (the fake's raw response records no
+    # cost, the JSON failure $0.02: 0.02 / 5, not 0.02 / 8)
+    assert elicit.member_mean_cost(con, {"provider": "claude_cli", "model": "haiku"}) == \
         (pytest.approx(0.004), 5)
-    assert ("usage-limit outage rows (zero-usage CLI exits, no model call, unbilled): 3; left out of the"
-            " 5 attempts the rates below are over") in out
-    assert "JSON validity rate (parse+schema): 4/5 = 80.0%" in out
-    assert "constraint pass rate (of parsed): 4/4 = 100.0%" in out
-    assert "slot validity (after retry): 4/5 = 80.0%" in out
-    assert "claude_cli:haiku (k=2): 5 attempts, 4 valid (80.0%), $0.02" in out   # the fake stores no cost
-    # the report macros and the member table count billed attempts only
-    assert tables.member_stats(con, pid, {"provider": "claude_cli", "model": "haiku"}) == \
-        {"attempts": 5, "valid": 4, "cost": pytest.approx(0.02)}
-    assert len(tables.billed_attempts(con, pid)) == 5
-    assert len(tables.billed_attempts(con, pid, ["claude_cli:haiku"])) == 5
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(db, "git_state", lambda cwd=None: ("test-head", []))
-        from voi_rank import mc
-        run = db.get_run(con, mc.run_mc(con, "p001", seed=1, n_draws=200, quiet=True))
-    macros = tables.write_macros(con, run, study.generated_dir)
-    assert macros["voiNAttempts"] == 5 and macros["voiValidityRate"] == "80.0\\%"
-    assert macros["voiMemberAttemptsA"] == 5 and macros["voiMemberValidityA"] == "80.0\\%"
+    assert elicit.member_mean_cost(con, {"provider": "claude_cli", "model": "opus"}) is None
     con.close()
 
 
@@ -983,23 +947,3 @@ def test_a_paid_cli_exit_records_its_cost_and_counts_as_billed():
     assert not claude_cli.is_usage_limit("cli: exit 1: ", raw)
     att = elicit.attempt_once(lambda p, m, s: (None, "Not logged in", "cli: exit 1: Not logged in"), "p", "m")
     assert att["cost"] == 0.0 and not elicit.billed([att])
-
-
-def test_propose_records_the_cost_of_a_paid_cli_exit(monkeypatch):
-    """Review round 3 (2): propose_domain shares call_claude but took cost 0
-    whenever it gave no envelope, so a paid exit 1 (the sim2real rows
-    638/642 case, 32,000 output tokens) was left out of proposer_cost_usd
-    and the plan's mean. The cost is read from the raw response, as
-    attempt_once does."""
-    items = [{"title": "T", "agent": "a", "decision": "d", "theta_definition": "t", "instrument": "i"}]
-    paid = json.dumps({"total_cost_usd": 0.177, "usage": {"input_tokens": 9, "output_tokens": 32000}})
-    script = [(1, paid, ""), (0, json.dumps({"result": json.dumps(items), "total_cost_usd": 0.01}), "")]
-
-    def fake_run(cmd, **kw):
-        code, out, err = script.pop(0)
-        return subprocess.CompletedProcess(cmd, code, out, err)
-
-    monkeypatch.setattr(claude_cli.subprocess, "run", fake_run)
-    scenarios, err, cost = propose.propose_domain(string.Template("$domain $n"), "energy", 1, "haiku")
-    assert err is None and script == [] and cost == pytest.approx(0.187)
-    assert scenarios[0]["attributes"][propose.COST_ATTR] == pytest.approx(0.187)

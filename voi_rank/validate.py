@@ -1,10 +1,9 @@
-"""Validation of elicited payloads (spec §6.4) and percentile fitting.
+"""Validation of elicited payloads and percentile fitting.
 
-The payload must carry the six v2 parameters (PARAM_NAMES), or the subset a
-stage of a staged protocol asks for (`names`); any other key inside
-"parameters" is silently ignored, so templates that still emit the retired
-v1 parameter e keep validating. The informativeness check needs both s and
-t, the prior check p: each applies only when its parameters are asked for.
+The payload must carry the parameters (PARAM_NAMES), or the subset a stage
+of a staged protocol asks for (`names`); any other key inside "parameters"
+is ignored. The informativeness check needs both s and t, the prior check
+p: each applies only when its parameters are asked for.
 """
 
 from __future__ import annotations

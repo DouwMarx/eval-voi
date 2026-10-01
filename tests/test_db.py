@@ -1,10 +1,8 @@
 """DB migration from the v1 schema, protocol member handling and immutability,
-seeding idempotence, and the pooling of fits over members."""
+seeding idempotence, retirement, and the pooling of fits over members."""
 
 import json
-import shutil
 import sqlite3
-from pathlib import Path
 
 import pytest
 import yaml
@@ -12,7 +10,6 @@ import yaml
 from voi_rank import db
 from voi_rank.fit import fit_param
 
-BUSINESS = Path(__file__).resolve().parent.parent / "archive" / "business"
 _REAL_GIT_STATE = db.git_state   # captured before the hermetic fixture replaces it
 
 V1_SCHEMA = """
@@ -125,7 +122,7 @@ def test_seed_scenarios_idempotent_with_v2_fields(tmp_path):
     scen.write_text(json.dumps([{
         "title": "A", "agent": "a", "decision": "d", "theta_definition": "t",
         "instrument": "i", "context": "facts", "domain_tags": ["x"], "group": "g1",
-        "attributes": {"level": 2, "keys": ["k"]}, "manual": {"p": {}},
+        "attributes": {"level": 2, "keys": ["k"]},
     }, {"title": "B", "agent": "a", "decision": "d", "theta_definition": "t", "instrument": "i"}]))
     assert db.seed_scenarios(con, scen) == 2
     assert db.seed_scenarios(con, scen) == 0
@@ -134,7 +131,7 @@ def test_seed_scenarios_idempotent_with_v2_fields(tmp_path):
     a = rows[0]
     assert a["context"] == "facts" and a["grp"] == "g1"
     assert db.scenario_attributes(a) == {"level": 2, "keys": ["k"]}
-    assert "manual" not in json.loads(a["raw_json"])
+    assert json.loads(a["raw_json"])["context"] == "facts"
     b = rows[1]
     assert b["context"] is None and b["grp"] is None and db.scenario_attributes(b) == {}
 
@@ -150,7 +147,7 @@ def _store(con, sid, pid, provider, model, rix, names):
     con.commit()
 
 
-def test_scenario_param_fits_pools_members_and_ignores_e(tmp_path):
+def test_scenario_param_fits_pools_members_and_ignores_unknown_names(tmp_path):
     con = db.connect(tmp_path / "voi.db")
     sid = db.insert_scenario(con, {"title": "S", "agent": "a", "decision": "d",
                                    "theta_definition": "t", "instrument": "i"}, "seed")
@@ -208,66 +205,6 @@ def test_git_hash_is_code_scoped_and_marks_dirty_tree(monkeypatch):
     assert db.git_state() == ("unknown", []) and db.git_hash() == "unknown"
 
 
-def test_manual_protocol_hashes_only_the_hand_percentiles(tmp_path):
-    con = db.connect(tmp_path / "voi.db")
-    (tmp_path / "protocols").mkdir()
-    p = tmp_path / "protocols" / "p000_manual.yaml"
-    p.write_text(yaml.safe_dump({"name": "p000_manual", "template_path": "scenarios.json",
-                                 "model_alias": "manual", "k_repeats": 1}))
-    manual = json.loads((BUSINESS / "scenarios.json").read_text())[0]["manual"]
-    base = [{"title": "A", "agent": "a", "decision": "d", "theta_definition": "t",
-             "instrument": "i", "manual": manual},
-            {"title": "B", "agent": "a", "decision": "d", "theta_definition": "t", "instrument": "i"}]
-    scen = tmp_path / "scenarios.json"
-    scen.write_text(json.dumps(base))
-    db.seed_scenarios(con, scen)
-    pid = db.get_or_create_protocol(con, p, tmp_path)
-    stored = db.protocol_by_name(con, "p000_manual")["template_hash"]
-    assert stored == db.manual_hash(scen) != db.sha256(scen.read_text())
-    # a metadata refresh of an un-elicited scenario leaves the manual hash
-    # alone, so --manual still registers the same protocol
-    base[1]["context"] = "new facts"
-    scen.write_text(json.dumps(base))
-    db.seed_scenarios(con, scen)
-    assert db.get_or_create_protocol(con, p, tmp_path) == pid
-    # the stored hash is a registration snapshot, not part of the immutability
-    # check: the hand percentiles are frozen per scenario by elicit.run_manual
-    # (tests/test_pipeline.py), so a changed or added manual block still
-    # registers the same protocol row with its original snapshot
-    base[0]["manual"]["C"]["p50"] *= 2
-    base[1]["manual"] = manual
-    scen.write_text(json.dumps(base))
-    assert db.get_or_create_protocol(con, p, tmp_path) == pid
-    assert db.protocol_by_name(con, "p000_manual")["template_hash"] == stored != db.manual_hash(scen)
-    # the reserved name may not carry a callable member
-    p.write_text(yaml.safe_dump({"name": "p000_manual", "template_path": "scenarios.json",
-                                 "members": [{"provider": "claude_cli", "model": "haiku", "k_repeats": 1}]}))
-    with pytest.raises(RuntimeError, match="reserved for hand percentiles"):
-        db.get_or_create_protocol(con, p, tmp_path)
-    # a callable-provider protocol still hashes the whole template file
-    members = [{"provider": "claude_cli", "model": "haiku", "k_repeats": 1}]
-    q = write_protocol(tmp_path, "pT", "T $title", members=members)
-    db.get_or_create_protocol(con, q, tmp_path)
-    assert db.protocol_by_name(con, "pT")["template_hash"] == db.sha256("T $title")
-
-
-def test_migrate_moves_the_business_manual_row_to_the_manual_hash(tmp_path):
-    path = tmp_path / "v1.db"
-    make_v1_db(path)
-    con = sqlite3.connect(path)
-    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats)"
-                " VALUES ('p000_manual', 'scenarios.json', ?, 'manual', 1)", (db.BUSINESS_MANUAL_FILE_HASH,))
-    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats)"
-                " VALUES ('p000_manual', 'scenarios.json', 'other', 'manual', 1)")
-    con.commit()
-    con.close()
-    con = db.connect(path)
-    hashes = [r[0] for r in con.execute("SELECT template_hash FROM protocols WHERE name='p000_manual'"
-                                        " ORDER BY id")]
-    assert hashes == [db.BUSINESS_MANUAL_HASH, "other"]
-    assert db.manual_hash(BUSINESS / "scenarios.json") == db.BUSINESS_MANUAL_HASH
-
-
 def test_duplicate_valid_slots_block_the_index_with_repair_sql(tmp_path):
     path = tmp_path / "v1.db"
     make_v1_db(path)
@@ -296,9 +233,8 @@ def test_duplicate_members_rejected():
             {"provider": "claude_cli", "model": "haiku", "k_repeats": 1},
             {"provider": "openrouter", "model": "x", "k_repeats": 1},
             {"provider": "claude_cli", "model": "haiku", "k_repeats": 2}]})
-    # the legacy manual alias maps to the manual provider, never claude_cli
-    assert db.normalize_members({"model_alias": "manual", "k_repeats": 1}) == \
-        [{"provider": "manual", "model": "manual", "k_repeats": 1}]
+    assert db.normalize_members({"model_alias": "haiku", "k_repeats": 1}) == \
+        [{"provider": "claude_cli", "model": "haiku", "k_repeats": 1}]
 
 
 def test_unique_index_on_valid_slots(tmp_path):
@@ -322,60 +258,6 @@ def test_unique_index_on_valid_slots(tmp_path):
     con1 = db.connect(v1)
     assert con1.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot_stage'")\
         .fetchone()
-
-
-def test_business_db_copy_opens_migrates_and_registers_protocols(tmp_path):
-    dst = tmp_path / "biz.db"
-    shutil.copy(BUSINESS / "voi.db", dst)
-    con = db.connect(dst)
-    assert con.execute("SELECT 1 FROM sqlite_master WHERE name='ux_elicitations_valid_slot_stage'").fetchone()
-    manual = db.protocol_by_name(con, "p000_manual")
-    assert db.protocol_members(manual) == [{"provider": "manual", "model": "manual", "k_repeats": 1}]
-    assert {r[0] for r in con.execute("SELECT DISTINCT provider FROM elicitations WHERE protocol_id=?",
-                                      (manual["id"],))} == {"manual"}
-    p004 = db.protocol_by_name(con, "p004")
-    assert db.protocol_selector(p004) == db.BUSINESS_P004_SELECTOR
-    elicited = {r[0] for r in con.execute(
-        "SELECT DISTINCT scenario_id FROM elicitations WHERE protocol_id=? AND valid=1", (p004["id"],))}
-    assert {int(x) for x in db.BUSINESS_P004_SELECTOR.split(",")} == elicited
-    assert db.protocol_selector(db.protocol_by_name(con, "p001")) == "all"
-    # the committed protocol files still pass the immutability check against the migrated rows
-    for name in ("p000_manual", "p001", "p002", "p003", "p004"):
-        assert db.get_or_create_protocol(con, BUSINESS / "protocols" / f"{name}.yaml", BUSINESS) \
-            == db.protocol_by_name(con, name)["id"]
-    assert db.protocol_by_name(con, "p000_manual")["template_hash"] == db.BUSINESS_MANUAL_HASH
-    assert "data_hash" in {r[1] for r in con.execute("PRAGMA table_info(runs)")}
-    assert db.migrate(con) == []
-
-
-def test_migrate_backfills_only_the_business_p004(tmp_path):
-    path = tmp_path / "v1.db"
-    make_v1_db(path)
-    con = sqlite3.connect(path)
-    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats)"
-                " VALUES ('p004', 'x', ?, 'haiku', 3)", (db.BUSINESS_P004_HASH,))
-    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats)"
-                " VALUES ('p000_manual', 'scenarios.json', 'h', 'manual', 1)")
-    con.execute("INSERT INTO elicitations (scenario_id, protocol_id, repeat_ix, valid)"
-                " VALUES (1, 3, 0, 1)")
-    con.commit()
-    con.close()
-    con = db.connect(path)
-    sel = {r["name"]: r["scenario_selector"] for r in con.execute("SELECT * FROM protocols")}
-    assert sel == {"p001": None, "p004": db.BUSINESS_P004_SELECTOR, "p000_manual": None}
-    rows = {r["protocol_id"]: (r["provider"], r["model"]) for r in
-            con.execute("SELECT * FROM elicitations")}
-    assert rows == {1: ("claude_cli", "haiku"), 3: ("manual", "manual")}
-    # a p004 of another study (different template) is left alone
-    other = tmp_path / "other.db"
-    make_v1_db(other)
-    c2 = sqlite3.connect(other)
-    c2.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats)"
-               " VALUES ('p004', 'x', 'otherhash', 'haiku', 3)")
-    c2.commit()
-    c2.close()
-    c2 = db.connect(other)
-    assert db.protocol_by_name(c2, "p004")["scenario_selector"] is None
 
 
 def test_protocol_scenario_selector_is_stored_and_immutable(tmp_path):
@@ -409,14 +291,12 @@ def test_seed_refresh_until_elicited(tmp_path, capsys):
     assert db.seed_scenarios(con, scen) == 0 and "refreshed" not in capsys.readouterr().out
     base[0]["context"] = "c2"
     base[0]["attributes"] = {"level": 2}
-    base[0]["manual"] = {"p": {}}
     scen.write_text(json.dumps(base))
     assert db.seed_scenarios(con, scen) == 0
     assert "refreshed ['context', 'attributes', 'raw_json']" in capsys.readouterr().out
     row = db.get_scenarios(con, "seed")[0]
     assert row["context"] == "c2" and db.scenario_attributes(row) == {"level": 2}
     assert json.loads(row["raw_json"])["context"] == "c2"
-    assert "manual" not in json.loads(row["raw_json"])
     # key order in the file is not a change
     scen.write_text(json.dumps([dict(reversed(list(base[0].items())))]))
     db.seed_scenarios(con, scen)
@@ -429,30 +309,6 @@ def test_seed_refresh_until_elicited(tmp_path, capsys):
     with pytest.raises(RuntimeError, match="frozen"):
         db.seed_scenarios(con, scen)
     assert db.get_scenarios(con, "seed")[0]["agent"] == "a"
-
-
-# --- review fixes, round 4 ---------------------------------------------------
-
-def test_migrate_retags_only_legacy_shaped_manual_rows(tmp_path):
-    """The provider='manual' backfill is keyed on the legacy row shape
-    (model_alias 'manual', no members_json), never on the protocol NAME: a v2
-    row named p000_manual with a callable member keeps its rows, so a resume
-    still sees them."""
-    path = tmp_path / "voi.db"
-    con = db.connect(path)
-    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats,"
-                " members_json) VALUES ('p000_manual', 't', 'h', 'claude_cli:haiku', 1, ?)",
-                (db.members_json([{"provider": "claude_cli", "model": "haiku", "k_repeats": 1}]),))
-    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats)"
-                " VALUES ('pM', 'scenarios.json', 'h', 'manual', 1)")   # legacy shape, other name
-    db.insert_elicitation(con, 1, 1, "claude_cli", "haiku", 0, "h", "{}", True, None)
-    db.insert_elicitation(con, 1, 2, "claude_cli", "manual", 0, "h", "{}", True, None)
-    con.commit()
-    con.close()
-    con = db.connect(path)
-    rows = {r["protocol_id"]: r["provider"] for r in con.execute("SELECT * FROM elicitations")}
-    assert rows == {1: "claude_cli", 2: "manual"}
-    assert db.valid_repeats(con, 1, 1, "claude_cli", "haiku") == {0}
 
 
 def test_seed_retires_rows_whose_title_left_the_file_and_restores_them(tmp_path, capsys):

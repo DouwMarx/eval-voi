@@ -1,17 +1,17 @@
-"""SQLite storage (spec §5). One file per study, voi.db. Append-only for
-scenarios and elicitations: elicited data is never UPDATEd, only superseded by
-new rows under a new protocol.
+"""SQLite storage. One file per study, voi.db. Append-only for scenarios and
+elicitations: elicited data is never UPDATEd, only superseded by new rows
+under a new protocol.
 
-v2 additions: scenarios.context/grp/attributes, elicitations.provider/model,
-protocols.members_json/scenario_selector, runs.data_hash, a unique index on
-valid slots. v2.2: runs.members_json (the member subset a run pooled, NULL =
-every member of the protocol), protocols.stages_json and elicitations.stage
-(staged protocols: a decision stage elicited once per scenario group and an
-instrument stage per scenario, see "staged protocols" below). v2.4:
-runs.weights (the mixture weighting a run used, NULL = pooled, see "mixture
-weights" below). connect()
-migrates pre-v2 databases in place; connect_copy() prepares an in-memory
-copy for dry runs.
+connect() adds any column an older database lacks (V2_COLUMNS) and backfills
+the member identity of pre-v2 elicitations; connect_copy() prepares an
+in-memory copy for dry runs. Protocol rows carry members_json,
+scenario_selector and stages_json (a staged protocol: a decision stage
+elicited once per scenario group and an instrument stage per scenario, see
+"staged protocols" below); runs carry members_json (the member subset a run
+pooled, NULL = every member). The protocols.model_kind and runs.weights
+columns stay in the schema for archived databases; every protocol is the
+binary model now, a protocol file that sets another model is refused, and
+every run pools its fits with equal weight.
 
 Provenance of a run: code_hash is the git HEAD of the CODE_PATHS (suffixed
 '-dirty' when any of them has uncommitted changes; study inputs are frozen
@@ -29,17 +29,14 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
-import numpy as np
 import yaml
 
-from voi_rank.fit import GAUSS_PARAM_NAMES, GAUSS_SPREAD_SCALE, PARAM_NAMES
-from voi_rank.gaussian import METRIC_INPUTS as GAUSS_METRIC_INPUTS
-from voi_rank.sensitivity import repeat_spread
+from voi_rank.fit import PARAM_NAMES
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
-__all__ = ["GAUSS_PARAM_NAMES", "PARAM_NAMES", "ROOT", "connect"]
+__all__ = ["PARAM_NAMES", "ROOT", "connect"]
 
 # columns added after v1; (table -> {column: type}) checked on every connect
 V2_COLUMNS = {
@@ -49,51 +46,8 @@ V2_COLUMNS = {
                   "stages_json": "TEXT"},
     "runs": {"data_hash": "TEXT", "members_json": "TEXT", "weights": "TEXT"},
 }
-# protocol model kinds (v2.1): the binary model of spec §2 (parameters
-# PARAM_NAMES, primary metric 'efficiency') and the Gaussian-state family
-# (GAUSS_PARAM_NAMES, primary metric 'eff_step'). A protocol row without a
-# model_kind (registered before the column) is binary.
+# the one model kind the code knows; the column keeps the value of archived rows
 BINARY_KIND = "binary"
-GAUSSIAN_KIND = "gaussian"
-MODEL_KINDS = (BINARY_KIND, GAUSSIAN_KIND)
-_PRIMARY_METRIC = {BINARY_KIND: "efficiency", GAUSSIAN_KIND: "eff_step"}
-_EVSI_METRIC = {BINARY_KIND: "EVSI", GAUSSIAN_KIND: "EVSI_step"}
-_PARAM_NAMES = {BINARY_KIND: PARAM_NAMES, GAUSSIAN_KIND: GAUSS_PARAM_NAMES}
-# the stored quantities that enter the primary metric, hence carry a Spearman
-# sensitivity row: every binary parameter; for the Gaussian family all but
-# g_mu0 and g_sigma0, which no action model reads (d and x are in prior-sd
-# units already), so a rho against eff_step would be sampling noise or NULL
-_SENSITIVITY_NAMES = {BINARY_KIND: PARAM_NAMES, GAUSSIAN_KIND: list(GAUSS_METRIC_INPUTS)}
-
-
-def normalize_model_kind(value) -> str:
-    kind = BINARY_KIND if value is None else str(value).strip().lower()
-    if kind not in MODEL_KINDS:
-        raise ValueError(f"unknown protocol model {value!r}; known: {list(MODEL_KINDS)}")
-    return kind
-
-
-def param_names(kind: str) -> list[str]:
-    """The parameter rows a protocol of this model kind stores per elicitation."""
-    return _PARAM_NAMES[normalize_model_kind(kind)]
-
-
-def sensitivity_names(kind: str) -> list[str]:
-    """The parameters a run of this model kind stores sensitivities for: the
-    subset of param_names(kind) that enters its primary metric."""
-    return _SENSITIVITY_NAMES[normalize_model_kind(kind)]
-
-
-def primary_metric(kind: str) -> str:
-    """The stored efficiency metric a run of this kind ranks by."""
-    return _PRIMARY_METRIC[normalize_model_kind(kind)]
-
-
-def evsi_metric(kind: str) -> str:
-    """The stored EVSI metric behind primary_metric (p_positive = P(EVSI > C))."""
-    return _EVSI_METRIC[normalize_model_kind(kind)]
-
-
 # paths whose uncommitted changes make a run's code_hash '-dirty'
 CODE_PATHS = ("voi_rank", "pyproject.toml", "uv.lock")
 LEGACY_PROVIDER = "claude_cli"
@@ -102,21 +56,18 @@ LEGACY_PROVIDER = "claude_cli"
 RETIRED_SOURCE = "seed:retired"
 # git_state's HEAD when git is unavailable or the tree is not a repository
 UNKNOWN_HEAD = "unknown"
-# hand-entered percentiles: a member label, never a callable provider
-MANUAL_PROVIDER = "manual"
-MANUAL_PROTOCOL = "p000_manual"
-# the business study's p004 was elicited on 17 scenarios before protocols
-# carried a scenario selector; its stored row is backfilled once, keyed on the
-# frozen template hash so no other study's p004 is touched
-BUSINESS_P004_HASH = "25c59b4f6b2afad4c9d50d5af135d99c96ff716b01bf66c7ee607ea0dd930d9e"
-BUSINESS_P004_SELECTOR = "5,13,22,31,32,41,42,46,47,48,50,52,53,54,60,61,62"
-# the business p000_manual row was registered with the hash of the whole
-# scenarios.json; manual protocols now hash only the hand percentiles (so
-# metadata edits to un-elicited scenarios do not break --manual). Migrated
-# once, keyed on the name AND the old value so nothing else is touched.
-BUSINESS_MANUAL_FILE_HASH = "b95b4ac8347981f132af3e2199ac82eacaadde9e09785201eac3cb34c67dee85"
-BUSINESS_MANUAL_HASH = "97f35c5b4b31d9d70db088e23919ec6d8ce9c2592bdd40970433e41a2ec745a7"
 SCHEMA_INDEX_MARKER = "-- indexes"
+
+
+def check_model(value) -> str:
+    """The protocol's 'model' key: absent or 'binary'. Anything else (the
+    retired Gaussian-state family included) is refused."""
+    kind = BINARY_KIND if value is None else str(value).strip().lower()
+    if kind != BINARY_KIND:
+        raise ValueError(f"protocol model {value!r} is not supported: only the binary model remains"
+                         " (the Gaussian-state family was retired on 2026-09-30; its protocols and data"
+                         " are under archive/, frozen at tag pilot-2026-09-30)")
+    return kind
 
 
 def now_iso() -> str:
@@ -167,8 +118,8 @@ def claude_cli_version() -> str:
 
 
 def _prepare(con: sqlite3.Connection) -> sqlite3.Connection:
-    """Create missing tables, migrate pre-v2 columns, then create the indexes
-    (which reference v2 columns, so they must come after the migration)."""
+    """Create missing tables, add missing columns, then create the indexes
+    (which reference added columns, so they must come after the migration)."""
     con.row_factory = sqlite3.Row
     tables, _, indexes = SCHEMA_PATH.read_text().partition(SCHEMA_INDEX_MARKER)
     con.executescript(tables)
@@ -219,7 +170,8 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
 def connect_copy(db_path: str | Path) -> sqlite3.Connection:
     """An in-memory copy of a study database (empty when the file does not
     exist), prepared like connect(). The file is opened read-only and never
-    created, written or migrated: this is what --dry-run works on."""
+    created, written or migrated: this is what --dry-run works on, and how
+    an archived database is read."""
     mem = sqlite3.connect(":memory:")
     path = Path(db_path)
     if path.exists():
@@ -232,13 +184,9 @@ def connect_copy(db_path: str | Path) -> sqlite3.Connection:
 
 
 def migrate(con) -> list[str]:
-    """Add any v2 column missing from a pre-v2 database, then backfill (a) the
-    member identity of legacy elicitations (single claude_cli member, model =
-    the protocol's model_alias), (b) provider='manual' for rows under a
-    LEGACY-SHAPED manual protocol (model_alias 'manual', no members_json: a
-    v2 row is never re-tagged, whatever its name), (c) the business p004
-    scenario selector and (d) the business p000_manual template hash (whole
-    file -> hand percentiles only). Returns the columns added."""
+    """Add any column of V2_COLUMNS missing from an older database, then
+    backfill the member identity of pre-v2 elicitations (a single claude_cli
+    member, model = the protocol's model_alias). Returns the columns added."""
     added = []
     for table, cols in V2_COLUMNS.items():
         have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
@@ -250,27 +198,13 @@ def migrate(con) -> list[str]:
     con.execute(
         "UPDATE elicitations SET model=(SELECT model_alias FROM protocols p"
         " WHERE p.id=elicitations.protocol_id) WHERE model IS NULL")
-    con.execute(
-        "UPDATE elicitations SET provider=? WHERE provider<>? AND protocol_id IN"
-        " (SELECT id FROM protocols WHERE model_alias=? AND members_json IS NULL)",
-        (MANUAL_PROVIDER, MANUAL_PROVIDER, MANUAL_PROVIDER))
-    con.execute(
-        "UPDATE protocols SET scenario_selector=? WHERE name='p004' AND template_hash=?"
-        " AND scenario_selector IS NULL", (BUSINESS_P004_SELECTOR, BUSINESS_P004_HASH))
-    con.execute("UPDATE protocols SET template_hash=? WHERE name=? AND template_hash=?",
-                (BUSINESS_MANUAL_HASH, MANUAL_PROTOCOL, BUSINESS_MANUAL_FILE_HASH))
     con.commit()
     return added
 
 
 # --- scenarios -------------------------------------------------------------
 
-SCENARIO_TEXT_FIELDS = ("title", "agent", "decision", "theta_definition", "instrument")
-
-
-def insert_scenario(con, sc: dict, source: str, commit: bool = True) -> int:
-    """commit=False lets a caller land several scenarios in one transaction
-    (the proposer inserts a domain's batch atomically)."""
+def insert_scenario(con, sc: dict, source: str) -> int:
     attrs = sc.get("attributes")
     cur = con.execute(
         "INSERT INTO scenarios (created_at, title, agent, decision, theta_definition,"
@@ -281,8 +215,7 @@ def insert_scenario(con, sc: dict, source: str, commit: bool = True) -> int:
          sc.get("context"), sc.get("group"),
          json.dumps(attrs) if attrs is not None else None),
     )
-    if commit:
-        con.commit()
+    con.commit()
     return cur.lastrowid
 
 
@@ -290,12 +223,11 @@ def insert_scenario(con, sc: dict, source: str, commit: bool = True) -> int:
 # elicitations yet (the title is the identity and is never refreshed)
 SEED_MUTABLE = ("agent", "decision", "theta_definition", "instrument", "context",
                 "grp", "attributes", "domain_tags", "raw_json")
+JSON_COLUMNS = ("attributes", "domain_tags", "raw_json")
 
 
 def _seed_values(sc: dict) -> dict:
-    """Column values a scenarios.json entry maps to (the 'manual' key, hand
-    percentiles, is not part of the stored scenario)."""
-    sc = {k: v for k, v in sc.items() if k != "manual"}
+    """Column values a scenarios.json entry maps to."""
     attrs = sc.get("attributes")
     return {"agent": sc["agent"], "decision": sc["decision"],
             "theta_definition": sc["theta_definition"], "instrument": sc["instrument"],
@@ -310,7 +242,7 @@ def _seed_diff(row, want: dict) -> list[str]:
     diff = []
     for col in SEED_MUTABLE:
         got = row[col]
-        if col in ("attributes", "domain_tags", "raw_json"):
+        if col in JSON_COLUMNS:
             same = (json.loads(got) if got is not None else None) == \
                    (json.loads(want[col]) if want[col] is not None else None)
         else:
@@ -340,7 +272,7 @@ def seed_scenarios(con, scenarios_json: Path, dry_run: bool = False) -> int:
         row = con.execute("SELECT * FROM scenarios WHERE title=? AND source IN ('seed', ?)",
                           (sc["title"], RETIRED_SOURCE)).fetchone()
         if row is None:
-            insert_scenario(con, {k: v for k, v in sc.items() if k != "manual"}, source="seed")
+            insert_scenario(con, sc, source="seed")
             n += 1
             continue
         if row["source"] == RETIRED_SOURCE:
@@ -415,9 +347,9 @@ def scenario_attributes(row) -> dict:
 # --- protocols -------------------------------------------------------------
 
 def normalize_members(cfg: dict) -> list[dict]:
-    """Protocol members as [{provider, model, k_repeats}], from either the v2
-    'members' list or the legacy 'model_alias' + 'k_repeats' pair (converted
-    to a single claude_cli member)."""
+    """Protocol members as [{provider, model, k_repeats}], from either the
+    'members' list or the legacy 'model_alias' + 'k_repeats' pair of a
+    pre-v2 row (a single claude_cli member)."""
     if "members" in cfg:
         members = []
         for m in cfg["members"]:
@@ -432,9 +364,8 @@ def normalize_members(cfg: dict) -> list[dict]:
                 raise ValueError(f"protocol lists member {member_label(m)} more than once")
             seen.add(key)
         return members
-    alias = str(cfg["model_alias"])
-    provider = MANUAL_PROVIDER if alias == MANUAL_PROVIDER else LEGACY_PROVIDER
-    return [{"provider": provider, "model": alias, "k_repeats": int(cfg["k_repeats"])}]
+    return [{"provider": LEGACY_PROVIDER, "model": str(cfg["model_alias"]),
+             "k_repeats": int(cfg["k_repeats"])}]
 
 
 def members_json(members: list[dict]) -> str:
@@ -453,12 +384,14 @@ def member_label(m: dict) -> str:
     return f"{m['provider']}:{m['model']}"
 
 
-# --- member subsets (v2.2) ---------------------------------------------------
+# --- member subsets ---------------------------------------------------------
 # A run may pool a SUBSET of the protocol's members (mc --members); the subset
 # is stored on the run as a sorted JSON list of member labels, NULL meaning
 # every member. Every reader of a run's elicitations (fits, pooled medians,
-# spreads, counts) takes the same `members` argument: a list of labels, or
-# None for all.
+# counts) takes the same `members` argument: a list of labels, or None for
+# all. Pooling incoherent members yields a ranking that belongs to nobody
+# (LEARNINGS, eval studies iteration 2), so an ablation scores one elicitor
+# as its own stored run.
 
 def parse_member_labels(spec: str | None) -> list[str] | None:
     """'a:b,c:d' -> sorted distinct labels; None or '' -> None (all members)."""
@@ -511,85 +444,6 @@ def members_label(labels: list[str] | None) -> str:
     return "all members" if labels is None else ", ".join(labels)
 
 
-def run_label(protocol_name: str, labels: list[str] | None, weights: str | None = None) -> str:
-    """Column label of a run in the cross-protocol tables: the protocol name,
-    suffixed with the subset's model names ('p003[opus+sonnet]') for a
-    subset run and with '/equal' for an equal-member run
-    ('p003[opus+sonnet]/equal')."""
-    label = protocol_name
-    if labels is not None:
-        label += f"[{'+'.join(lab.split(':', 1)[-1] for lab in labels)}]"
-    return label + ("/equal" if normalize_weights(weights) == WEIGHTS_EQUAL_MEMBER else "")
-
-
-def run_key_order(key: tuple) -> tuple:
-    """Sort key of a (members_json, weights) pair: the all-member pooled run
-    first, then the equal-member one, then the subsets in the same way."""
-    members, weights = key
-    return (members is not None, members or "", weights is not None, weights or "")
-
-
-def latest_runs_by_subset(con) -> list[tuple[str, sqlite3.Row]]:
-    """(run_label, run) for the latest run of every (protocol, member subset,
-    weights) that has one, in protocol then subset order: the all-member run
-    of each protocol first, then its subset runs, each pooled then
-    equal-member."""
-    out = []
-    for p in con.execute("SELECT * FROM protocols ORDER BY id"):
-        latest: dict[tuple, sqlite3.Row] = {}
-        for r in con.execute("SELECT * FROM runs WHERE protocol_id=? ORDER BY id", (p["id"],)):
-            latest[(r["members_json"], run_weights(r))] = r
-        for key in sorted(latest, key=run_key_order):
-            run = latest[key]
-            out.append((run_label(p["name"], run_member_labels(run), run_weights(run)), run))
-    return out
-
-
-# --- mixture weights (v2.4) -------------------------------------------------------
-# How a run's Monte Carlo mixture weighs the valid fits of a scenario (mc
-# --weights): 'pooled' (every valid (member, repeat) fit the same weight, so a
-# member with more valid repeats weighs more; stored as NULL, the behaviour of
-# every run before v2.4) or 'equal-member' (each member's fits form a
-# sub-mixture and the members present weigh the same, whatever their repeat
-# counts). A run that pools one member stores NULL whatever was asked: both
-# rules draw the same mixture then.
-
-WEIGHTS_POOLED = "pooled"
-WEIGHTS_EQUAL_MEMBER = "equal-member"
-WEIGHT_CHOICES = (WEIGHTS_POOLED, WEIGHTS_EQUAL_MEMBER)
-
-
-def normalize_weights(value: str | None) -> str | None:
-    """The stored form of a weighting: None for pooled (or None), else
-    'equal-member'; ValueError for anything else."""
-    if value is None or value == WEIGHTS_POOLED:
-        return None
-    if value == WEIGHTS_EQUAL_MEMBER:
-        return value
-    raise ValueError(f"unknown weights {value!r}; known: {list(WEIGHT_CHOICES)}")
-
-
-def normalize_run_weights(n_members: int, value: str | None) -> str | None:
-    """The stored weights of a run pooling n_members members: None (pooled)
-    for one member, whose sub-mixture is the pooled mixture."""
-    weights = normalize_weights(value)
-    return None if n_members <= 1 else weights
-
-
-def run_weights(run) -> str | None:
-    """The weighting a stored run used (None = pooled, also for a row
-    written before the column existed)."""
-    try:
-        return run["weights"]
-    except (IndexError, KeyError):
-        return None
-
-
-def weights_label(weights: str | None) -> str:
-    """Printable form: 'pooled' or 'equal-member'."""
-    return WEIGHTS_POOLED if weights is None else weights
-
-
 def member_filter(labels: list[str] | None, alias: str = "e") -> tuple[str, list]:
     """SQL fragment (" AND (alias.provider || ':' || alias.model) IN (?,..)", params)
     restricting elicitation rows to a member subset; ('', []) for all."""
@@ -605,22 +459,10 @@ def protocol_selector(row) -> str:
     return row["scenario_selector"] or "all"
 
 
-def protocol_model_kind(row) -> str:
-    """Model kind of a stored protocol row ('binary' for rows registered
-    before the column existed)."""
-    return normalize_model_kind(row["model_kind"])
-
-
-def run_model_kind(con, run) -> str:
-    """Model kind of the protocol a run was made under."""
-    prot = con.execute("SELECT model_kind FROM protocols WHERE id=?", (run["protocol_id"],)).fetchone()
-    return protocol_model_kind(prot) if prot else BINARY_KIND
-
-
-# --- staged protocols (v2.2) --------------------------------------------------
-# A protocol may split the six binary parameters over two stages: a GROUP
-# stage (name 'decision' by convention) elicited once per scenario group and
-# stored on the group's representative scenario (its lowest id) with
+# --- staged protocols -------------------------------------------------------
+# A protocol may split the parameters over two stages: a GROUP stage (name
+# 'decision' by convention) elicited once per scenario group and stored on
+# the group's representative scenario (its lowest id) with
 # elicitations.stage = the stage name, and a SCENARIO stage ('instrument')
 # elicited per scenario. Protocol YAML:
 #   stages:
@@ -637,16 +479,13 @@ STAGE_GROUP_PREFIX = "attributes."
 def normalize_stages(cfg: dict, study_root: str | Path) -> list[dict] | None:
     """The stored form of a protocol's 'stages' (None when single-stage):
     [{name, template_path, template_hash, params, group_key?,
-    decision_contexts?}]. Exactly two stages of a binary protocol, one with a
-    group_key (the group stage) and one without, whose params partition
-    PARAM_NAMES."""
+    decision_contexts?}]. Exactly two stages, one with a group_key (the
+    group stage) and one without, whose params partition PARAM_NAMES."""
     raw = cfg.get("stages")
     if raw is None:
         return None
     if cfg.get("template_path") is not None:
         raise ValueError("a staged protocol names its templates per stage, not a template_path")
-    if normalize_model_kind(cfg.get("model")) != BINARY_KIND:
-        raise ValueError("stages are defined for the binary model only")
     if not isinstance(raw, list) or len(raw) != 2:
         raise ValueError("stages must list exactly two stages (a group stage and a scenario stage)")
     stages, seen_params = [], []
@@ -755,67 +594,33 @@ def stage_clause(stage: str | None, alias: str = "e") -> tuple[str, list]:
     return f" AND COALESCE({alias}.stage, '')=?", [stage or ""]
 
 
-def manual_hash(scenarios_json: str | Path) -> str:
-    """Template hash stored when a manual protocol is registered: the hand
-    percentiles of scenarios.json ({title: manual}) at that moment. It is a
-    snapshot, not part of the immutability check: the numbers are frozen per
-    scenario by elicitations.prompt_hash / raw_response (elicit.run_manual
-    refuses a loaded scenario whose numbers changed and loads new ones)."""
-    seeds = json.loads(Path(scenarios_json).read_text())
-    return sha256(json.dumps({sc["title"]: sc["manual"] for sc in seeds if "manual" in sc},
-                             sort_keys=True))
-
-
-def is_manual_protocol(members: list[dict]) -> bool:
-    return all(m["provider"] == MANUAL_PROVIDER for m in members)
-
-
 def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -> int:
-    """Register a protocol YAML (template_path relative to the study root).
+    """Register a protocol YAML (template paths relative to the study root).
     Protocol files are immutable: re-registering a name with a changed
-    template hash, member list or scenario scope is an error (make a new
-    protocol file). A manual protocol (every member provider 'manual'; the
-    only name allowed to be one is MANUAL_PROTOCOL, and that name may be
-    nothing else) has scenarios.json as template_path and stores manual_hash
-    as a snapshot; its numbers are frozen per scenario, not per file, so new
-    hand percentiles can be added later (see manual_hash)."""
+    template hash, member list, scenario scope or stages is an error (make a
+    new protocol file)."""
     yaml_path = Path(yaml_path)
     cfg = yaml.safe_load(yaml_path.read_text())
-    members = normalize_members(cfg)
-    manual = is_manual_protocol(members)
-    kind = normalize_model_kind(cfg.get("model"))
     try:
+        members = normalize_members(cfg)
+        kind = check_model(cfg.get("model"))
         stages = normalize_stages(cfg, study_root)
     except ValueError as ex:
         raise RuntimeError(f"protocol {cfg['name']}: {ex}") from None
-    if stages is not None and manual:
-        raise RuntimeError(f"protocol {cfg['name']}: a manual protocol has no stages")
     if stages is None:
-        template_path = Path(study_root) / cfg["template_path"]
         template_path_text = cfg["template_path"]
+        template_hash = sha256((Path(study_root) / template_path_text).read_text())
     else:   # the row's template columns describe both stages; stages_json is authoritative
         template_path_text = " + ".join(s["template_path"] for s in stages)
-    if cfg["name"] == MANUAL_PROTOCOL and not manual:
-        raise RuntimeError(
-            f"protocol {MANUAL_PROTOCOL} is reserved for hand percentiles (model_alias: manual);"
-            f" its members {[member_label(m) for m in members]} include a callable provider")
-    if manual and kind != BINARY_KIND:
-        raise RuntimeError(f"protocol {cfg['name']}: hand percentiles are binary-model triples;"
-                           f" model {kind!r} is not supported for a manual protocol")
-    if manual:
-        template_hash = manual_hash(template_path)
-    elif stages is not None:
         template_hash = sha256(stages_json(stages))   # covers both templates and the stage config
-    else:
-        template_hash = sha256(template_path.read_text())
     selector = normalize_selector(cfg.get("scenarios"))
     row = con.execute("SELECT * FROM protocols WHERE name=?", (cfg["name"],)).fetchone()
     if row:
         changed = [what for what, got, want in (
-            ("template_hash", row["template_hash"], row["template_hash"] if manual else template_hash),
+            ("template_hash", row["template_hash"], template_hash),
             ("members", members_json(protocol_members(row)), members_json(members)),
             ("scenarios", protocol_selector(row), selector),
-            ("model", protocol_model_kind(row), kind),
+            ("model", row["model_kind"] or BINARY_KIND, kind),
             ("stages", stages_json(protocol_stages(row)), stages_json(stages)),
         ) if got != want]
         if changed:
@@ -823,8 +628,7 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
                 f"protocol {cfg['name']} already registered with different {changed}; "
                 "create a new protocol file instead of editing an old one")
         if row["template_path"] != template_path_text:
-            # same content, relocated file (v1 -> v2 study layout): keep the
-            # row self-describing
+            # same content, relocated file: keep the row self-describing
             con.execute("UPDATE protocols SET template_path=? WHERE id=?",
                         (template_path_text, row["id"]))
             con.commit()
@@ -896,29 +700,18 @@ def valid_repeats(con, scenario_id, protocol_id: int, provider: str,
         (*ids, protocol_id, provider, model, *args))}
 
 
-def valid_raw_responses(con, scenario_id: int, protocol_id: int, provider: str,
-                        model: str) -> list[str]:
-    """raw_response of every valid elicitation of one slot family, in
-    repeat_ix order (the manual loader compares the stored hand percentiles
-    against the file's)."""
-    return [r[0] for r in con.execute(
-        "SELECT raw_response FROM elicitations WHERE scenario_id=? AND protocol_id=?"
-        " AND provider=? AND model=? AND valid=1 ORDER BY repeat_ix, id",
-        (scenario_id, protocol_id, provider, model))]
-
-
 def scenario_param_fits(con, protocol_id: int, names: list[str] | None = None,
                         members: list[str] | None = None) -> dict[int, dict[str, list[dict]]]:
     """{scenario_id: {param_name: [fit rows]}} over ALL valid elicitations of
     one protocol, every member and repeat pooled (or the `members` subset, a
     list of labels), in (provider, model, repeat_ix, elicitation_id) order.
-    Only the protocol's parameter names (param_names of its model kind, or
-    `names`) are returned (stored rows for the retired parameter e are
-    ignored). Each fit row carries elicitation_id, provider, model, family,
-    fit_params (the stored JSON string), params (parsed), p5/p50/p95."""
+    Only the parameter names asked for (PARAM_NAMES by default) are
+    returned; stored rows of other names (an archived database's retired
+    parameters) are ignored. Each fit row carries elicitation_id, provider,
+    model, family, fit_params (the stored JSON string), params (parsed),
+    p5/p50/p95."""
     prot = _protocol_row(con, protocol_id)
-    if names is None:
-        names = param_names(protocol_model_kind(prot) if prot else BINARY_KIND)
+    names = list(PARAM_NAMES if names is None else names)
     stages = protocol_stages(prot) if prot else None
     clause, args = member_filter(members)
     rows = con.execute(
@@ -1003,37 +796,6 @@ def _elicited_rows(con, protocol_id: int, scenario_id: int, name: str,
     return con.execute(sql, args).fetchall()
 
 
-def elicited_points(con, protocol_id: int, scenario_id: int, name: str,
-                    members: list[str] | None = None) -> list[tuple[str, float]]:
-    """[(member label, p50)] of one parameter over the valid elicitations
-    that feed one scenario (staged protocols: see _elicited_rows)."""
-    return [(f"{r[0]}:{r[1]}", r[2]) for r in _elicited_rows(con, protocol_id, scenario_id, name,
-                                                             members=members)]
-
-
-def param_scenario_ids(con, protocol_id: int, name: str, members: list[str] | None = None) -> list[int]:
-    """Scenario ids holding a valid elicitation that carries parameter `name`
-    under a protocol: every elicited scenario for a single-stage protocol;
-    one id per group (the lowest holding rows) for a group-stage parameter of
-    a staged one, so a noise statistic over them counts each group once even
-    when its decision rows sit on two scenarios (a retired representative and
-    its successor)."""
-    clause, margs = member_filter(members)
-    ids = [r[0] for r in con.execute(
-        "SELECT DISTINCT e.scenario_id FROM elicitations e JOIN parameters p ON p.elicitation_id=e.id"
-        f" WHERE e.protocol_id=? AND e.valid=1 AND p.name=?{clause} ORDER BY e.scenario_id",
-        (protocol_id, name, *margs))]
-    stage = stage_of_param(protocol_stages(_protocol_row(con, protocol_id)), name)
-    if stage is None or "group_key" not in stage:
-        return ids
-    first: dict[tuple, int] = {}
-    for sid in ids:   # ascending, so the first id seen per group is its lowest
-        row = con.execute("SELECT * FROM scenarios WHERE id=?", (sid,)).fetchone()
-        value = scenario_group_value(row, stage["group_key"]) if row else None
-        first.setdefault(("group", value) if value is not None else ("scenario", sid), sid)
-    return sorted(first.values())
-
-
 def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,
                   provider: str | None = None, model: str | None = None,
                   first: int | None = None, members: list[str] | None = None) -> list[float]:
@@ -1054,33 +816,6 @@ def elicited_p50s(con, protocol_id: int, scenario_id: int, name: str,
             taken[(prov, mod)] = taken.get((prov, mod), 0) + 1
             out.append(p50)
     return out
-
-
-def elicited_spread(con, protocol_id: int, scenario_id: int, name: str,
-                    provider: str | None = None, model: str | None = None,
-                    first: int | None = None, members: list[str] | None = None) -> float | None:
-    """Cross-repeat spread of one stored quantity of one scenario, the one
-    statistic every noise table, figure and macro reports:
-    sensitivity.repeat_spread over elicited_p50s, relative to the quantity's
-    own pooled p50 except for the names in fit.GAUSS_SPREAD_SCALE (d and
-    sigma_b / sigma0 as a plain max - min, mu0 divided by the pooled sigma0,
-    all in prior-sd units). None with fewer than two repeats."""
-    p50s = elicited_p50s(con, protocol_id, scenario_id, name, provider, model, first, members)
-    if name not in GAUSS_SPREAD_SCALE:
-        return repeat_spread(p50s)
-    by = GAUSS_SPREAD_SCALE[name]
-    if by is None:
-        return repeat_spread(p50s, scale=1.0)
-    ref = elicited_p50s(con, protocol_id, scenario_id, by, provider, model, first, members)
-    if not ref:
-        return None
-    return repeat_spread(p50s, scale=abs(float(np.median(ref))))
-
-
-def spread_label(name: str) -> str:
-    """Suffix naming the spread statistic of a quantity where it is not the
-    default relative one (tables, health, figures print it after the name)."""
-    return " (max - min, sd units)" if name in GAUSS_SPREAD_SCALE else ""
 
 
 def envelope_cost(raw: str) -> float:
@@ -1104,18 +839,16 @@ def envelope_cost(raw: str) -> float:
 # --- runs, results, sensitivities ------------------------------------------
 
 def insert_run(con, seed: int, n_draws: int, protocol_id: int, data_hash: str | None = None,
-               code_hash: str | None = None, members: list[str] | None = None,
-               weights: str | None = None) -> int:
+               code_hash: str | None = None, members: list[str] | None = None) -> int:
     """No commit here: the runs row commits together with its results and
     sensitivities at the end of the MC run, so an interrupted run cannot
     become the (empty) latest run. code_hash defaults to git_hash(); members
-    is the pooled subset (labels), None for every member; weights the
-    mixture weighting (None = pooled)."""
+    is the pooled subset (labels), None for every member."""
     cur = con.execute(
-        "INSERT INTO runs (created_at, seed, n_draws, code_hash, protocol_id, data_hash, members_json,"
-        " weights) VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT INTO runs (created_at, seed, n_draws, code_hash, protocol_id, data_hash, members_json)"
+        " VALUES (?,?,?,?,?,?,?)",
         (now_iso(), seed, n_draws, code_hash or git_hash(), protocol_id, data_hash,
-         run_members_json(members), normalize_weights(weights)))
+         run_members_json(members)))
     return cur.lastrowid
 
 
@@ -1136,33 +869,22 @@ def insert_sensitivity(con, run_id: int, scenario_id: int, param: str,
 
 
 def latest_run(con, protocol_name: str | None = None,
-               members: list[str] | None = None, weights: str | None = None) -> sqlite3.Row:
+               members: list[str] | None = None) -> sqlite3.Row:
     """The latest run, of one protocol when named, that pooled exactly the
     member subset `members` (labels; None = every member, which is also what
-    a subset naming every protocol member means) with the mixture weighting
-    `weights` (None or 'pooled' = pooled; a one-member selection is always
-    pooled, as mc stores it). A run is never selected across subsets or
-    weightings: a subset or equal-member run is not 'the latest p003 run'."""
-    try:
-        weights = normalize_weights(weights)
-    except ValueError as ex:
-        raise RuntimeError(str(ex)) from None
+    a subset naming every protocol member means). A run is never selected
+    across subsets: a subset run is not 'the latest p003 run'."""
     if protocol_name:
         prot = protocol_by_name(con, protocol_name)
         try:
             members = normalize_run_members(protocol_members(prot), members)
         except ValueError as ex:
             raise RuntimeError(f"protocol {protocol_name!r}: {ex}") from None
-        weights = normalize_run_weights(len(protocol_members(prot)) if members is None else len(members),
-                                        weights)
     elif members is not None:
         members = sorted(set(members))
-        weights = normalize_run_weights(len(members), weights)
     want = run_members_json(members)
     clause = " AND r.members_json IS NULL" if want is None else " AND r.members_json=?"
     args: list = [] if want is None else [want]
-    clause += " AND r.weights IS NULL" if weights is None else " AND r.weights=?"
-    args += [] if weights is None else [weights]
     if protocol_name:
         row = con.execute(
             "SELECT r.* FROM runs r JOIN protocols p ON p.id = r.protocol_id"
@@ -1172,8 +894,7 @@ def latest_run(con, protocol_name: str | None = None,
                           args).fetchone()
     if row is None:
         raise RuntimeError("no runs in DB" + (f" under protocol {protocol_name!r}" if protocol_name else "")
-                           + (f" with members [{members_label(members)}]" if members is not None else "")
-                           + (f" with weights {weights}" if weights is not None else ""))
+                           + (f" with members [{members_label(members)}]" if members is not None else ""))
     return row
 
 
@@ -1182,28 +903,3 @@ def get_run(con, run_id: int) -> sqlite3.Row:
     if row is None:
         raise RuntimeError(f"no run {run_id}")
     return row
-
-
-def run_predates_v2(con, run) -> str | None:
-    """Why a stored run cannot feed the v2 analyses (None when it can): it
-    stores no data_hash (made before provenance was recorded) or its
-    sensitivities carry the retired parameter e (made by the v1 model)."""
-    if run["data_hash"] is None:
-        return "it stores no data_hash"
-    if con.execute("SELECT 1 FROM sensitivities WHERE run_id=? AND param='e' LIMIT 1",
-                   (run["id"],)).fetchone():
-        return "its sensitivities carry the retired v1 parameter e"
-    return None
-
-
-def drop_runs(con, run_ids: list[int]) -> dict[str, int]:
-    """Delete the given runs with their results and sensitivities rows in one
-    transaction, then VACUUM. Elicitations and parameters are never touched.
-    Returns the rows deleted per table."""
-    marks = ",".join("?" * len(run_ids))
-    counts = {}
-    for table, col in (("results", "run_id"), ("sensitivities", "run_id"), ("runs", "id")):
-        counts[table] = con.execute(f"DELETE FROM {table} WHERE {col} IN ({marks})", run_ids).rowcount
-    con.commit()
-    con.execute("VACUUM")
-    return counts
