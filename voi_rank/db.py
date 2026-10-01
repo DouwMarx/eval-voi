@@ -350,15 +350,80 @@ def scenario_attributes(row) -> dict:
 
 # --- protocols -------------------------------------------------------------
 
+# Optional per-member fields of an openrouter member. All but est_output_tokens
+# are request options (providers.openrouter.request_body); est_output_tokens
+# is the cost estimate's output assumption (voi_rank.pricing). A member keeps
+# only the fields its YAML sets, so a member without options stores exactly
+# {provider, model, k_repeats} and older protocol rows compare equal.
+REASONING_EFFORTS = ("low", "medium", "high")
+MEMBER_REQUEST_OPTIONS = ("reasoning_effort", "max_tokens", "json_mode", "provider_order", "temperature")
+MEMBER_OPTIONS = (*MEMBER_REQUEST_OPTIONS, "est_output_tokens")
+MEMBER_REQUIRED = ("provider", "model", "k_repeats")
+
+
+def _member_option(name: str, value):
+    """A validated member option value; ValueError names the field."""
+    if name == "reasoning_effort":
+        if value not in REASONING_EFFORTS:
+            raise ValueError(f"reasoning_effort must be one of {list(REASONING_EFFORTS)}, got {value!r}")
+        return value
+    if name in ("max_tokens", "est_output_tokens"):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(f"{name} must be a positive integer, got {value!r}")
+        return value
+    if name == "json_mode":
+        if not isinstance(value, bool):
+            raise ValueError(f"json_mode must be true or false, got {value!r}")
+        return value
+    if name == "provider_order":
+        if (not isinstance(value, list) or not value
+                or not all(isinstance(v, str) and v.strip() for v in value)):
+            raise ValueError(f"provider_order must be a non-empty list of provider names, got {value!r}")
+        return [v.strip() for v in value]
+    if name == "temperature":   # 'omit': send none (an endpoint that rejects the parameter)
+        if value == "omit":
+            return value
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 2:
+            raise ValueError(f"temperature must be a number in [0, 2] or 'omit', got {value!r}")
+        return float(value)
+    raise ValueError(f"unknown member field {name!r}")
+
+
+def normalize_member(m: dict) -> dict:
+    """{provider, model, k_repeats} plus the optional fields the YAML sets
+    (MEMBER_OPTIONS, openrouter members only); unknown fields are refused."""
+    missing = [f for f in MEMBER_REQUIRED if f not in m]
+    if missing:
+        raise ValueError(f"member {m!r} lacks {missing}")
+    out = {"provider": str(m["provider"]), "model": str(m["model"]), "k_repeats": int(m["k_repeats"])}
+    extra = [f for f in m if f not in MEMBER_REQUIRED]
+    unknown = [f for f in extra if f not in MEMBER_OPTIONS]
+    if unknown:
+        raise ValueError(f"member {member_label(out)}: unknown fields {unknown}"
+                         f" (optional fields: {list(MEMBER_OPTIONS)})")
+    if extra and out["provider"] != "openrouter":
+        raise ValueError(f"member {member_label(out)}: {extra} apply to openrouter members only")
+    for f in MEMBER_OPTIONS:
+        if f in m:
+            try:
+                out[f] = _member_option(f, m[f])
+            except ValueError as ex:
+                raise ValueError(f"member {member_label(out)}: {ex}") from None
+    return out
+
+
+def member_request_options(member: dict) -> dict:
+    """The request options a member sets (keyword arguments of its provider
+    call); {} for a member without any."""
+    return {f: member[f] for f in MEMBER_REQUEST_OPTIONS if f in member}
+
+
 def normalize_members(cfg: dict) -> list[dict]:
-    """Protocol members as [{provider, model, k_repeats}], from either the
-    'members' list or the legacy 'model_alias' + 'k_repeats' pair of a
-    pre-v2 row (a single claude_cli member)."""
+    """Protocol members as [{provider, model, k_repeats, <options>}], from
+    either the 'members' list or the legacy 'model_alias' + 'k_repeats' pair
+    of a pre-v2 row (a single claude_cli member)."""
     if "members" in cfg:
-        members = []
-        for m in cfg["members"]:
-            members.append({"provider": str(m["provider"]), "model": str(m["model"]),
-                            "k_repeats": int(m["k_repeats"])})
+        members = [normalize_member(m) for m in cfg["members"]]
         if not members:
             raise ValueError("protocol has an empty members list")
         seen = set()

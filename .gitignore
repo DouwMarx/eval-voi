@@ -4,6 +4,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .env
+# OpenRouter price cache of the plan's cost estimate (voi_rank.pricing)
+studies/*/.openrouter_models.json
 # report build products, current studies and archived ones alike
 studies/*/report/generated/*
 !studies/*/report/generated/.gitkeep

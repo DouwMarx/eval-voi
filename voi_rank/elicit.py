@@ -86,7 +86,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from voi_rank import db
+from voi_rank import db, pricing
 from voi_rank.dotenv import seconds_setting
 from voi_rank.providers import claude_cli, get_provider, openrouter
 from voi_rank.study import Study, add_study_arg
@@ -317,13 +317,15 @@ def parse_payload(obj, names: list[str] | None = None) -> tuple[dict | None, dic
     return (clean, fits, None) if fits is not None else (None, None, err)
 
 
-def attempt_once(call, prompt: str, model: str, names: list[str] | None = None) -> dict:
+def attempt_once(call, prompt: str, model: str, names: list[str] | None = None,
+                 options: dict | None = None) -> dict:
     """One provider call, parsed, validated and fitted (against the stage's
     parameter `names`). An exception escaping the provider becomes an
     attempt with error 'provider: <Type>: <msg>', so one bad call never
-    aborts the run or discards completed paid work."""
+    aborts the run or discards completed paid work. options: the member's
+    request options (db.member_request_options), passed as keywords."""
     try:
-        envelope, raw, err = call(prompt, model, SYSTEM_PROMPT)
+        envelope, raw, err = call(prompt, model, SYSTEM_PROMPT, **(options or {}))
     except Exception as ex:
         return failed_attempt(f"provider: {type(ex).__name__}: {ex}")
     clean = fits = None
@@ -376,14 +378,17 @@ def retry_delay(error: str | None) -> float | None:
 
 
 def elicit_job(call, prompt: str, model: str, sleep=time.sleep,
-               stop: threading.Event | None = None, names: list[str] | None = None) -> list[dict]:
+               stop: threading.Event | None = None, names: list[str] | None = None,
+               options: dict | None = None) -> list[dict]:
     """Up to two attempts through one provider, retried per retry_delay().
     Each attempt dict: raw, error, clean, fits, cost. A clamped Retry-After
     is recorded in the first attempt's error. `stop` (set by run_jobs once
     its main thread is interrupted) skips the retry, and cuts its backoff
     short, so no call is launched after Ctrl-C. names: the parameters a
-    stage of a staged protocol asks for."""
-    attempts = [attempt_once(call, prompt, model, names)]
+    stage of a staged protocol asks for; options: the member's request
+    options. A 'truncated:' answer (max_tokens hit) is retried once with the
+    same cap, like any non-HTTP failure."""
+    attempts = [attempt_once(call, prompt, model, names, options)]
     delay = retry_delay(attempts[0]["error"])
     if delay is None or not math.isfinite(delay):   # never, or the run's outage pause
         return attempts
@@ -397,7 +402,7 @@ def elicit_job(call, prompt: str, model: str, sleep=time.sleep,
             return attempts
     if stop is not None and stop.is_set():
         return attempts
-    attempts.append(attempt_once(call, prompt, model, names))
+    attempts.append(attempt_once(call, prompt, model, names, options))
     return attempts
 
 
@@ -676,7 +681,8 @@ def group_sort_key(value: str) -> tuple:
     return (not value.isdigit(), int(value) if value.isdigit() else 0, value)
 
 
-def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str | None = None):
+def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str | None = None,
+            study_root: Path | None = None):
     """Render prompts and list pending slots per stage and member (over
     groups for the decision stage, scenarios for the instrument stage), print
     the plan with its cost estimate (print_plan, from the attempts stored on
@@ -709,7 +715,7 @@ def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str 
     for line in empty_field_lines(jobs):
         print(f"  warning: {line}; the paid run of this stage is refused until the field is filled"
               " in scenarios.json")
-    print_plan(con, prot, members, jobs)
+    print_plan(con, prot, members, jobs, study_root)
     for st in stages:
         sjobs = [j for j in jobs if j["stage"] == st["name"]]
         if sjobs:
@@ -758,32 +764,56 @@ def member_mean_cost(con, member: dict) -> tuple[float, int] | None:
         "SELECT e.raw_response, e.error FROM elicitations e WHERE e.provider=? AND e.model=?",
         (member["provider"], member["model"])).fetchall()
     rows = [r for r in rows if not claude_cli.is_usage_limit(r["error"], r["raw_response"])]
+    # billed attempts only (the test billed() applies): a free failure (HTTP 404 of an
+    # unroutable endpoint, a transport error) would pull the mean towards $0
+    rows = [r for r in rows if r["error"] is None or db.envelope_cost(r["raw_response"]) > 0
+            or r["error"].split(":", 1)[0] not in _UNBILLED_PREFIXES]
     if not rows:
         return None
     return sum(db.envelope_cost(r["raw_response"]) for r in rows) / len(rows), len(rows)
 
 
-def print_plan(con, prot, members, jobs):
-    """Slots per member and the estimated cost (slots x mean stored cost per
-    billed attempt of that member in this study, 'unknown' without such
-    history)."""
+def print_plan(con, prot, members, jobs, study_root: Path | None = None):
+    """Slots per member and the estimated cost: slots x the mean stored cost
+    per billed attempt of that member in this study; for an openrouter
+    member without stored attempts, catalogue prices x a token estimate
+    (voi_rank.pricing, low / central / high; prices cached under
+    study_root); else 'unknown'."""
     stages = db.protocol_stages(prot)
     print(f"plan: protocol {prot['name']}, {len(jobs)} pending slots "
           "(one attempt each; a failed attempt is retried once)")
-    total, unknown = 0.0, False
+    stored = {db.member_label(m): member_mean_cost(con, m) for m in members}
+    priced = [m for m in members if stored[db.member_label(m)] is None and m["provider"] == "openrouter"
+              and any(db.member_label(j["member"]) == db.member_label(m) for j in jobs)]
+    prices = pricing.member_prices(priced, study_root) if priced else {}
+    total, unknown = [0.0, 0.0, 0.0], False
     for m in members:
         mine = [j for j in jobs if db.member_label(j["member"]) == db.member_label(m)]
         n = len(mine)
         by_stage = " (" + ", ".join(
             f"{s['name']} {sum(1 for j in mine if j['stage'] == s['name'])}" for s in stages) + ")"
-        est = member_mean_cost(con, m)
-        if est is None:
-            cost, unknown = "unknown (no stored attempts of this member in this study)", True
-        else:
-            total += n * est[0]
+        est = stored[db.member_label(m)]
+        if est is not None:
+            total = [t + n * est[0] for t in total]
             cost = f"${n * est[0]:.2f} (mean ${est[0]:.4f}/attempt over {est[1]} stored attempts)"
+        elif not n:
+            cost = "$0.00"
+        elif prices.get(m["model"]) is not None:
+            per_token, source = prices[m["model"]]
+            low, mid, high = pricing.estimate(mine, m, per_token, SYSTEM_PROMPT)
+            total = [t + c for t, c in zip(total, (low, mid, high), strict=True)]
+            n_in = sum(pricing.input_tokens(j["prompt"], SYSTEM_PROMPT) for j in mine) / n
+            cost = (f"${mid:.2f} (low ${low:.2f}, high ${high:.2f}: {n_in:,.0f} input +"
+                    f" {pricing.output_tokens(m):,} output tokens/call at ${per_token['prompt'] * 1e6:g} /"
+                    f" ${per_token['completion'] * 1e6:g} per M, {source})")
+        else:
+            unknown = True
+            cost = ("unknown (no stored attempts of this member in this study"
+                    + (", and no price for it" if m["provider"] == "openrouter" else "") + ")")
         print(f"  {db.member_label(m)}: {n} slots{by_stage}, estimated cost {cost}")
-    print(f"  estimated total: ${total:.2f}" + (" + unknown" if unknown else ""))
+    low, mid, high = total
+    spread = f" (low ${low:.2f}, high ${high:.2f})" if high > low else ""
+    print(f"  estimated total: ${mid:.2f}{spread}" + (" + unknown" if unknown else ""))
 
 
 def confirm_interactively(prompt: str = "submit this run? [y/N] ") -> bool:
@@ -932,7 +962,8 @@ def run_jobs(con, study: Study, protocol_id: int, jobs: list[dict], workers: int
         new = []
         for j in batch:
             fut = pool.submit(elicit_job, get_provider(j["member"]["provider"]), j["prompt"],
-                              j["member"]["model"], stop=stop, names=j.get("names"))
+                              j["member"]["model"], stop=stop, names=j.get("names"),
+                              options=db.member_request_options(j["member"]) or None)
             futures[fut] = j
             id_floor[fut] = floor
             new.append(fut)
@@ -1281,8 +1312,9 @@ def main(argv=None):
         _, prot, members, jobs = plan(plan_con, study, args, preview=True)
     except RuntimeError as ex:   # a refused protocol file or a frozen scenario: a usage error, no traceback
         raise SystemExit(str(ex)) from None
+    cache_root = None if study.archived else study.root   # never write under archive/
     if args.dry_run:
-        dry_run(plan_con, prot, members, jobs, args.k, args.stage)
+        dry_run(plan_con, prot, members, jobs, args.k, args.stage, cache_root)
         return
     study.check_writable()   # an archived study is refused before the confirmation and the preflight
     if not jobs:
@@ -1293,7 +1325,7 @@ def main(argv=None):
         raise SystemExit("\n".join(empty) + "\nfill the field in scenarios.json first (an elicited"
                          " scenario is frozen, so it cannot be filled later); nothing was written")
     check_credentials(members)
-    print_plan(plan_con, prot, members, jobs)
+    print_plan(plan_con, prot, members, jobs, cache_root)
     plan_con.close()
     if not args.yes and not confirm_interactively():
         raise SystemExit("not submitted: pass --yes, or confirm at the prompt on a TTY"
