@@ -256,6 +256,10 @@ def collect(s: Summary) -> dict[str, str]:
         m[f"MemberRho{camel(name)}"] = num(o["member_rho"][name])
     ranked = sorted((v, k) for k, v in rho.items() if v is not None)
     m["RhoTopParam"] = param_tex(ranked[-1][1]) if ranked else "--"
+    m["LevelRhoEta"] = num(o["level_rho_eta"])
+    m["LevelRhoEtap"] = num(o["level_p_eta"])
+    m["LevelRhoEtaInd"] = num(o["level_rho_eta_ind"])   # alias LevelRhoEtaMax
+    m["LevelRhoEtaIndp"] = num(o["level_p_eta_ind"])
     m["LevelRhoJ"] = num(o["level_rho_J"])
     m["LevelRhoC"] = num(o["level_rho_C"])
     m["LevelRhoJp"] = num(o["level_p_J"])

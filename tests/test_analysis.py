@@ -226,6 +226,41 @@ def test_replay_mismatch_is_refused_and_invalid_rows_are_counted(elicited):
         summary.load(con, "pS")
 
 
+def test_a_scenario_cut_from_scenarios_json_leaves_new_runs_and_the_analysis(elicited, monkeypatch, capsys):
+    """Cutting a scenario from scenarios.json (include.yaml) keeps its rows in
+    voi.db (append-only) but retires it: the analysis refuses the run that
+    still holds it, the next MC run (whose seeding retires it) leaves it out,
+    the old run still replays, and the analysis of the new run covers only
+    the file's scenarios."""
+    import json
+    study, old = elicited
+    path = study.scenarios_json
+    scen = json.loads(path.read_text())
+    cut = {"Physical evaluation 3", "LLM evaluation 4"}
+    path.write_text(json.dumps([sc for sc in scen if sc["title"] not in cut]))
+    con = study.connect()
+    n_elicited = con.execute("SELECT COUNT(*) FROM elicitations").fetchone()[0]
+    con.close()
+    with pytest.raises(SystemExit, match=r"left scenarios.json and are retired: run voi_rank.mc again"):
+        cli.main(["--study", str(study.root), "--protocol", "pS", "--draws", "500"])
+    monkeypatch.setattr(db, "git_state", lambda cwd=None: ("deadbeef", []))
+    mc.main(["--study", str(study.root), "--protocol", "pS", "--seed", "7", "--draws", "500"])
+    assert "retired (title no longer in scenarios.json" in capsys.readouterr().out
+    con = study.connect()
+    rows = {r["title"]: r for r in con.execute("SELECT * FROM scenarios")}
+    assert {rows[t]["source"] for t in cut} == {db.RETIRED_SOURCE}
+    assert con.execute("SELECT COUNT(*) FROM elicitations").fetchone()[0] == n_elicited   # nothing deleted
+    new = db.latest_run(con, "pS")["id"]
+    ids = {r[0] for r in con.execute("SELECT DISTINCT scenario_id FROM results WHERE run_id=?", (new,))}
+    assert ids == {r["id"] for t, r in rows.items() if t not in cut}
+    old_ids, _ = mc.replay_efficiency(con, old)   # the earlier run still replays, cut scenarios included
+    assert {rows[t]["id"] for t in cut} <= set(old_ids)
+    s = summary.load(con, "pS")
+    assert s.run["id"] == new and {sc.title for sc in s.scenarios} == set(rows) - cut
+    assert [sc.group for sc in s.scenarios] == [PHYS] * 3 + [LLM] * 4
+    cli.main(["--study", str(study.root), "--protocol", "pS", "--draws", "500"])
+
+
 def _compile(tmp_path, body: str, name: str):
     doc = tmp_path / f"{name}.tex"
     doc.write_text("\\documentclass{article}\n\\usepackage{booktabs}\n\\begin{document}\n"
@@ -338,7 +373,7 @@ def test_truncated_answers_have_their_own_error_class():
 
 
 def test_new_macros_match_their_definitions(elicited):
-    """A among decision-changing evaluations, the fidelity-level p-values and a
+    """A among decision-changing evaluations, the fidelity-level correlations and a
     LaTeX-safe top parameter."""
     study, _ = elicited
     s = summary.load(study.connect_copy(), "pS", draws=1000)
@@ -353,6 +388,11 @@ def test_new_macros_match_their_definitions(elicited):
     J = s.pooled["s"] + s.pooled["t"] - 1
     assert m["LevelRhoJp"] == macros.num(stats.spearmanr(levels, J[lev]).pvalue)
     assert m["LevelRhoCp"] == macros.num(stats.spearmanr(levels, s.central["C"][lev]).pvalue)
+    # the fidelity question: level against the central eta and eta_max (alias EtaMax)
+    for key, metric in (("Eta", "eta"), ("EtaMax", "eta_ind")):
+        r = stats.spearmanr(levels, s.central[metric][lev])
+        assert m[f"LevelRho{key}"] == macros.num(r.statistic)
+        assert m[f"LevelRho{key}p"] == macros.num(r.pvalue)
     assert m["RhoTopParam"] in {macros.param_tex(n) for n in db.PARAM_NAMES}
     assert macros.param_tex("C_build") == r"$C_\mathrm{build}$" and macros.param_tex("K") == "$K$"
 

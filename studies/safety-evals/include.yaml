@@ -1,0 +1,56 @@
+# Which drafts in research/scenarios_draft/ enter scenarios.json
+# (scripts/build_scenarios.py). Every draft key must appear exactly once.
+# Review and criteria: research/scenarios_draft/QUALITY_REVIEW.md (2026-10-01).
+# A cut scenario keeps its rows in voi.db; seeding marks it retired and the
+# Monte Carlo and the analysis leave it out.
+
+# LLM: cyber
+cybergym: {include: true, reason: "public instrument, programmatic score, most-named LLM evaluation (34 documents, 11 publishers)"}
+exploitgym: {include: true, reason: "public exploit-development instrument with programmatic score; best documented of the known-vulnerability exploitation construct"}
+cvebench: {include: true, reason: "public, programmatic grader, published run cost; second exploitation instrument on a different target class (web applications)"}
+cybench: {include: true, reason: "public CTF suite run by US AISI and several labs; saturated at the frontier, which the elicited specificity can carry"}
+cyber_range: {include: true, reason: "end-to-end network intrusion with a public primary paper and published run cost; the only range-scale cyber instrument"}
+exploitbench: {include: false, reason: "duplicates ExploitGym's construct (N-day exploit development to code execution on browser engines)"}
+binary_exploitation: {include: false, reason: "developer-private; no standalone primary source beyond system-card sentences"}
+cyscenariobench: {include: false, reason: "third-party private, no primary source, score within 0.1 of the floor; duplicates the cyber range construct"}
+
+# LLM: CBRN
+vct: {include: true, reason: "expert-baselined virology troubleshooting test with a public paper; best documented CBRN knowledge test"}
+wmdp: {include: true, reason: "public hazardous-knowledge proxy with published build cost; second CBRN knowledge test, for an open-weights decision"}
+abcbench: {include: true, reason: "agentic bio tasks with algorithmic checks and a paid PhD baseline; the only agentic CBRN instrument"}
+hpct: {include: false, reason: "private, no standalone primary paper, same builder and construct as VCT"}
+labbench_bio: {include: false, reason: "duplicates VCT's wet-lab protocol-troubleshooting construct with a PhD baseline; general research capability with an indirect hazard link"}
+biotier: {include: false, reason: "published July 2026, prompts on request, near the score floor; refusal construct overlaps StrongREJECT and FORTRESS"}
+
+# LLM: loss of control
+shade_arena: {include: true, reason: "fixed task pairs, fixed monitor and threshold; best documented covert-sabotage instrument"}
+agentic_misalignment: {include: true, reason: "fixed public scenario set, MIT code, reproduced by an independent port; the self-preservation construct"}
+bloom: {include: false, reason: "an evaluation generator, not a fixed instrument; seeded from and duplicates Agentic Misalignment"}
+controlarena: {include: false, reason: "a framework of control settings, not one fixed instrument; duplicates SHADE-Arena's construct"}
+
+# LLM: harmful manipulation
+mask: {include: true, reason: "public honesty-under-pressure set with a held-out split; LLM judge at 86.4% agreement with human labels"}
+petri: {include: false, reason: "an auditing tool (auditor agent over generated scenarios), not one fixed instrument"}
+deceptionbench: {include: false, reason: "entered by the domain floor below the score floor; evaluation awareness reported"}
+
+# LLM: societal harm
+strongreject: {include: true, reason: "public prompts, fixed jailbreak battery and validated judge; best documented jailbreak-robustness instrument"}
+fortress: {include: true, reason: "human-written adversarial national-security prompts with rubrics and benign counterparts; second refusal instrument, distinct attack source"}
+agentharm: {include: true, reason: "public agentic misuse tasks with benign counterparts; the only agentic misuse instrument"}
+bbq: {include: true, reason: "public templated set, programmatic bias score, annotator agreement reported; the only bias instrument"}
+harmbench: {include: false, reason: "duplicates StrongREJECT (automated jailbreak attacks scored by a classifier judge); fewer citing documents"}
+
+# physical AI
+iihs_paeb: {include: true, reason: "level 8; public protocol with a field-claims validity chain"}
+iso10218_pfl: {include: true, reason: "level 7; standard-based contact-force test on a non-learning system, public measurement studies"}
+robopair: {include: true, reason: "level 7; fixed action set and iteration budget, harmful actions executed on two real robots, human-checked, public paper"}
+veo_worldmodel: {include: true, reason: "level 5; public paper, success predictions correlate with 1600+ real trials (Pearson 0.88); safety check qualitative and the evaluator is developer-internal; the only level-5 instrument"}
+redvla: {include: true, reason: "level 4; MIT-licensed code, fixed predicates and iteration budget; attacks reproduced on two physical Franka arms"}
+safeagentbench: {include: true, reason: "level 4; public tasks executed in a simulator, 91% human-judge agreement over 1008 ratings"}
+asimov2: {include: true, reason: "level 3; public paper and sets grounded in injury narratives, five human raters per item, rerun by a developer on a released model"}
+asimov_agentic: {include: false, reason: "developer tech report of 2026-07-29, access-restricted dataset, no agreement statistic, lab stop test not compared with the offline scores"}
+maniguard: {include: false, reason: "preprint of 2026-08-18; its sim-to-real check gives r = 0.09 for the violation rate that carries theta"}
+isbench: {include: false, reason: "same system type, fidelity level and harm class as SafeAgentBench (household planner in a simulator), without its human-judge agreement figure"}
+egosafetybench: {include: false, reason: "preprint of July 2026, generated videos labelled by an LLM (kappa 0.66-0.80 against humans); duplicates ASIMOV-2.0's danger-perception construct at level 3"}
+safeplan: {include: false, reason: "level 0 text classification with no reported validity (no annotator count or agreement statistic)"}
+humanoid_orchestrator: {include: false, reason: "preprint of September 2026, code not released, lowest-scoring physical candidate (2 points)"}

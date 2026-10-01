@@ -1,5 +1,5 @@
 """The committed study studies/safety-evals: the scenario file is the build of
-the 39 fact-checked drafts and follows the DESIGN section 5 schema, the
+the fact-checked drafts that include.yaml keeps and follows the DESIGN section 5 schema, the
 templates respect the two prompts' separation (DESIGN section 4), the
 protocols are the headline (p001) and the developer-perspective ablation
 (p002), and the documented dry run plans both stages and renders the first
@@ -56,12 +56,42 @@ def test_scenarios_json_is_the_build_of_the_drafts():
     assert (STUDY / "scenarios.json").read_text() == build_scenarios.render()
 
 
+def include_list() -> dict:
+    return yaml.safe_load((STUDY / "include.yaml").read_text())
+
+
+def test_include_list_names_every_draft_with_a_reason():
+    inc = include_list()
+    assert set(inc) == {p.stem for p in DRAFTS.glob("*.json")}
+    assert all(isinstance(e["include"], bool) and e["reason"].strip() for e in inc.values())
+    kept = {json.loads((DRAFTS / f"{k}.json").read_text())["title"] for k, e in inc.items() if e["include"]}
+    titles = {build_scenarios.TITLE_FIXES.get(t, t) for t in kept}
+    assert titles == {s["title"] for s in scenarios()}
+
+
+def test_include_list_with_a_missing_or_bad_entry_is_refused(tmp_path):
+    inc = include_list()
+    bad = dict(inc)
+    bad.pop(sorted(inc)[0])
+    bad["nonexistent"] = {"include": True, "reason": "x"}
+    bad[sorted(inc)[1]] = {"include": "yes", "reason": ""}
+    path = tmp_path / "include.yaml"
+    path.write_text(yaml.safe_dump(bad))
+    with pytest.raises(SystemExit) as ex:
+        build_scenarios.build(path)
+    msg = str(ex.value)
+    assert f"{sorted(inc)[0]}: no entry" in msg and "nonexistent: no draft" in msg
+    assert f"{sorted(inc)[1]}: needs include" in msg
+
+
 def test_scenarios_follow_the_design_schema():
     scen = scenarios()
     drafts = {d["instrument"]: d for d in (json.loads(p.read_text()) for p in DRAFTS.glob("*.json"))}
-    assert len(scen) == len(drafts) == 39 and len({s["title"] for s in scen}) == 39
+    kept = [k for k, e in include_list().items() if e["include"]]
+    assert len(scen) == len(kept) and len({s["title"] for s in scen}) == len(kept)
     groups = [s["group"] for s in scen]
-    assert groups == ["LLM"] * 26 + ["physical AI"] * 13   # LLM first, then physical AI
+    n_llm = groups.count("LLM")
+    assert groups == ["LLM"] * n_llm + ["physical AI"] * (len(scen) - n_llm)   # LLM first, then physical AI
     for g in ("LLM", "physical AI"):
         ranks = [s["attributes"]["candidate_rank"] for s in scen if s["group"] == g]
         assert ranks == sorted(ranks) and len(set(ranks)) == len(ranks)
@@ -215,13 +245,15 @@ def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys, fresh_
     assert "DRY RUN: protocol p001 (stages decision + instrument, hash" in out
     assert "stage decision (template templates/decision.md, params p, B, K, group_key self):" in out
     assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run, n):" in out
+    n = len(scenarios())
     for member in ("claude_cli:haiku", "claude_cli:sonnet"):
-        groups = ", ".join(str(i) for i in range(1, 40))
-        assert f"member {member} (k=2): 78 pending slots over 39 groups ({groups})" in out
-        assert f"member {member} (k=2): 78 pending slots over 39 scenarios (ids 1..39)" in out
-        assert f"{member}: 156 slots (decision 78, instrument 78), estimated cost unknown" in out
-    assert "312 slots would be elicited; no provider was called." in out
-    assert "plan: protocol p001, 312 pending slots" in out
+        groups = ", ".join(str(i) for i in range(1, n + 1))
+        assert f"member {member} (k=2): {2 * n} pending slots over {n} groups ({groups})" in out
+        assert f"member {member} (k=2): {2 * n} pending slots over {n} scenarios (ids 1..{n})" in out
+        assert (f"{member}: {4 * n} slots (decision {2 * n}, instrument {2 * n}), estimated cost unknown"
+                in out)
+    assert f"{8 * n} slots would be elicited; no provider was called." in out
+    assert f"plan: protocol p001, {8 * n} pending slots" in out
     assert "estimated total: $0.00 + unknown" in out
     assert "warning" not in out   # every rendered field is filled
     sc = scenarios()[0]
@@ -239,7 +271,8 @@ def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys, fresh_
 def test_dry_run_p002_decision_stage_only(capsys, fresh_study):
     elicit.main(["--study", str(fresh_study), "--protocol", "p002", "--stage", "decision", "--dry-run"])
     out = capsys.readouterr().out
-    assert "plan: protocol p002, 156 pending slots" in out and "not planned (--stage decision)" in out
+    assert f"plan: protocol p002, {4 * len(scenarios())} pending slots" in out
+    assert "not planned (--stage decision)" in out
     assert "from the developer perspective" in out
     assert not list(fresh_study.glob("voi.db*"))
 
@@ -253,7 +286,7 @@ def test_dry_run_from_the_shell_entry_point(fresh_study):
                            "--protocol", "p001", "--dry-run"], cwd=ROOT, capture_output=True, text=True,
                           timeout=120)
     assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
-    assert "312 slots would be elicited; no provider was called." in proc.stdout
+    assert f"{8 * len(scenarios())} slots would be elicited; no provider was called." in proc.stdout
     assert not list(fresh_study.glob("voi.db*"))
 
 

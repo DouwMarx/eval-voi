@@ -36,6 +36,11 @@ by the central estimate of eta (central_estimate: the model at the pooled
 medians, DESIGN section 6) with the run's eta quantiles and P(EVSI > C); the
 MC median is not a ranking, so there is no rank column.
 
+Scope: the study's scenarios.json. main() seeds it into voi.db first (as an
+elicitation does), which retires every seed row whose title left the file
+(db.seed_scenarios); complete_fits then leaves the retired rows out, so their
+elicitations stay in the DB but enter no new run.
+
 Usage: python -m voi_rank.mc --study studies/X --protocol p001 [--seed 42] [--draws 100000]
        [--allow-dirty] [--members claude_cli:sonnet,claude_cli:opus]
 """
@@ -102,13 +107,18 @@ def summarize(vec: np.ndarray) -> dict:
     return dict(zip(SUMMARY_QS, (float(v) for v in qs), strict=True))
 
 
-def complete_fits(con, protocol_id: int,
-                  members: list[str] | None = None) -> dict[int, dict[str, list[dict]]]:
+def complete_fits(con, protocol_id: int, members: list[str] | None = None,
+                  scenario_ids=None) -> dict[int, dict[str, list[dict]]]:
     """Scenarios with at least one valid elicitation carrying every parameter
-    (PARAM_NAMES), over every member or the `members` subset (labels)."""
+    (PARAM_NAMES), over every member or the `members` subset (labels). Only
+    the active scenarios count (db.get_scenarios 'all': a retired seed row,
+    whose title left scenarios.json, keeps its elicitations but is left
+    out), unless `scenario_ids` names the set (a replay of a stored run)."""
+    keep = ({r["id"] for r in db.get_scenarios(con, "all")} if scenario_ids is None
+            else set(scenario_ids))
     return {
         sid: fits for sid, fits in sorted(db.scenario_param_fits(con, protocol_id, members=members).items())
-        if all(name in fits for name in db.PARAM_NAMES)
+        if sid in keep and all(name in fits for name in db.PARAM_NAMES)
     }
 
 
@@ -150,7 +160,11 @@ def replay_efficiency(con, run_id: int):
     quantile and p_positive is verified."""
     run = db.get_run(con, run_id)
     ids, effs, ppos = [], [], []
-    fits = complete_fits(con, run["protocol_id"], db.run_member_labels(run))   # the stored subset
+    stored = {r["scenario_id"]: r for r in con.execute(
+        "SELECT * FROM results WHERE run_id=? AND metric=?", (run_id, PRIMARY_METRIC))}
+    # the run's own scenarios (retired ones included) and member subset: the rng stream
+    # is consumed in their order, so the replay redraws exactly what the run drew
+    fits = complete_fits(con, run["protocol_id"], db.run_member_labels(run), scenario_ids=stored)
     if not fits:
         raise RuntimeError(f"run {run_id}: no scenarios with complete valid elicitations under its protocol"
                            " (an archived six-parameter run cannot be replayed by the current code)")
@@ -160,8 +174,6 @@ def replay_efficiency(con, run_id: int):
         effs.append(metrics[PRIMARY_METRIC])
         ppos.append(probabilities(metrics)["p_positive"])
     eff = np.vstack(effs)
-    stored = {r["scenario_id"]: r for r in con.execute(
-        "SELECT * FROM results WHERE run_id=? AND metric=?", (run_id, PRIMARY_METRIC))}
     if set(ids) != set(stored):
         raise RuntimeError(
             f"run {run_id} replay mismatch: elicitations changed since the run "
@@ -181,8 +193,8 @@ def replay_efficiency(con, run_id: int):
 
 def run_mc(con, protocol_name: str, seed: int, n_draws: int, quiet: bool = False,
            allow_dirty: bool = False, members: list[str] | None = None) -> int:
-    """Execute one MC run over all scenarios with complete valid elicitations
-    under the protocol. Writes runs, results (every metric's quantiles and the
+    """Execute one MC run over all active scenarios (complete_fits) with
+    complete valid elicitations under the protocol. Writes runs, results (every metric's quantiles and the
     probability rows, p_top5 included) and sensitivities. Returns the run id.
     Uncommitted changes under db.CODE_PATHS, or a code revision that cannot
     be determined (no git, not a repository), are refused unless allow_dirty
@@ -301,6 +313,12 @@ def main(argv=None):
     args = ap.parse_args(argv)
     study = Study.resolve(args.study)
     con = study.connect()
+    # seed first, so a scenario that left scenarios.json is retired (kept with its
+    # elicitations, left out of the run) and the run covers exactly the file's scenarios
+    try:
+        db.seed_scenarios(con, study.scenarios_json)
+    except RuntimeError as ex:   # an elicited scenario that differs from the file
+        raise SystemExit(str(ex)) from None
     members = db.parse_member_labels(args.members)
     try:
         run_id = run_mc(con, args.protocol, args.seed, args.draws, allow_dirty=args.allow_dirty,

@@ -945,8 +945,8 @@ def test_mc_draws_from_the_fits_its_data_hash_describes(study, monkeypatch):
     reads = []
     real = mc.complete_fits
 
-    def counted(con_, pid, members=None):
-        fits = real(con_, pid, members)
+    def counted(con_, pid, members=None, scenario_ids=None):
+        fits = real(con_, pid, members, scenario_ids)
         reads.append(fits)
         return fits
 

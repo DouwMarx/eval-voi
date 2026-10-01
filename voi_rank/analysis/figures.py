@@ -605,23 +605,51 @@ def fig_sensitivity(s: Summary, out: Path) -> Path | None:
 
 
 def fig_level(s: Summary, out: Path) -> Path | None:
+    """Physical-AI evaluations by fidelity level. Top: the central eta and
+    eta_max on log axes (a zero, the prior already decisive, sits on the "0"
+    row as an open marker), with Spearman's rho and its p-value in the
+    title. Bottom, secondary: Youden's index and cost."""
     lev = s.out["level_ids"]
     if len(lev) < 2 or len({s.scenarios[i].level for i in lev}) < 2:
         print("fig_level: skipped (fewer than two physical-AI fidelity levels)")
         return None
     x = np.array([s.scenarios[i].level for i in lev])
+    ids = [str(s.scenarios[i].id) for i in lev]
+    o = s.out
     with plt.rc_context(STYLE):
-        fig, (ax, bx) = plt.subplots(1, 2, figsize=(FIG_W, 2.2))
-        for a, y, lab in ((ax, s.out["youden"][lev], "Youden's index $J=s+t-1$"),
-                          (bx, s.central["C"][lev], "cost $C$ (USD)")):
-            a.plot(x, y, MARKER[PHYS], ls="", color=COLOR[PHYS], ms=4.5, mec="white", mew=0.4)
-            a.set_xlabel("fidelity level")
+        fig, axes = plt.subplots(2, 2, figsize=(FIG_W, 4.2))
+        for a, metric, lab in ((axes[0, 0], "eta", r"$\eta=\mathrm{EVSI}/C$"),
+                               (axes[0, 1], "eta_ind", r"$\eta_\mathrm{max}=\mathrm{EVSI}_\mathrm{max}/C$")):
+            y = s.central[metric][lev]
+            zero = ~(y > 0)
+            floor = floor_of(y)
+            yy = np.where(zero, floor, y)
+            a.plot(x[~zero], yy[~zero], MARKER[PHYS], ls="", color=COLOR[PHYS], ms=4.5, mec="white", mew=0.4)
+            a.plot(x[zero], yy[zero], MARKER[PHYS], ls="", mfc="white", mec=COLOR[PHYS], ms=4.5, mew=0.8)
+            a.set_yscale("log")
+            if zero.any():
+                top = max(float(np.max(yy)), floor * 10)
+                lo, hi = math.ceil(math.log10(floor) + 1), math.floor(math.log10(top))
+                ticks = [10.0 ** k for k in range(lo, hi + 1)]
+                a.yaxis.set_major_locator(mticker.FixedLocator([floor, *ticks]))
+                a.yaxis.set_major_formatter(mticker.FuncFormatter(
+                    lambda v, _, f=floor: "0" if math.isclose(v, f) else f"$10^{{{round(math.log10(v))}}}$"))
+                a.yaxis.set_minor_locator(mticker.NullLocator())
+            rho, p = o[f"level_rho_{metric}"], o[f"level_p_{metric}"]
+            a.set_title("Spearman " + ("--" if rho is None else f"{rho:.2f}, p = {p:.2g}"), fontsize=MIN_FONT)
             a.set_ylabel(lab)
+            place_labels(a, np.column_stack([x, yy]), ids)
+        for a, y, lab in ((axes[1, 0], o["youden"][lev], "Youden's index $J=s+t-1$"),
+                          (axes[1, 1], s.central["C"][lev], "cost $C$ (USD)")):
+            a.plot(x, y, MARKER[PHYS], ls="", color=COLOR[PHYS], ms=4.5, mec="white", mew=0.4)
+            a.set_ylabel(lab)
+            place_labels(a, np.column_stack([x, y]), ids)
+        axes[1, 0].set_ylim(0, 1)
+        axes[1, 1].set_yscale("log")
+        for a in axes.flat:
             a.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-        ax.set_ylim(0, 1)
-        bx.set_yscale("log")
-        for a, y in ((ax, s.out["youden"][lev]), (bx, s.central["C"][lev])):
-            place_labels(a, np.column_stack([x, y]), [str(s.scenarios[i].id) for i in lev])
+        for a in axes[1]:
+            a.set_xlabel("fidelity level")
         return save(fig, out, "fig_level.pdf")
 
 

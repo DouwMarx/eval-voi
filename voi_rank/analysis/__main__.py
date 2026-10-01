@@ -42,6 +42,9 @@ def has_decision_rows(con, name: str) -> bool:
 def run(study: Study, protocol: str, members=None, tag=None, draws=None, decision_from=None) -> list:
     """Load, verify and write every output; returns the paths written."""
     con = study.connect_copy()   # read-only: the analysis never writes the study DB
+    # seed the copy, so a scenario that left scenarios.json is retired here even when no
+    # elicitation or MC run has seeded the real DB since (a run that holds it is refused)
+    db.seed_scenarios(con, study.scenarios_json, dry_run=True)
     s = summary.load(con, protocol, members=members, draws=draws, decision_from=decision_from)
     out = output_dir(study, tag)
     paths = figures.write_all(s, out) + tables.write_all(s, out) + [macros.write(s, out, tag)]

@@ -1,12 +1,15 @@
 """Every number of the analysis, from a study DB alone (DESIGN section 6).
 
 Input: the latest stored run of a protocol (mc.run_mc), optionally of a
-member subset. Per-draw arrays are not stored, so the run's draws are
-re-drawn with mc.iter_scenario_draws (same fits, seed and n_draws) and every
-scenario's stored eta quantiles and P(EVSI > C) are verified against them,
-as mc.replay_efficiency does. --draws N then keeps the first N of the
-run's draws (a deterministic subsample, for speed); the verification always
-runs on the full set.
+member subset, over the active scenarios only (mc.complete_fits: a retired
+scenario, one no longer in scenarios.json, is left out; a run that still
+holds one is refused, so the analysis never mixes in a cut scenario).
+Per-draw arrays are not stored, so the run's draws are re-drawn with
+mc.iter_scenario_draws (same fits, seed and n_draws) and every scenario's
+stored eta quantiles and P(EVSI > C) are verified against them, as
+mc.replay_efficiency does. --draws N then keeps the first N of the run's
+draws (a deterministic subsample, for speed); the verification always runs
+on the full set.
 
 Developer-perspective ablation (decision_from): the decision-level
 parameters p, B, K come from the valid decision-stage elicitations of
@@ -48,6 +51,7 @@ ROC_FPR = np.linspace(0.0, 1.0, 101)     # the false-positive grid of the ROC ba
 ROC_METRICS = ("eta", "eta_ind")
 DRAWN = ("EVSI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run", "n_star", "pays")
 COMPARED = ("eta", "eta_ind", "eta_run")
+LEVEL_METRICS = ("eta", "eta_ind")       # fidelity level against these (central estimates)
 CHUNK = 20_000   # draws per block in the broadcasting comparisons (memory bound)
 
 
@@ -360,8 +364,11 @@ def load(con, protocol: str, members: list[str] | None = None, draws: int | None
     stored_ids = {r[0] for r in con.execute(
         "SELECT scenario_id FROM results WHERE run_id=? AND metric=?", (run["id"], mc.PRIMARY_METRIC))}
     if not decision_from and set(fits) != stored_ids:
+        retired = sorted(stored_ids - set(fits))
         raise RuntimeError(f"run {run['id']} replay mismatch: {len(fits)} scenarios now vs"
-                           f" {len(stored_ids)} stored (elicitations changed since the run)")
+                           f" {len(stored_ids)} stored (elicitations changed since the run"
+                           + (f", or scenarios {retired} left scenarios.json and are retired:"
+                              " run voi_rank.mc again" if retired else "") + ")")
     for sid, d in mc.iter_scenario_draws(fits, run["seed"], run["n_draws"]):
         m = model.metrics(d)
         if decision_from:
@@ -470,6 +477,11 @@ def compute(s: Summary) -> dict:
     J = s.pooled["s"] + s.pooled["t"] - 1.0
     out["youden"] = J
     levels = [s.scenarios[i].level for i in lev]
+    # the fidelity question: does a higher level buy more value per dollar? Spearman of
+    # level with the central eta and eta_max; Youden's index and cost are secondary
+    for metric in LEVEL_METRICS:
+        out[f"level_rho_{metric}"], out[f"level_p_{metric}"] = spearman_test(
+            levels, list(s.central[metric][lev]))
     out["level_rho_J"], out["level_p_J"] = spearman_test(levels, list(J[lev]))
     out["level_rho_C"], out["level_p_C"] = spearman_test(levels, list(s.central["C"][lev]))
 
@@ -540,8 +552,9 @@ def to_json(s: Summary) -> str:
                     "nstar_q": list(o["nstar_q"][i])})
     data = {"run": s.run, "n_group": o["n_group"], "groups": o["groups"],
             "changes_share": o["changes_share"], "mean_abs_rho": o["mean_abs_rho"],
-            "level_rho_J": o["level_rho_J"], "level_rho_C": o["level_rho_C"],
-            "level_p_J": o["level_p_J"], "level_p_C": o["level_p_C"], "eta_A_changing": o["eta_A_changing"],
+            **{f"level_{k}_{m}": o[f"level_{k}_{m}"]
+               for k in ("rho", "p") for m in (*LEVEL_METRICS, "J", "C")},
+            "eta_A_changing": o["eta_A_changing"],
             "member_rho": o["member_rho"], "health": s.health, "scenarios": per}
     if "curve_q" in o:
         data["curve"] = {"q": CURVE_QS, "central": o["curve_central"], "q05_q50_q95": o["curve_q"]}

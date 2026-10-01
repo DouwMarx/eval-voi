@@ -1,5 +1,8 @@
 """Build studies/safety-evals/scenarios.json from the fact-checked drafts in
-research/scenarios_draft/*.json (DESIGN section 5).
+research/scenarios_draft/*.json (DESIGN section 5), keeping only the drafts
+that studies/safety-evals/include.yaml marks `include: true`. The include
+list must name every draft exactly once, each with a bool and a reason
+(research/scenarios_draft/QUALITY_REVIEW.md).
 
 The facts fields are copied verbatim with their [key] citations; the two
 context fields (what the prompts render, context mode `curated`) are the same
@@ -9,6 +12,7 @@ Order: the LLM group, then physical AI, each by attributes.candidate_rank.
 
     uv run python scripts/build_scenarios.py           # write the file
     uv run python scripts/build_scenarios.py --check   # exit 1 if it is stale
+    uv run python scripts/build_scenarios.py --include other.yaml   # another include list
 """
 
 from __future__ import annotations
@@ -18,9 +22,12 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parent.parent
 DRAFTS = ROOT / "research" / "scenarios_draft"
 OUT = ROOT / "studies" / "safety-evals" / "scenarios.json"
+INCLUDE = ROOT / "studies" / "safety-evals" / "include.yaml"
 
 GROUPS = {"frontier model": "LLM", "physical AI": "physical AI"}
 GROUP_ORDER = ("LLM", "physical AI")
@@ -64,23 +71,42 @@ def convert(draft: dict) -> dict:
     return {k: sc[k] for k in FIELDS}
 
 
-def build() -> list[dict]:
-    scen = [convert(json.loads(p.read_text())) for p in sorted(DRAFTS.glob("*.json"))]
+def included_keys(path: Path = INCLUDE) -> set[str]:
+    """The draft keys the include list keeps. Refuses a list that misses a
+    draft, names a key without a draft, or has an entry without a bool
+    `include` and a non-empty `reason`."""
+    entries = yaml.safe_load(Path(path).read_text()) or {}
+    drafts = {p.stem for p in DRAFTS.glob("*.json")}
+    errors = [f"{k}: no entry" for k in sorted(drafts - set(entries))]
+    errors += [f"{k}: no draft {k}.json" for k in sorted(set(entries) - drafts)]
+    for k, e in sorted(entries.items()):
+        if not (isinstance(e, dict) and isinstance(e.get("include"), bool)
+                and isinstance(e.get("reason"), str) and e["reason"].strip()):
+            errors.append(f"{k}: needs include: true|false and a reason")
+    if errors:
+        raise SystemExit(f"{path}:\n  " + "\n  ".join(errors))
+    return {k for k, e in entries.items() if e["include"]}
+
+
+def build(include: Path = INCLUDE) -> list[dict]:
+    keep = included_keys(include)
+    scen = [convert(json.loads(p.read_text())) for p in sorted(DRAFTS.glob("*.json")) if p.stem in keep]
     return sorted(scen, key=lambda s: (GROUP_ORDER.index(s["group"]), s["attributes"]["candidate_rank"]))
 
 
-def render() -> str:
-    return json.dumps(build(), indent=1, ensure_ascii=False) + "\n"
+def render(include: Path = INCLUDE) -> str:
+    return json.dumps(build(include), indent=1, ensure_ascii=False) + "\n"
 
 
 def main(argv: list[str]) -> int:
-    text = render()
+    include = Path(argv[argv.index("--include") + 1]) if "--include" in argv else INCLUDE
+    text = render(include)
     if "--check" in argv:
         stale = not OUT.exists() or OUT.read_text() != text
         print(f"{OUT.relative_to(ROOT)} is {'stale' if stale else 'up to date'}")
         return int(stale)
     OUT.write_text(text)
-    print(f"wrote {len(build())} scenarios to {OUT.relative_to(ROOT)}")
+    print(f"wrote {len(json.loads(text))} scenarios to {OUT.relative_to(ROOT)}")
     return 0
 
 
