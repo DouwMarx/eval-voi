@@ -4,7 +4,7 @@ Authoritative conventions for the code, the paper and the extended report. When 
 
 ## 1. What the paper is
 
-One question: how much is a safety evaluation of a physical-AI system worth, per dollar, compared with the safety evaluations frontier-model developers already run before a release? One method: expected value of sample information (EVSI) for one deployment decision, with parameters elicited from an ensemble of language models, propagated by Monte Carlo. Track 1 of the pilots is the paper. Track 2 (the sim-to-real ladders) is archived; its transferable finding (fidelity level against elicited discriminability and cost) is re-tested inside this study's physical-AI evaluations, which span fidelity levels, and reported as one discussion point.
+One question: how much is a safety evaluation of a physical-AI system worth, per dollar, compared with the safety evaluations LLM developers already run before a release? One method: expected value of sample information (EVSI) for one deployment decision, with parameters elicited from an ensemble of language models, propagated by Monte Carlo. Track 1 of the pilots is the paper. Track 2 (the sim-to-real ladders) is archived; its transferable finding (fidelity level against elicited discriminability and cost) is re-tested inside this study's physical-AI evaluations, which span fidelity levels, and reported as one discussion point.
 
 The elicitation is a means, not the contribution. The paper states what was used and how well it behaved; the details go to the appendix and the extended report.
 
@@ -13,7 +13,7 @@ The elicitation is a means, not the contribution. The paper states what was used
 | use | do not use |
 |---|---|
 | physical-AI safety evaluation; short: physical-AI evaluation; figure label "physical AI". An evaluation whose hazard is physical harm from an embodied system (robot, vehicle, drone) or from a model controlling one. | robot eval, hardware eval, robotics eval |
-| frontier-model safety evaluation; short: frontier-model evaluation; label "frontier model". An evaluation of a language or agent model, reported in at least one frontier-model system card, whose hazard is not physical. | AI eval, AI safety eval, software eval, system-card eval |
+| LLM safety evaluation; short: LLM evaluation; label "LLM". An evaluation of a language or agent model, reported in at least one LLM system card, whose hazard is not physical. (Changed 2026-10-01 from "frontier-model", which is ambiguous: robotics companies can be frontier too.) | AI eval, AI safety eval, software eval, frontier-model evaluation |
 | safety evaluation (the genus); "evaluation" once the context is clear | benchmark (only when the source calls itself one) |
 | fidelity level 0-9 (text question answering ... deployment data) | rung, ladder |
 | the result can change the decision / cannot change the decision; decision-changing | gate, gated, in gate, closed gate |
@@ -64,7 +64,7 @@ Not in the model, stated as limitations: batteries of evaluations, graded respon
 
 ## 5. Context: what the elicitor reads and where it comes from
 
-Scenario fields: title, agent, decision, theta_definition, instrument, group ("physical AI" | "frontier model"), attributes {risk_domain, level (physical AI only), eval_family}, sources (list of {key, kind: arxiv | url | pdf | system_card, ref, role: decision | instrument | both}), decision_facts, instrument_facts (curated sentences, each ending in a [key] citation to sources).
+Scenario fields: title, agent, decision, theta_definition, instrument, group ("physical AI" | "LLM"), attributes {risk_domain, level (physical AI only), eval_family}, sources (list of {key, kind: arxiv | url | pdf | system_card, ref, role: decision | instrument | both}), decision_facts, instrument_facts (curated sentences, each ending in a [key] citation to sources).
 
 voi_rank/context.py builds the two context blocks from three reproducible inputs: (1) source texts fetched programmatically by key and cached under research/sources/<key>.json (fetch date, URL, text; committed), (2) system-card sentences that name the evaluation, from the corpus already in research/, (3) the curated facts. Modes: `curated` (facts only), `abstracts` (facts plus source abstracts), `full` (facts plus full source text, truncated to a token budget). The prompt states which mode produced its context. The mode is a protocol setting; an ablation compares them.
 
@@ -72,7 +72,7 @@ voi_rank/context.py builds the two context blocks from three reproducible inputs
 
 - Pooled belief per parameter per scenario: equal-weight mixture over the fitted distributions of every valid elicitation (all members, all repeats). This is the linear opinion pool. Parameters are drawn independently. 100,000 aligned draws per scenario, seed stored.
 - Central estimate: model at pooled medians. Point tables and the headline figure use it.
-- From the draws: per-scenario quantiles of every metric; P(EVSI > 0); P(EVSI > C); rank quantiles by eta (rank 1 = best, ties averaged); P(rank <= k); pairwise P(eta_i > eta_j); group comparison A = P(eta of a random physical-AI evaluation > eta of a random frontier-model evaluation), as the central-estimate value and as its distribution over draws; per physical-AI evaluation, the distribution of its percentile among the frontier-model evaluations; break-even n* distribution and P(pays). Exact Mann-Whitney on the central estimates is the frequentist companion.
+- From the draws: per-scenario quantiles of every metric; P(EVSI > 0); P(EVSI > C); rank quantiles by eta (rank 1 = best, ties averaged); P(rank <= k); pairwise P(eta_i > eta_j); group comparison A = P(eta of a random physical-AI evaluation > eta of a random LLM evaluation); the percentile curve P(eta of a random physical-AI evaluation > q-th percentile of the LLM evaluations' eta) for q in 0..100, per draw, with a 90% band, as the central-estimate value and as its distribution over draws; per physical-AI evaluation, the distribution of its percentile among the LLM evaluations; break-even n* distribution and P(pays). Exact Mann-Whitney on the central estimates is the frequentist companion.
 - Sensitivity: Spearman of each parameter's draws against eta per scenario; mean |rho| across scenarios.
 - Retired: the bootstrap over elicitations, the MC median as a ranking, the linear-pool developer, member-subset weighting schemes, the Gaussian-state family.
 
@@ -80,7 +80,7 @@ voi_rank/context.py builds the two context blocks from three reproducible inputs
 
 Generated by `scripts/regen.sh` from the database alone (deterministic), into studies/safety-evals/report/generated/: figures, tables, and one macros.tex with every number either document cites. No hand-written numbers file.
 
-Figures: F1 pipeline diagram (TikZ, in the tex) plus EVSI against C with iso-efficiency lines, two groups; F2 the same for EVSI°; F3 elicited parameters per evaluation (one panel per parameter, pooled mixture shown as a strip of elicited medians with the pooled median marked); F4 percentile of each physical-AI evaluation among the frontier-model evaluations (violins); F5 rank intervals; F6 break-even reuse count distributions with the elicited n; F7 sensitivity heatmap; F8 fidelity level against Youden's index and against cost; F9 cross-member agreement; F10 ablations (perspective, anchors, context mode, number of evaluations).
+Figures: F1 pipeline diagram (TikZ, in the tex) plus EVSI against C with iso-efficiency lines, two groups; F2 the same for EVSI°; F3 elicited parameters per evaluation (one panel per parameter, pooled mixture shown as a strip of elicited medians with the pooled median marked); F4 percentile of each physical-AI evaluation among the LLM evaluations (violins); F5 rank intervals; F6 break-even reuse count distributions with the elicited n; F7 sensitivity heatmap; F8 fidelity level against Youden's index and against cost; F9 cross-member agreement; F10 ablations (perspective, anchors, context mode, number of evaluations).
 
 Documents: studies/safety-evals/report/main.tex (4-page body plus appendices, anonymous CoRL 2026 template) and studies/safety-evals/report/extended/main.tex (no page limit; every alternative figure, the ablations, the pilot findings, the reviewer objections section; no code listings).
 
