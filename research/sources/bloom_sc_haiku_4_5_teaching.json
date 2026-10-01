@@ -1,0 +1,15 @@
+{
+ "key": "bloom_sc_haiku_4_5_teaching",
+ "kind": "system_card",
+ "ref": "anthropic-claude-haiku-4-5-other",
+ "url": "https://www.anthropic.com/research/teaching-claude-why",
+ "title": "Teaching Claude why (anthropic, 2026-05-08)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Bloom and the cited agentic-misalignment sentences (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-haiku-4-5-other] Indeed, since Claude Haiku 4.5, every Claude model2 has achieved a perfect score on the agentic misalignment evaluation—that is, the models never engage in blackmail, where previous models would sometimes do so up to 96% of the time (Opus 4).\n[anthropic-claude-haiku-4-5-other] We’ve learned four main lessons from this work: - Misaligned behavior can be suppressed via direct training on the evaluation distribution—but this alignment might not generalize well out-of-distribution (OOD).",
+ "text": "Corpus sentences naming Bloom and the cited agentic-misalignment sentences (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-haiku-4-5-other] Indeed, since Claude Haiku 4.5, every Claude model2 has achieved a perfect score on the agentic misalignment evaluation—that is, the models never engage in blackmail, where previous models would sometimes do so up to 96% of the time (Opus 4).\n[anthropic-claude-haiku-4-5-other] We’ve learned four main lessons from this work: - Misaligned behavior can be suppressed via direct training on the evaluation distribution—but this alignment might not generalize well out-of-distribution (OOD).",
+ "chars": 659,
+ "publisher": "anthropic",
+ "publication_date": "2026-05-08",
+ "note": "text = corpus sentences naming the evaluation (and, for a decision-role card, the cited hazard sentences), not the whole document",
+ "n_sentences": 2
+}

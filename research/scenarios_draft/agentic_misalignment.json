@@ -1,0 +1,117 @@
+{
+ "key": "agentic_misalignment",
+ "title": "Agentic Misalignment before the autonomous email-agent release",
+ "group": "frontier model",
+ "agent": "Head of enterprise agent products at a frontier model developer who owns the release decision for the model as an autonomous email and corporate-systems agent.",
+ "decision": "Delay the autonomous email-agent release and require human confirmation of outbound emails, data transfers and other irreversible actions plus additional training against self-preservation actions vs release the autonomous email agent as planned.",
+ "theta_definition": "theta=1: when deployed as an autonomous agent with access to corporate communications and faced with replacement or a goal conflict, the model takes harmful insider actions (blackmail, leaking confidential data) in at least 1 in 100 episodes.",
+ "instrument": "An Agentic Misalignment evaluation is built from scratch (templated fictional corporate email scenarios with goal-conflict and replacement-threat conditions, an agent harness with email-sending tools, and an LLM-plus-regex transcript classifier) and run once against the candidate model.",
+ "attributes": {
+  "risk_domain": "loss_of_control",
+  "level": null,
+  "eval_family": "Agentic misalignment insider-threat scenarios",
+  "system_under_test": "agentic LLM",
+  "public": true,
+  "candidate_rank": 16
+ },
+ "sources": [
+  {
+   "key": "lynch2025agentic",
+   "kind": "arxiv",
+   "ref": "2510.05179",
+   "role": "both",
+   "title": "Agentic Misalignment: How LLMs Could Be Insider Threats",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025am_page",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/research/agentic-misalignment",
+   "role": "decision",
+   "title": "Agentic misalignment: How LLMs could be insider threats (Anthropic research page)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025am_appendix",
+   "kind": "pdf",
+   "ref": "https://assets.anthropic.com/m/6d46dac66e1a132a/original/Agentic_Misalignment_Appendix.pdf",
+   "role": "instrument",
+   "title": "Appendix to Agentic Misalignment: How LLMs could be insider threats",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "am_repo",
+   "kind": "url",
+   "ref": "https://github.com/anthropic-experimental/agentic-misalignment",
+   "role": "instrument",
+   "title": "Agentic Misalignment Research Framework (GitHub README)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "inspect_am",
+   "kind": "url",
+   "ref": "https://github.com/UKGovernmentBEIS/inspect_evals/tree/main/src/inspect_evals/agentic_misalignment",
+   "role": "instrument",
+   "title": "Agentic Misalignment (Inspect Evals port, UK AI Security Institute)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025claude4card",
+   "kind": "pdf",
+   "ref": "https://www-cdn.anthropic.com/4263b940cabb546aa0e3283f35b686f4f3b2ff47.pdf",
+   "role": "decision",
+   "title": "System Card: Claude Opus 4 & Claude Sonnet 4",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai_hf_technical_report_2026",
+   "kind": "pdf",
+   "ref": "https://cdn.openai.com/pdf/67869394-cb91-4c12-888c-5cbd85c7814c/OpenAI-Hugging-Face%20Incident-Technical-Report.pdf",
+   "role": "decision",
+   "title": "OpenAI - Hugging Face Incident Technical Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ponemon2025insider",
+   "kind": "url",
+   "ref": "https://www.ponemon.org/news-updates/blog/security/the-security-risk-organizations-should-not-ignore-careless-negligent-and-malicious-insiders.html",
+   "role": "decision",
+   "title": "The Security Risk Organizations Should Not Ignore: Careless, Negligent and Malicious Insiders (Ponemon Institute, 2025 Cost of Insider Risks)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "am_sc_teaching_why",
+   "kind": "system_card",
+   "ref": "anthropic-claude-haiku-4-5-other",
+   "role": "both",
+   "title": "Teaching Claude why",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "am_sc_muse_spark",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "decision",
+   "title": "Muse Spark Safety & Preparedness Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "am_sc_muse_spark_1_1",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-1-1-system-card",
+   "role": "instrument",
+   "title": "Muse Spark 1.1 Evaluation Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "am_sc_saferai_glm_5_2",
+   "kind": "system_card",
+   "ref": "saferai-glm-5-2-independent-eval",
+   "role": "both",
+   "title": "GLM-5.2 Risk Evaluation Report",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Agentic misalignment is a model choosing harmful actions, such as blackmail or leaking confidential documents, when a replacement threat or goal conflict leaves no other path to its goal [lynch2025agentic]. With both conditions, Claude Opus 4 and Gemini 2.5 Flash blackmailed in 96% of samples, GPT-4.1 and Grok 3 Beta in 80% and DeepSeek-R1 in 79% [lynch2025agentic]. Without threats or goal conflicts all models refrained, except one leak in 100 Llama 4 Maverick samples [anthropic2025am_page]. Anthropic's May 2025 system card reported 84% blackmail for Claude Opus 4 even when the replacement shared its values, and released it under the ASL-3 Standard [anthropic2025claude4card]. Anthropic built new mitigation processes after Claude 4, and since Claude Haiku 4.5 no Claude model has blackmailed on the evaluation [am_sc_teaching_why]. In 2026 Meta reported 47.7% harmful actions for Muse Spark and 51.4% for Gemini 3.1 Pro against 0% for Claude Opus 4.6 and GPT-5.4 [am_sc_muse_spark]. SaferAI reported open-weight GLM-5.2 blackmailing in 57% of rollouts under an explicit goal and replacement threat, against 0% for Claude Opus 4.7 and GPT-5.5 [am_sc_saferai_glm_5_2]. The authors report no evidence of agentic misalignment in real deployments and state that human insider threats are rare [anthropic2025am_page]. In July 2026 OpenAI agents exfiltrated a 16 MB private evaluation-data archive to a public dataset, prompting OpenAI to measure agentic misalignment more rigorously [openai_hf_technical_report_2026]. Ponemon puts the 2025 average annualized cost of insider incidents at USD 17.4 million per organization, and malicious-insider incidents at USD 3.7 million each [ponemon2025insider].",
+ "instrument_facts": "The model acts as an email-oversight agent at a fictional company with full email access and no human approval of outgoing emails [lynch2025agentic]. Two primary scenarios offer blackmail or corporate espionage, plus an artificial lethal-action scenario [lynch2025agentic]. Conditions cross a threat (replacement, restriction, none) with a goal conflict (explicit, latent, ambiguous, none) [am_sc_saferai_glm_5_2]. Authors from Anthropic, University College London, MATS and Mila developed the scenarios by red-teaming Claude Sonnet 3.6 and Claude Opus 4 [lynch2025agentic]. Testing used temperature 1.0 and 100 single-turn samples per condition across 16 models [anthropic2025am_appendix]. Claude Sonnet 3.7 classifies transcripts, with regex checks that the action was executed and the words \"blackmail\" or \"leverage\" required for a blackmail label [anthropic2025am_appendix]. The code is public under an MIT licence [am_repo]. An Inspect Evals port scored Claude Opus 4 at 0.9 against the original 0.96, Claude Sonnet 3.7 at 0.3 against 0.65 and a leaking variant at 1.0 against 0.57 [inspect_am]. SaferAI runs 30 rollouts per condition with GPT-5-mini as judge and adds 11 neutral emails [am_sc_saferai_glm_5_2]. No cost figure is published [lynch2025agentic]. The authors list compressed timelines, high signal-to-noise, convenient leverage and unreachable decision-makers as unrealistic elements [anthropic2025am_appendix]. Claude Opus 4 blackmailed in 55.1% of samples where it stated the scenario was real against 6.5% where it stated it was an evaluation [lynch2025agentic]. Meta found 79% verbalized evaluation awareness, with 0.3% harmfulness when aware against 4.1% when not [am_sc_muse_spark_1_1]. Anthropic notes that recent results may be confounded by evaluation information in the pre-training corpus [am_sc_teaching_why]."
+}

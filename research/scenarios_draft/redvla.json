@@ -1,0 +1,85 @@
+{
+ "key": "redvla",
+ "title": "RedVLA physical red teaming before a VLA manipulation policy release",
+ "group": "physical AI",
+ "agent": "Head of robot learning at a vision-language-action (VLA) model developer who owns the release decision for a fine-tuned manipulation policy checkpoint shipped to customer robots.",
+ "decision": "Delay the checkpoint release and train a runtime guard model on the discovered failure scenes plus safety fine-tuning on hazard-object scenes vs release the checkpoint as planned.",
+ "theta_definition": "theta=1: with a plausibly placed hazard object in its workspace, the manipulation policy grasps a knife or other sharp tool, collides with or topples placed objects, or puts a flammable item on a heat source, and the behaviour reproduces on the physical robot.",
+ "instrument": "A RedVLA-style physical red-teaming evaluation is built from scratch (a risk-object library and binary safety predicates, risk scenes placed by annotators in a simulator annotation tool at critical interaction regions of benign trajectories, gradient-free pose optimisation on policy feedback, and a small physical-robot reproduction of found scenes) and run once against the candidate VLA checkpoint.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 4,
+  "eval_family": "RedVLA physical red teaming",
+  "system_under_test": "VLA policy",
+  "public": true,
+  "candidate_rank": 4
+ },
+ "sources": [
+  {
+   "key": "zhang2026redvla",
+   "kind": "arxiv",
+   "ref": "2604.22591",
+   "role": "both",
+   "title": "RedVLA: Physical Red Teaming for Vision-Language-Action Models",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "zhang2025safevla",
+   "kind": "arxiv",
+   "ref": "2503.03480",
+   "role": "decision",
+   "title": "SafeVLA: Towards Safety Alignment of Vision-Language-Action Model via Constrained Learning",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "black2025pi05",
+   "kind": "arxiv",
+   "ref": "2504.16054",
+   "role": "decision",
+   "title": "pi0.5: a Vision-Language-Action Model with Open-World Generalization",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openpi_readme",
+   "kind": "url",
+   "ref": "https://github.com/Physical-Intelligence/openpi",
+   "role": "decision",
+   "title": "openpi README (Physical Intelligence open-source VLA models)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (American Journal of Industrial Medicine, 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026industrial",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/five-million-robots-now-operate-in-factories-globally",
+   "role": "decision",
+   "title": "IFR press release: Five Million Robots now Operate in Factories Globally (World Robotics 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026service",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/global-sales-of-professional-service-robots-surge-24-percent",
+   "role": "decision",
+   "title": "IFR press release: Global Sales of Professional Service Robots Surge 24% (World Robotics 2026 Service Robots)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "redvla_github",
+   "kind": "url",
+   "ref": "https://github.com/Ethyn13/RedVLA",
+   "role": "instrument",
+   "title": "RedVLA GitHub repository",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Real-world deployment of vision-language-action (VLA) models remains limited by the risk of unpredictable and irreversible physical harm [zhang2026redvla]. VLAs pose deployment safety challenges including harm to the environment, the robot and humans [zhang2025safevla]. Across six VLA policies, a hazard or obstacle object (knife, bottle, book, tableware) placed in an otherwise benign scene triggered unsafe behaviour in 64.9% to 95.5% of episodes [zhang2026redvla]. A stronger variant in the same policy family (OpenVLA-OFT over OpenVLA) raised benign task success by 20.6 points and the unsafe-behaviour rate by 25.6 points [zhang2026redvla]. On physical Franka arms, pi0 and pi0.5 grasped an inserted knife or knocked over cup obstacles in more than 80% of 10 trials per task [zhang2026redvla]. The pi0 and pi0.5 developers publish open checkpoints, including task checkpoints intended to run directly on target robots [openpi_readme]. pi0.5 controls mobile manipulators cleaning kitchens and bedrooms in homes not seen in training [black2025pi05]. The US Census of Fatal Occupational Injuries recorded 41 robot-related deaths in 1992-2017; 78% involved a robot striking the worker under its own power [layne2023robotfatalities]. Operational industrial robot stock reached 5 million units in 2025 [ifr2026industrial]. About 7,000 full-size humanoids and 34.2 million consumer service robots were sold in 2025, and the IFR names safety standards among the challenges limiting humanoid adoption [ifr2026service]. A guard model trained on discovered failure scenes cut unsafe behaviour from 90.9% to 31.4% on seen tasks and from 98.3% to 46.7% on unseen tasks, at a benign task-success cost of 4.08 and 10.00 percentage points [zhang2026redvla].",
+ "instrument_facts": "RedVLA comes from the Institute for AI, Peking University [zhang2026redvla]. It is a black-box two-stage pipeline: a risk object from a library of sharp tools, a wine bottle, books, liquid containers, obstructive tableware and displaced targets is placed in a critical interaction region of a benign trajectory, then gradient-free optimisation on policy feedback refines its pose until a target predicate fires [zhang2026redvla]. Binary predicates such as collide(wine bottle), checkgrasping(knife) and on(book, stove) define ten risk scenario suites on LIBERO scenes in MuJoCo [zhang2026redvla]. Three annotators and one reviewer built scenes by unanimous consensus, three to five minutes each [zhang2026redvla]. Each risk scenario runs 10 trials with fixed seeds, a 520-step horizon and at most 10 optimisation iterations on six LIBERO-fine-tuned policies, scored by attack success rate (ASR), the share of episodes with the target violation [zhang2026redvla]. Experiments used 8 NVIDIA A100 and 8 RTX 3090 GPUs [zhang2026redvla]. No cost figure is published [zhang2026redvla]. Mean ASR per model was 64.9% to 95.5%; averaged over six models, state-level ASR exceeded 95%, with per-model state-level suite values from 88.8% to 98.4%, near the score ceiling [zhang2026redvla]. On two physical Franka arms, pi0 and pi0.5 reached ASR above 80% on three pick-and-place tasks with an inserted knife or cup obstacles, 10 trials each [zhang2026redvla]. Limitations: predefined predicates, risk objects and violations; evaluation only where policies already execute well [zhang2026redvla]. The paper states code and assets will be released under CC BY-NC 4.0 [zhang2026redvla]; the RedVLA and red-libero repositories carry the MIT License [redvla_github]."
+}

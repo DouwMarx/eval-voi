@@ -1,0 +1,61 @@
+{
+ "key": "asimov2",
+ "title": "ASIMOV-2.0 before shipping a VLM robot planner",
+ "group": "physical AI",
+ "agent": "Head of safety at a humanoid-robot developer who owns the release decision for the vision-language-model (VLM) high-level planner.",
+ "decision": "Delay the planner release and run safety post-training on embodiment-constraint data plus add a deterministic protective-stop layer under the planner vs release the planner as planned.",
+ "theta_definition": "theta=1: the planner fails to recognise latent physical danger, misjudges injury severity or violates embodiment constraints (payload, gripper geometry) in everyday scenes, so it would command or fail to prevent injury-causing actions.",
+ "instrument": "An ASIMOV-2.0-style evaluation is built from scratch (injury-report-grounded text scenarios, generated videos of safe-to-unsafe transitions and image-plus-constraint pairs produced by a generator-critic pipeline, labelled by human raters and consensus-filtered) and run once against the candidate planner by question answering.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 3,
+  "eval_family": "ASIMOV semantic physical safety",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": true,
+  "candidate_rank": 9
+ },
+ "sources": [
+  {
+   "key": "jindal2025danger",
+   "kind": "arxiv",
+   "ref": "2509.21651",
+   "role": "both",
+   "title": "Can AI Perceive Physical Danger and Intervene?",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "asimov_v2_page",
+   "kind": "url",
+   "ref": "https://asimov-benchmark.github.io/v2/",
+   "role": "instrument",
+   "title": "ASIMOV Benchmark v2 project page",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "geminirobotics2025report15",
+   "kind": "arxiv",
+   "ref": "2510.03342",
+   "role": "both",
+   "title": "Gemini Robotics 1.5: Pushing the Frontier of Generalist Robots with Advanced Embodied Reasoning, Thinking, and Motion Transfer",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "gr2safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr_service_robots_2026",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/service-robots-2025",
+   "role": "decision",
+   "title": "Global Sales of Professional Service Robots Surge 24% (IFR press release, 30 September 2026)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "The United States recorded 62 million injuries and nearly a quarter-million preventable deaths in 2023, costing over a trillion dollars; over half of preventable deaths occur in homes [jindal2025danger]. Professional service robot shipments rose 24% to almost 250,000 units in 2025, and about 7,000 full-size humanoids were sold for commercial and professional use [ifr_service_robots_2026]. Circa September 2025, GPT-5, Gemini 2.5 Pro and Claude Opus 4.1 averaged 92.3% at recognising latent injury-risk types in text and 88.7% at judging high severity, but top models scored 74% and 66% on whether an action is safe and on post-action risk [jindal2025danger]. Risk recognition in video was 27% (Claude Opus 4.1) and 40% (GPT-5) lower than in text [jindal2025danger]. No frontier model achieved under 30% constraint violation rate when reasoning jointly about embodiment limits, physics and visual cues; rates ranged from 38.6% to 75% [jindal2025danger]. Google DeepMind's 2025 report gives Gemini Robotics-ER (GR-ER) 1.5 versus GR-ER accuracies of 90.0 vs 90.9 (text risk), 76.0 vs 62.0 (text action), 62.0 vs 44.0 (video risk) and 88.4 vs 84.1 (video intervention); safety-fine-tuned GR-ER 1.5 reached 68.4 constraint satisfaction against 59.4 for GPT-5 [geminirobotics2025report15]. In July 2026 the Gemini Robotics team wrote that agent-controlled robots near humans must refuse constraint-violating tasks and trigger protective stops, and that frontier models are best used alongside deterministic low-level safety guardrails [gr2safety]. Safety post-training on 200 constraint-image pairs gave the lowest violation rate of any major model run with thinking enabled, without a significant change in pointing accuracy [jindal2025danger].",
+ "instrument_facts": "ASIMOV-2.0 (Jindal et al., 2025), from Google DeepMind Robotics and Princeton University, upgrades ASIMOV-1.0 [jindal2025danger]. The pipeline uses Gemini 2.5 Pro, Imagen and Veo 3; a Generator writes scenarios and candidate actions from grounding sources, a Critic gives feedback and the Generator refines; videos run 5 to 10 seconds [jindal2025danger]. Text and video items come from 2023 National Electronic Injury Surveillance System (NEISS) injury narratives rebalanced across diagnostic codes; constraint items come from a taxonomy of payload, end-effector, workspace, thermal, multi-arm and protocol limits [jindal2025danger]. The evaluation sets hold 319 text scenarios, 287 videos and 164 constraint-image pairs [jindal2025danger]. Text and video items have 5 human raters each; the rater count for constraint-image pairs is not stated; low-consensus text items are dropped, videos need 60% consensus and timestamp standard deviation below 1.0 s, and constraint pairs need at least 80% consensus [jindal2025danger]. Metrics are four-choice accuracy (risk type, severity, action effect, activated risk), constraint violation rate against annotated bounding boxes, and mean absolute error and 0.5 s hit rate of the last-intervention timestamp [jindal2025danger]. The paper states no run count per model [jindal2025danger]. No cost figure is published [jindal2025danger]. Data ships as a Google Colab notebook linked from the project page [asimov_v2_page]. Ground truth is filtered rater consensus; the paper reports no inter-rater agreement statistic and no correlation with robot incident rates or a higher-fidelity evaluation [jindal2025danger]. Google DeepMind reran ASIMOV-2.0 on Gemini Robotics-ER (GR-ER) 1.5 and reports per-component accuracies in Figure 19 of its report [geminirobotics2025report15]."
+}

@@ -1,0 +1,77 @@
+{
+ "key": "isbench",
+ "title": "IS-Bench interactive household safety before the home-robot assistant launch",
+ "group": "physical AI",
+ "agent": "Head of product safety at a home-robot startup who owns the launch decision for the robot's VLM-driven chore assistant.",
+ "decision": "Delay the launch and add process-level safety reasoning (a risk-identification step before each plan, mitigation checks before and after risk-prone actions such as operating burners and appliances, and a block on cooking and heating tasks until the checks pass) vs launch as planned.",
+ "theta_definition": "theta=1: during ordinary household chores the deployed agent omits or mis-orders risk-mitigation steps in a material fraction of tasks, so it would leave burners or appliances on, place flammables near heat, or contaminate food in homes.",
+ "instrument": "An IS-Bench-style evaluation is built from scratch (household scenarios with injected pre-caution and post-caution risks and PDDL safety goal conditions instantiated in a physics simulator, human-verified reference plans, multi-view camera inputs, primitive skills, state-based and LLM-judged scoring) and run once against the candidate VLM agent.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 4,
+  "eval_family": "IS-Bench interactive household safety",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": true,
+  "candidate_rank": 8
+ },
+ "sources": [
+  {
+   "key": "lu2025isbench",
+   "kind": "arxiv",
+   "ref": "2506.16402",
+   "role": "both",
+   "title": "IS-Bench: Evaluating Interactive Safety of VLM-Driven Embodied Agents in Daily Household Tasks",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "gh_isbench",
+   "kind": "url",
+   "ref": "https://github.com/AI45Lab/IS-Bench",
+   "role": "instrument",
+   "title": "AI45Lab/IS-Bench code and dataset repository (GitHub README)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "usfa_residential_2023",
+   "kind": "url",
+   "ref": "https://www.usfa.fema.gov/statistics/residential-fires/",
+   "role": "decision",
+   "title": "U.S. Fire Administration: Residential fire estimate summaries (2014-2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "usfa_cooking_fires",
+   "kind": "url",
+   "ref": "https://www.usfa.fema.gov/prevention/home-fires/prevent-fires/cooking/",
+   "role": "decision",
+   "title": "U.S. Fire Administration: Cooking fire safety outreach materials (home cooking fire statistics)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "who_burns",
+   "kind": "url",
+   "ref": "https://www.who.int/news-room/fact-sheets/detail/burns",
+   "role": "decision",
+   "title": "World Health Organization fact sheet: Burns",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "onex_cooking_neo",
+   "kind": "url",
+   "ref": "https://www.1x.tech/discover/cooking-with-neo-beta-and-nick-digiovanni",
+   "role": "decision",
+   "title": "1X: Cooking With NEO Beta and Nick DiGiovanni (2024-11-08)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "onex_neo_page",
+   "kind": "url",
+   "ref": "https://www.1x.tech/neo",
+   "role": "decision",
+   "title": "1X NEO Home Robot product page",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "A vision-language model (VLM) household agent planning from camera images can create hazards during benign chores, such as leaving a burner on or putting food on a stained plate; categories include fire, electric shock and contamination [lu2025isbench]. In a 2025 simulator study of VLM household agents, GPT-4o completed 81.3% of household tasks but only 33.8% without a safety violation, and the best agents mitigated only about 25% of the hazards they should have anticipated before a risk-prone step [lu2025isbench]. Safety-aware chain-of-thought raised safety recall by 9.3% on average but lowered task success by 9.4% [lu2025isbench]. In 2023 United States residential building fires numbered 344,600, with 2,890 deaths, 10,400 injuries and USD 11,266,200,000 in loss [usfa_residential_2023]. Cooking is the leading cause of home fires and home fire injuries; in 2021 an estimated 170,000 home cooking fires in the United States caused 135 deaths, 3,000 injuries and over USD 494 million in property loss [usfa_cooking_fires]. Burns cause an estimated 180,000 deaths a year worldwide, 80 to 90% of burns in surveyed communities occur at home, and a 2014 review found a mean healthcare cost of USD 88,218 per burn patient [who_burns]. 1X stated cooking would not be an immediate feature for the first NEO users so the robot gains experience with safer tasks before handling sharp or hot objects; its 2024 cooking demonstration was teleoperated [onex_cooking_neo]. 1X takes NEO orders with a USD 200 deposit; NEO runs autonomously by default and a remote 1X Expert supervises chores it does not know [onex_neo_page].",
+ "instrument_facts": "IS-Bench (Shanghai AI Laboratory and partners, 2025) has 161 interactive scenarios with 388 safety risks in 10 domestic categories, built on Behavior-1K tasks in the OmniGibson simulator [lu2025isbench]. GPT-4o extracted candidate safety principles, which the authors synthesized into 30 principles in 10 categories; GPT-4o detected pre-existing risks in each task, and the authors augmented tasks with risk-inducing objects by editing the PDDL-like task definitions [lu2025isbench]. Each safety goal is natural language plus a PDDL predicate with a pre-caution (24.2%) or post-caution (75.8%) trigger [lu2025isbench]. Human annotators executed and verified a GPT-4o reference plan per task in the simulator [lu2025isbench]. The agent sees the instruction, five camera views, an object list, few-shot examples and its history, and acts through 18 primitive skills over 2 to 15 steps [lu2025isbench]. Success Rate, Safe Success Rate and Safety Recall come from simulator state checked around risk-prone steps, plus GPT-4-judged Safety Awareness against the principles [lu2025isbench]. Runs used one NVIDIA A100 80GB GPU with OmniGibson 1.1.1 at temperature 0; one evaluation per VLM took about 2.5 to 3 hours [lu2025isbench]. No cost figure is published [lu2025isbench]. The paper is at AAAI 2026; code and data were released 2025-07-07; OmniGibson requires 8 GB VRAM and an RTX 2080 or better, with 32 GB RAM recommended [gh_isbench]. No inter-annotator agreement for reference plans or human agreement for the GPT-4 judge is reported [lu2025isbench]. A ground-truth initial-scene description raised safe success and pre-caution recall, which the authors flag as data leakage [lu2025isbench]. The simulation omits human activity [lu2025isbench]."
+}

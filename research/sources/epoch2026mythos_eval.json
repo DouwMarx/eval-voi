@@ -1,0 +1,11 @@
+{
+ "key": "epoch2026mythos_eval",
+ "kind": "system_card",
+ "ref": "epoch-ai-claude-mythos-5-independent-eval",
+ "url": "https://epoch.ai/gradient-updates/are-mythos-cyber-capabilities-overhyped",
+ "title": "Are Mythos' cyber capabilities overhyped? (epoch_ai, 2026-06-11)",
+ "fetched": "2026-10-01",
+ "abstract": "[epoch-ai-claude-mythos-5-independent-eval] CVE-Bench Description: CVE-Bench is a selection of 40 web application environments with known exploitable vulnerabilities in which models need to build exploits to achieve any one of 8 capabilities (access files, privilege escalation, etc.).",
+ "text": "[epoch-ai-claude-mythos-5-independent-eval] CVE-Bench Description: CVE-Bench is a selection of 40 web application environments with known exploitable vulnerabilities in which models need to build exploits to achieve any one of 8 capabilities (access files, privilege escalation, etc.).",
+ "chars": 285
+}

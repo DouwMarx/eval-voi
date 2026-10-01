@@ -1,0 +1,85 @@
+{
+ "key": "maniguard",
+ "title": "ManiGuard-Bench before a household VLA manipulation policy release",
+ "group": "physical AI",
+ "agent": "Robot learning lead at a vision-language-action (VLA) policy developer who owns the release decision for a manipulation checkpoint bound for household and light-industrial robots.",
+ "decision": "Delay the checkpoint release and run safety-aware fine-tuning on monitor-verified safe demonstrations plus add a runtime monitor that halts the arm on a contact or ordering violation vs release the checkpoint as planned.",
+ "theta_definition": "theta=1: under nominal instructions in ordinary household scenes the VLA policy drops, topples or spills objects or lifts open containers out of order, on the physical robot and not only in simulation.",
+ "instrument": "ManiGuard-Bench is built from scratch (six household task families are authored as 200 base tasks with linear temporal logic on finite traces (LTLf) safety specifications over simulator predicates, expanded to 1,000 scenarios in OmniGibson with automaton monitors, and a matched physical Franka cell is set up) and run once against the candidate VLA checkpoint in simulation and on the physical Franka.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 7,
+  "eval_family": "ManiGuard-Bench (specification-grounded VLA manipulation safety)",
+  "system_under_test": "VLA policy",
+  "public": true,
+  "candidate_rank": 6
+ },
+ "sources": [
+  {
+   "key": "peng2026maniguard",
+   "kind": "arxiv",
+   "ref": "2608.17386",
+   "role": "both",
+   "title": "ManiGuard: A Benchmark and Data Suite for Specification-Grounded Safety Evaluation and Improvement of Robotic Manipulation (Peng et al., 18 Aug 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "maniguard_github",
+   "kind": "url",
+   "ref": "https://github.com/NU-IDEAS-Lab/ManiGuard",
+   "role": "instrument",
+   "title": "ManiGuard code repository README (NU-IDEAS-Lab, GitHub)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "fan2026safevlabench",
+   "kind": "arxiv",
+   "ref": "2606.00773",
+   "role": "decision",
+   "title": "SafeVLA-Bench: A Benchmark for the Success-Safety Gap in Vision-Language-Action Models (v2, 30 Sep 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "geminirobotics2026safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations (Google DeepMind, 29 Jul 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, Am J Ind Med 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026servicerobots",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/global-sales-of-professional-service-robots-surge-24-percent",
+   "role": "decision",
+   "title": "Global Sales of Professional Service Robots Surge 24% (IFR, World Robotics 2026 Service Robots, 30 Sep 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "onex_neo_order",
+   "kind": "url",
+   "ref": "https://www.1x.tech/order",
+   "role": "decision",
+   "title": "NEO Home Robot order page (1X Technologies)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "black2025pi05",
+   "kind": "arxiv",
+   "ref": "2504.16054",
+   "role": "decision",
+   "title": "pi0.5: a Vision-Language-Action Model with Open-World Generalization (Physical Intelligence, 22 Apr 2025)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "One end-to-end VLA policy, pi0.5, has been shown cleaning kitchens and bedrooms in entirely new homes [black2025pi05]. Consumer service robots, mainly domestic, sold almost 34.2 million units in 2025, and the IFR names safety standards among the key challenges limiting humanoid adoption [ifr2026servicerobots]. 1X takes US preorders for the NEO home humanoid at USD 20,000 with deliveries starting in 2026; it weighs 66 lbs and carries 18 lbs per arm [onex_neo_order]. The hazard needs no attacker: under nominal instructions in ordinary scenes a policy may spill, tip, collide or violate an ordering requirement, and physical damage is costly and difficult to reverse [peng2026maniguard]. Across fine-tuned VLAs, 6-21% of successful rollouts violated the safety specification, 21-42% of engaged rollouts violated, and the same unsafe behaviours recurred on a physical Franka [peng2026maniguard]. Fifteen tabletop policies above 90% mean success had 18-28% unsafe-episode rates, and 38-56% of successful RoboCasa-365 rollouts violated at least one safety clause [fan2026safevlabench]. Fine-tuning on safety-annotated demonstrations raised safe task completion from near zero to 7.5-29.8%, and more of the same demonstrations did not close the remaining gap [peng2026maniguard]. US fatality records identified 41 robot-related worker deaths in 1992-2017, 78% from robots striking the worker while operating under their own power [layne2023robotfatalities]. Google DeepMind states that avoiding a missed stop for a nearby human must be prioritised over avoiding unnecessary stops, that frontier models either miss over 40% of hazards or stop the robot 15% to 25% of the time, and that deterministic low-level guardrails remain necessary [geminirobotics2026safety].",
+ "instrument_facts": "ManiGuard-Bench is by authors at Northwestern, Stanford and William & Mary [peng2026maniguard]. Six contact-rich household task families (Clutter, Cabinet, Stack, Lid, Jar, Dusty) form 200 locked base tasks, each with one in-distribution and four single-axis out-of-distribution variants, giving 1,000 locked scenarios [peng2026maniguard]. Each task carries an LTLf safety specification over physics-grounded predicates, compiled into a deterministic finite automaton that labels every simulation step; no learned classifier or LLM judge is used [peng2026maniguard]. Rollouts run closed-loop in OmniGibson; the headline metric is safe-success rate, and the violation rate among engaged rollouts is reported separately [peng2026maniguard]. Each policy is rolled out once per scenario under three seeds, 3,000 rollouts per policy, over 23,000 in total [peng2026maniguard]. The hardware check uses twelve matched Clutter and Cabinet cells on a physical Franka with 30 rollouts per cell per domain, scored by the operator, not the automaton [peng2026maniguard]. Pearson r between simulated and physical rates is 0.91 for task success, 0.88 for safe success and 0.09 for the violation rate [peng2026maniguard]. Zero-shot policies scored 78-83% safe, half to four-fifths of it from rollouts that never engaged an object, and renderer nondeterminism changed 39% of first-observation pixels between identically seeded runs [peng2026maniguard]. The 21,000 simulation rollouts of the main evaluation and three zero-shot baselines took 1,326 single-GPU hours on RTX 4090 GPUs; no dollar figure is published [peng2026maniguard]. Code, scenes, demonstrations and evaluated checkpoints are public on GitHub and Hugging Face; the stack requires a Linux machine with an NVIDIA RTX GPU [maniguard_github]."
+}

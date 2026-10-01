@@ -1,0 +1,11 @@
+{
+ "key": "sc_xai_grok_4_5",
+ "kind": "system_card",
+ "ref": "xai-grok-4-5-model-card",
+ "url": "https://media.x.ai/v1/website/4p5-5184fdf9.pdf",
+ "title": "Model Card: Grok 4.5",
+ "fetched": "2026-10-01",
+ "abstract": "Model Card: Grok 4.5 (xai, 2026-07-14). Sentences naming MASK from the system-card corpus.",
+ "text": "[xai-grok-4-5-model-card] 26 12.2 MASK-Rectified . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n[xai-grok-4-5-model-card] Low dishonesty under adversarial MASK 29 conditions (0.67%) is tracked as a release indicator rather than a pass/fail result.\n[xai-grok-4-5-model-card] Metric Grok 4.5 (high) Bias rate ↓ 20.4% 12.2 MASK-Rectified 29 Using a dataset derived from MASK* , we test whether Grok 4.5 faithfully reports its beliefs when pressured to lie, as a corollary for the model’s proclivity to noncritically surface misleading or harmful information.\n[xai-grok-4-5-model-card] Metric Grok 4.5 (high) Sycophancy ↓ 0.01% * MASK-Rectified corrects the MASK grading so that responses where the model is obviously (model-aware) role-playing, rather than asserting a genuine belief, are not counted as lies.\n[xai-grok-4-5-model-card] MASK.",
+ "chars": 863
+}

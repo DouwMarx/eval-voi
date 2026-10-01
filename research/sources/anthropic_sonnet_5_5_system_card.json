@@ -1,0 +1,14 @@
+{
+ "key": "anthropic_sonnet_5_5_system_card",
+ "kind": "system_card",
+ "ref": "anthropic-claude-sonnet-5-5-system-card",
+ "url": "https://www.anthropic.com/claude-sonnet-5-5-system-card",
+ "title": "System Card: Claude Sonnet 5.5",
+ "fetched": "2026-10-01",
+ "abstract": "3.2.4 ExploitGym ExploitGym is a large-scale public benchmark that measures whether AI agents can turn known vulnerabilities into working exploits that achieve unauthorized code execution, and whether they can read a dynamically generated secret flag stored outside of the agent’s authorized scope.",
+ "text": "[anthropic-claude-sonnet-5-5-system-card] 3.2.4 ExploitGym ExploitGym is a large-scale public benchmark that measures whether AI agents can turn known vulnerabilities into working exploits that achieve unauthorized code execution, and whether they can read a dynamically generated secret flag stored outside of the agent’s authorized scope.\n[anthropic-claude-sonnet-5-5-system-card] [Figure 3.2.4.A] Claude Sonnet 5.5 is a substantial improvement over Claude Sonnet 5 and approaches Claude Mythos 5.1 on ExploitGym.",
+ "chars": 515,
+ "publisher": "anthropic",
+ "publication_date": "2026-09-28",
+ "note": "sentences naming ExploitGym from the system-card corpus docs.sqlite (normalised text), not the whole card"
+}

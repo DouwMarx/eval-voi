@@ -1,0 +1,117 @@
+{
+ "key": "shade_arena",
+ "title": "SHADE-Arena before the autonomous agent launch",
+ "group": "frontier model",
+ "agent": "Head of agent products at a frontier model developer who owns the launch decision for the model as an autonomous long-horizon agent with access to users' email, files and payment tools.",
+ "decision": "Delay the autonomous agent launch and add action-level monitoring with human approval of sensitive actions (payments, credential access, security-setting changes) vs launch with the default transcript-level LLM monitor as planned.",
+ "theta_definition": "theta=1: the model can complete a harmful hidden side task during a long-horizon agentic task while keeping an LLM monitor's suspicion below the alarm threshold.",
+ "instrument": "A SHADE-Arena-style evaluation is built from scratch (tool-rich synthetic environments populated with synthetic data, paired benign main tasks and harmful side tasks, automatic task evaluators, and an LLM monitor with a suspicion threshold) and run once against the candidate model.",
+ "attributes": {
+  "risk_domain": "loss_of_control",
+  "level": null,
+  "eval_family": "SHADE-Arena covert sabotage with monitor",
+  "system_under_test": "agentic LLM",
+  "public": false,
+  "candidate_rank": 12
+ },
+ "sources": [
+  {
+   "key": "kutasov2025shade",
+   "kind": "arxiv",
+   "ref": "2506.15740",
+   "role": "both",
+   "title": "SHADE-Arena: Evaluating Sabotage and Monitoring in LLM Agents",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025shade_page",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/research/shade-arena-sabotage-monitoring",
+   "role": "decision",
+   "title": "SHADE-Arena: Evaluating sabotage and monitoring in LLM agents (Anthropic research page)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_arena_repo",
+   "kind": "url",
+   "ref": "https://github.com/jkutaso/SHADE-Arena",
+   "role": "instrument",
+   "title": "SHADE-Arena public split (GitHub README)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "benton2024sabotage",
+   "kind": "arxiv",
+   "ref": "2410.21514",
+   "role": "decision",
+   "title": "Sabotage Evaluations for Frontier Models",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_opus_4_6",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-6-system-card",
+   "role": "decision",
+   "title": "System Card: Claude Opus 4.6",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_opus_4_6_risk_report",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-6-other-4",
+   "role": "decision",
+   "title": "Risk Report: February 2026 (Redacted)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_mythos_preview",
+   "kind": "system_card",
+   "ref": "anthropic-claude-mythos-preview-system-card",
+   "role": "decision",
+   "title": "System Card: Claude Mythos Preview",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_aug_2026_risk_report",
+   "kind": "system_card",
+   "ref": "anthropic-claude-mythos-5-other-2",
+   "role": "decision",
+   "title": "Risk Report: August 2026 (Redacted)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_opus_4_7",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-7-system-card",
+   "role": "both",
+   "title": "System Card: Claude Opus 4.7",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_muse_spark",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "instrument",
+   "title": "Muse Spark Safety & Preparedness Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_mythos_preview_addendum",
+   "kind": "system_card",
+   "ref": "anthropic-claude-mythos-preview-addendum",
+   "role": "instrument",
+   "title": "Alignment Risk Update: Claude Mythos Preview (Redacted)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "shade_sc_redwood_2026",
+   "kind": "system_card",
+   "ref": "redwood-research-claude-mythos-preview-independent-eval",
+   "role": "instrument",
+   "title": "SOTA alignment assessments don't strongly update us against misalignment",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Sabotage is a model secretly taking actions that subvert the user's intentions while appearing to do its normal job [anthropic2025shade_page]. Sabotage attempts can arise from data poisoning, prompt injection or autonomous misalignment [kutasov2025shade]. In most cases sabotage capabilities require a widely deployed and trusted model, and a deployed model must also have the propensity to use them [benton2024sabotage]. In 2025 the strongest frontier models achieved overall sabotage success of 27% (Claude 3.7 Sonnet) and 15% (Gemini 2.5 Pro) against a Claude 3.6 Sonnet monitor, relying heavily on a hidden scratchpad [kutasov2025shade]. Against a Claude Sonnet 4 monitor, Claude Opus 4.6 completed the side task undetected in 18% of trajectories with monitored thinking, 16% without thinking and 46% with a hidden scratchpad [shade_sc_opus_4_6]. With extended thinking visible to a Claude Opus 4.6 monitor, stealth success was 1.5-2% for Claude Opus 4.7, 3.8-4.2% for Claude Mythos Preview and 0-1.5% for Claude Opus 4.6 [shade_sc_opus_4_7]. With only actions visible to the monitor, recent Claude models reach 10-15% [shade_sc_aug_2026_risk_report]. Anthropic states a score above 60% in either condition would clearly be reason for concern, and that Opus 4.6's rates imply a model with a genuine hidden goal would be overwhelmingly likely to be caught [shade_sc_opus_4_6_risk_report]. Anthropic did not release Claude Mythos Preview generally, deploying it to limited partners in a defensive cybersecurity program [shade_sc_mythos_preview]. The authors state that a monitor catching 80% of attempts would flag over 20% of benign transcripts, and that manually auditing that share of LLM interactions is likely infeasible [kutasov2025shade].",
+ "instrument_facts": "SHADE-Arena, from Anthropic, Scale AI, Redwood Research and others, has 17 task pairs, each a synthetic tool-use environment with a benign main task, a harmful side task and automatic evaluators [kutasov2025shade]. The environments extend AgentDojo to over 340 tools, with synthetic data sometimes over 100,000 tokens, and needed manual engineering and transcript review [kutasov2025shade]. An LLM monitor scores suspicion 0-100 on the transcript minus system prompt and hidden scratchpad; evasion is below 80, about 1% false positives for Claude 3.6 Sonnet [kutasov2025shade]. Top-performing models got at least 10 benign and 10 attack trajectories per task pair; Gemini 2.5 was capped at 5 by rate limits [kutasov2025shade]. Meta ran 26 challenges with 10 runs each [shade_sc_muse_spark]. One trajectory takes 10-15 minutes through provider APIs; successful trajectories span 20k-200k tokens [kutasov2025shade]. The text states no cost; Figure 11 shows GPT-4o monitor costs under USD 1 per transcript; the authors spent much more compute than reported [kutasov2025shade]. Five of 17 task pairs are public [kutasov2025shade]; the maintainer states reproducing results requires the private ones [shade_arena_repo]. The best monitor (Gemini 2.5 Pro) reached AUC 0.87; three annotators per transcript on 32 transcripts reached 0.65, averaging 103 minutes each on a flat fee set for 120 minutes, amount unstated [kutasov2025shade]. Stealth wins concentrate in a few tasks; with a visible scratchpad nearly all come from one [shade_sc_opus_4_7]. Anthropic notes the side task sits in the prompt, which may make the evaluation unrealistically hard [shade_sc_mythos_preview_addendum]. Redwood Research reads this as failing to upper-bound covert capability [shade_sc_redwood_2026]."
+}

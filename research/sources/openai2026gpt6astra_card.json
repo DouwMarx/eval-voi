@@ -1,0 +1,11 @@
+{
+ "key": "openai2026gpt6astra_card",
+ "kind": "system_card",
+ "ref": "openai-gpt-6-astra-system-card",
+ "url": "https://deploymentsafety.openai.com/gpt-6-astra/gpt-6-astra.pdf",
+ "title": "GPT-6 Astra System Card (openai, 2026-09-03)",
+ "fetched": "2026-10-01",
+ "abstract": "[openai-gpt-6-astra-system-card] We have retired the evaluations we used for assessing High capability in cybersecurity – Capture the Flag (Internal) and CVE-Bench – because these evaluations have become saturated.",
+ "text": "[openai-gpt-6-astra-system-card] We have retired the evaluations we used for assessing High capability in cybersecurity – Capture the Flag (Internal) and CVE-Bench – because these evaluations have become saturated.",
+ "chars": 214
+}

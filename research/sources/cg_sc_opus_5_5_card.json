@@ -1,0 +1,11 @@
+{
+ "key": "cg_sc_opus_5_5_card",
+ "kind": "system_card",
+ "ref": "anthropic-claude-opus-5-5-system-card",
+ "url": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+ "title": "System Card: Claude Opus 5.5 (anthropic, 2026-09-22)",
+ "fetched": "2026-10-01",
+ "abstract": "[anthropic-claude-opus-5-5-system-card] System Card:​ Claude Opus 5.5 September 22, 2026 anthropic.com Executive Summary This system card describes Claude Opus 5.5, the latest Opus-class large language model from Anthropic. It is an upgrade to Claude Opus 5, with gains in coding, agentic and computer use tasks, mathematical and scientific reasoning, and long-horizon professional work. On many evaluations, it matches or exceeds Claude Fable 5.1 and Claude Mythos 5.1. Below, we describe a set of pre-deployment evaluations in the following areas: Responsible Scaling Policy (RSP) evaluations. We tested Claude Opus 5.5’s overall level of risk in several areas, as outlined in our RSP and Frontier Compliance Framework (FCF). On chemical and biological risks, we treat Opus 5.5 as having CB-1 capabilities (relating to the synthesis of non-novel weapons) but not CB-2 capabilities (relating to the synthesis of novel weapons). Across our evaluation portfolio it differed only modestly from Claude Mythos 5.1, and it did not improve on several of the weaknesses we considered disqualifying for CB-2 in that model. These failure modes limit its ability to substitute for scarce human expertise. We are deploying Claude Opus 5.5 with the same expanded biological safeguards that we have applied to Claude Fable 5 and Claude Fable 5.1. Its AI R&D capabilities are at or slightly above those of Claude Mythos 5.1, but it remains far from substituting for our research scientists and engineers, and our internal measures do not show a sustained",
+ "text": "[anthropic-claude-opus-5-5-system-card] ExploitGym focuses mainly on turning a crash into unauthorized code execution, and it covers a wider range of applications than CyberGym, which tested whether a model could reproduce a known vulnerability.\n[anthropic-claude-opus-5-5-system-card] We have retired CyberGym from this system card due to saturation.",
+ "chars": 351
+}

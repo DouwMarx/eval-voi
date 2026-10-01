@@ -1,0 +1,85 @@
+{
+ "key": "safeplan",
+ "title": "SafePlan prompt suite before launching an LLM command interface on a service robot",
+ "group": "physical AI",
+ "agent": "Head of product at a service-robot developer who owns the launch decision for the robot's LLM natural-language command interface.",
+ "decision": "Delay the launch of the LLM command interface and add a pre-execution command safety check (a hazard-analysis reasoner that rejects or defers unsafe or underspecified commands before any robot code is generated) vs launch as planned.",
+ "theta_definition": "theta=1: the robot's large language model (LLM) planner, with the safety prompt it would ship with, accepts and generates robot code for at least one command in a defined class of severe hazards (burns, poisoning, falls) to a vulnerable person such as a small child.",
+ "instrument": "The SafePlan prompt suite is built from scratch (621 expert-curated natural-language task prompts paired with scene descriptions, labelled safe or unsafe across assistive, navigation and manipulation domains and three complexity levels, plus a scoring script for the accept/reject confusion matrix) and run once against the robot's LLM planner.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 0,
+  "eval_family": "LLM robot-command refusal suites",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": false,
+  "candidate_rank": 12
+ },
+ "sources": [
+  {
+   "key": "obi2025safeplan",
+   "kind": "arxiv",
+   "ref": "2503.06892",
+   "role": "both",
+   "title": "SafePlan: Leveraging Formal Logic and Chain-of-Thought Reasoning for Enhanced Safety in LLM-based Robotic Task Planning (Obi et al., arXiv 2025-03-10)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "obi2026safegate",
+   "kind": "arxiv",
+   "ref": "2604.05427",
+   "role": "both",
+   "title": "Pre-Execution Safety Gate & Task Safety Contracts for LLM-Controlled Robot Systems (SafeGate; Obi et al., arXiv 2026-04-07)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "azeem2024llmrobots",
+   "kind": "arxiv",
+   "ref": "2406.08824",
+   "role": "decision",
+   "title": "LLM-Driven Robots Risk Enacting Discrimination, Violence, and Unlawful Actions (Azeem, Hundt, Mansouri, Brandao, arXiv 2024-06-13)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "robey2024robopair",
+   "kind": "arxiv",
+   "ref": "2410.13691",
+   "role": "decision",
+   "title": "Jailbreaking LLM-Controlled Robots (Robey et al., arXiv 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026service",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/global-sales-of-professional-service-robots-surge-24-percent",
+   "role": "decision",
+   "title": "IFR press release: Global Sales of Professional Service Robots Surge 24% (World Robotics 2026 Service Robots, 2026-09-30)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "onex2025neo",
+   "kind": "url",
+   "ref": "https://www.1x.tech/discover/neo-home-robot",
+   "role": "decision",
+   "title": "1X NEO Home Robot launch announcement (2025-10-28)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, Am J Ind Med 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deepmind2026gr2safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations (Google DeepMind, 2026-07-29)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "In a 2025 test, Gemini 1.5 Pro, GPT-4o and Gemini Flash 2.0 accepted 61.3% to 85.8% of unsafe robot task prompts [obi2025safeplan]. In an audit of four large language model (LLM) chatbots available as of December 2023, all four rated at least one harmful robot task acceptable or feasible, and all accepted moving a user's mobility aid without permission [azeem2024llmrobots]. Jailbreak prompts elicited harmful physical actions from LLM-controlled robots, including a Unitree Go2 [robey2024robopair]. In a 2026 study, constraint-based pre-execution guards authorized 26% and 39% of unsafe commands; one authorized 28 of 30 hazardous simulated tasks, including all 20 whose hazard came from missing information or a later state change [obi2026safegate]. In 2025, a command-screening reasoner cut unsafe acceptance to 6.3% to 7.7% and safe-task acceptance from 100% to 57.5% to 70.9%; the rejected safe tasks are forgone use [obi2025safeplan]. Almost 250,000 professional service robots, almost 34.2 million consumer service robots and about 7,000 full-size humanoids sold in 2025; the International Federation of Robotics (IFR) calls standardized safety essential for humanoid adoption [ifr2026service]. In October 2025, 1X opened Early Access orders for its NEO home humanoid, which has a built-in LLM, at USD 20,000, with a USD 499 per month subscription to ship later [onex2025neo]. The US National Institute for Occupational Safety and Health (NIOSH) identified 41 robot-related workplace fatalities in 1992-2017 [layne2023robotfatalities]. Google DeepMind states that agents near humans must refuse tasks violating operational constraints and strictly prioritizes avoiding missed stops near humans over avoiding unnecessary stops [deepmind2026gr2safety].",
+ "instrument_facts": "The SafePlan prompt suite is a curated synthetic set of 621 robot task prompts, each with a scene description, a domain label, a complexity level and a safe or unsafe ground-truth label [obi2025safeplan]. It holds 127 safe and 494 unsafe prompts: 97 navigation, 456 manipulation and 68 assistive; 188 simple, 337 medium and 96 complex [obi2025safeplan]. The authors, who built the set, describe the prompts as expert-curated; the experts, an annotator count and any inter-rater statistic are not given [obi2025safeplan]. GPT-4o, Gemini 2.0 Flash and Gemini 1.5 Pro each classify every prompt once with a natural-language system prompt and once with the Prompt Sanity Check chain-of-thought reasoner, scored by a confusion matrix, acceptance rates for safe and unsafe tasks and McNemar's test [obi2025safeplan]. No cost figure is published [obi2025safeplan]. Baseline models accepted 100% of safe tasks, a ceiling, and 61.34% to 85.83% of unsafe tasks; with the reasoner, unsafe acceptance was 6.28% to 7.69% and safe acceptance 57.48% to 70.87% [obi2025safeplan]. Unsafe acceptance under the reasoner was highest for assistive tasks, 11.1% to 28.9% [obi2025safeplan]. No correlation with a physical outcome is reported; the 18-task AI2-THOR experiment tests the code verifier, not the prompt labels [obi2025safeplan]. The follow-up SafeGate study by the same authors uses a separate expert-annotated 230-command set, 30 AI2-THOR scenarios and qualitative real-robot experiments, and publishes no cost figure [obi2026safegate]. On that set GPT-4o and Gemini 2.5-flash authorized 0% of unsafe commands but deferred on 48.2% and 79.5% of safe ones [obi2026safegate]."
+}

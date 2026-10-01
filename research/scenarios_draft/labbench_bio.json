@@ -1,0 +1,85 @@
+{
+ "key": "labbench_bio",
+ "title": "LAB-Bench bio subset before a frontier model release",
+ "group": "frontier model",
+ "agent": "Deployment lead at a frontier-model developer who owns the model release decision.",
+ "decision": "Delay the release and deploy biology misuse safeguards (input and output classifiers on wet-lab protocol and cloning queries, with vetted access for life-science users) vs release as planned.",
+ "theta_definition": "theta=1: the model gives PhD-biologist-level wet-lab protocol troubleshooting and multi-step molecular cloning planning, so it could substitute for a trained collaborator for an actor without that training.",
+ "instrument": "The LAB-Bench bio subset (ProtocolQA, CloningScenarios, SeqQA, FigQA) is built from scratch (contracted PhD biologists write and review protocol-troubleshooting, cloning-scenario, sequence and figure questions, and a PhD-level human baseline is collected) and run once against the candidate model.",
+ "attributes": {
+  "risk_domain": "cbrn",
+  "level": null,
+  "eval_family": "LAB-Bench (FutureHouse biology research evaluation)",
+  "system_under_test": "LLM",
+  "public": true,
+  "candidate_rank": 5
+ },
+ "sources": [
+  {
+   "key": "laurent2024labbench",
+   "kind": "arxiv",
+   "ref": "2407.10362",
+   "role": "both",
+   "title": "LAB-Bench: Measuring Capabilities of Language Models for Biology Research",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "futurehouse_labbench_hf",
+   "kind": "url",
+   "ref": "https://huggingface.co/datasets/futurehouse/lab-bench",
+   "role": "instrument",
+   "title": "futurehouse/lab-bench dataset card (Hugging Face)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "futurehouse_labbench_github",
+   "kind": "url",
+   "ref": "https://github.com/Future-House/LAB-Bench",
+   "role": "instrument",
+   "title": "Future-House/LAB-Bench README",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025asl3",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/activating-asl3-protections",
+   "role": "decision",
+   "title": "Activating AI Safety Level 3 protections (Anthropic, 22 May 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025opus4card",
+   "kind": "pdf",
+   "ref": "https://www-cdn.anthropic.com/4263b940cabb546aa0e3283f35b686f4f3b2ff47.pdf",
+   "role": "decision",
+   "title": "System Card: Claude Opus 4 & Claude Sonnet 4 (Anthropic, May 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "saferai-glm-5-2-independent-eval__labbench",
+   "kind": "system_card",
+   "ref": "saferai-glm-5-2-independent-eval",
+   "role": "both",
+   "title": "GLM-5.2 Risk Evaluation Report (SaferAI, 2026-08-02)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-system-card__labbench",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "decision",
+   "title": "Muse Spark Safety & Preparedness Report (Meta, 2026-05-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "xai-grok-4-5-model-card__labbench",
+   "kind": "system_card",
+   "ref": "xai-grok-4-5-model-card",
+   "role": "decision",
+   "title": "Grok 4.5 Model Card (xAI, 2026-07-14)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "In July 2024 PhD-level biologists scored 0.79 accuracy on ProtocolQA and 0.60 on CloningScenarios, against 0.53 and 0.28 for the best model [laurent2024labbench]. By May 2026 Meta reported ProtocolQA precision of 87.3% for Muse Spark and 89.9% for Gemini 3.1 Pro and concluded frontier models are likely to meaningfully facilitate DNA-manipulation tasks in molecular biology [meta-muse-spark-system-card__labbench]. In August 2026 SaferAI reported that open-weight GLM-5.2 meets or exceeds the human-expert baseline on every subtask it ran (six text subtasks; FigQA and TableQA were not run) [saferai-glm-5-2-independent-eval__labbench]. xAI treats ProtocolQA 87.0% as a review trigger, not evidence of weapons-enabling assistance [xai-grok-4-5-model-card__labbench]. In Anthropic's bioweapons acquisition uplift trial, groups of 8 to 10 participants were given up to two days to draft a plan; controls scored 25% ± 13%, those with Claude Opus 4 scored 63% ± 13% (uplift 2.53x), and all hit critical failures [anthropic2025opus4card]. Anthropic set 5x uplift as significant additional risk and 2.8x as acceptable, and could not rule out the ASL-3 CBRN threshold for Claude Opus 4 [anthropic2025opus4card]. Anthropic therefore launched Claude Opus 4 in May 2025 under ASL-3: real-time classifiers blocking a narrow class of CBRN information, a jailbreak bug bounty, and over 100 weight-security controls [anthropic2025asl3]. The measures focus on biological weapons, which Anthropic believes account for the vast majority of the risk, add moderate compute overhead, may produce false positives on legitimate queries, and are paired with vetted access for dual-use science users [anthropic2025asl3].",
+ "instrument_facts": "LAB-Bench, from FutureHouse, has 2,457 multiple-choice questions in eight categories; this subset is ProtocolQA (135), CloningScenarios (41), SeqQA (750 in 15 subtasks) and FigQA (226) [laurent2024labbench]. Contracted experts built ProtocolQA by introducing errors into protocols.io and STAR Protocols protocols and writing questions pairing a negative result with a fix [laurent2024labbench]. CloningScenarios come from real cloning workflows and take a trained biologist over 10 minutes each; SeqQA is programmatic [laurent2024labbench]. Questions include an insufficient-information option; scoring reports accuracy, precision and coverage [laurent2024labbench]. Writers hold or pursue biology PhDs, paid USD 50 to 100 per hour equivalent; no total build cost is published [laurent2024labbench]. PhD-level scientists set the human baseline in 20- to 140-question quizzes over 5 to 8 days with internet tools at USD 50 to 100 per hour, covering all of ProtocolQA, FigQA and CloningScenarios and 64% of SeqQA [laurent2024labbench]. Model results average three zero-shot chain-of-thought runs without tools [laurent2024labbench]. The authors note the CloningScenarios human baseline may be unreasonably low, that multiple-choice results need open-answer validation because models exploit test-taking strategies, and that private-split accuracy is within five points of the public split [laurent2024labbench]. Approximately 80% of each subtask is public [laurent2024labbench] under CC BY-SA 4.0 [futurehouse_labbench_hf]; 20% is private, with a canary string [futurehouse_labbench_hf] [futurehouse_labbench_github]. The authors call high CloningScenarios accuracy a likely sufficient condition for an AI system to add value as a collaborator for molecular biologists [laurent2024labbench]. SaferAI notes LAB-Bench does not directly measure uplift and flags possible training contamination of the public dataset [saferai-glm-5-2-independent-eval__labbench]."
+}

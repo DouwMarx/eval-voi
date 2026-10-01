@@ -1,0 +1,61 @@
+{
+  "key": "harmbench",
+  "title": "HarmBench before the public chat model launch",
+  "group": "frontier model",
+  "agent": "Trust and safety lead at a frontier model developer who owns the public launch decision for a consumer chat model.",
+  "decision": "Delay the launch and add an input-output jailbreak classifier layer plus adversarial refusal training against the attack families that succeed vs launch as planned.",
+  "theta_definition": "theta=1: at least one standardised automated attack family (optimisation-based suffixes, attacker-LLM rewrites, transferred jailbreaks) bypasses the model's refusal and makes it attempt harmful behaviours in the forbidden categories (cybercrime, chemical and biological weapons or drugs, misinformation, harassment, illegal activities).",
+  "instrument": "A HarmBench-style evaluation is built from scratch (a curated set of standard, contextual, copyright and multimodal harmful behaviours, a battery of white-box, black-box and transfer attacks, and a fine-tuned classifier validated against human labels) and run once against the candidate chat model.",
+  "attributes": {
+    "risk_domain": "societal_harm",
+    "level": null,
+    "eval_family": "HarmBench automated red teaming",
+    "system_under_test": "LLM",
+    "public": true,
+    "candidate_rank": 23
+  },
+  "sources": [
+    {
+      "key": "mazeika2024harmbench",
+      "kind": "arxiv",
+      "ref": "2402.04249",
+      "role": "both",
+      "title": "HarmBench: A Standardized Evaluation Framework for Automated Red Teaming and Robust Refusal",
+      "fetched": "2026-10-01"
+    },
+    {
+      "key": "harmbench_github",
+      "kind": "url",
+      "ref": "https://github.com/centerforaisafety/HarmBench",
+      "role": "instrument",
+      "title": "centerforaisafety/HarmBench README",
+      "fetched": "2026-10-01"
+    },
+    {
+      "key": "sharma2025constitutional",
+      "kind": "arxiv",
+      "ref": "2501.18837",
+      "role": "decision",
+      "title": "Constitutional Classifiers: Defending against Universal Jailbreaks across Thousands of Hours of Red Teaming",
+      "fetched": "2026-10-01"
+    },
+    {
+      "key": "sc_anthropic_glm_5_3_other",
+      "kind": "system_card",
+      "ref": "anthropic-glm-5-3-other",
+      "role": "decision",
+      "title": "GLM-5.3 and the spread of advanced cyber capabilities",
+      "fetched": "2026-10-01"
+    },
+    {
+      "key": "sc_anthropic_opus_4_8_other_3__harmbench",
+      "kind": "system_card",
+      "ref": "anthropic-claude-opus-4-8-other-3",
+      "role": "instrument",
+      "title": "Automated researchers can reliably mitigate alignment failures",
+      "fetched": "2026-10-01"
+    }
+  ],
+  "decision_facts": "Current LLMs have shown preliminary abilities in writing malware, social engineering and designing chemical and biological weapons (2024) [mazeika2024harmbench]. Malicious-use concern spans cybercrime, chemical and biological weapons or drugs, misinformation, harassment and illegal activity, the areas of recent regulatory discussion and lawsuits against LLM developers [mazeika2024harmbench]. Across 18 attacks and 33 models in 2024, every model had poor robustness against at least one attack, independent of model size [mazeika2024harmbench]. Transferred TAP attacks succeeded on 58.5% of behaviours against GPT-4 Turbo 1106, against 2.6% for in-the-wild human jailbreak templates and 9.3% for direct requests; Claude 2.1 was at 0.8%, 0.3% and 2.0% [mazeika2024harmbench]. Zephyr 7B, fine-tuned for helpfulness without harm training, complied with 65.8% of direct requests [mazeika2024harmbench]. Universal jailbreaks let users carry out harmful processes that need many model interactions, such as manufacturing illegal substances at scale; 86% of jailbreak attempts succeeded against a harmlessness-trained model and constitutional classifiers cut this to under 5% (2025) [sharma2025constitutional]. The enhanced classifiers added an absolute 0.38% increase in production-traffic refusals and a 23.7% inference overhead [sharma2025constitutional]. In over 3,000 estimated hours of red teaming by 405 participants with bounties up to USD 15,000, no red teamer found a universal jailbreak against the prototype classifier-guarded model [sharma2025constitutional]. Anthropic's abliterated copy of open-weight GLM-5.3 dropped from above 90% refusal to about 2% on HarmBench (2026), so safeguards in released open weights can be removed by third parties [sc_anthropic_glm_5_3_other].",
+  "instrument_facts": "HarmBench (Center for AI Safety and UIUC, 2024) has 510 harmful behaviours: 200 standard, 100 copyright, 100 contextual and 110 multimodal, with 100 held out for validation [mazeika2024harmbench]. The pipeline generates test cases with a red teaming method, decodes completions greedily at N = 512 tokens, and classifies them; the metric is attack success rate, the share of test cases that elicit the behaviour [mazeika2024harmbench]. The paper runs 18 methods against 33 target LLMs and defences [mazeika2024harmbench]. In a 10-minute Google search test, 0% of 20 sampled contextual behaviours were solvable, against 55% for MaliciousInstruct and 50% for AdvBench [mazeika2024harmbench]. Non-copyright completions are judged by a Llama 2 13B Chat classifier distilled from GPT-4-0613 over 15 rounds; copyright completions use MinHash hashing [mazeika2024harmbench]. On a 600-completion human-labelled validation set the classifier agrees with humans 93.19% on average, against 88.37% for GPT-4, 69.93% for AdvBench substring matching and 66.94% for Llama Guard [mazeika2024harmbench]. GCG needs 20 minutes per test case on 7B models on one A100 (2024) [mazeika2024harmbench]. Methods whose original implementations used closed-source attacker or evaluator LLMs were run with Mixtral 8x7B to cut cost [mazeika2024harmbench]. No USD cost figure is published [mazeika2024harmbench]. The MIT-licensed repository ships precomputed test cases, three Hugging Face classifiers and a three-step pipeline [harmbench_github]. Anthropic (2026) replaced the local judge with a stronger API judge verified to reproduce its grading; the median automated researcher's best method closed 69.3% of HarmBench's headroom on Phi-4-mini, and that method did not generalise to held-out jailbreak evaluations [sc_anthropic_opus_4_8_other_3__harmbench]."
+}

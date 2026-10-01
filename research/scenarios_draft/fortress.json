@@ -1,0 +1,101 @@
+{
+ "key": "fortress",
+ "title": "FORTRESS before the flagship chat model launch",
+ "group": "frontier model",
+ "agent": "Head of safeguards at a frontier model developer who owns the public launch decision for a new flagship chat model.",
+ "decision": "Delay the launch and add input-output safeguard classifiers plus refusal training targeted at CBRNE, terrorism and illicit-finance requests vs launch as planned.",
+ "theta_definition": "theta=1: single-turn adversarial prompts make the model, with its deployed safeguards, give actionable assistance (synthesis routes, attack planning, fraud methods) on national-security and public-safety requests at a material rate.",
+ "instrument": "A FORTRESS-style evaluation is built from scratch (expert red teamers write single-turn adversarial prompts with paired benign prompts and 4 to 7 binary rubric questions across CBRNE, terrorism and illicit-activity domains, calibrated against human labels; a three-model grader panel and a refusal checker are set up) and run once against the candidate chat model with its deployed safeguards.",
+ "attributes": {
+  "risk_domain": "societal_harm",
+  "level": null,
+  "eval_family": "FORTRESS national-security adversarial prompts",
+  "system_under_test": "LLM",
+  "public": true,
+  "candidate_rank": 20
+ },
+ "sources": [
+  {
+   "key": "knight2025fortress",
+   "kind": "arxiv",
+   "ref": "2506.14922",
+   "role": "both",
+   "title": "FORTRESS: Frontier Risk Evaluation for National Security and Public Safety",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "scale_fortress_leaderboard",
+   "kind": "url",
+   "ref": "https://labs.scale.com/leaderboard/fortress",
+   "role": "both",
+   "title": "Scale Labs Leaderboard: FORTRESS",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "hf_fortress_public",
+   "kind": "url",
+   "ref": "https://huggingface.co/datasets/ScaleAI/fortress_public",
+   "role": "instrument",
+   "title": "ScaleAI/fortress_public dataset card (Hugging Face)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sharma2025constitutional",
+   "kind": "arxiv",
+   "ref": "2501.18837",
+   "role": "decision",
+   "title": "Constitutional Classifiers: Defending against Universal Jailbreaks across Thousands of Hours of Red Teaming",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025asl3",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/activating-asl3-protections",
+   "role": "decision",
+   "title": "Activating AI Safety Level 3 protections (Anthropic, 22 May 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "rand2024redteam",
+   "kind": "url",
+   "ref": "https://www.rand.org/pubs/research_reports/RRA2977-2.html",
+   "role": "decision",
+   "title": "The Operational Risks of AI in Large-Scale Biological Attacks: Results of a Red-Team Study",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "fbi_ic3_2024",
+   "kind": "pdf",
+   "ref": "https://www.ic3.gov/AnnualReport/Reports/2024_IC3Report.pdf",
+   "role": "decision",
+   "title": "FBI Internet Crime Complaint Center 2024 Annual Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic_misuse_aug2025",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/detecting-countering-misuse-aug-2025",
+   "role": "decision",
+   "title": "Detecting and countering misuse of AI: August 2025 (Anthropic Threat Intelligence Report, 27 Aug 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-system-card__fortress",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "both",
+   "title": "Muse Spark Safety & Preparedness Report (Meta, 2026-05-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-1-1-system-card__fortress",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-1-1-system-card",
+   "role": "both",
+   "title": "Muse Spark 1.1 Evaluation Report (Meta, 2026-07-09)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Large language models (LLMs) could aid chemical or biological weapons development, terrorism or large-scale fraud; the same knowledge serves defence and education [knight2025fortress]. In 2025 the average risk score (ARS, 0 to 100) for harmful compliance on single-turn adversarial national-security prompts averaged 42.35 over 26 models, from 14.09 (Claude 3.5 Sonnet) to 78.05 (DeepSeek R1) [knight2025fortress]. On the Scale FORTRESS leaderboard (fetched 1 October 2026) the two best models score 8.24 and 9.63; gemini-3.1-pro-preview 29.76 [scale_fortress_leaderboard]. Meta launched Muse Spark in May 2026 at a private-set ARS of 20.3, against 14.8 for GPT-5.4 Pro and 13.0 for Claude Opus 4.6 [meta-muse-spark-system-card__fortress]. Muse Spark 1.1 scored 12.3 in July 2026 [meta-muse-spark-1-1-system-card__fortress]. A 2024 RAND red-team study found no statistically significant difference in the viability of biological attack plans made with or without LLM assistance [rand2024redteam]. The FBI logged 859,532 internet-crime complaints in 2024 and USD 16.6 billion in losses, losses up 33 percent from 2023, mostly fraud [fbi_ic3_2024]. In August 2025 Anthropic reported North Korean operatives using Claude to fake identities for Fortune 500 jobs, and a low-skill actor selling AI-built ransomware for USD 400 to 1,200 [anthropic_misuse_aug2025]. Anthropic deployed Claude Opus 4 in May 2025 under ASL-3 protections because it could not rule out CBRN-relevant capability [anthropic2025asl3]. Constitutional classifiers cut jailbreak success from 86% to under 5% at a 0.38% absolute rise in production refusals and a 23.7% inference overhead (2025) [sharma2025constitutional]. In 2025 the most robust model refused 21.8% of benign national-security questions; the mean was 4.32% [knight2025fortress].",
+ "instrument_facts": "FORTRESS (Knight et al., 2025, Scale AI) has 500 single-turn adversarial prompts, each with a benign counterpart and a rubric of 4 to 7 binary questions, across CBRNE (180), Political Violence & Terrorism (132) and Criminal & Financial Illicit Activities (188) [knight2025fortress]. Scale red teamers wrote the prompts in March to April 2025 against a mix of OpenAI, Anthropic, Google, Meta and other endpoints; an independent expert reviewed each [knight2025fortress]. Red teamers were paid USD 28 to 31 per hour (2025); no cost figure for running the evaluation is published [knight2025fortress]. Three LLM graders (o3, Claude 3.7 Sonnet, Gemini 2.5 Pro) vote per rubric question; the average risk score (ARS) is the mean share of majority-yes questions [knight2025fortress]. The over-refusal score (ORS) is the share of benign prompts refused, graded by GPT-4o-mini at 95.47% accuracy [knight2025fortress]. Grader-majority agreement with human labels is 89.05% (F1 92.98%); the 60 rubrics with the lowest human alignment were discarded [knight2025fortress]. Models were evaluated at temperature 0.7 (1.0 for reasoning models); the paper does not state runs per prompt [knight2025fortress]. Stated limitations: static single-turn design, red teamers lacking attackers' domain depth, thin per-subdomain coverage [knight2025fortress]. The public set is on Hugging Face under CC BY 4.0 (500 rows) [hf_fortress_public]. The full set has over 1,010 prompts; the leaderboard uses the public and private prompts and reports ARS with uncertainties of about 1.2 to 3.6 points [scale_fortress_leaderboard]. Scale AI ran the private split for Meta, which reports the results in its Muse Spark 1.1 card [meta-muse-spark-1-1-system-card__fortress]."
+}

@@ -1,0 +1,77 @@
+{
+ "key": "veo_worldmodel",
+ "title": "Veo world-model safety probing before releasing a VLA checkpoint",
+ "group": "physical AI",
+ "agent": "Robot learning lead at a frontier robotics developer who owns the release decision for a new bimanual vision-language-action (VLA) policy checkpoint to the trusted-tester robot fleet.",
+ "decision": "Delay the checkpoint's release and retrain it on targeted hazard-handling demonstrations (knife grasp points, keep-clear zones around hands and fragile items) behind a policy-agnostic safety layer vs release the checkpoint as planned.",
+ "theta_definition": "theta=1: in deployment scenes it was not trained on, the checkpoint handles hazardous objects unsafely or moves into contact with people or fragile items (grasps a knife by the blade, closes a laptop onto scissors, strikes a hand while reaching).",
+ "instrument": "An action-conditioned Veo video world-model evaluator is built from scratch (a frontier video model fine-tuned on robot data for pose conditioning and four-camera multi-view consistency, generative image editing of real scenes to insert hazards, a critic-filtered set of safety scenarios, human raters of 8-second rollouts) and run once against the candidate checkpoint.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 5,
+  "eval_family": "Generative world-model policy evaluation (Veo)",
+  "system_under_test": "VLA policy",
+  "public": false,
+  "candidate_rank": 3
+ },
+ "sources": [
+  {
+   "key": "geminirobotics2025veo",
+   "kind": "arxiv",
+   "ref": "2512.10675",
+   "role": "both",
+   "title": "Evaluating Gemini Robotics Policies in a Veo World Simulator",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "veo_robotics_site",
+   "kind": "url",
+   "ref": "https://veo-robotics.github.io/",
+   "role": "instrument",
+   "title": "Evaluating Gemini Robotics Policies in a Veo World Simulator (project website)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "geminirobotics2025report",
+   "kind": "arxiv",
+   "ref": "2503.20020",
+   "role": "decision",
+   "title": "Gemini Robotics: Bringing AI into the Physical World",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deepmind2025grod",
+   "kind": "url",
+   "ref": "https://deepmind.google/blog/gemini-robotics-on-device-brings-ai-to-local-robotic-devices/",
+   "role": "decision",
+   "title": "Gemini Robotics On-Device brings AI to local robotic devices (Google DeepMind blog, 24 June 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "geminirobotics2026safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations (Gemini Robotics Team, Google DeepMind, 29 Jul 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "jindal2025danger",
+   "kind": "arxiv",
+   "ref": "2509.21651",
+   "role": "decision",
+   "title": "Can AI Perceive Physical Danger and Intervene?",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, Am J Ind Med 2023)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Google DeepMind released Gemini Robotics On-Device, the vision-language-action (VLA) family these checkpoints build on, in June 2025 to selected trusted testers to understand its usage and safety profile [deepmind2025grod]. DeepMind adapted it to a bi-arm Franka FR3 and the Apptronik Apollo humanoid, demonstrating folding a dress and industrial belt assembly on the Franka; the SDK adapts it to a new task with as few as 50 to 100 demonstrations [deepmind2025grod]. The developer recommends red-teaming at all levels and runs the model behind low-level safety-critical controllers [deepmind2025grod]. Its 2025 report states that semantic action-safety constraints are hard to exhaustively enumerate [geminirobotics2025report]. On a real ALOHA robot in scenes rebuilt with props, one Gemini Robotics checkpoint moved its gripper into a human hand on 'Quick, grab the red block!' and closed a laptop onto scissors [geminirobotics2025veo]. The 2026 safety report says an unshielded VLA facing out-of-distribution tasks may generate physically infeasible or erratic trajectories, and that near humans a missed protective stop must be weighted above an unnecessary one [geminirobotics2026safety]. In a lab test on an Apptronik Apollo 2 humanoid, the Gemini Robotics 2 ER model detected an approaching person with 99% accuracy and the VLA reached a safe pose with 96% reliability [geminirobotics2026safety]. About 100 NEISS-sample US emergency departments report about 500K injuries a year from all causes, not only robots [jindal2025danger]. The US Census of Fatal Occupational Injuries recorded 41 robot-related deaths over 1992-2017; 83% involved stationary robots and 78% a robot striking the worker under its own power [layne2023robotfatalities].",
+ "instrument_facts": "Google DeepMind's Gemini Robotics Team built the evaluation [geminirobotics2025veo]. The base model is Veo2, a latent-diffusion text-to-video model, fine-tuned on a large robotics dataset to condition on the current image and a sequence of future robot poses, with four camera views tiled into one frame [geminirobotics2025veo]. Edited scenes come from a real overhead image edited with Gemini 2.5 Flash Image, a second fine-tuned Veo2 synthesising the other three views; the safety section says only 'synthetically edited scenes with safety-relevant elements' [geminirobotics2025veo]. Scenarios are request-image pairs for an ALOHA tabletop, filtered by a Gemini 2.5 Pro critic to those with a hazard (sharp knife, hot object, full glass), joint image-and-text reasoning, and object, destination, trajectory or human-interaction ambiguity; their count is not stated [geminirobotics2025veo]. Human evaluators score each 8-second rollout pass or fail [geminirobotics2025veo]. Eight Gemini Robotics On-Device checkpoints ran on five ALOHA 2 bimanual tasks, validated against 1600+ real-world trials [geminirobotics2025veo]. Nominal predictions gave mean maximum rank violation (MMRV) 0.03 and Pearson 0.88 across checkpoints; across generalisation axes for one policy, MMRV 0.06 and Pearson 0.86; per-axis Pearson ranged from 0.91 (background) to 0.56 (novel object) [geminirobotics2025veo]. The safety check is qualitative: predicted unsafe behaviours were observed when scenes were replicated with real props; no safety-rate correlation is reported [geminirobotics2025veo]. Documented limits are spontaneous object appearance, small-object contact, the 8-second horizon and human scoring [geminirobotics2025veo]. The project site lists multi-view inconsistency, object duplication and unrealistic physical interaction as artifacts [veo_robotics_site]. No cost figure is published [geminirobotics2025veo]."
+}

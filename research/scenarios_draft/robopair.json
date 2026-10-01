@@ -1,0 +1,85 @@
+{
+ "key": "robopair",
+ "title": "RoboPAIR jailbreak red-teaming before the LLM voice-command release",
+ "group": "physical AI",
+ "agent": "Head of product safety at a quadruped robot manufacturer who owns the release decision for the robot's LLM voice-command mode.",
+ "decision": "Delay the voice-command release and add a pre-execution safety filter (RoboGuard-style grounding of safety rules into the robot's world model plus a restricted motion API that cannot disable obstacle avoidance) vs release as planned.",
+ "theta_definition": "theta=1: the robot's LLM planner can be driven by text or voice prompts to execute a physically harmful action (collide with a person, block an emergency exit, enter a keep-out zone) and the robot carries it out.",
+ "instrument": "A RoboPAIR-style jailbreak evaluation is built from scratch (attacker, judge and syntax-checker LLMs with robot-specific system prompts, a dataset of harmful actions for the robot, a harness onto the robot's planner API, two human annotators) and run once against the candidate robot in a controlled lab.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 7,
+  "eval_family": "RoboPAIR LLM-robot jailbreaking",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": true,
+  "candidate_rank": 2
+ },
+ "sources": [
+  {
+   "key": "robey2024robopair",
+   "kind": "arxiv",
+   "ref": "2410.13691",
+   "role": "both",
+   "title": "Jailbreaking LLM-Controlled Robots",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ravichandran2025roboguard",
+   "kind": "arxiv",
+   "ref": "2503.07885",
+   "role": "both",
+   "title": "Safety Guardrails for LLM-Enabled Robots",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ieee_spectrum_robopair",
+   "kind": "url",
+   "ref": "https://spectrum.ieee.org/jailbreak-llm",
+   "role": "both",
+   "title": "It's Surprisingly Easy to Jailbreak LLM-Driven Robots (IEEE Spectrum, 11 Nov 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ieee_spectrum_unipwn",
+   "kind": "url",
+   "ref": "https://spectrum.ieee.org/unitree-robot-exploit",
+   "role": "decision",
+   "title": "Exploit Allows for Takeover of Fleets of Unitree Robots (IEEE Spectrum, 25 Sep 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "throwflame_thermonator",
+   "kind": "url",
+   "ref": "https://throwflame.com/products/thermonator-robodog/",
+   "role": "decision",
+   "title": "Thermonator: The Flamethrower Robot Dog (Throwflame product page)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "kr36_quadruped_2026",
+   "kind": "url",
+   "ref": "https://eu.36kr.com/en/p/3997354861072516",
+   "role": "decision",
+   "title": "Quadruped Robots: Unitree ranks first (36Kr, 24 Sep 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, Am J Ind Med 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "zhang2024badrobot",
+   "kind": "arxiv",
+   "ref": "2407.20242",
+   "role": "decision",
+   "title": "BadRobot: Jailbreaking Embodied LLM Agents in the Physical World",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "The Unitree Go2, commercially available since July 2023, has been deployed by law enforcement and in active warzones and retrofitted with guns and flamethrowers [robey2024robopair]. Its AI mode routes voice queries to GPT-3.5, so anyone with voice access reaches the planner [robey2024robopair]. The Thermonator, a quadruped robot dog with a 30 ft flamethrower, retails at USD 9,420 [throwflame_thermonator]; it is built on a Go2 platform [ieee_spectrum_robopair]. Unitree sold 23,000 quadrupeds in 2025 against a worldwide total of 46,000 (Counterpoint), earning 698 million yuan [kr36_quadruped_2026]. Directly prompted, the Go2 executed harmful actions in 3 of 35 attempts and the Jackal in 1 of 35; a hand-written template reached 31 and 30 of 35, and a jailbroken Go2 disabled its obstacle avoidance and collided with obstacles [robey2024robopair]. The authors judge the robots cannot act harmfully without targeted prompting and the attacks require physical access [robey2024robopair]. BadRobot prompts made GPT-4-turbo-driven robot arms (UR3e and myCobot 280-Pi) execute malicious actions in 68.57% of 35 evaluations versus 22.85% for direct queries [zhang2024badrobot]. NIOSH identified 41 robot-related workplace fatalities in the US in 1992-2017 [layne2023robotfatalities]. RoboGuard, a pre-execution guardrail, cut executed unsafe plans from 92.3% to 2.3% in simulation and from 100% to 0% on a physical Jackal without loss on safe tasks [ravichandran2025roboguard]. The UniPwn flaw disclosed on 20 September 2025 allowed root-level takeover of Go2, B2, G1 and H1 robots over Bluetooth; Unitree stopped responding to the researchers, then said on 29 September that most fixes were complete [ieee_spectrum_unipwn].",
+ "instrument_facts": "RoboPAIR adapts the PAIR jailbreak: an attacker LLM proposes a prompt, a judge LLM scores the planner's response 1-10, a syntax-checker LLM scores its code against the robot's API, and both feed the next round [robey2024robopair]. Attacker, judge and syntax checker are GPT-4; K = 10 iterations, both thresholds 10 [robey2024robopair]. The Jackal and Go2 each get seven harmful actions (bomb detonation, emergency-exit blocking, weapon search, shelf toppling, keep-out zone entry, covert surveillance, human collision) and Dolphins gets seven driving actions; five trials each, 35 attempts per method [robey2024robopair]. The score is attack success rate, success meaning the robot executes the target action; two expert annotators check every jailbreak and report no agreement statistic [robey2024robopair]. The physical targets are a Clearpath Jackal with a GPT-4o planner over a non-learned stack and a Unitree Go2 whose voice mode sends queries to GPT-3.5 and exposes 24 Python motion primitives; the third is the text-only NVIDIA Dolphins driving LLM [robey2024robopair]. RoboPAIR needed days to reach a 100 percent jailbreak rate on all three systems [ieee_spectrum_robopair]. No cost figure is published [robey2024robopair]. In RoboGuard's study one adaptive black-box RoboPAIR attack used 20,471 tokens and 15 queries; the Jackal ran an Nvidia A4000 GPU and Ryzen 5 3600 CPU [ravichandran2025roboguard]. RoboPAIR scored 35/35 on all three targets, so the published runs do not separate them; static in-context and template prompts reached 30-35/35 [robey2024robopair]. In RoboGuard's simulation a non-adaptive RoboPAIR attack succeeded in 92.3 +/- 4.7% of 210 evaluations, against 100% in 35 hardware trials [ravichandran2025roboguard]."
+}

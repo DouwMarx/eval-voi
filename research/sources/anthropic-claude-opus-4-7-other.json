@@ -1,0 +1,14 @@
+{
+ "key": "anthropic-claude-opus-4-7-other",
+ "kind": "system_card",
+ "ref": "anthropic-claude-opus-4-7-other",
+ "url": "https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals",
+ "title": "Investigating three real-world incidents in our cybersecurity evaluations (anthropic, 2026-07-30)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-opus-4-7-other] We began running cybersecurity evaluations in February 2025 with Claude Sonnet 3.7 on Cybench, which consisted of 40 different capture-the-flag challenges.",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-opus-4-7-other] We began running cybersecurity evaluations in February 2025 with Claude Sonnet 3.7 on Cybench, which consisted of 40 different capture-the-flag challenges.",
+ "chars": 282,
+ "publisher": "anthropic",
+ "publication_date": "2026-07-30",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

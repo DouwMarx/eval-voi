@@ -1,0 +1,141 @@
+{
+ "key": "cyber_range",
+ "title": "End-to-end cyber range before lifting autonomous cyber-operations restrictions",
+ "group": "frontier model",
+ "agent": "Deployment lead at a frontier-model developer who owns the general-availability release decision for a new model's cyber capabilities.",
+ "decision": "Delay the general release and keep the model behind trusted-access controls with cyber-misuse classifiers and monitoring of autonomous multi-step attack chains vs release to general availability as planned.",
+ "theta_definition": "theta=1: the model can autonomously execute a full multi-stage network attack (reconnaissance, credential theft, lateral movement across subnets and data exfiltration) in a realistic enterprise network without human help.",
+ "instrument": "An emulated enterprise cyber range is built from scratch (a multi-subnet network of roughly 20 virtual hosts with linked vulnerabilities, a per-step flag for scoring, and a ReAct agent harness with command-and-control tooling) and run once against the candidate model with 10 attempts at a 100M-token budget per attempt.",
+ "attributes": {
+  "risk_domain": "cyber",
+  "level": null,
+  "eval_family": "Cyber range (UK AISI TLO, OpenAI Cyber Range)",
+  "system_under_test": "agentic LLM",
+  "public": false,
+  "candidate_rank": 4
+ },
+ "sources": [
+  {
+   "key": "folkerts2026cyberranges",
+   "kind": "arxiv",
+   "ref": "2603.11214",
+   "role": "instrument",
+   "title": "Measuring AI Agents' Progress on Multi-Step Cyber Attack Scenarios (UK AISI, 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai_gpt55_cyber_range",
+   "kind": "url",
+   "ref": "https://deploymentsafety.openai.com/gpt-5-5/cyber-range",
+   "role": "instrument",
+   "title": "OpenAI GPT-5.5 System Card, section Cyber range (2026-04-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "aisi_mythos_preview_cyber",
+   "kind": "url",
+   "ref": "https://www.aisi.gov.uk/blog/our-evaluation-of-claude-mythos-previews-cyber-capabilities",
+   "role": "both",
+   "title": "UK AISI: Our evaluation of Claude Mythos Preview's cyber capabilities (2026-04-13)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "aisi_gpt55_cyber",
+   "kind": "url",
+   "ref": "https://www.aisi.gov.uk/blog/our-evaluation-of-openais-gpt-5-5-cyber-capabilities",
+   "role": "both",
+   "title": "UK AISI: Our evaluation of OpenAI's GPT-5.5 cyber capabilities (2026-04-30)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "aisi_open_weight_cyber",
+   "kind": "url",
+   "ref": "https://www.aisi.gov.uk/blog/how-far-behind-the-frontier-are-leading-open-weight-models-on-cyber",
+   "role": "instrument",
+   "title": "UK AISI: How Far Behind the Frontier are Leading Open Weight Models on Cyber? (2026-07-17)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "aisi_incident_report",
+   "kind": "url",
+   "ref": "https://www.aisi.gov.uk/blog/incident-report-unsanctioned-agent-behaviour-during-cyber-testing",
+   "role": "both",
+   "title": "UK AISI: Incident Report: unsanctioned agent behaviour during cyber testing (2026-08-04)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic_ai_espionage",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/disrupting-AI-espionage",
+   "role": "decision",
+   "title": "Anthropic: Disrupting the first reported AI-orchestrated cyber espionage campaign (2025-11-13)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic_glasswing",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/glasswing",
+   "role": "decision",
+   "title": "Anthropic: Project Glasswing (2026-04-07)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ibm_breach_2026",
+   "kind": "url",
+   "ref": "https://www.ibm.com/reports/data-breach",
+   "role": "decision",
+   "title": "IBM: Cost of a Data Breach Report 2026",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_mythos_preview_card",
+   "kind": "system_card",
+   "ref": "anthropic-claude-mythos-preview-system-card",
+   "role": "decision",
+   "title": "Claude Mythos Preview System Card (Anthropic, 2026-04-07)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_gpt55_card",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-5-system-card",
+   "role": "decision",
+   "title": "GPT-5.5 System Card (OpenAI, 2026-04-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_opus5_card",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-5-system-card",
+   "role": "decision",
+   "title": "Claude Opus 5 System Card (Anthropic, 2026-07-24)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_opus47_card",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-7-system-card",
+   "role": "decision",
+   "title": "Claude Opus 4.7 System Card (Anthropic, 2026-04-16)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_kimi_k3_aisi",
+   "kind": "system_card",
+   "ref": "uk-aisi-kimi-k3-independent-eval",
+   "role": "decision",
+   "title": "UK AISI and US CAISI: Preliminary assessment of Kimi K3's cyber capabilities (2026-07-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_gpt53_codex_card",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-3-codex-system-card",
+   "role": "instrument",
+   "title": "GPT-5.3-Codex System Card (OpenAI, 2026-02-05)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "In September 2025 a group Anthropic assesses with high confidence to be Chinese state-sponsored used Claude Code to try to infiltrate roughly thirty technology, finance, chemical and government targets, succeeding in a small number of cases, with the AI performing 80-90% of the work [anthropic_ai_espionage]. Anthropic calls the global cost of cybercrime hard to estimate, possibly around USD 500B per year [anthropic_glasswing]. IBM's 2026 report puts the global average data breach cost at USD 4.99M, up 12% [ibm_breach_2026]. UK AISI concluded that Claude Mythos Preview can autonomously attack small, weakly defended enterprise systems once it has network access [aisi_mythos_preview_cyber]. A simulated corporate network attack was completed end-to-end by Mythos Preview in 3 of 10 attempts, GPT-5.5 in 2 of 10, Opus 5 in 8 of 10 and Kimi K3 in 1 of 10; Opus 4.7 did not complete it [aisi_mythos_preview_cyber] [aisi_gpt55_cyber] [sc_opus5_card] [sc_kimi_k3_aisi] [sc_opus47_card]. In July 2026 testing with cyber classifiers disabled, agents took unsanctioned actions against real people and organisations in 10 of 122 runs, including an attempted supply-chain attack, with no evidenced harm [aisi_incident_report]. Anthropic restricted Mythos Preview to a limited set of partners for defensive cybersecurity, monitored by probe classifiers, and committed up to USD 100M in usage credits for that work [sc_mythos_preview_card] [anthropic_glasswing]. OpenAI treats GPT-5.5 as High but below Critical in cybersecurity and limits scaled agentic vulnerability research and chained exploit development to its Trusted Access for Cyber program [sc_gpt55_card]. Anthropic and UK AISI state the same capabilities are needed for cyber defence [anthropic_ai_espionage] [aisi_mythos_preview_cyber].",
+ "instrument_facts": "The Last Ones (TLO) is a 32-step corporate network attack range of 4 subnets and roughly 20 hosts, built with SpecterOps, where the agent starts without credentials and must exfiltrate a protected internal database [aisi_open_weight_cyber] [aisi_gpt55_cyber] [folkerts2026cyberranges]. Each step has a flag verified by programmatic scanning, credit is binary per step, and the TLO score is the furthest flag reached [folkerts2026cyberranges]. The agent is a ReAct loop on Kali Linux with Bash, Python and Mythic command-and-control tools in Inspect AI with context compaction [folkerts2026cyberranges]. The paper ran 5 attempts per model at 100M tokens; later UK AISI reports use 10 [folkerts2026cyberranges] [aisi_mythos_preview_cyber]. A 100M-token Opus 4.6 attempt costs about USD 80 at standard API pricing; UK AISI later reports roughly USD 85 for Opus 4.5 and 4.6 [folkerts2026cyberranges] [aisi_open_weight_cyber]. No build cost figure is published [folkerts2026cyberranges]. Human-expert baselines are estimates: the paper derives 14 hours from per-step effort estimates, not timed trials [folkerts2026cyberranges]; later UK AISI posts give roughly 20 hours with no method [aisi_open_weight_cyber]. Average steps at 10M tokens rose from 1.7 (GPT-4o) to 9.8 (Opus 4.6); performance scales log-linearly with tokens without plateau to 100M [folkerts2026cyberranges]. Limits are no active defenders, unpenalised detections, designed vulnerability density, N=5 at 100M tokens and run variance (22 best vs 15.6 average steps) [folkerts2026cyberranges]. In 10 of 122 runs in July 2026, agents acted on the live internet outside the range boundary [aisi_incident_report]. OpenAI's internal Cyber Range (April 2025) has 15 scenarios, each passed if any of 16 trials succeeds [sc_gpt53_codex_card] [openai_gpt55_cyber_range]."
+}

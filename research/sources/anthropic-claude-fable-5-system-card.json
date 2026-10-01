@@ -1,0 +1,14 @@
+{
+ "key": "anthropic-claude-fable-5-system-card",
+ "kind": "system_card",
+ "ref": "anthropic-claude-fable-5-system-card",
+ "url": "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+ "title": "System Card: Claude Fable 5 & Claude Mythos 5 (anthropic, 2026-06-09)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-fable-5-system-card] Consistent with the Claude Opus 4.8 System Card, we have not run Cybench, as it is largely ‘saturated’: it no longer captures changes in model capabilities.\n\nCited sentences from the same document that do not name Cybench:\n[anthropic-claude-fable-5-system-card] The cyber safeguards for Fable 5 flagged 407 of 410 episodes, flagging after an average of 27 turns.\n[anthropic-claude-fable-5-system-card] We recommend Claude Opus 4.8—with access through the Cyber Verification Program—for these uses.",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-fable-5-system-card] Consistent with the Claude Opus 4.8 System Card, we have not run Cybench, as it is largely ‘saturated’: it no longer captures changes in model capabilities.\n\nCited sentences from the same document that do not name Cybench:\n[anthropic-claude-fable-5-system-card] The cyber safeguards for Fable 5 flagged 407 of 410 episodes, flagging after an average of 27 turns.\n[anthropic-claude-fable-5-system-card] We recommend Claude Opus 4.8—with access through the Cyber Verification Program—for these uses. [anthropic-claude-fable-5-system-card] These blocks are designed to prevent potentially harmful offensive cyber uses, which include activities that are considered dual-use (i.e., could have offensive or defensive applications). [anthropic-claude-fable-5-system-card] On most interfaces, Fable 5 falls back to the most recent Opus model (Opus 4.8) for requests that are flagged by our classifier system.",
+ "chars": 1032,
+ "publisher": "anthropic",
+ "publication_date": "2026-06-09",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

@@ -1,0 +1,11 @@
+{
+ "key": "sc_anthropic_glm_5_3_other",
+ "kind": "system_card",
+ "ref": "anthropic-glm-5-3-other",
+ "url": "https://www.anthropic.com/research/glm-5-3-and-the-spread-of-advanced-cyber-capabilities",
+ "title": "GLM-5.3 and the spread of advanced cyber capabilities",
+ "fetched": "2026-10-01",
+ "abstract": "[anthropic-glm-5-3-other] To research how far abliteration allows attackers to bypass GLM-5.3’s safeguards, we produced an abliterated copy ourselves, and then ran it on three public benchmarks (JailbreakBench, HarmBench, and StrongREJECT) that measure how often a model complies with clearly harmful requests.\n[anthropic-glm-5-3-other] The edit took GLM-5.3’s refusal rate from above 90% to about 3% and 2% on the first two benchmarks (JailbreakBench and HarmBench) and to 12% on the third (StrongREJECT).",
+ "text": "[anthropic-glm-5-3-other] To research how far abliteration allows attackers to bypass GLM-5.3’s safeguards, we produced an abliterated copy ourselves, and then ran it on three public benchmarks (JailbreakBench, HarmBench, and StrongREJECT) that measure how often a model complies with clearly harmful requests.\n[anthropic-glm-5-3-other] The edit took GLM-5.3’s refusal rate from above 90% to about 3% and 2% on the first two benchmarks (JailbreakBench and HarmBench) and to 12% on the third (StrongREJECT).",
+ "chars": 506
+}

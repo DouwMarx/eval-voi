@@ -1,0 +1,15 @@
+{
+ "key": "bloom_sc_muse_spark",
+ "kind": "system_card",
+ "ref": "meta-muse-spark-system-card",
+ "url": "https://ai.meta.com/static-resource/muse-spark-safety-and-preparedness-report/",
+ "title": "Muse Spark Safety & Preparedness Report (meta, 2026-05-26)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Bloom and the cited self-preservation sentences (system-card corpus docs.sqlite, document slug in brackets):\n[meta-muse-spark-system-card] On Agentic Misalignment, Muse Spark and Gemini 3.1 Pro exhibit substantial rates of harmful actions (47.7% and 51.4% respectively), while Claude Opus 4.6 and GPT-5.4 show 0%. • Evaluation awareness: Independent third-party testing from Apollo Research found that Muse Spark demonstrates high evaluation awareness on their internal alignment evaluations.\n[meta-muse-spark-system-card] This evaluation is forward-facing as Muse Spark is not deployed with agentic capabilities in Meta AI.\n[meta-muse-spark-system-card] As reported in our model behavior assessment for Muse Spark, the model robustly maintains its epistemic integrity, achieving 89.1% honesty score on MASK, while showing a tendency toward self-preservation under pressure, getting a 47.7% harmful action rate across all tasks on Agentic Misalignment.\n[meta-muse-spark-system-card] Muse Spark and Gemini 3.1 Pro exhibit higher rates of harmful actions (47.7% and 51.5% respectively), while Claude Opus 4.6 and GPT-5.4 show none (Table 23).",
+ "text": "Corpus sentences naming Bloom and the cited self-preservation sentences (system-card corpus docs.sqlite, document slug in brackets):\n[meta-muse-spark-system-card] On Agentic Misalignment, Muse Spark and Gemini 3.1 Pro exhibit substantial rates of harmful actions (47.7% and 51.4% respectively), while Claude Opus 4.6 and GPT-5.4 show 0%. • Evaluation awareness: Independent third-party testing from Apollo Research found that Muse Spark demonstrates high evaluation awareness on their internal alignment evaluations.\n[meta-muse-spark-system-card] This evaluation is forward-facing as Muse Spark is not deployed with agentic capabilities in Meta AI.\n[meta-muse-spark-system-card] As reported in our model behavior assessment for Muse Spark, the model robustly maintains its epistemic integrity, achieving 89.1% honesty score on MASK, while showing a tendency toward self-preservation under pressure, getting a 47.7% harmful action rate across all tasks on Agentic Misalignment.\n[meta-muse-spark-system-card] Muse Spark and Gemini 3.1 Pro exhibit higher rates of harmful actions (47.7% and 51.5% respectively), while Claude Opus 4.6 and GPT-5.4 show none (Table 23).",
+ "chars": 1164,
+ "publisher": "meta",
+ "publication_date": "2026-05-26",
+ "note": "text = corpus sentences naming the evaluation (and, for a decision-role card, the cited hazard sentences), not the whole document",
+ "n_sentences": 4
+}

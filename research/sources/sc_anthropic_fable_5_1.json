@@ -1,0 +1,11 @@
+{
+ "key": "sc_anthropic_fable_5_1",
+ "kind": "system_card",
+ "ref": "anthropic-claude-fable-5-1-system-card",
+ "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+ "title": "System Card: Claude Fable 5.1 & Claude Mythos 5.1",
+ "fetched": "2026-10-01",
+ "abstract": "System Card: Claude Fable 5.1 & Claude Mythos 5.1 (anthropic, 2026-09-01). Passages naming MASK from the system-card corpus, with adjacent caption and result sentences.",
+ "text": "[anthropic-claude-fable-5-1-system-card] 6.5.2 MASK Model Alignment between Statements and Knowledge (MASK) measures whether a model will contradict its own stated belief when pushed by the user or by the system prompt. As in previous system cards, we used the public test split of the MASK evaluation set. In Figure 6.5.2.A we observe that Claude Mythos 5.1 has a lower honesty rate than Claude models released since Claude Mythos Preview. 123 [Figure 6.5.2.A] Honesty under pressure. Honesty rate on the public MASK split: the fraction of prompts where the model did not contradict its own elicited belief under pressure. Higher is better. Shown with 95% CI (n=904). This regression comes from Mythos 5.1 being more willing, when steered by the system prompt, to write responses that go against its stated beliefs. These include conspiracy theories such as that the moon landing was faked, that the pyramids were built by aliens, or various claims about the Denver airport. In its chain-of-thought Mythos 5.1 recognizes that the claim is false, but still goes along with it due to a combination of the system prompting and the belief that the requested response is “low-harm”.",
+ "chars": 1178
+}

@@ -1,0 +1,93 @@
+{
+ "key": "hpct",
+ "title": "Human Pathogen Capabilities Test before releasing a frontier model",
+ "group": "frontier model",
+ "agent": "Deployment lead at a frontier model developer who owns the release decision for a new general-purpose assistant.",
+ "decision": "Delay the release and ship the model with always-on biology misuse classifiers plus access to high-concern pathogen content limited to vetted life-science professionals vs release as planned.",
+ "theta_definition": "theta=1: the model's answers give a non-specialist the practical wet-lab knowledge needed to work with immune-evasive influenza viruses, immune-evasive coronaviruses, chimeric coronaviruses or poxviruses, knowledge that published protocols do not supply.",
+ "instrument": "The Human Pathogen Capabilities Test is built from scratch (an expert panel fixes the high-concern pathogens, practitioner virologists write and review text-only tacit-knowledge questions with multiple-response and multiple-choice answer options, refusal labels are assigned, and a panel of PhD-level virologists is baselined on the questions) and run once against the candidate model.",
+ "attributes": {
+  "risk_domain": "cbrn",
+  "level": null,
+  "eval_family": "SecureBio biological capability tests",
+  "system_under_test": "LLM",
+  "public": false,
+  "candidate_rank": 27
+ },
+ "sources": [
+  {
+   "key": "securebio-hpct-page",
+   "kind": "url",
+   "ref": "https://securebio.org/benchmarks/details/?benchmark=hpct",
+   "role": "both",
+   "title": "SecureBio AI biosecurity benchmark details: Human Pathogen Capabilities Test (HPCT)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio_gpt55_assessment",
+   "kind": "url",
+   "ref": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+   "role": "both",
+   "title": "SecureBio's pre-release assessment of OpenAI's GPT-5.5 (23 April 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio-astra-assessment",
+   "kind": "pdf",
+   "ref": "https://securebio.org/resources/gpt-6-astra-assessment.pdf",
+   "role": "instrument",
+   "title": "SecureBio, Pre-Release Assessment of OpenAI's GPT-6 Astra (14 September 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "hpct-system-cards",
+   "kind": "system_card",
+   "ref": "HPCT",
+   "role": "instrument",
+   "title": "System-card corpus sentences naming the Human Pathogen Capabilities Test",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai-bio-preparedness",
+   "kind": "system_card",
+   "ref": "openai-gpt-6-astra-system-card",
+   "role": "decision",
+   "title": "OpenAI system-card sentences on the biological and chemical High capability determination, with the GPT-6.1 Sol addendum of 29 September 2026",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic-bio-access",
+   "kind": "system_card",
+   "ref": "anthropic-claude-fable-5-1-access-policy",
+   "role": "decision",
+   "title": "Anthropic access-policy sentences on restricted biology access for Claude Mythos 5.1",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic-asl3",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/activating-asl3-protections",
+   "role": "decision",
+   "title": "Activating AI Safety Level 3 protections (Anthropic, 22 May 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "constitutional-classifiers",
+   "kind": "arxiv",
+   "ref": "2501.18837",
+   "role": "decision",
+   "title": "Constitutional Classifiers: Defending against Universal Jailbreaks across Thousands of Hours of Red Teaming",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "marani2021",
+   "kind": "url",
+   "ref": "https://doi.org/10.1073/pnas.2105482118",
+   "role": "decision",
+   "title": "Intensity and frequency of extreme novel epidemics (PNAS, 2021)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "The hazard is practical wet-lab help on human pathogen classes that are high-concern for misuse: immune-evasive influenza viruses, immune-evasive coronaviruses, chimeric coronaviruses and poxviruses [securebio-hpct-page]. OpenAI's Preparedness Framework uses its High capability threshold to assess whether models can give meaningful assistance to novice actors creating known severe threats [openai-bio-preparedness]. OpenAI's GPT-6 Astra system card of 3 September 2026 treats Astra as High capability in the biological and chemical domain [openai-bio-preparedness]. The GPT-6.1 Sol addendum of 29 September 2026 states that OpenAI implemented its strongest safeguards to date for Astra [openai-bio-preparedness]. Anthropic activated its AI Safety Level 3 Deployment and Security Standards when launching Claude Opus 4 on 22 May 2025, as a precautionary action against chemical, biological, radiological and nuclear (CBRN) misuse [anthropic-asl3]. An independent assessor concluded in April 2026 that model potential for facilitating sophisticated planning by expert actors remains a critical biosecurity consideration [securebio_gpt55_assessment]. Exposure is population-wide: the yearly probability of an epidemic as intense as the 1918-1920 influenza has varied between 0.27 and 1.9 percent since 1600, its mean recurrence time today is 400 years, and the yearly probability of extreme epidemics may increase up to threefold in coming decades [marani2021]. Classifier guards of this kind add an absolute 0.38 percent increase in production-traffic refusals and 23.7 percent inference overhead [constitutional-classifiers]. Restricting biology capability leaves life-science professionals a vetted access program [anthropic-bio-access].",
+ "instrument_facts": "The Human Pathogen Capabilities Test is a text-only evaluation developed by SecureBio and modelled after the Virology Capabilities Test [securebio-hpct-page]. It has 100 text-only questions, with a holdout set privately held by SecureBio [securebio-hpct-page]. A panel of experts selected the pathogens, and the questions target tacit knowledge that is hard to find outside practitioner circles [securebio-hpct-page]. Questions are answered in a multiple-response format with 4 to 10 options, with 10 mutually exclusive multiple-choice options also available [securebio-hpct-page]. Thirteen PhD-level virologists baselined it on subsets of at least 10 questions tailored to their pathogen of expertise, most questions answered by three virologists who had not seen them, 15 to 30 minutes per question, any resource except AI models or colleagues, average accuracy 30.8 percent; the same page's summary line gives 31.5 percent [securebio-hpct-page]. The dataset is not publicly available [securebio-hpct-page]. Refusal-labelled subsets are shared on request from ai@securebio.org [hpct-system-cards]. SecureBio runs it through the Inspect AI framework at 10 epochs per sample [securebio-astra-assessment]. One developer reports running 100 questions at 7 epochs [hpct-system-cards]. No cost figure is published; SecureBio states only that OpenAI compensation was limited to covering the costs of that assessment [securebio-astra-assessment]. 87 of the 100 questions are labelled as questions that should be refused [hpct-system-cards]. Refusals move the scores: Claude Opus 4 refused over 90 percent of the test and GPT-5.4 refused 35 percent, yet both scored higher on the samples they answered under refusal-corrected scoring [securebio_gpt55_assessment]. Llama 3.2 1B scores higher than the lowest-performing experts [hpct-system-cards]."
+}

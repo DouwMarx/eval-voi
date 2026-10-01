@@ -1,0 +1,117 @@
+{
+ "key": "cybench",
+ "title": "Cybench before deploying a frontier agentic coding model",
+ "group": "frontier model",
+ "agent": "Cyber-risk lead at a frontier-model developer who owns the deployment decision for a new agentic coding model.",
+ "decision": "Delay the deployment and add cyber-misuse safeguards (real-time classifiers that block offensive-cyber requests on agentic surfaces, with a verification program for vetted security practitioners) vs deploy as planned.",
+ "theta_definition": "theta=1: the model can, without human guidance, find and exploit a vulnerability in real deployed software at the level of a professional penetration tester working for an hour or more.",
+ "instrument": "A Cybench-style suite of 40 professional capture-the-flag tasks is built from scratch (containerised tasks with starter files, flag checkers, subtasks and human first-solve-time difficulty anchors) and run once against the candidate model.",
+ "attributes": {
+  "risk_domain": "cyber",
+  "level": null,
+  "eval_family": "CTF suites",
+  "system_under_test": "agentic LLM",
+  "public": true,
+  "candidate_rank": 8
+ },
+ "sources": [
+  {
+   "key": "zhang2024cybench",
+   "kind": "arxiv",
+   "ref": "2408.08926",
+   "role": "instrument",
+   "title": "Cybench: A Framework for Evaluating Cybersecurity Capabilities and Risks of Language Models (Zhang et al., Stanford, ICLR 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "aisi2024o1",
+   "kind": "pdf",
+   "ref": "https://www.nist.gov/system/files/documents/2024/12/18/US_UK_AI%20Safety%20Institute_%20December_Publication-OpenAIo1.pdf",
+   "role": "both",
+   "title": "US AISI and UK AISI Joint Pre-Deployment Test: OpenAI o1 (December 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "fbi_ic3_2024",
+   "kind": "pdf",
+   "ref": "https://www.ic3.gov/AnnualReport/Reports/2024_IC3Report.pdf",
+   "role": "decision",
+   "title": "FBI Internet Crime Complaint Center 2024 Annual Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic-claude-opus-4-6-system-card",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-6-system-card",
+   "role": "decision",
+   "title": "System Card: Claude Opus 4.6 (anthropic, 2026-02-05)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic-claude-opus-4-7-system-card",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-7-system-card",
+   "role": "instrument",
+   "title": "System Card: Claude Opus 4.7 (anthropic, 2026-04-16)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic-claude-fable-5-system-card",
+   "kind": "system_card",
+   "ref": "anthropic-claude-fable-5-system-card",
+   "role": "decision",
+   "title": "System Card: Claude Fable 5 & Claude Mythos 5 (anthropic, 2026-06-09)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-system-card",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "both",
+   "title": "Muse Spark Safety & Preparedness Report (meta, 2026-05-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-1-1-system-card",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-1-1-system-card",
+   "role": "both",
+   "title": "Muse Spark 1.1 Evaluation Report (meta, 2026-07-09)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "rand-gpt-5-independent-eval",
+   "kind": "system_card",
+   "ref": "rand-gpt-5-independent-eval",
+   "role": "decision",
+   "title": "Investigating the potential use of frontier AI models for offensive cyberattacks: A human uplift study (rand, 2026-05-28)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "saferai-glm-5-2-independent-eval",
+   "kind": "system_card",
+   "ref": "saferai-glm-5-2-independent-eval",
+   "role": "instrument",
+   "title": "GLM-5.2 Risk Evaluation Report (saferai, 2026-08-02)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai-gpt-5-3-codex-system-card",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-3-codex-system-card",
+   "role": "decision",
+   "title": "GPT-5.3-Codex System Card (openai, 2026-02-05)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic-claude-opus-4-6-other-5",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-6-other-5",
+   "role": "decision",
+   "title": "Reverse engineering Claude's CVE-2026-2796 exploit (anthropic, 2026-03-06)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Anthropic's cyber threat models are non-state actors scaling attacks on poorly-hardened targets, and autonomous AI running advanced multi-step operations letting low-resource states act as top-tier Advanced Persistent Threat (APT) actors [anthropic-claude-opus-4-6-system-card]. Anthropic reports disrupting cybercriminals using models for extortion and GTG-1002, a state-sponsored cyberespionage campaign partly automated by AI [anthropic-claude-opus-4-6-system-card]. The FBI Internet Crime Complaint Center recorded 859,532 complaints and USD 16.6 billion in losses in 2024, including 4,878 complaints from critical-infrastructure organisations [fbi_ic3_2024]. US AISI's pre-deployment test found o1 solved 45% of professional capture-the-flag tasks against 35% for the best reference model [aisi2024o1]. Claude Sonnet 4.5 solved 76.5 percent of a set of professional capture-the-flag challenges, double Sonnet 3.7's 35.9 percent six months earlier, and Opus 4.6 found over 500 open-source zero-day vulnerabilities [rand-gpt-5-independent-eval]. Opus 4.6 found 22 Firefox vulnerabilities in two weeks but exploited only two given hundreds of chances [anthropic-claude-opus-4-6-other-5]. Anthropic's Responsible Scaling Policy stipulates no cyber capability threshold at any AI Safety Level [anthropic-claude-opus-4-6-system-card]. Meta's cyber risk framework runs its complex real-world evaluation only after a model clears a public professional capture-the-flag suite [meta-muse-spark-1-1-system-card]. Meta deployed cyber misuse monitoring as a compensating control [meta-muse-spark-system-card]. OpenAI treated GPT-5.3-Codex as High capability in cybersecurity as a precaution, adding monitoring, routing some high-risk traffic to a weaker model and a Trusted Access for Cyber program [openai-gpt-5-3-codex-system-card]. Anthropic's cyber safeguards for Fable 5 flagged 407 of 410 exploit-development episodes; flagged requests fall back to Opus 4.8, which Anthropic offers for dual-use cyber work through a Cyber Verification Program [anthropic-claude-fable-5-system-card].",
+ "instrument_facts": "Cybench, from Stanford University, evaluates agents on 40 professional-level capture-the-flag (CTF) tasks from HackTheBox, SekaiCTF, Glacier and HKCert competitions held 2022-2024 [zhang2024cybench]. Tasks span cryptography, web, reverse engineering, forensics, exploitation and miscellaneous skills; each has a description, starter files, a flag checker and subtasks [zhang2024cybench]. The agent runs bash commands in a Kali Linux container; the authors used 15 iterations unguided, 5 per subtask, one attempt, and 6,000 input and 2,000 output tokens per step [zhang2024cybench]. Difficulty is anchored by first solve time (FST), the first human team's competition time, from 2 minutes to 24 hours 54 minutes [zhang2024cybench]. No cost figure is published [zhang2024cybench]. Claude 3.5 Sonnet scored 17.5% unguided, no model solved an unguided task above 11 minutes FST, and train-test overlap was minimal except possibly for Claude 3.5 Sonnet [zhang2024cybench]. The authors state the tasks are short, use small codebases and are not real-world [zhang2024cybench]. US AISI ran each task ten times with a 100-message cap, called FST a noisy human proxy that may not be directly comparable across competitions, and had Cybersecurity and Infrastructure Security Agency (CISA) and National Security Agency (NSA) experts review transcripts [aisi2024o1]. Anthropic ran a 35-challenge subset due to infrastructure constraints, Opus 4.7 at 96% pass@1, and calls it saturated [anthropic-claude-opus-4-7-system-card]. Muse Spark 1.1 reached 92.9% pass@1 and about 97.0% pass@10 [meta-muse-spark-1-1-system-card]. Meta observed pass@1 scaling roughly log-linearly with working time and output tokens [meta-muse-spark-system-card]. SaferAI ran it through Inspect Evals, and found GLM-5.2 near saturation alongside Opus 4.7 and GPT-5.5 [saferai-glm-5-2-independent-eval]."
+}

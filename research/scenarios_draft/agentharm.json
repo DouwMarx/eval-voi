@@ -1,0 +1,69 @@
+{
+ "key": "agentharm",
+ "title": "AgentHarm before the tool-calling API launch",
+ "group": "frontier model",
+ "agent": "Head of trust and safety at a frontier model developer who owns the launch decision for the model's tool-calling (agentic) API.",
+ "decision": "Delay the tool-calling API launch and add agentic misuse safeguards (refusal training on harmful multi-step tool-use requests plus a request classifier on tool-calling traffic) vs launch as planned.",
+ "theta_definition": "theta=1: when a user directly asks, the deployed model acting as a tool-using agent carries out explicitly malicious multi-step tasks (fraud, cybercrime, harassment) to completion at a material rate instead of refusing.",
+ "instrument": "An AgentHarm-style evaluation is built from scratch (hand-written explicitly malicious multi-step tasks across harm categories with benign counterparts, synthetic tool implementations, per-task grading rubrics with narrow LLM semantic checks and a refusal judge, in an agent evaluation framework) and run once against the candidate model in a basic tool-calling loop.",
+ "attributes": {
+  "risk_domain": "societal_harm",
+  "level": null,
+  "eval_family": "AgentHarm agentic misuse",
+  "system_under_test": "agentic LLM",
+  "public": true,
+  "candidate_rank": 18
+ },
+ "sources": [
+  {
+   "key": "andriushchenko2024agentharm",
+   "kind": "arxiv",
+   "ref": "2410.09024",
+   "role": "both",
+   "title": "AgentHarm: A Benchmark for Measuring Harmfulness of LLM Agents",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "hf_agentharm",
+   "kind": "url",
+   "ref": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
+   "role": "instrument",
+   "title": "ai-safety-institute/AgentHarm dataset card (Hugging Face)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic_misuse_aug2025",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/detecting-countering-misuse-aug-2025",
+   "role": "decision",
+   "title": "Detecting and countering misuse of AI: August 2025 (Anthropic Threat Intelligence Report)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "fbi_ic3_2024",
+   "kind": "pdf",
+   "ref": "https://www.ic3.gov/AnnualReport/Reports/2024_IC3Report.pdf",
+   "role": "decision",
+   "title": "FBI Internet Crime Complaint Center (IC3) 2024 Annual Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_meta_muse_spark__agentharm",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "both",
+   "title": "Muse Spark Safety & Preparedness Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_meta_muse_spark_1_1__agentharm",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-1-1-system-card",
+   "role": "both",
+   "title": "Muse Spark 1.1 Evaluation Report",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Tool-integrated LLMs reached millions of users by 2024; agents directed toward harmful tasks pose greater misuse risk than chatbots [andriushchenko2024agentharm]. Without a jailbreak, GPT-4o mini scored a 62.5% harm score on explicitly malicious multi-step agent tasks and Mistral Large 2 refused 1.1%, while Claude 3.5 Sonnet refused 85.2% (2024) [andriushchenko2024agentharm]. A simple jailbreak template raised Claude 3.5 Sonnet's harm score from 13.5% to 68.7% [andriushchenko2024agentharm]. In 2025 one actor used Claude Code to automate reconnaissance, credential theft and network penetration against at least 17 organisations with ransoms that sometimes exceeded USD 500,000 [anthropic_misuse_aug2025]. The same report records AI-generated ransomware sold for USD 400 to 1,200 and multiple AI agents committing fraud [anthropic_misuse_aug2025]. The FBI logged 859,532 internet-crime complaints in 2024 with losses of USD 16.6 billion; cyber-enabled fraud was almost 83% of losses (USD 13.7 billion) [fbi_ic3_2024]. In May 2026 Meta reported Muse Spark completing 26.0% of harmful multi-step agent tasks (GPT-5.4 10.2%, Claude Opus 4.6 8.2%, Gemini 3.1 Pro 21.6%) and stated that the AgentHarm threat model, an attacker using user-connected third-party tools, did not apply to the current deployment setting, so no Meta AI result was reported [sc_meta_muse_spark__agentharm]. In July 2026 Meta released Muse Spark 1.1 through a tool-calling API, judged the threat model applicable, and reported harm scores of 3.4% (Muse Spark 1.1), 1.5% (GPT-5.5), 0.0% (Claude Opus 4.8) and 20.4% (Gemini 3.1 Pro) [sc_meta_muse_spark_1_1__agentharm]. False refusals on benign agentic requests were 6.8% for Muse Spark, 16.5% for GPT-5.4 and 20.9% for Claude Opus 4.6 [sc_meta_muse_spark__agentharm].",
+ "instrument_facts": "AgentHarm (2024) was written by Gray Swan AI and the UK AI Security Institute [andriushchenko2024agentharm]. It has 110 hand-written base behaviours, 10 in each of 11 harm categories, expanded to 440 tasks by open-ended and hint variants, each with a benign counterpart [andriushchenko2024agentharm]. Tasks need 2 to 8 of 104 synthetic tools implemented in the Inspect framework; splits are 44 validation, 264 public-test and 132 private-test tasks [andriushchenko2024agentharm]. The harm score comes from manually written grading conditions with partial credit; GPT-4o is a narrow semantic judge for sub-checks and the refusal judge [andriushchenko2024agentharm]. Each task was reviewed by a separate human and grading was checked by manual log inspection; no judge-agreement statistic is reported [andriushchenko2024agentharm]. One public-test run uses 0.5 to 1.5 million tokens, about USD 1 to 4 on GPT-4o or USD 0.08 to 0.25 on GPT-4o-mini (September 2024), plus up to USD 0.5 of judge calls, in about 10 minutes [andriushchenko2024agentharm]. Documented limitations: English only, one user turn, grading can miss valid alternative traces, and only basic agentic capabilities are measured [andriushchenko2024agentharm]. The public release holds 44 of 66 public test base behaviours (176 augmented); the jailbreak template is withheld [hf_agentharm]. Meta ran test_public with tool_choice=auto plus 5 irrelevant tools [sc_meta_muse_spark__agentharm]. Meta's Muse Spark 1.1 run used 108 behaviours kept after AI-assisted human review; roughly 10% of chain-of-thought traces raised concerns that the scenario was a safety test or that the user request was not genuine; some traces flagged the tools or task as synthetic or fictional [sc_meta_muse_spark_1_1__agentharm]."
+}

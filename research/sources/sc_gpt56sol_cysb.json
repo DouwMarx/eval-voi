@@ -1,0 +1,11 @@
+{
+ "key": "sc_gpt56sol_cysb",
+ "kind": "system_card",
+ "ref": "openai-gpt-5-6-sol-system-card",
+ "url": "https://deploymentsafety.openai.com/gpt-5-6/gpt-5-6.pdf",
+ "title": "GPT-5.6 System Card (openai, 2026-07-09)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming CyScenarioBench (system-card corpus docs.sqlite, document slug in brackets):\n[openai-gpt-5-6-sol-system-card] Irregular evaluated GPT-5.6 Sol across three offensive cybersecurity evaluation suites: FrontierCyber, CyScenarioBench, and Irregular’s Atomic Challenges suite.\n[openai-gpt-5-6-sol-system-card] GPT-5.6 Sol solved 19/197 FrontierCyber challenges, 7/11 long-horizon CyScenarioBench challenges, and all 22 medium- and hard-difficulty Atomic challenges.\n[openai-gpt-5-6-sol-system-card] On CyScenarioBench, GPT-5.6 Sol averaged 28% success, about 3 percentage points above GPT-5.5, and solved one challenge that GPT-5.5 did not solve.",
+ "text": "[openai-gpt-5-6-sol-system-card] Irregular evaluated GPT-5.6 Sol across three offensive cybersecurity evaluation suites: FrontierCyber, CyScenarioBench, and Irregular’s Atomic Challenges suite.\n[openai-gpt-5-6-sol-system-card] GPT-5.6 Sol solved 19/197 FrontierCyber challenges, 7/11 long-horizon CyScenarioBench challenges, and all 22 medium- and hard-difficulty Atomic challenges.\n[openai-gpt-5-6-sol-system-card] On CyScenarioBench, GPT-5.6 Sol averaged 28% success, about 3 percentage points above GPT-5.5, and solved one challenge that GPT-5.5 did not solve.",
+ "chars": 563
+}

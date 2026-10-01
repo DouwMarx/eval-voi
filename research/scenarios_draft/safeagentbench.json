@@ -1,0 +1,77 @@
+{
+ "key": "safeagentbench",
+ "title": "SafeAgentBench before a home-robot large language model (LLM) planner launch",
+ "group": "physical AI",
+ "agent": "Head of product at a home-robot startup who owns the launch decision for the robot's large language model (LLM) task planner.",
+ "decision": "Delay the planner launch and add a hazardous-instruction refusal layer (a safety-aware planning wrapper plus refusal training on hazardous household tasks) vs launch as planned.",
+ "theta_definition": "theta=1: the LLM task planner plans and executes explicitly or implicitly hazardous household instructions (fire, electrical shock, poisoning and similar hazards) instead of refusing them.",
+ "instrument": "A SafeAgentBench-style evaluation is built from scratch (a set of hazardous and safe household tasks with goal conditions, a closed-loop AI2-THOR-style household simulation with a low-level controller and a high-level action API, an execution checker and an LLM judge validated against human ratings) and run once against the candidate LLM task planner.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 4,
+  "eval_family": "SafeAgentBench embodied planner safety",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": true,
+  "candidate_rank": 7
+ },
+ "sources": [
+  {
+   "key": "yin2024safeagentbench",
+   "kind": "arxiv",
+   "ref": "2412.13178",
+   "role": "both",
+   "title": "SafeAgentBench: A Benchmark for Safe Task Planning of Embodied LLM Agents",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "safeagentbench_github",
+   "kind": "url",
+   "ref": "https://github.com/shengyin1224/SafeAgentBench",
+   "role": "instrument",
+   "title": "shengyin1224/SafeAgentBench GitHub repository README",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "robey2024robopair",
+   "kind": "arxiv",
+   "ref": "2410.13691",
+   "role": "decision",
+   "title": "Jailbreaking LLM-Controlled Robots",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "jia2026mishear",
+   "kind": "arxiv",
+   "ref": "2608.28518",
+   "role": "decision",
+   "title": "When Robots Mishear Us: Mapping the Safety Risks of Voice-Controlled Embodied AI",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "usfa_residential_fires",
+   "kind": "url",
+   "ref": "https://www.usfa.fema.gov/statistics/residential-fires/",
+   "role": "decision",
+   "title": "Residential fire estimate summaries (2014-2023), U.S. Fire Administration",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "onex2025neo",
+   "kind": "url",
+   "ref": "https://www.1x.tech/discover/neo-home-robot",
+   "role": "decision",
+   "title": "1X NEO Home Robot launch announcement (2025-10-28)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deepmind2026gr2safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations (Google DeepMind, 2026-07-29)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Embodied agents driven by large language models (LLMs) can \"flawlessly execute some hazardous tasks, potentially causing damages in the real world\", posing \"risks to both property and human safety\" [yin2024safeagentbench]. In a published simulation study, the most safety-conscious of nine GPT-4-driven planner designs refused only 10% of explicitly hazardous household instructions, five refused none, and most executed them at about a 30% risk rate [yin2024safeagentbench]. GPT-4 and three open-source models differed by less than 3% in average proactive defence rate [yin2024safeagentbench]. Speech-recognition errors in voice commands can weaken refusals and let unsafe plans be generated and executed [jia2026mishear]. Jailbreaks of LLM-controlled robots elicited harmful physical actions, often at 100% attack success, including on a deployed commercial Unitree Go2 robot dog [robey2024robopair]. The U.S. Fire Administration estimates 344,600 U.S. residential building fires in 2023, with 2,890 deaths, 10,400 injuries and USD 11,266,200,000 in dollar loss [usfa_residential_fires]. 1X opened pre-orders for its NEO home humanoid on 28 October 2025 at USD 20,000 (early access, delivery in 2026) or USD 499/month, with deliveries primarily in the U.S. in 2026 and other markets from 2027 [onex2025neo]. NEO has a built-in LLM, weighs 66 pounds, lifts over 150 pounds and is sold to open doors for guests, fetch items and turn off lights, gaining skills with software updates [onex2025neo]. Google DeepMind states that agents deployed near humans \"must also exhibit robust safety guardrails: (1) refusing tasks that violate operational constraints\", and that minimising missed hazards \"must be strictly prioritized over minimizing\" unnecessary stops [deepmind2026gr2safety].",
+ "instrument_facts": "SafeAgentBench (Yin et al., 2024; Shanghai Jiao Tong University, Shanghai AI Laboratory, University of Georgia; arXiv v5, 31 October 2025) evaluates embodied large language model (LLM) task planners in an interactive household simulation [yin2024safeagentbench]. It has 750 tasks: 300 detailed hazardous tasks with 300 safe counterparts (average steps 5.03 vs. 5.12), 100 abstract hazardous tasks and 50 implicitly hazardous long-horizon tasks, over 10 hazard types [yin2024safeagentbench]. Tasks were generated by GPT-4 and filtered for executability and duplication, after which the authors \"manually review all instructions and goal conditions, and annotate ground-truth executable plans\"; the annotator count is not stated [yin2024safeagentbench]. SafeAgentEnv extends AI2-THOR v5.0 with a low-level controller mapping 17 high-level actions to executable APIs; nine planner baselines were ported onto it [yin2024safeagentbench]. Scoring combines an execution evaluator that checks goal conditions after the plan runs and a semantic evaluator using gpt-4o-2024-08-06, yielding rejection rate, risk rate, execution rate and usage time [yin2024safeagentbench]. \"Most experiments were conducted on CPUs\", open-source LLMs ran on one RTX 4090 GPU, and the Time(s) column for GPT-4 baselines on detailed hazardous tasks ranged from 20.78 s to 97.30 s [yin2024safeagentbench]. No cost figure is published [yin2024safeagentbench]. A user study of 1008 human ratings gave human-GPT-4 agreement of 91.89%, 90.36% and 90.70% on the three task types [yin2024safeagentbench]. No physical-robot experiment is reported [yin2024safeagentbench]. The repository ships the dataset, evaluators and controller but \"can not provide all the implementation codes\" for the baseline agents [safeagentbench_github]."
+}

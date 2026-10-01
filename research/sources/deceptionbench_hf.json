@@ -1,0 +1,11 @@
+{
+ "key": "deceptionbench_hf",
+ "kind": "url",
+ "ref": "https://huggingface.co/datasets/skyai798/DeceptionBench",
+ "url": "https://huggingface.co/datasets/skyai798/DeceptionBench",
+ "title": "DeceptionBench dataset on Hugging Face",
+ "fetched": "2026-10-01",
+ "abstract": "Hugging Face dataset skyai798/DeceptionBench (API 2026-10-01): lastModified 2025-11-26, downloads 191, license cc-by-sa-4.0, language en, size_categories n<1K, format json, tags deception/llm/benchmark/evaluation/ai-safety, arxiv:2510.15501. Files: .gitattributes, README.md, economy.json, education.json, entertainment.json, healthcare.json, social.json.",
+ "text": "Hugging Face dataset skyai798/DeceptionBench (API 2026-10-01): lastModified 2025-11-26, downloads 191, license cc-by-sa-4.0, language en, size_categories n<1K, format json, tags deception/llm/benchmark/evaluation/ai-safety, arxiv:2510.15501. Files: .gitattributes, README.md, economy.json, education.json, entertainment.json, healthcare.json, social.json.",
+ "chars": 355
+}

@@ -1,0 +1,109 @@
+{
+ "key": "iihs_paeb",
+ "title": "IIHS pedestrian AEB track protocol before releasing a new AEB calibration",
+ "group": "physical AI",
+ "agent": "Head of active-safety validation at a vehicle manufacturer who owns the release decision for a new pedestrian automatic emergency braking (AEB) calibration.",
+ "decision": "Delay the release of the new pedestrian AEB calibration and rework the camera-radar pedestrian detection and brake-activation timing for night crossing and parallel scenarios vs release as planned.",
+ "theta_definition": "theta=1: the vehicle's pedestrian AEB does not brake to avoid or substantially slow before an adult or child pedestrian crossing or standing ahead of it at 20 to 60 km/h, by day or in the dark, so the vehicle strikes the person.",
+ "instrument": "An Insurance Institute for Highway Safety (IIHS)-style pedestrian automatic emergency braking (AEB) track protocol is built from scratch (articulated adult and child pedestrian dummies on a surfboard target platform, a static adult dummy, an instrumented closed track with a covered section for night runs below 1 lux, GPS/inertial instrumentation, a trained driver, and day and night sessions with high and low beams) and run once against the production vehicle carrying the new calibration.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 8,
+  "eval_family": "Pedestrian AEB track protocols",
+  "system_under_test": "non-learning physical system",
+  "public": true,
+  "candidate_rank": 1
+ },
+ "sources": [
+  {
+   "key": "iihs_paeb",
+   "kind": "pdf",
+   "ref": "https://www.iihs.org/media/f6a24355-fe4b-4d71-bd19-0aab8b39aa7e/5ZH5qg/Ratings/Protocols/current/test_protocol_pedestrian_aeb.pdf",
+   "role": "instrument",
+   "title": "IIHS Pedestrian Automatic Emergency Braking Test Protocol, Version IV (January 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "iihs_hldi2018",
+   "kind": "url",
+   "ref": "https://www.iihs.org/news/detail/subaru-crash-avoidance-system-cuts-pedestrian-crashes",
+   "role": "decision",
+   "title": "IIHS news: Subaru crash avoidance system cuts pedestrian crashes (HLDI analysis, 2018-05-08)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "cicchino2022",
+   "kind": "url",
+   "ref": "https://www.iihs.org/research-areas/bibliography/ref/2243",
+   "role": "decision",
+   "title": "Cicchino, Effects of automatic emergency braking systems on pedestrian crash risk, Accident Analysis and Prevention 172 (2022), IIHS bibliography ref 2243",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "iihs_dark2022",
+   "kind": "url",
+   "ref": "https://www.iihs.org/news/detail/pedestrian-crash-avoidance-systems-cut-crashes--but-not-in-the-dark",
+   "role": "both",
+   "title": "IIHS news: Pedestrian crash avoidance systems cut crashes, but not in the dark (2022-02-03)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "iihs_night2022",
+   "kind": "url",
+   "ref": "https://www.iihs.org/news/detail/few-vehicles-excel-in-new-nighttime-test-of-pedestrian-autobrake",
+   "role": "decision",
+   "title": "IIHS news: Few vehicles excel in new nighttime test of pedestrian autobrake (2022-08-30)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "kidd2024",
+   "kind": "url",
+   "ref": "https://www.iihs.org/research-areas/bibliography/ref/2304",
+   "role": "decision",
+   "title": "Kidd and Spivey, A case study of nighttime pedestrian automatic emergency braking performance under different roadway lighting and pedestrian clothing conditions, Traffic Injury Prevention (2024), IIHS bibliography ref 2304",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "iihs_fatality2024",
+   "kind": "url",
+   "ref": "https://www.iihs.org/topics/fatality-statistics/detail/pedestrians",
+   "role": "decision",
+   "title": "IIHS Fatality Facts 2024: Pedestrians",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "fmvss127_2024",
+   "kind": "url",
+   "ref": "https://www.govinfo.gov/content/pkg/FR-2024-05-09/html/2024-09054.htm",
+   "role": "decision",
+   "title": "NHTSA, FMVSS No. 127 Automatic Emergency Braking Systems for Light Vehicles, Final Rule, 89 FR 39686 (May 9, 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "fmvss127_nov2024",
+   "kind": "url",
+   "ref": "https://www.govinfo.gov/content/pkg/FR-2024-11-26/html/2024-27349.htm",
+   "role": "decision",
+   "title": "NHTSA, FMVSS No. 127, Final rule and response to petitions for reconsideration, 89 FR 93199 (November 26, 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "euroncap_faq",
+   "kind": "url",
+   "ref": "https://www.euroncap.com/faq/",
+   "role": "instrument",
+   "title": "Euro NCAP FAQ: cost of testing one car and number of test vehicles",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "mcity2022",
+   "kind": "pdf",
+   "ref": "https://mcity.umich.edu/wp-content/uploads/2022/11/11.1.22_TestFacilityRates-LC.pdf",
+   "role": "instrument",
+   "title": "Mcity Test Facility recharge rates, Leadership Circle member sheet (November 2022)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "7,080 pedestrians died in US crashes in 2024, 18% of all crash deaths; 73% died between 6 p.m. and 6 a.m. [iihs_fatality2024]. The National Highway Traffic Safety Administration (NHTSA) reports 6,272 pedestrian deaths and about 76,000 injuries in 2019, 77% of the deaths in dark lighting [fmvss127_2024]. In 2017-2020 model-year vehicles pedestrian AEB was associated with 25%-27% lower pedestrian crash risk and 29%-30% lower injury crash risk, with no evidence of effect in unlit darkness, at speed limits of 50 mph or more, or while turning [cicchino2022] [iihs_dark2022]. Subaru EyeSight with pedestrian detection cut likely pedestrian-related insurance claims by 35% [iihs_hldi2018]. Of the first 23 vehicles IIHS rated at night in 2022, 4 earned superior and over half basic or no credit; 19 had earned superior or advanced by day [iihs_night2022]. In a 2024 case study, three 2023 vehicles approaching a crossing dummy at 40 km/h collided in 84%, 88% and 2% of trials [kidd2024]. From September 1, 2029 US light vehicles must brake for an imminent pedestrian collision at 10 to 73 km/h and avoid the pedestrian mannequin in day and dark track tests at 10 to 65 km/h; NHTSA estimates at least 362 lives saved and 24,321 injuries mitigated a year at USD 354 million (2020 dollars), about USD 23 per vehicle [fmvss127_2024]. NHTSA rejected petitions to allow 10 km/h contact or passing 5 of 7 runs; it estimated contact would add 1 fatality and 2,192 minor injuries a year, forgoing USD 179.1 million in benefits [fmvss127_nov2024].",
+ "instrument_facts": "The Insurance Institute for Highway Safety (IIHS) Pedestrian Automatic Emergency Braking (AEB) Test Protocol Version IV runs a production vehicle against an articulated adult dummy crossing at night and a child dummy crossing from behind parked vehicles by day, each at 20 and 40 km/h, and a stationary adult dummy at night at 40 and 60 km/h [iihs_paeb]. Each test speed, lighting and headlight condition gets three valid runs, after 10 warm-up stops from 56 km/h and 3 from 72 km/h [iihs_paeb]. Moving 4active dummies ride a 4activeSB surfboard and night illumination stays below 1 lux [iihs_paeb]. Each cell scores 0 to 3 points for average speed reduction, crossing cells count double, and the sum (maximum 42) divided by 7 gives poor, marginal, acceptable or good [iihs_paeb]. IIHS wrote the protocol, runs night tests on its covered track and publishes no cost figure [iihs_paeb]. A full European New Car Assessment Programme (Euro NCAP) test programme costs several hundreds of thousands of Euros and needs a minimum of six test vehicles, one for driver assistance track tests [euroncap_faq]. Mcity Leadership Circle member rates (2022) are USD 3,127 per day for the whole track, USD 71 per hour per technician and USD 537 per day per test vehicle [mcity2022]. The protocol reports no correlation of its ratings with field crash rates [iihs_paeb]. In development runs of eight small SUVs, night scores fell from superior to advanced with high beams and to basic with low beams, except the radar-only vehicle [iihs_dark2022]."
+}

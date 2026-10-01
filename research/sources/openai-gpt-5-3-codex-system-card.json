@@ -1,0 +1,14 @@
+{
+ "key": "openai-gpt-5-3-codex-system-card",
+ "kind": "system_card",
+ "ref": "openai-gpt-5-3-codex-system-card",
+ "url": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+ "title": "GPT-5.3-Codex System Card (openai, 2026-02-05)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n\n\nCited sentences from the same document that do not name Cybench:\n[openai-gpt-5-3-codex-system-card] This is the first launch we are treating as High capability in the Cybersecurity domain under our Preparedness Framework, activating the associated safeguards.\n[openai-gpt-5-3-codex-system-card] We do not have definitive evidence that this model reaches our High threshold, but are taking a precautionary approach because we cannot rule out the possibility that it may be capable enough to reach the threshold.\n[openai-gpt-5-3-codex-system-card] 20 • Impede and disrupt threat actors: We train the model to refuse or de-escalate requests for harmful cyber actions, and implement a monitoring system to detect high risk dual-risk usage, including by inviting users who are engaged in high-risk cyber activity to apply for trusted access, routing some high-risk traffic to a less capable model, and enabling threat intel-driven investigation and detection. • Support and enable defenders: We are launching a Trusted Access for Cyber (TAC) program that provides high-risk dual use capabilities to trusted actors for defensive application.",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n\n\nCited sentences from the same document that do not name Cybench:\n[openai-gpt-5-3-codex-system-card] This is the first launch we are treating as High capability in the Cybersecurity domain under our Preparedness Framework, activating the associated safeguards.\n[openai-gpt-5-3-codex-system-card] We do not have definitive evidence that this model reaches our High threshold, but are taking a precautionary approach because we cannot rule out the possibility that it may be capable enough to reach the threshold.\n[openai-gpt-5-3-codex-system-card] 20 • Impede and disrupt threat actors: We train the model to refuse or de-escalate requests for harmful cyber actions, and implement a monitoring system to detect high risk dual-risk usage, including by inviting users who are engaged in high-risk cyber activity to apply for trusted access, routing some high-risk traffic to a less capable model, and enabling threat intel-driven investigation and detection. • Support and enable defenders: We are launching a Trusted Access for Cyber (TAC) program that provides high-risk dual use capabilities to trusted actors for defensive application.",
+ "chars": 1230,
+ "publisher": "openai",
+ "publication_date": "2026-02-05",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

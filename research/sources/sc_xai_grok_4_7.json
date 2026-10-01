@@ -1,0 +1,11 @@
+{
+ "key": "sc_xai_grok_4_7",
+ "kind": "system_card",
+ "ref": "xai-grok-4-7-model-card",
+ "url": "https://media.x.ai/v1/website/card4p7-3a96f40b.pdf",
+ "title": "Model Card: Grok 4.7",
+ "fetched": "2026-10-01",
+ "abstract": "[xai-grok-4-7-model-card] • StrongReject: compliance on the StrongREJECT suite.\n[xai-grok-4-7-model-card] Suite Grok 4.5 (high) Grok 4.6 (high) Grok 4.7 (high) Standard jailbreaks 0.73% 0.04% 0.01% StrongReject 1.5% 3.9% 2.0% Long-horizon jailbreaks — 1.0% 0.65% 22 GROK 4.7 MODEL CARD 9 General output safety This section covers policy refusals for prompts representative of consumer chat traffic across the major disallowed categories, including dedicated CBRN and weapons refusals.\n[xai-grok-4-7-model-card] StrongREJECT.",
+ "text": "[xai-grok-4-7-model-card] • StrongReject: compliance on the StrongREJECT suite.\n[xai-grok-4-7-model-card] Suite Grok 4.5 (high) Grok 4.6 (high) Grok 4.7 (high) Standard jailbreaks 0.73% 0.04% 0.01% StrongReject 1.5% 3.9% 2.0% Long-horizon jailbreaks — 1.0% 0.65% 22 GROK 4.7 MODEL CARD 9 General output safety This section covers policy refusals for prompts representative of consumer chat traffic across the major disallowed categories, including dedicated CBRN and weapons refusals.\n[xai-grok-4-7-model-card] StrongREJECT.",
+ "chars": 524
+}

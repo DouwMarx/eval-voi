@@ -1,0 +1,14 @@
+{
+ "key": "anthropic-claude-opus-4-8-system-card",
+ "kind": "system_card",
+ "ref": "anthropic-claude-opus-4-8-system-card",
+ "url": "https://www.anthropic.com/claude-opus-4-8-system-card",
+ "title": "System Card: Claude Opus 4.8 (anthropic, 2026-05-28)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-opus-4-8-system-card] However, we removed Cybench, as previous evaluations indicated that it was largely saturated and therefore less useful.",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-opus-4-8-system-card] However, we removed Cybench, as previous evaluations indicated that it was largely saturated and therefore less useful.",
+ "chars": 252,
+ "publisher": "anthropic",
+ "publication_date": "2026-05-28",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

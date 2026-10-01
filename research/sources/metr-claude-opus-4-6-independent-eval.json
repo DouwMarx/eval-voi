@@ -1,0 +1,14 @@
+{
+ "key": "metr-claude-opus-4-6-independent-eval",
+ "kind": "system_card",
+ "ref": "metr-claude-opus-4-6-independent-eval",
+ "url": "https://metr.org/risk-report-feb-mar-2026.pdf",
+ "title": "Frontier Risk Report (February to March 2026) (metr, 2026-05-19)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[metr-claude-opus-4-6-independent-eval] A non-exhaustive sampling of benchmarks that were saturated or plausibly very close to saturation: TerminalBench 2.0 (GPT-5.5 got ~82%), SWE-Bench Verified (Mythos Preview got ~94%), WeirdML (GPT-5.5 got ~84%), Cybench (Claude Mythos Preview got 100% according to Sec 3.3.1 of the System Card), CyberGym (Claude Mythos Preview got ~83%), LiveCodeBench Pro (Gemini 3 Deep Think gets ~82%).",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[metr-claude-opus-4-6-independent-eval] A non-exhaustive sampling of benchmarks that were saturated or plausibly very close to saturation: TerminalBench 2.0 (GPT-5.5 got ~82%), SWE-Bench Verified (Mythos Preview got ~94%), WeirdML (GPT-5.5 got ~84%), Cybench (Claude Mythos Preview got 100% according to Sec 3.3.1 of the System Card), CyberGym (Claude Mythos Preview got ~83%), LiveCodeBench Pro (Gemini 3 Deep Think gets ~82%).",
+ "chars": 521,
+ "publisher": "metr",
+ "publication_date": "2026-05-19",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

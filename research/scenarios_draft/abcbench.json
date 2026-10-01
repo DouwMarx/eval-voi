@@ -1,0 +1,77 @@
+{
+ "key": "abcbench",
+ "title": "ABC-Bench before a frontier model release",
+ "group": "frontier model",
+ "agent": "Deployment lead at a frontier-model developer who owns the model release decision.",
+ "decision": "Delay the release and restrict agentic biology tooling (refuse synthesis-screening-evasion requests outright and put DNA fragment design and lab-automation scripting behind vetted access for credentialed researchers) vs release on schedule.",
+ "theta_definition": "theta=1: an agent built on the model can design orderable DNA fragments of a hazardous sequence that pass commercial synthesis screening and reassemble into the target, so it could stand in for a trained human biologist at those steps.",
+ "instrument": "ABC-Bench is built from scratch (three agentic biology tasks are written with algorithmic scoring criteria, an agent scaffold with bioinformatics and liquid-handling-simulator tools is assembled, and a PhD-biologist human baseline is collected) and run once against an agent built on the candidate model.",
+ "attributes": {
+  "risk_domain": "cbrn",
+  "level": null,
+  "eval_family": "ABC-Bench (SecureBio agentic bio-capabilities tasks)",
+  "system_under_test": "agentic LLM",
+  "public": false,
+  "candidate_rank": 17
+ },
+ "sources": [
+  {
+   "key": "liu2026abcbench",
+   "kind": "arxiv",
+   "ref": "2606.11150",
+   "role": "both",
+   "title": "ABC-Bench: An Agentic Bio-Capabilities Benchmark for Biosecurity",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio_abcbench",
+   "kind": "url",
+   "ref": "https://securebio.substack.com/p/how-frontier-ai-models-perform-on",
+   "role": "decision",
+   "title": "How frontier AI models perform on viral DNA assembly tasks (ABC-Bench) (SecureBio, 2026-06-10)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio_gpt55_assessment",
+   "kind": "url",
+   "ref": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+   "role": "instrument",
+   "title": "SecureBio's pre-release assessment of OpenAI's GPT-5.5 (SecureBio, 2026-04-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai-gpt-5-5-system-card__abcbench",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-5-system-card",
+   "role": "decision",
+   "title": "GPT-5.5 System Card (OpenAI, 2026-04-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai-gpt-5-6-sol-system-card__abcbench",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-6-sol-system-card",
+   "role": "decision",
+   "title": "GPT-5.6 System Card (OpenAI, 2026-07-09)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-system-card__abcbench",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "decision",
+   "title": "Muse Spark Safety & Preparedness Report (Meta, 2026-05-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025asl3",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/activating-asl3-protections",
+   "role": "decision",
+   "title": "Activating AI Safety Level 3 protections (Anthropic, 22 May 2025)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "ABC-Bench's authors describe a pathway to a hazardous DNA sequence: design orderable fragments, evade nucleic-acid synthesis screening, then assemble the target [liu2026abcbench]. In June 2026 SecureBio reported that every frontier model it tested matched or exceeded trained human biologists at these in-silico steps [liu2026abcbench]. SecureBio states this does not indicate AI has definitively lowered the bioweapon-development threshold, and that many barriers were not tested [securebio_abcbench]. In July 2026 OpenAI reported SecureBio's conclusion that GPT-5.6 could provide substantial uplift to some actors, including wet-lab experts with limited computational experience, but with important limitations in judgment, communication, and risk-sensitive decision-making [openai-gpt-5-6-sol-system-card__abcbench]. A checkpoint tested with system-level biological risk content filters disabled reliably identified a known but practically inconvenient method for evading a commercial nucleic-acid screening algorithm [openai-gpt-5-6-sol-system-card__abcbench]. Meta judged Muse Spark High Risk for chemical and biological risk in May 2026, naming uplift to low or moderate skilled actors for low or medium-impact weapons, and deployed it first-party without an API behind an input refusal system [meta-muse-spark-system-card__abcbench]. OpenAI treated GPT-5.5 as High capability in the biological and chemical domain in April 2026 and activated the corresponding safeguards [openai-gpt-5-5-system-card__abcbench]. Anthropic's comparable response adds real-time classifiers over a narrow class of chemical, biological, radiological and nuclear content, with false positives on legitimate queries, plus vetted access for dual-use science users [anthropic2025asl3]. The ABC-Bench authors recommend restricting screening-evasion capability and releasing fragment design and lab automation in tiers to accredited researchers [liu2026abcbench]. They note the same capabilities promise faster medical and synthetic-biology research [liu2026abcbench].",
+ "instrument_facts": "ABC-Bench was built by SecureBio and published at ICML 2026 [liu2026abcbench]. It contains three agentic tasks, Fragment Design, Screening Evasion and Liquid Handling Robot, each with up to 10 samples varying the prompt or DNA sequence [liu2026abcbench]. Agents get Python with biopython, bash, NCBI BLAST+, web search and the OpenTrons simulator; submissions are checked algorithmically against pre-specified criteria with partial credit [liu2026abcbench]. Runs use the Inspect AI framework at each provider's maximum reasoning effort, with every task assessed independently N = 10 times across eight models [liu2026abcbench]. The human baseline came from biologists with a PhD or equivalent industry experience plus two years of Python, given five hours and paid USD 200 per task [liu2026abcbench]. Baseliners spent 175 person-hours; mean scores were 0.33 (Fragment Design, n = 12), 0.22 (Screening Evasion, n = 13) and 0.20 (Liquid Handling Robot, n = 9) [liu2026abcbench]. No cost figure is published [liu2026abcbench]. Three assemblies scripted by GPT-o4-mini-high on an OpenTrons Flex robot produced correctly assembled DNA, confirmed by whole-plasmid sequencing; real-world success exceeded the simulator's [liu2026abcbench]. Refusals are a documented failure mode: Claude Sonnet 4.6, Claude Opus 4.6 and GPT-5.4 refused every Screening Evasion sample and Claude Opus 4 refused over 90%; refused samples are excluded [liu2026abcbench]. SecureBio reports that one GPT-5.5 pre-release checkpoint, when it refused a Screening Evasion sample, typically still submitted a partially correct answer [securebio_gpt55_assessment]. The authors state the tasks are largely achievable by writing code, which may have under-elicited the baseliners; the Screening Evasion prompt is withheld [liu2026abcbench]."
+}

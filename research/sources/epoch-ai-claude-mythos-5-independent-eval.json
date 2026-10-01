@@ -1,0 +1,14 @@
+{
+ "key": "epoch-ai-claude-mythos-5-independent-eval",
+ "kind": "system_card",
+ "ref": "epoch-ai-claude-mythos-5-independent-eval",
+ "url": "https://epoch.ai/gradient-updates/are-mythos-cyber-capabilities-overhyped",
+ "title": "Are Mythos' cyber capabilities overhyped? (epoch_ai, 2026-06-11)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[epoch-ai-claude-mythos-5-independent-eval] The results can be fully obtained using: - GPT 5.1-codex-max system card for GPT 5-codex and GPT 5.1-codex-max - GPT 5.4 system card for GPT 5.2-codex - GPT 5.5 system card for GPT 5.3-codex, GPT 5.4, and GPT 5.5 Cybench Description: Cybench is a benchmark containing 40 professional-level Capture the Flag (CTF) tasks from 4 distinct CTF competitions, chosen to be recent (as of 2024), meaningful, and spanning a wide range of difficulties.\n[epoch-ai-claude-mythos-5-independent-eval] Moreover, Mythos Preview essentially saturates Cybench and CyberGym.",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[epoch-ai-claude-mythos-5-independent-eval] The results can be fully obtained using: - GPT 5.1-codex-max system card for GPT 5-codex and GPT 5.1-codex-max - GPT 5.4 system card for GPT 5.2-codex - GPT 5.5 system card for GPT 5.3-codex, GPT 5.4, and GPT 5.5 Cybench Description: Cybench is a benchmark containing 40 professional-level Capture the Flag (CTF) tasks from 4 distinct CTF competitions, chosen to be recent (as of 2024), meaningful, and spanning a wide range of difficulties.\n[epoch-ai-claude-mythos-5-independent-eval] Moreover, Mythos Preview essentially saturates Cybench and CyberGym.",
+ "chars": 691,
+ "publisher": "epoch_ai",
+ "publication_date": "2026-06-11",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

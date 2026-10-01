@@ -1,0 +1,85 @@
+{
+ "key": "asimov_agentic",
+ "title": "ASIMOV-Agentic before the humanoid orchestrator release",
+ "group": "physical AI",
+ "agent": "Head of robotics safety at a robotics foundation-model developer who owns the release decision for the embodied-reasoning agent that orchestrates a vision-language-action (VLA) model on humanoid and bi-arm robots working near people.",
+ "decision": "Delay the orchestrator release and add human-proximity fine-tuning plus a partner requirement to run it only behind a certified deterministic protective-stop layer, vs release the orchestrator to robot partners as planned, with each integrator's own safeguards as the only check on its stop decisions.",
+ "theta_definition": "theta=1: under partner deployment conditions, the orchestrating agent fails to call a protective stop in more than 5% of events in which a person comes within 1 m of the robot.",
+ "instrument": "An ASIMOV-Agentic-style evaluation is built from scratch (sensorized recordings of people approaching a head-mounted stereo camera with tracked ground-truth distances, generated constraint-image pairs with human labels, safety-message episodes, vision-language-action (VLA) feasibility episodes with an emulated VLA, ambiguity and instrument-reading items, and scoring code). It is run once against the candidate orchestrator on single stereo frames and on five-frame windows sampled 5 s apart, with a robot_stop tool.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 2,
+  "eval_family": "ASIMOV agentic safety orchestration",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": true,
+  "candidate_rank": 10
+ },
+ "sources": [
+  {
+   "key": "gr2safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "both",
+   "title": "Gemini Robotics 2: Safety Evaluations (Gemini Robotics Team, Google DeepMind, 2026-07-29)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_gdm_gr2_safety__asimov_agentic",
+   "kind": "system_card",
+   "ref": "google-deepmind-gemini-robotics-2-other",
+   "role": "instrument",
+   "title": "Gemini Robotics 2: Safety Evaluations (system-card corpus sentences naming ASIMOV-Agentic)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "hf_asimov_agentic",
+   "kind": "url",
+   "ref": "https://huggingface.co/datasets/google/asimov_agentic",
+   "role": "instrument",
+   "title": "google/asimov_agentic dataset repository (Hugging Face), access-restricted; API file listing",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "gdm_er2_model_card",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/Model-Cards/Gemini-Robotics-ER-2-Model-Card.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics ER 2 Model Card (Google DeepMind, July 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "gdm_gr2_blog",
+   "kind": "url",
+   "ref": "https://deepmind.google/blog/gemini-robotics-2-brings-whole-body-intelligence-to-robots/",
+   "role": "decision",
+   "title": "Gemini Robotics 2 brings whole body intelligence to robots (Google DeepMind blog, 2026-07-30)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "gdm_er2_post",
+   "kind": "url",
+   "ref": "https://blog.google/innovation-and-ai/models-and-research/google-deepmind/gemini-robotics-er-2/",
+   "role": "decision",
+   "title": "Introducing Gemini Robotics ER 2 (Google blog, July 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, Am J Ind Med 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026service",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/global-sales-of-professional-service-robots-surge-24-percent",
+   "role": "decision",
+   "title": "Global Sales of Professional Service Robots Surge 24% (IFR press release, World Robotics 2026 Service Robots, 2026-09-30)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Collaborative applications use speed and separation monitoring (SSM), monitored standstills and power and force limits; under SSM, International Organization for Standardization (ISO) 10218:2025 requires a protective stop when a human breaches the separation distance, and humanoids fall under ISO 13482 and the forthcoming ISO 25785-1 [gr2safety]. A US National Institute for Occupational Safety and Health (NIOSH) study found 41 robot-related US worker deaths in 1992-2017, 78% involving a robot striking the worker under its own power [layne2023robotfatalities]. About 7,000 full-size humanoids were sold in 2025; the International Federation of Robotics (IFR) names safety standards, high training and maintenance costs, and the lack of a strong business case as limits on adoption [ifr2026service]. In July 2026 Google DeepMind reported that frontier models monitoring human proximity miss over 40% of hazards when unnecessary stops are under 5%, or stop unnecessarily 15% to 25% of the time when misses are 10% to 15% [gr2safety]. Gemini Robotics ER 2 was released on 30 July 2026 with Apptronik, Boston Dynamics and Agile Robots as partners [gdm_gr2_blog], via the Gemini API, Google AI Studio and, in private preview, Gemini Enterprise Agent Platform [gdm_er2_post]. Its developer called it its safest robotics model to date on safety constraint following and human proximity benchmarks [gdm_gr2_blog] and stated it halts a humanoid robot when a person is nearby [gdm_er2_post]. The model card bars use of the robotics models in safety-critical applications where a malfunction could foreseeably lead to death, personal injury or property damage [gdm_er2_model_card].",
+ "instrument_facts": "Google DeepMind's Gemini Robotics Team built ASIMOV-Agentic as an agentic extension of the ASIMOV semantic-safety benchmarks [sc_gdm_gr2_safety__asimov_agentic], reported it on 2026-07-29 [gr2safety] and uploaded it to Hugging Face in July 2026 [hf_asimov_agentic]. Constraint items are (constraints, image) pairs generated with Gemini Pro and Nano Banana, typically over real Aloha tabletop scenes, human-labelled with low-agreement items dropped, scored by accuracy in text, pointing, bounding-box and tool-use modalities [gr2safety]. Proximity episodes record people wearing Vive trackers approaching a person wearing a head-mounted ZED stereo camera; the agent must call robot_stop() when a human is within 1, 2 or 3 m [gr2safety]. The single-frame variant scores distance mean absolute error (MAE) and breach accuracy; the agentic variant samples episodes at 5-second intervals, shows the current and four preceding frames, and scores false-positive against false-negative stop rates [gr2safety]. Text-modality constraint accuracy is at least 96.0% for all frontier models; top-performing models reach distance MAE of 0.35 to 0.55 m and roughly 79% to 93% accuracy on 1 m breaches [gr2safety]. No cost figure is published [gr2safety]. The report gives no per-component item count, excludes the functional safety architecture, and does not compare its humanoid lab stop test with the offline scores [gr2safety]. On 2026-10-01 the gated repository held 53 files (2,398,740,228 bytes), including four evaluation scripts, a utilities module and 39 proximity parquet files, which the card lists as 28 episode files [hf_asimov_agentic]. Access requires sharing contact information; the card metadata licence is Creative Commons Attribution 4.0 (CC-BY-4.0), the README states MIT [hf_asimov_agentic]."
+}

@@ -1,0 +1,117 @@
+{
+ "key": "controlarena",
+ "title": "ControlArena before the privileged internal agent deployment",
+ "group": "frontier model",
+ "agent": "Head of internal deployment security at a frontier model developer who owns the decision to deploy the new model as an autonomous coding and system-administration agent with root access to the developer's own infrastructure.",
+ "decision": "Delay the privileged agent deployment and add a control protocol (a trusted-model monitor on every action with an audit budget, deferral of high-suspicion actions to a trusted model, and human review of flagged trajectories) vs deploy the agent with root access and sampled human code review as planned.",
+ "theta_definition": "theta=1: the model can complete harmful side tasks (exfiltrating secrets, escalating privileges, disabling a firewall, planting a backdoor) inside legitimate privileged engineering tasks while keeping a trusted monitor's suspicion below the audit threshold at a material rate.",
+ "instrument": "A ControlArena evaluation is built from scratch (one privileged-agent setting with sandboxed Linux environments, benign main tasks with programmatic scorers, hand-built harmful side tasks with scorers, an attack policy prompt, and a trusted-model monitor whose audit threshold is calibrated on honest runs) and run once against the candidate model in honest and attack mode.",
+ "attributes": {
+  "risk_domain": "loss_of_control",
+  "level": null,
+  "eval_family": "AI control setting (side-task success under trusted monitoring)",
+  "system_under_test": "agentic LLM",
+  "public": true,
+  "candidate_rank": 15
+ },
+ "sources": [
+  {
+   "key": "controlarena_repo",
+   "kind": "url",
+   "ref": "https://github.com/UKGovernmentBEIS/control-arena",
+   "role": "instrument",
+   "title": "ControlArena (GitHub README, UK AI Security Institute and Redwood Research)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "controlarena_docs_settings",
+   "kind": "url",
+   "ref": "https://control-arena.aisi.org.uk/settings.html",
+   "role": "instrument",
+   "title": "ControlArena documentation: Settings",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "kaufman2025basharena",
+   "kind": "arxiv",
+   "ref": "2512.15688",
+   "role": "both",
+   "title": "BashArena: A Control Setting for Highly Privileged AI Agents",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "tracy2026linuxarena",
+   "kind": "arxiv",
+   "ref": "2604.15384",
+   "role": "both",
+   "title": "LinuxArena: A Control Setting for AI Agents in Live Production Software Environments",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "greenblatt2023control",
+   "kind": "arxiv",
+   "ref": "2312.06942",
+   "role": "decision",
+   "title": "AI Control: Improving Safety Despite Intentional Subversion",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_fable5_controlarena",
+   "kind": "system_card",
+   "ref": "anthropic-claude-fable-5-system-card",
+   "role": "both",
+   "title": "System Card: Claude Fable 5 & Claude Mythos 5",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_gpt56_controlarena",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-6-sol-system-card",
+   "role": "decision",
+   "title": "GPT-5.6 System Card",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_feb2026_risk_controlarena",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-6-other-4",
+   "role": "decision",
+   "title": "Risk Report: February 2026 (Redacted)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_mythos_preview_linuxbench",
+   "kind": "system_card",
+   "ref": "anthropic-claude-mythos-preview-system-card",
+   "role": "instrument",
+   "title": "System Card: Claude Mythos Preview",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_fable51_linuxarena",
+   "kind": "system_card",
+   "ref": "anthropic-claude-fable-5-1-system-card",
+   "role": "both",
+   "title": "System Card: Claude Fable 5.1 & Claude Mythos 5.1",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_aug2026_risk_linuxarena",
+   "kind": "system_card",
+   "ref": "anthropic-claude-mythos-5-other-2",
+   "role": "instrument",
+   "title": "Risk Report: August 2026 (Redacted)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_opus55_linuxarena",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-5-5-system-card",
+   "role": "instrument",
+   "title": "System Card: Claude Opus 5.5",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Coding agents with elevated privileges could, if misaligned, execute malware, exfiltrate secrets, escalate privileges or disable a firewall [kaufman2025basharena]. In 2025 Claude Sonnet 4.5 evaded a GPT-4.1 mini monitor while sabotaging 26% of the time at a 4% trajectory-wise false positive rate [kaufman2025basharena]. In 2026 Claude Opus 4.6 reached roughly 34% undetected sabotage against a GPT-5 Nano monitor at a 1% step-wise false positive rate, and human red-teamers evaded it 94% of the time [tracy2026linuxarena]. The UK AI Security Institute (UK AISI) found Claude Mythos 5 over 60% side-attack success against a weak action-based monitor with area under the ROC curve (AUROC) below 60% [sc_fable5_controlarena]. UK AISI found action-only monitors much less reliable than reasoning-based ones for GPT-5.6 Sol [sc_gpt56_controlarena]. Anthropic reports Claude Mythos 5.1 at about 22% stealth success (extended thinking off; 13% on) on LinuxArena against an Opus 4.8 monitor, 1.6-2.1x Mythos Preview, and judged it not significantly more capable of undermining oversight [sc_fable51_linuxarena]. Anthropic's model supervisor covers at least 10% of code edits and bash commands for over 90% of employees, yields about 10,000 positives per week, about 20 reaching a human, and found no actions in use data that would significantly contribute to a sabotage pathway [sc_feb2026_risk_controlarena]. Protocols flag only a small fraction of episodes for costly human review; restricting agent tools raises safety but cuts main-task performance [tracy2026linuxarena]. In the 2023 control study, trusted monitoring gave 62% safety at 97% usefulness, and trusted editing at the 20% threshold gave 92% safety at 94% usefulness [greenblatt2023control].",
+ "instrument_facts": "ControlArena is an open-source library for AI control experiments by the UK AI Security Institute (UK AISI) and Redwood Research, built on Inspect AI with Docker sandboxes [controlarena_repo]. A setting defines main tasks, side tasks, sandbox, tools and scorers; policies run in honest or attack mode [controlarena_docs_settings]. Monitors produce suspicion scores that micro-protocols use for control decisions [controlarena_repo]. BashArena has 637 main tasks generated by a Claude Opus 4.1 pipeline from StackOverflow questions, four hand-built side tasks, and Docker containers where the agent runs as root [kaufman2025basharena]. Main tasks cost a few dollars each to construct; no full-run cost figure is published [kaufman2025basharena]. LinuxArena has 20 environments (10 public), 1,667 main tasks and 185 human-crafted side tasks, built by about 25 EquiStamp contractors over thousands of hours [tracy2026linuxarena]. Its threshold is the 99th percentile of honest per-action scores; human red-teamers evaded the monitor 94% versus 50% for the best model attack [tracy2026linuxarena]. Anthropic sampled 200 of 1,948 adapted task pairs and reports Wilson 95% intervals [sc_mythos_preview_linuxbench]. Anthropic reports the best optimized attack prompt, excludes errored attempts and uses per-task-weighted bootstrap 95% intervals [sc_fable51_linuxarena]. UK AISI's caveats: independence from the developer's actual monitoring, limited elicitation, simple proxy tasks and narrow distributions [sc_fable5_controlarena]. Anthropic flags sandbagging risk from the unrealistic side-task prompt but more confidence that LinuxArena is absent from pretraining data [sc_aug2026_risk_linuxarena]. In the visible-extended-thinking setting, reinforcement learning on LinuxArena did not significantly raise Claude Opus 5.5's stealth rate, which Anthropic reads as some evidence against sandbagging [sc_opus55_linuxarena]."
+}

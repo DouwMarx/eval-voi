@@ -1,0 +1,11 @@
+{
+ "key": "sc_risk_report_feb2026",
+ "kind": "system_card",
+ "ref": "anthropic-claude-opus-4-6-other-4",
+ "url": "https://www-cdn.anthropic.com/08eca2757081e850ed2ad490e5253e940240ca4f.pdf",
+ "title": "Risk Report: February 2026 (Redacted) (anthropic, n.d.); sentences naming Petri from the system-card corpus",
+ "fetched": "2026-10-01",
+ "abstract": "[anthropic-claude-opus-4-6-other-4] 6 We have released automated alignment auditing materials publicly as part of our Petri open-source toolkit, and we used the open-source Petri tool to a limited extent in our pre-deployment alignment assessment.\n[anthropic-claude-opus-4-6-other-4] Making public-benefit-oriented practices practical ●​ We have developed methods for assessing and improving alignment of models that are now widely used, such as Constitutional AI, the Petri open-source tool, and sparse autoencoders for interpreting AI models.",
+ "text": "[anthropic-claude-opus-4-6-other-4] 6 We have released automated alignment auditing materials publicly as part of our Petri open-source toolkit, and we used the open-source Petri tool to a limited extent in our pre-deployment alignment assessment.\n[anthropic-claude-opus-4-6-other-4] Making public-benefit-oriented practices practical ●​ We have developed methods for assessing and improving alignment of models that are now widely used, such as Constitutional AI, the Petri open-source tool, and sparse autoencoders for interpreting AI models.",
+ "chars": 544
+}

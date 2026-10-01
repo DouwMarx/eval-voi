@@ -1,0 +1,93 @@
+{
+ "key": "egosafetybench",
+ "title": "EgoSafetyBench before the vision-language model (VLM) safety-guard release",
+ "group": "physical AI",
+ "agent": "Head of safety at a home-humanoid developer who owns the release decision for the robot's unsupervised autonomous chore mode, in which a vision-language model (VLM) watching the robot's own camera stream is the runtime safety guard that triggers a protective stop.",
+ "decision": "Delay the unsupervised mode and keep a remote human supervisor with stop authority watching the robot's camera feed during autonomous chores while the VLM guard runs in shadow mode vs release the VLM-guarded unsupervised mode as planned.",
+ "theta_definition": "theta=1: in a material fraction of the hazardous situations that arise during the robot's unsupervised chores, the VLM runtime guard raises no alarm before harm could occur (missed or late), including when misleading in-scene text is present.",
+ "instrument": "An EgoSafetyBench-style evaluation is built from scratch (automated authoring of 1,200 contrastive home and factory scenarios with filtering judged by a large language model (LLM), text-to-video rendering of five-second egocentric clips, per-half-second two-axis labeling by a VLM annotator with a human-validated subset, and a streaming scoring harness) and run once against the developer's VLM guard under the current-chunk protocol.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 3,
+  "eval_family": "EgoSafetyBench VLM runtime guard",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": true,
+  "candidate_rank": 11
+ },
+ "sources": [
+  {
+   "key": "panpatil2026egosafetybench",
+   "kind": "arxiv",
+   "ref": "2607.00218",
+   "role": "both",
+   "title": "EgoSafetyBench: A Diagnostic Egocentric Video Benchmark for Evaluating Embodied VLMs as Runtime Safety Guards",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "egosafetybench_hf",
+   "kind": "url",
+   "ref": "https://huggingface.co/datasets/AIM-Intelligence/EgoSafetyBench",
+   "role": "instrument",
+   "title": "EgoSafetyBench dataset card metadata (HuggingFace, AIM-Intelligence)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "egosafetybench_github",
+   "kind": "url",
+   "ref": "https://github.com/AIM-Intelligence/EgoSafetyBench",
+   "role": "instrument",
+   "title": "EgoSafetyBench pipeline code repository (AIM-Intelligence, GitHub README)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026service",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/global-sales-of-professional-service-robots-surge-24-percent",
+   "role": "decision",
+   "title": "Global Sales of Professional Service Robots Surge 24% (IFR press release, World Robotics 2026 Service Robots, 30 Sep 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "onex2025neo",
+   "kind": "url",
+   "ref": "https://www.1x.tech/discover/neo-home-robot",
+   "role": "decision",
+   "title": "1X NEO Home Robot launch announcement (1X Technologies, 28 Oct 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "onex_neo_order",
+   "kind": "url",
+   "ref": "https://www.1x.tech/order",
+   "role": "decision",
+   "title": "NEO Home Robot order page (1X Technologies)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, Am J Ind Med 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "bbc2023korearobot",
+   "kind": "url",
+   "ref": "https://www.bbc.com/news/world-asia-67354709",
+   "role": "decision",
+   "title": "Man crushed to death by robot in South Korea (BBC News, 8 Nov 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deepmind2026gr2safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations (Google DeepMind, 29 Jul 2026)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "VLMs are proposed as runtime safety guards for robots in homes and factories [panpatil2026egosafetybench]. About 7,000 full-size humanoids (above 140 cm) were sold globally in 2025 [ifr2026service]. At launch in October 2025, 1X priced the NEO home humanoid at USD 20,000 or USD 499 per month, with US home deliveries from 2026 [onex2025neo]. For tasks NEO does not know, a 1X Expert can remotely supervise its actions at scheduled times [onex_neo_order]. The National Institute for Occupational Safety and Health (NIOSH) counted 41 robot-related workplace fatalities in the United States in 1992-2017, 78 percent from robots striking the worker [layne2023robotfatalities]. In November 2023 a robotic arm in South Korea failed to differentiate a worker from boxes of vegetables and crushed him to death [bbc2023korearobot]. In a June 2026 study of ten VLM guards on synthetic video of a robot's view, not recordings of real robots, the stronger guards let 21 to 48 percent of unsafe moments pass, and all missed context-dependent hazards more often than obvious ones [panpatil2026egosafetybench]. The best guard raised a timely alarm on 57 percent of hazards [panpatil2026egosafetybench]. A misleading in-scene sign flipped 22.4 percent of caught hazards to safe for one open-weight model; for the three strongest closed models it flipped 1.8 to 3.6 percent and raised false alarms on safe scenes by 13.0 to 23.6 points [panpatil2026egosafetybench]. Google DeepMind states that e-stops, barriers and speed and force limits remain essential and that an agent-controlled robot should stop itself on detecting a critical hazard [deepmind2026gr2safety].",
+ "instrument_facts": "EgoSafetyBench (AIM Intelligence, June 2026) has 1,200 five-second videos from a humanoid's first-person view, 600 home and 600 factory, each split into ten 0.5 s chunks labeled for safety and for misleading in-scene text [panpatil2026egosafetybench]. The situational track has 800 scenarios in four families (routine, resolved-confound, obvious hazard, contextual hazard); the channel track has 200 pairs differing only in whether a sign tells the truth [panpatil2026egosafetybench]. An automated scenario author (SceneGen) writes the scenarios; structural and deduplication checks, an LLM rubric judge, an LLM mechanism classifier and a pair validator filter them; Kling v3 text-to-video renders them and Claude Opus 4.7 labels each chunk [panpatil2026egosafetybench]. The guard sees ten frames per chunk and answers SAFE or UNSAFE at temperature 0; closed models are queried once by API [panpatil2026egosafetybench]. Metrics are miss and false-alarm rates per video and chunk, balanced accuracy, and a caught rate (first alarm within 0.5 s of onset) [panpatil2026egosafetybench]. The 200 validation videos (2,000 chunks) formed two surveys of 100, each labeled by two annotators and a third resolving disagreements; pooled agreement was 91.2 percent of chunks (Cohen's kappa 0.744) and 90.5 percent of videos (kappa 0.804); consensus matched dataset labels at kappa 0.660 per chunk and 0.799 per video [panpatil2026egosafetybench]. The videos are synthetic, not recordings of real robots; the lowest per-family error rates often reflect near-constant predictions [panpatil2026egosafetybench]. The code repository states that rendering through paid text-to-video APIs is the only non-free stage; no cost figure is published [egosafetybench_github]. The dataset is on HuggingFace under CC-BY-4.0, with gated access [egosafetybench_hf]."
+}

@@ -1,0 +1,11 @@
+{
+ "key": "openai-gpt-6-astra-system-card__wmdp",
+ "kind": "system_card",
+ "ref": "openai-gpt-6-astra-system-card",
+ "url": "https://deploymentsafety.openai.com/gpt-6-astra/gpt-6-astra.pdf",
+ "title": "GPT-6 Astra System Card (2026-09-03)",
+ "fetched": "2026-10-01",
+ "abstract": "[openai-gpt-6-astra-system-card] 9.2.2.3.1 Capability Sandbagging We evaluate on two capability datasets: WMDP, a multiple-choice questions dataset on dangerous-capability, and Monorepo-Bench, an internal software-engineering benchmark in which models implement requested code changes.\n[openai-gpt-6-astra-system-card] For WMDP, GPT-6 Astra and GPT-5.6 Sol both sandbag when instructed, low-ering accuracy from 84.8% to 68.9%.\n[openai-gpt-6-astra-system-card] However, when explicitly instructed to evade detection, GPT-6 Astra achieves a CoT-only monitor recall below 11% for WMDP, compared with nearly 100% for GPT-5.6 Sol.\n[openai-gpt-6-astra-system-card] WMDP sandbagging has close to zero recall for both models and all conditions.\n[openai-gpt-6-astra-system-card] Figure 36: WMDP sandbagging evaluation on 400 questions, with three samples per question.",
+ "text": "[openai-gpt-6-astra-system-card] 9.2.2.3.1 Capability Sandbagging We evaluate on two capability datasets: WMDP, a multiple-choice questions dataset on dangerous-capability, and Monorepo-Bench, an internal software-engineering benchmark in which models implement requested code changes.\n[openai-gpt-6-astra-system-card] For WMDP, GPT-6 Astra and GPT-5.6 Sol both sandbag when instructed, low-ering accuracy from 84.8% to 68.9%.\n[openai-gpt-6-astra-system-card] However, when explicitly instructed to evade detection, GPT-6 Astra achieves a CoT-only monitor recall below 11% for WMDP, compared with nearly 100% for GPT-5.6 Sol.\n[openai-gpt-6-astra-system-card] WMDP sandbagging has close to zero recall for both models and all conditions.\n[openai-gpt-6-astra-system-card] Figure 36: WMDP sandbagging evaluation on 400 questions, with three samples per question.",
+ "chars": 859
+}

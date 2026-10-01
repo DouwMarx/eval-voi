@@ -1,0 +1,11 @@
+{
+ "key": "openai-gpt-6-astra-system-card__biotier",
+ "kind": "system_card",
+ "ref": "openai-gpt-6-astra-system-card",
+ "url": "https://deploymentsafety.openai.com/gpt-6-astra/gpt-6-astra.pdf",
+ "title": "GPT-6 Astra System Card (2026-09-03)",
+ "fetched": "2026-10-01",
+ "abstract": "GPT-6 Astra System Card (2026-09-03). Sentences naming BioTIER from the system-card corpus.",
+ "text": "[openai-gpt-6-astra-system-card] 10.2.4.2 External Evaluations of Bio Safeguards - SecureBio SecureBio also had access to a safeguard configuration for safeguard testing using BioTIER to test whether safeguards refused harmful requests while allowing benign requests.\n[openai-gpt-6-astra-system-card] BioTIER counts both full blocks and model-jury graded “soft” refusals, where a response is judged not to substantively answer the prompt.",
+ "chars": 438
+}

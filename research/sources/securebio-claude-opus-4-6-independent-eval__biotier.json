@@ -1,0 +1,11 @@
+{
+ "key": "securebio-claude-opus-4-6-independent-eval__biotier",
+ "kind": "system_card",
+ "ref": "securebio-claude-opus-4-6-independent-eval",
+ "url": "https://securebio.substack.com/p/review-of-anthropics-unredacted-chemical",
+ "title": "Review of Anthropic's Unredacted Chemical and Biological Risk Report: Claude Opus 4.6 (2026-07-28)",
+ "fetched": "2026-10-01",
+ "abstract": "Review of Anthropic's Unredacted Chemical and Biological Risk Report: Claude Opus 4.6 (2026-07-28). Sentences naming BioTIER from the system-card corpus.",
+ "text": "[securebio-claude-opus-4-6-independent-eval] In aggregate, we found that the classifiers generally refuse on topics which we would have refused on, including 94.2% of hazardous prompts in SecureBio’s safeguard benchmark BioTIER-refuse.",
+ "chars": 235
+}

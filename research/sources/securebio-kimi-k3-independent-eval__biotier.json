@@ -1,0 +1,11 @@
+{
+ "key": "securebio-kimi-k3-independent-eval__biotier",
+ "kind": "system_card",
+ "ref": "securebio-kimi-k3-independent-eval",
+ "url": "https://securebio.substack.com/p/kimi-k3-biology-capabilities-assessment",
+ "title": "Kimi K3 Biology Capabilities Assessment (2026-08-07)",
+ "fetched": "2026-10-01",
+ "abstract": "Kimi K3 Biology Capabilities Assessment (2026-08-07). Sentences naming BioTIER from the system-card corpus.",
+ "text": "[securebio-kimi-k3-independent-eval] Kimi K3, the latest model from Moonshot AI, is the best-performing open-weights model on our knowledge benchmarks.\n[securebio-kimi-k3-independent-eval] It is also among the most likely to answer biohazardous prompts, based on our BioTIER safeguard evaluation3.\n[securebio-kimi-k3-independent-eval] Kimi K3’s biology safeguards trail behind closed-weights models BioTIER measures whether models refuse hazardous biological queries while permitting benign ones.\n[securebio-kimi-k3-independent-eval] Kimi K3 refuses on only 26.9% of the questions in our BioTIER-refuse set.\n[securebio-kimi-k3-independent-eval] Top-performing closed-weights models score over 90% on BioTIER-refuse.\n[securebio-kimi-k3-independent-eval] Kimi K3 correctly permits 99.3% of questions on our BioTIER-permit set.\n[securebio-kimi-k3-independent-eval] The BioTIER manuscript describes the full methodology.",
+ "chars": 916
+}

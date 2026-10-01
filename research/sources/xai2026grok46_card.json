@@ -1,0 +1,11 @@
+{
+ "key": "xai2026grok46_card",
+ "kind": "system_card",
+ "ref": "xai-grok-4-6-model-card",
+ "url": "https://media.x.ai/v1/website/card-4p6-4cd2dc57.pdf",
+ "title": "Model Card: Grok 4.6 (xai, 2026-08-12)",
+ "fetched": "2026-10-01",
+ "abstract": "[xai-grok-4-6-model-card] 28 7.2 CVE-Bench . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n[xai-grok-4-6-model-card] GPT-5.6 Sol (max) 83.6% GPT-5.5 (xhigh) 81.8% Grok 4.6 (high) 79.7% Grok 4.5 (high) 79.0% Opus 4.8 (max) 78.1% Mean Reproduced (%) 28 GROK 4.6 MODEL CARD 7.2 CVE-Bench 28 CVE-Bench evaluates agents on exploiting real-world web-application CVEs in sandboxed environments that mimic production services.\n[xai-grok-4-6-model-card] CVE-Bench.",
+ "text": "[xai-grok-4-6-model-card] 28 7.2 CVE-Bench . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n[xai-grok-4-6-model-card] GPT-5.6 Sol (max) 83.6% GPT-5.5 (xhigh) 81.8% Grok 4.6 (high) 79.7% Grok 4.5 (high) 79.0% Opus 4.8 (max) 78.1% Mean Reproduced (%) 28 GROK 4.6 MODEL CARD 7.2 CVE-Bench 28 CVE-Bench evaluates agents on exploiting real-world web-application CVEs in sandboxed environments that mimic production services.\n[xai-grok-4-6-model-card] CVE-Bench.",
+ "chars": 485
+}

@@ -1,0 +1,93 @@
+{
+ "key": "cvebench",
+ "title": "CVE-Bench before releasing an agentic coding model",
+ "group": "frontier model",
+ "agent": "Preparedness lead at a frontier-model developer who owns the release decision for an agentic coding model.",
+ "decision": "Delay the release and deploy cyber-misuse safeguards (refusal training for exploitation requests, usage monitoring with account-level enforcement, and a vetted trusted-access tier for defenders) vs release as planned.",
+ "theta_definition": "theta=1: the model, run as an autonomous agent with only a general task description and remote access, can identify and exploit critical-severity vulnerabilities in deployed web applications reliably enough to give an attacker practical offensive uplift.",
+ "instrument": "CVE-Bench is built from scratch (selecting critical-severity web-application CVEs from the National Vulnerability Database, containerising each vulnerable application, reproducing a reference exploit for it and writing a programmatic grader for the eight attack outcomes) and run once against the candidate agentic LLM in the zero-day configuration.",
+ "attributes": {
+  "risk_domain": "cyber",
+  "level": null,
+  "eval_family": "CVE-Bench (real-world web-application exploitation)",
+  "system_under_test": "agentic LLM",
+  "public": true,
+  "candidate_rank": 9
+ },
+ "sources": [
+  {
+   "key": "zhu2025cvebench",
+   "kind": "arxiv",
+   "ref": "2503.17332",
+   "role": "both",
+   "title": "CVE-Bench: A Benchmark for AI Agents' Ability to Exploit Real-World Web Application Vulnerabilities",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "verizon2025dbir",
+   "kind": "pdf",
+   "ref": "https://www.verizon.com/business/resources/T6c3/reports/2025-dbir-data-breach-investigations-report.pdf",
+   "role": "decision",
+   "title": "Verizon 2025 Data Breach Investigations Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025espionage",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/disrupting-AI-espionage",
+   "role": "decision",
+   "title": "Disrupting the first reported AI-orchestrated cyber espionage campaign (Anthropic, 13 Nov 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai2026gpt53codex_card",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-3-codex-system-card",
+   "role": "both",
+   "title": "GPT-5.3-Codex System Card (openai, 2026-02-05)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai2026gpt54_card",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-4-thinking-system-card",
+   "role": "decision",
+   "title": "GPT-5.4 Thinking System Card (openai, 2026-03-05)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai2026gpt55_card",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-5-system-card",
+   "role": "decision",
+   "title": "GPT-5.5 System Card (openai, 2026-04-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai2026gpt6astra_card",
+   "kind": "system_card",
+   "ref": "openai-gpt-6-astra-system-card",
+   "role": "instrument",
+   "title": "GPT-6 Astra System Card (openai, 2026-09-03)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "kang2025cvebenchv2",
+   "kind": "url",
+   "ref": "https://ddkang.substack.com/p/cve-bench-v20-making-evaluation-more",
+   "role": "instrument",
+   "title": "CVE-Bench v2.0: Making Evaluation More Rigorous with ABC (30 Oct 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "cvebench_readme",
+   "kind": "url",
+   "ref": "https://github.com/uiuc-kang-lab/cve-bench",
+   "role": "instrument",
+   "title": "uiuc-kang-lab/cve-bench README (CVE-Bench 2.2.0)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "The CVE-Bench authors cite a Twitter vulnerability whose data breaches affected over 5.5 million people between 2014 and 2020 [zhu2025cvebench]. Verizon's 2025 Data Breach Investigations Report, covering 22,052 incidents and 12,195 confirmed breaches, found vulnerability exploitation as the initial access vector in 20% of breaches, up 34% on the prior report, and in 70% of espionage-motivated breaches [verizon2025dbir]. In September 2025 Anthropic detected a campaign in which a group it assessed as Chinese state-sponsored manipulated Claude Code into attempting infiltration of roughly thirty technology, finance, chemical and government targets, succeeding in a small number of cases, with AI performing 80-90% of the work [anthropic2025espionage]. In 2025 the best agent framework exploited up to 13% of CVE-Bench vulnerabilities [zhu2025cvebench]. In February 2026 OpenAI reported GPT-5.3-Codex at 90% on CVE-Bench against 87% for GPT-5.2-Codex and treated it as High under its Preparedness Framework, defined as removing bottlenecks to scaling cyber operations by automating end-to-end operations against reasonably hardened targets or automating discovery and exploitation of operationally relevant vulnerabilities [openai2026gpt53codex_card]. OpenAI released it with safeguards rather than withholding it: refusals, usage monitoring, routing some high-risk traffic to a less capable model, and a Trusted Access for Cyber program for vetted defenders [openai2026gpt53codex_card]. OpenAI states that web-application vulnerabilities have limited operational relevance compared with system or kernel vulnerabilities [openai2026gpt54_card]. Restricting the capability forgoes defensive use: OpenAI says security professionals should use it to secure their own software [openai2026gpt55_card], and Anthropic says the same abilities make the model crucial for cyber defence [anthropic2025espionage].",
+ "instrument_facts": "CVE-Bench was built at the University of Illinois Urbana-Champaign with the US AI Safety Institute [zhu2025cvebench]. It holds 40 critical-severity Common Vulnerabilities and Exposures (CVEs) in open-source web applications, published in the National Vulnerability Database (NVD) between May 1 and June 14, 2024 [zhu2025cvebench]. 60 CVEs met the selection criteria; exploits were reproduced for 40 of them, at 5 to 24 person-hours each [zhu2025cvebench]. Each task allows up to 30 agent iterations, in a zero-day variant (no vulnerability description) or a one-day variant (the NVD description); a programmatic grader checks for any of eight attack outcomes [zhu2025cvebench]. The published cost is 'less than USD 100' per run, USD 0.6 to 1.7 and 264 to 3,642 seconds per task, over 5 repetitions with gpt-4o-2024-11-20 [zhu2025cvebench]. Attacks outside the eight outcomes are not scored, a published false-negative limitation [zhu2025cvebench]. Version 2.0 (October 2025) closed two grading shortcuts (direct access to the outbound server; non-executing SLEEP clauses in time-based SQL injection), cutting GPT-4o agent success rates by up to 10% and 32.5% [kang2025cvebenchv2]. One example exploit is published; the remaining manual exploits are not released, to prevent data contamination, and reference exploits are available on request [cvebench_readme]. OpenAI ran version 1.0 on 34 of 40 tasks after porting problems, zero-day, without source-code access, scoring pass@1 over 3 rollouts [openai2026gpt53codex_card]. OpenAI states that because CVE-Bench only measures web applications, performance on it is only a limited measure of aggregate cyber risk [openai2026gpt53codex_card]. OpenAI retired CVE-Bench in September 2026 because it had become saturated [openai2026gpt6astra_card]."
+}

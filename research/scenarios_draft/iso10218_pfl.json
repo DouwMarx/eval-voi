@@ -1,0 +1,101 @@
+{
+ "key": "iso10218_pfl",
+ "title": "ISO 10218 power-and-force-limiting contact test before releasing a collaborative cell",
+ "group": "physical AI",
+ "agent": "Safety engineer at a robot system integrator who owns the release decision for a collaborative robot application with people in the shared workspace.",
+ "decision": "Delay the release of the collaborative robot application and reduce its speed, pad the contact surfaces or add speed-and-separation monitoring vs release it at the planned speed.",
+ "theta_definition": "theta=1: at least one foreseeable contact event in the application exceeds the transient or quasi-static force or pressure limit for the body region concerned.",
+ "instrument": "The ISO 10218:2025 power-and-force-limiting contact-force test is built from scratch (procuring a biofidelic force and pressure measuring device, mapping the application's foreseeable contact points and body regions, programming the collision trajectories at the planned speeds and stop settings) and run once against the commissioned robot application.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 7,
+  "eval_family": "ISO 10218 / ISO/TS 15066 power-and-force-limiting contact tests",
+  "system_under_test": "non-learning physical system",
+  "public": true,
+  "candidate_rank": 5
+ },
+ "sources": [
+  {
+   "key": "svarny2022skins",
+   "kind": "arxiv",
+   "ref": "2203.09872",
+   "role": "both",
+   "title": "Effect of Active and Passive Protective Soft Skins on Collision Forces in Human-robot Collaboration (Svarny et al., 2022)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "svarny2020cfm",
+   "kind": "arxiv",
+   "ref": "2009.01036",
+   "role": "both",
+   "title": "3D Collision-Force-Map for Safe Human-Robot Collaboration (Svarny et al., ICRA 2021)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "kirschner2022iso15066",
+   "kind": "arxiv",
+   "ref": "2203.02706",
+   "role": "both",
+   "title": "ISO/TS 15066: How Different Interpretations Affect Risk Assessment (Kirschner et al., ICRA 2022)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "hartmann2026evolution",
+   "kind": "arxiv",
+   "ref": "2602.17822",
+   "role": "both",
+   "title": "Evolution of Safety Requirements in Industrial Robotics: ISO 10218-1/2 (2011 vs. 2025) and Integration of ISO/TS 15066 (Hartmann et al., 2026)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "robotreport_iso10218",
+   "kind": "url",
+   "ref": "https://www.therobotreport.com/iso-10218-industrial-robot-safety-standard-receives-major-overhaul/",
+   "role": "both",
+   "title": "ISO 10218 industrial robot safety standard receives major overhaul (The Robot Report, 2025-02-18)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "han2024painthresholds",
+   "kind": "url",
+   "ref": "https://doi.org/10.3389/frobt.2024.1374999",
+   "role": "both",
+   "title": "Evaluation of force pain thresholds to ensure collision safety in worker-robot collaborative operations (Han et al., 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023fatalities",
+   "kind": "url",
+   "ref": "https://doi.org/10.1002/ajim.23470",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, NIOSH, 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sanders2024sir",
+   "kind": "url",
+   "ref": "https://doi.org/10.1016/j.apergo.2024.104324",
+   "role": "decision",
+   "title": "Robot-related injuries in the workplace: An analysis of OSHA Severe Injury Reports (Sanders et al., 2024)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026fivemillion",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/five-million-robots-now-operate-in-factories-globally",
+   "role": "decision",
+   "title": "Five Million Robots now Operate in Factories Globally (IFR press release, 2026-09-24)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "gr2safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations (Google DeepMind, 2026-07-29)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Power and force limiting (PFL) lets a moving robot touch a person if impact force, pressure and energy stay within prescribed limits [svarny2020cfm]. The limits are 75th-percentile pain-onset thresholds; ISO/TS 15066 lists 300 N for the deltoid and 440 N for the thigh in transient contact [han2024painthresholds]. Robot contact injuries range from abrasions to fractures; severity rises with contact duration and when the body part cannot recoil [kirschner2022iso15066]. Impact forces vary by more than 100 percent within one robot's workspace [svarny2020cfm]. The US Census of Fatal Occupational Injuries records 41 robot-related deaths in 1992-2017; 83 percent involved stationary robots and 78 percent a robot striking the worker [layne2023fatalities]. OSHA Severe Injury Reports list 77 robot-related accidents in 2015-2022, 54 with stationary robots causing 66 injuries, mainly finger amputations and fractures of the head and torso [sanders2024sir]. Five million industrial robots operated in factories in 2025 and more than 600,000 were installed that year [ifr2026fivemillion]. ISO 10218-2:2025 makes the former ISO/TS 15066 requirements normative and binding on the integrator [hartmann2026evolution]. Google DeepMind's Gemini Robotics 2 safety report names ISO 10218:2025 as the baseline rules for how robots must stop around humans [gr2safety]. Responding costs throughput: the standard's formula limits a UR10e to 0.26 m/s in transient contact and 0.13 m/s where clamping is possible [svarny2020cfm]. Passive padding lowers transient impact forces by about 40 percent, and an active skin tied to the emergency stop let a UR10e comply at 0.5 m/s against a prescribed 0.13 m/s [svarny2022skins].",
+ "instrument_facts": "ISO 10218-2:2025 clause 5.14.6 sets the power and force limiting (PFL) assessment method; Annex M lists force and pressure limits per body region and Annex N the measurement method [hartmann2026evolution]. Clause 6.3.3 mandates measuring contact forces and pressures [hartmann2026evolution]. The text sells for USD 244 in the US (2025) [robotreport_iso10218]. The robot is driven at planned speed into a spring-damper measuring device at each contact point [kirschner2022iso15066]. The CBSF-75-Basic measuring device measures 20 N to 500 N at 1000 Hz [svarny2022skins]. Scoring compares peak force in the first 0.5 s with the transient limit and later force with the quasi-static limit (280 N and 140 N for the region studied) [svarny2022skins]. Svarny et al. recorded 2,250 collisions on three robots: transient contact at nine velocities from 0.2 to 0.7 m/s, quasi-static contact at seven from 0.2 to 0.5 m/s, each setting repeated three times on the two collaborative robots [svarny2022skins]. Published cost is in hours only: 0.87 h per contact position and body part, 5.22 h for three points and two body parts, up to one working day of downtime [kirschner2022iso15066]. For the hand every interpretation underestimated measured force by over 100 N for at least one of four robots; for the back most overestimated by over 100 N [kirschner2022iso15066]. The specification's conflicting contact definitions mean no unique verdict can be expected [kirschner2022iso15066]. With the active skin wired to the emergency stop, a UR10e stayed within the force limits at 0.5 m/s, almost four times the prescribed 0.13 m/s [svarny2022skins]."
+}

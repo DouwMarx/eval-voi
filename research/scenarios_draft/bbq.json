@@ -1,0 +1,93 @@
+{
+ "key": "bbq",
+ "title": "BBQ demographic-bias evaluation before releasing a general-purpose assistant model",
+ "group": "frontier model",
+ "agent": "Responsible-AI lead at a frontier-model developer who owns the release decision for a general-purpose assistant model.",
+ "decision": "Delay the release and apply bias mitigation (anti-stereotype fine-tuning plus a hardened default system prompt, then re-measure) vs release as planned.",
+ "theta_definition": "theta=1: when a question about two people cannot be answered from the context, the model systematically picks the person matching a social stereotype about a protected group, a directional bias rather than random error.",
+ "instrument": "A BBQ-style question-answering bias evaluation is built from scratch (author-written templates that pair an under-informative context with a disambiguated one across nine social dimensions, crowdworker validation of every template, accuracy and a bias score) and run once against the candidate LLM.",
+ "attributes": {
+  "risk_domain": "societal_harm",
+  "level": null,
+  "eval_family": "BBQ demographic bias QA",
+  "system_under_test": "LLM",
+  "public": true,
+  "candidate_rank": 21
+ },
+ "sources": [
+  {
+   "key": "parrish2021bbq",
+   "kind": "arxiv",
+   "ref": "2110.08193",
+   "role": "both",
+   "title": "BBQ: A Hand-Built Bias Benchmark for Question Answering",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "tamkin2023discrim",
+   "kind": "arxiv",
+   "ref": "2312.03689",
+   "role": "decision",
+   "title": "Evaluating and Mitigating Discrimination in Language Model Decisions",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "hofmann2024dialect",
+   "kind": "arxiv",
+   "ref": "2403.00742",
+   "role": "decision",
+   "title": "Dialect prejudice predicts AI decisions about people's character, employability, and criminality",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "nyc_ll144_aedt",
+   "kind": "url",
+   "ref": "https://www.nyc.gov/site/dca/about/automated-employment-decision-tools.page",
+   "role": "decision",
+   "title": "NYC Department of Consumer and Worker Protection: Automated Employment Decision Tools (AEDT), Local Law 144 of 2021",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_bbq_opus_5_5",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-5-5-system-card",
+   "role": "both",
+   "title": "System Card: Claude Opus 5.5",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_bbq_fable_5_1",
+   "kind": "system_card",
+   "ref": "anthropic-claude-fable-5-1-system-card",
+   "role": "both",
+   "title": "System Card: Claude Fable 5.1 & Claude Mythos 5.1",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_bbq_opus_4_8",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-8-system-card",
+   "role": "decision",
+   "title": "System Card: Claude Opus 4.8",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_bbq_opus_4_7",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-7-system-card",
+   "role": "both",
+   "title": "System Card: Claude Opus 4.7",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_bbq_mythos_preview",
+   "kind": "system_card",
+   "ref": "anthropic-claude-mythos-preview-system-card",
+   "role": "instrument",
+   "title": "System Card: Claude Mythos Preview",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "The hazard is stereotype attribution: a model biased to see overweight people as unintelligent picks the overweight person for any question about low intelligence, whether or not the text supports it [parrish2021bbq]. In 2021, when the context did not support an answer, the tested models' errors matched the targeted social bias 56% to 77% of the time, rising with capability [parrish2021bbq]. Hundreds of millions of people use language models, including to inform hiring decisions [hofmann2024dialect]. Language models convicted hypothetical defendants more often when their statement was in African American English (68.7%) than Standard American English (62.1%) and sentenced them to death more often (27.7% vs 22.8%); human feedback training did not reduce this [hofmann2024dialect]. Across 70 decision scenarios such as loans, housing and visas, Claude 2.0 without interventions favoured women and non-white subjects and disfavoured people over 60 [tamkin2023discrim]. Anthropic does not permit automated decisions in such high-risk uses; prompt interventions reduced the measured discrimination [tamkin2023discrim]. New York City Local Law 144 bars automated employment decision tools without a yearly public bias audit; enforcement began July 5, 2023 [nyc_ll144_aedt]. Anthropic released Claude Opus 4.8 although its accuracy on questions whose context supports an answer fell to 72.1% from 81.3% for Opus 4.7; roughly 97% of those wrong answers declined to answer rather than naming the stereotyped person [sc_bbq_opus_4_8]. Anthropic reported that errors of Claude Opus 5.5 and of the 5.1 model (Mythos 5.1 in one card, Fable 5.1 in the other) lean marginally away from stereotypes [sc_bbq_opus_5_5][sc_bbq_fable_5_1].",
+ "instrument_facts": "BBQ was built at New York University by Parrish et al. and released under CC-BY 4.0 [parrish2021bbq]. It has 58,492 unique examples from 325 author-written templates, each tied to a sourced attested bias, across nine categories from age to socio-economic status [parrish2021bbq]. Each category has at least 25 templates; each template yields a negative and a non-negative question under an ambiguous and a disambiguated context, with three options including UNKNOWN [parrish2021bbq]. Five US-located Amazon Mechanical Turk annotators rated one item per condition of every template; 4 of 5 had to match the gold label or the template was edited and re-validated [parrish2021bbq]. Annotators were paid USD 0.50 per 5-example task of up to 2 minutes, an effective minimum of USD 15/hr (2021); no total build cost is published [parrish2021bbq]. Scoring is accuracy per context plus a bias score, 2(n_biased / n_non-UNKNOWN) - 1 in disambiguated contexts and that value times (1 - accuracy) in ambiguous contexts [parrish2021bbq]. Raw crowdworker accuracy on 300 sampled items was 95.7%, majority-vote accuracy 99.7%, Krippendorff's alpha 0.883 [parrish2021bbq]. The authors warn that scores rest on 25 templates per category, cover only US English-speaking contexts, and a low score is not proof of an unbiased model [parrish2021bbq]. Anthropic runs BBQ on every recent model without a system prompt, thinking disabled where possible, and notes its tables ignore margins of error [sc_bbq_mythos_preview][sc_bbq_opus_5_5]. Anthropic reads a negative bias score as overcorrection to avoid stereotypes [sc_bbq_opus_4_7]. Ahead of Mythos 5.1, Anthropic updated its evaluation infrastructure for BBQ [sc_bbq_fable_5_1]."
+}

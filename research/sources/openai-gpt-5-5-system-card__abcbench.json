@@ -1,0 +1,11 @@
+{
+ "key": "openai-gpt-5-5-system-card__abcbench",
+ "kind": "system_card",
+ "ref": "openai-gpt-5-5-system-card",
+ "url": "https://deploymentsafety.openai.com/gpt-5-5/gpt-5-5.pdf",
+ "title": "GPT-5.5 System Card (openai, 2026-04-23)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming ABC-Bench, plus the cited release-decision sentences (system-card corpus docs.sqlite, document slug in brackets):\n[openai-gpt-5-5-system-card] 9.1.1 Biological and Chemical We are treating this launch as High capability in the Biological and Chemical domain, activating the associated Preparedness safeguards.\n[openai-gpt-5-5-system-card] On agentic task-based evaluations, performance was also strong but less conclusive: the model showed strong performance on ABC-Bench but did not surpass released frontier models, and exhibited refusal-corrected performance on par with released frontier models on ABLE, though a high refusal rate limited analysis.\n[openai-gpt-5-5-system-card] The testing found that sustained expert jailbreaking could elicit model-level failures.\n[openai-gpt-5-5-system-card] In the final launch configuration, the safeguard stack blocked the identified and verified high-severity biological misuse jailbreaks from these campaigns.",
+ "text": "Corpus sentences naming ABC-Bench, plus the cited release-decision sentences (system-card corpus docs.sqlite, document slug in brackets):\n[openai-gpt-5-5-system-card] 9.1.1 Biological and Chemical We are treating this launch as High capability in the Biological and Chemical domain, activating the associated Preparedness safeguards.\n[openai-gpt-5-5-system-card] On agentic task-based evaluations, performance was also strong but less conclusive: the model showed strong performance on ABC-Bench but did not surpass released frontier models, and exhibited refusal-corrected performance on par with released frontier models on ABLE, though a high refusal rate limited analysis.\n[openai-gpt-5-5-system-card] The testing found that sustained expert jailbreaking could elicit model-level failures.\n[openai-gpt-5-5-system-card] In the final launch configuration, the safeguard stack blocked the identified and verified high-severity biological misuse jailbreaks from these campaigns.",
+ "chars": 978
+}

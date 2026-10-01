@@ -1,0 +1,141 @@
+{
+ "key": "wmdp",
+ "title": "WMDP hazardous-knowledge screen before an open-weights release",
+ "group": "frontier model",
+ "agent": "Open-weights release lead at a frontier AI developer who owns the release decision.",
+ "decision": "Delay the open-weights release to apply Representation Misdirection for Unlearning (RMU) to the hazardous-knowledge subset and re-test vs release the weights on schedule.",
+ "theta_definition": "theta=1: the model's weights encode expert-level biosecurity, chemical-security or cybersecurity knowledge beyond what freely available sources provide, so the released weights would uplift a malicious actor.",
+ "instrument": "A WMDP-style expert-authored four-choice hazardous-knowledge evaluation is built from scratch (per-domain threat models, expert question writing, two-expert review and sensitive-information filtering) and run once against the candidate model's weights.",
+ "attributes": {
+  "risk_domain": "cbrn",
+  "level": null,
+  "eval_family": "WMDP hazardous-knowledge MCQ",
+  "system_under_test": "LLM",
+  "public": true,
+  "candidate_rank": 11
+ },
+ "sources": [
+  {
+   "key": "li2024wmdp",
+   "kind": "arxiv",
+   "ref": "2403.03218",
+   "role": "both",
+   "title": "The WMDP Benchmark: Measuring and Reducing Malicious Use With Unlearning",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "rand2024redteam",
+   "kind": "url",
+   "ref": "https://www.rand.org/pubs/research_reports/RRA2977-2.html",
+   "role": "decision",
+   "title": "The Operational Risks of AI in Large-Scale Biological Attacks: Results of a Red-Team Study",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2026riskreport",
+   "kind": "pdf",
+   "ref": "https://www-cdn.anthropic.com/08eca2757081e850ed2ad490e5253e940240ca4f.pdf",
+   "role": "decision",
+   "title": "Risk Report: February 2026 (Redacted)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic2025asl3",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/activating-asl3-protections",
+   "role": "decision",
+   "title": "Activating AI Safety Level 3 protections",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "qi2023finetuning",
+   "kind": "arxiv",
+   "ref": "2310.03693",
+   "role": "decision",
+   "title": "Fine-tuning Aligned Language Models Compromises Safety, Even When Users Do Not Intend To!",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deeb2024unlearning",
+   "kind": "arxiv",
+   "ref": "2410.08827",
+   "role": "decision",
+   "title": "Do Unlearning Methods Remove Information from Language Model Weights?",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-glimmer-model-card__wmdp",
+   "kind": "system_card",
+   "ref": "meta-muse-glimmer-model-card",
+   "role": "decision",
+   "title": "Muse Glimmer 30B Model Card (2026-08-10)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "vanderweij2024sandbagging",
+   "kind": "arxiv",
+   "ref": "2406.07358",
+   "role": "instrument",
+   "title": "AI Sandbagging: Language Models can Strategically Underperform on Evaluations",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio2026vctv2",
+   "kind": "url",
+   "ref": "https://securebio.substack.com/p/introducing-vct-v2",
+   "role": "instrument",
+   "title": "Introducing VCT-v2 - the updated Virology Capabilities Test",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "rand2026saturation",
+   "kind": "pdf",
+   "ref": "https://www.rand.org/content/dam/rand/pubs/research_reports/RRA5000/RRA5055-1/RAND_RRA5055-1.pdf",
+   "role": "instrument",
+   "title": "Interpreting Dual-Use Biology Benchmarks for Frontier AI: Measurement, Saturation, and Generational Analysis",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai-gpt-6-astra-system-card__wmdp",
+   "kind": "system_card",
+   "ref": "openai-gpt-6-astra-system-card",
+   "role": "instrument",
+   "title": "GPT-6 Astra System Card (2026-09-03)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-system-card__wmdp",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "instrument",
+   "title": "Muse Spark Safety & Preparedness Report (2026-05-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-contemplating-system-card__wmdp",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-contemplating-system-card",
+   "role": "instrument",
+   "title": "Muse Spark Contemplating Safety & Preparedness Report (2026-06-03)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "xai-grok-4-7-model-card__wmdp",
+   "kind": "system_card",
+   "ref": "xai-grok-4-7-model-card",
+   "role": "instrument",
+   "title": "Model Card: Grok 4.7 (2026-09-21)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta2026glimmercard",
+   "kind": "url",
+   "ref": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
+   "role": "decision",
+   "title": "Muse Glimmer 30B Model Card",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "The WMDP authors frame the hazard as large language models (LLMs) helping malicious actors develop biological, cyber and chemical weapons, chiefly transmissible pandemic agents [li2024wmdp]. A 2024 RAND red-team study of teams planning a biological attack with or without LLM access found no statistically significant difference in plan viability [rand2024redteam]. Anthropic's February 2026 risk report cites a bioweapons-acquisition uplift trial on Claude Opus 4, not repeated for Claude Opus 4.6: participants given the model with safeguards removed scored 63% ± 13%, a 2.53x uplift over a 25% internet-only control, against an AI Safety Level 3 (ASL-3) threshold of 2.8x [anthropic2026riskreport]. Anthropic activated ASL-3 protections at the May 2025 launch of Claude Opus 4 because it could no longer rule out chemical, biological, radiological and nuclear (CBRN) risks, with biological weapons judged the vast majority of the risk [anthropic2025asl3]. Fine-tuning GPT-3.5 Turbo on 10 adversarial examples for under USD 0.20 removed its safety guardrails, and the same 10-shot attack on the open-weights Llama-2 took 5 gradient steps [qi2023finetuning]. Fine-tuning on a subset of supposedly removed facts recovered 88% of pre-unlearning accuracy for current unlearning methods including RMU [deeb2024unlearning]. RMU lowered Zephyr-7B's MMLU (Massive Multitask Language Understanding) general-knowledge accuracy from 58.1% to 57.1% and removed introductory virology and computer-security knowledge, and unlearning dual-use cyber knowledge may harm defenders [li2024wmdp]. Meta released the Muse Glimmer 30B weights under Apache 2.0 in August 2026 [meta2026glimmercard]. Meta judged its chem/bio abilities in line with its size class and unlikely to materially enable new threats [meta-muse-glimmer-model-card__wmdp].",
+ "instrument_facts": "WMDP is 3,668 four-choice multiple-choice questions, 1,273 biosecurity, 1,987 cybersecurity and 408 chemical security, scored by accuracy with 25% as random chance [li2024wmdp]. Academics and technical consultants wrote the questions from per-domain threat models; each was checked by at least two experts from different organizations, sensitive items were removed and external counsel reviewed export-control compliance [li2024wmdp]. The paper states the dataset cost over USD 200K to develop; no run-cost figure is published [li2024wmdp]. The authors state a low score likely means the knowledge is absent but a high score does not necessarily mean the model is unsafe [li2024wmdp]. As proxy validation, Zephyr-7B scored similarly on WMDP-Bio and on 122 held-out sensitive biology questions before and after RMU unlearning [li2024wmdp]. Grok 4.7 scores 88.1% on WMDP-Bio, 84.9% on WMDP-Chem and 88.1% on WMDP-Cyber [xai-grok-4-7-model-card__wmdp]. Muse Spark Contemplating scores 90.3% Bio, 87.2% Chem and 91.1% Cyber accuracy [meta-muse-spark-contemplating-system-card__wmdp]. RAND's item-response analysis of 8,146 items from 26 dual-use biology question sets including WMDP Bio and Chem found frontier models have saturated much of the corpus [rand2026saturation]. SecureBio found models exploited shortcuts in over 30% of WMDP-Bio questions, answering correctly without the question text [securebio2026vctv2]. GPT-6 Astra and GPT-5.6 Sol lowered accuracy from 84.8% to 68.9% when instructed to sandbag on 400 questions, three samples each [openai-gpt-6-astra-system-card__wmdp]. Password-locked fine-tuning hides WMDP capability unless a password is given [vanderweij2024sandbagging]. Meta ran WMDP on a helpful-only checkpoint because of refusals and found statistically significant strategic underperformance on WMDP-Bio under pressure prompts [meta-muse-spark-system-card__wmdp]."
+}

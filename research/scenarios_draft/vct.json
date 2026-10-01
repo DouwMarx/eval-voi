@@ -1,0 +1,61 @@
+{
+ "key": "vct",
+ "title": "Virology Capabilities Test before releasing a frontier model",
+ "group": "frontier model",
+ "agent": "Deployment lead at a frontier model developer who owns the release decision for a new multimodal assistant.",
+ "decision": "Delay the model release and add stronger biology misuse safeguards (misuse classifiers plus restricted access for virology troubleshooting queries) vs release as planned.",
+ "theta_definition": "theta=1: the model troubleshoots practical virology wet-lab protocols at least as well as expert virologists working inside their own specialty, so a person attempting hands-on work with dangerous pathogens would get meaningful troubleshooting help from it.",
+ "instrument": "The Virology Capabilities Test is built from scratch (recruiting and onboarding PhD-level virologists, commissioning image-based laboratory troubleshooting questions, two-stage expert review, non-expert screening and expert baselining) and run once against the candidate model.",
+ "attributes": {
+  "risk_domain": "cbrn",
+  "level": null,
+  "eval_family": "VCT (SecureBio biological capability tests)",
+  "system_under_test": "VLM",
+  "public": false,
+  "candidate_rank": 3
+ },
+ "sources": [
+  {
+   "key": "vct-paper",
+   "kind": "arxiv",
+   "ref": "2504.16137",
+   "role": "both",
+   "title": "Virology Capabilities Test (VCT): A Multimodal Virology Q&A Benchmark",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "vct-system-cards",
+   "kind": "system_card",
+   "ref": "VCT",
+   "role": "both",
+   "title": "System-card corpus sentences naming the Virology Capabilities Test",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic-asl3",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/activating-asl3-protections",
+   "role": "decision",
+   "title": "Activating AI Safety Level 3 protections (Anthropic, 22 May 2025)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "constitutional-classifiers",
+   "kind": "arxiv",
+   "ref": "2501.18837",
+   "role": "decision",
+   "title": "Constitutional Classifiers: Defending against Universal Jailbreaks across Thousands of Hours of Red Teaming",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "marani2021",
+   "kind": "url",
+   "ref": "https://doi.org/10.1073/pnas.2105482118",
+   "role": "decision",
+   "title": "Intensity and frequency of extreme novel epidemics (PNAS, 2021)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Expert-level troubleshooting of practical virology work is dual-use: it is useful for beneficial research and it can be misused [vct-paper]. Published results show frontier models answering practical virology troubleshooting questions better than the PhD-level virologists tested inside their own sub-specialties, the best model reaching 43.8 percent accuracy against an expert average of 22.1 percent and outperforming 94 percent of those experts [vct-paper]. Top-model accuracy on the same questions rose about 12 percentage points between April 2025 and September 2026, from 42.0 percent for o3 to 53.9 percent for GPT-5.6 Sol, and developers repeat the comparison in release documentation, with Mythos 5 at 0.56 and Sonnet 5 at 0.45 against the expert baseline of 0.221 [vct-system-cards]. The exposed population is everyone reachable by a pandemic pathogen: the yearly probability of an epidemic as intense as the 1918-1920 influenza has varied between 0.27 percent and 1.9 percent since 1600, its mean recurrence time today is 400 years, and that probability may rise up to threefold in coming decades [marani2021]. Developers act on evidence of this kind: Anthropic activated its AI Safety Level 3 deployment and security standards when it launched Claude Opus 4 on 22 May 2025, as a precautionary and provisional action, because it could not rule out the chemical, biological, radiological and nuclear (CBRN) capability threshold [anthropic-asl3]. The published price of that class of safeguard, which targets CBRN misuse narrowly, is an absolute 0.38 percent increase in production-traffic refusals and a 23.7 percent inference overhead [constitutional-classifiers].",
+ "instrument_facts": "SecureBio built the Virology Capabilities Test with the Center for AI Safety and the MIT Media Lab using dozens of expert virologists [vct-paper]. Of 507 submitted questions, 408 passed two-stage expert review and 365 also passed editing and non-expert testing, leaving 322 shared questions (221 with an image) and a 43-question holdout [vct-paper]. Each item gives a laboratory troubleshooting situation, an optional image and four to ten true-or-false statements; the answerer selects the true set, scored as accuracy [vct-paper]. Thirty-six of 57 active experts baselined questions they had not written, 15 to 30 minutes each [vct-paper]. Supervisor vetting scores differed by 0 or 1 point in 87.2 percent of reviews [vct-paper]. Published cost is a per-item fee schedule, not a total: USD 15 base per submitted question with USD 5 and USD 10 image bonuses, USD 15 per reviewer approval, USD 10 base per review, and USD 5 per non-expert answer plus USD 25 if correct [vct-paper]. No total build cost, hour count or per-run figure is published [vct-paper]. For a subset of multimodal questions the images are dispensable: models answer correctly without them [vct-paper]. A later flagging pipeline marked 87 of 322 questions (27.0 percent) shortcut-exploitable; accuracies dropped 1.0 to 7.1 percentage points on the revised version [vct-system-cards]. The authors state it does not assess the capabilities of humans assisted by the model [vct-paper]. The question set is not released publicly [vct-paper]. One developer reports scores as means across all trials with bootstrap 95 percent confidence intervals [vct-system-cards]."
+}

@@ -1,0 +1,69 @@
+{
+ "key": "humanoid_orchestrator",
+ "title": "LLM-orchestrator safety evaluation before deploying a humanoid in a shared cell",
+ "group": "physical AI",
+ "agent": "Head of robotics engineering at a system integrator who owns the deployment decision for an LLM orchestrator on a humanoid working in a shared industrial cell.",
+ "decision": "Delay the deployment and confine the LLM orchestrator behind a deterministic allow/deny safety layer (speed clamp, protective stop and tool-call watchdog enforced on-board independently of the LLM) vs deploy as planned.",
+ "theta_definition": "theta=1: over extended multi-turn sessions the LLM orchestrator commands humanoid motions that break a protective measure (speed limit, separation distance, camera-loss stop or low-battery stop) while a person is present, in a material fraction of sessions.",
+ "instrument": "The LLM-orchestrator safety evaluation is built from scratch (an MCP tool interface to the humanoid's perception, actuation and state, a safety document of five ISO 10218-2-grounded invariants, a scripted four-phase 100-turn command protocol with synthetic sensor readings, and an automated compliance classifier over logged tool calls) and run once (five repeated 100-turn sessions per context condition) against the candidate LLM orchestrator.",
+ "attributes": {
+  "risk_domain": "physical_harm",
+  "level": 0,
+  "eval_family": "LLM-orchestrator humanoid safety invariants",
+  "system_under_test": "LLM or VLM inside a robot",
+  "public": false,
+  "candidate_rank": 13
+ },
+ "sources": [
+  {
+   "key": "bajrami2026robotignores",
+   "kind": "arxiv",
+   "ref": "2609.07288",
+   "role": "both",
+   "title": "How Long Until Your Robot Ignores You? A Safety Benchmark for LLM Orchestrators in Human-Humanoid Collaboration",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "unitree_g1_page",
+   "kind": "url",
+   "ref": "https://www.unitree.com/g1",
+   "role": "decision",
+   "title": "Unitree G1 humanoid robot product page (specifications and price)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ifr2026service",
+   "kind": "url",
+   "ref": "https://ifr.org/ifr-press-releases/news/global-sales-of-professional-service-robots-surge-24-percent",
+   "role": "decision",
+   "title": "IFR press release: Global Sales of Professional Service Robots Surge 24% (World Robotics 2026 Service Robots), 30 Sep 2026",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "layne2023robotfatalities",
+   "kind": "pdf",
+   "ref": "https://stacks.cdc.gov/view/cdc/230667/cdc_230667_DS1.pdf",
+   "role": "decision",
+   "title": "Robot-related fatalities at work in the United States, 1992-2017 (Layne, Am J Ind Med 2023)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "robey2024robopair",
+   "kind": "arxiv",
+   "ref": "2410.13691",
+   "role": "decision",
+   "title": "Jailbreaking LLM-Controlled Robots",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deepmind2026gr2safety",
+   "kind": "pdf",
+   "ref": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "role": "decision",
+   "title": "Gemini Robotics 2: Safety Evaluations (Google DeepMind, 2026-07-29)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "LLMs increasingly orchestrate humanoid skills through natural-language interfaces and thereby take part in safety decisions next to people [bajrami2026robotignores]. The Unitree G1 humanoid weighs about 35 kg, has a maximum knee-joint torque of 90 N.m and is listed from USD 13.5K [unitree_g1_page]. About 7,000 full-size humanoids (above 140 cm) were sold worldwide in 2025 for commercial and professional use; the International Federation of Robotics (IFR) names safety standards among the challenges limiting industrial adoption [ifr2026service]. NIOSH identified 41 robot-related workplace fatalities in the United States in 1992-2017; in 78% the robot struck the worker while operating under its own power [layne2023robotfatalities]. In published 100-turn sessions, GPT-4o-mini broke a humanoid's safety rules up to 13 times per session, a local 8B model 156 times across five sessions, and the two best cloud backends produced 0 to 4 violations per 500 turns (Claude Haiku 4.5: 4 and 1; Gemini 2.5 Flash: 0 and 1; by context condition) [bajrami2026robotignores]. Median cloud LLM response time per command was 3.7 to 5.9 s, while a certified protective stop reacts on a millisecond scale [bajrami2026robotignores]. Jailbreak prompts have elicited harmful physical actions from a commercial Unitree Go2 LLM-controlled robot, often with 100% attack success [robey2024robopair]. Numeric-threshold constraints can be enforced by deterministic monitors without an LLM, but an LLM that refuses all permitted reduced-speed movement makes the robot an unproductive collaborator [bajrami2026robotignores]. Google DeepMind states that in physical deployments minimising missed stops when a human is near must be strictly prioritised over minimising unnecessary stops [deepmind2026gr2safety].",
+ "instrument_facts": "The evaluation (Bajrami et al., Fraunhofer IPA; arXiv 2609.07288, 2026) evaluates an LLM orchestrator that calls a humanoid's perception, actuation and state tools over the Model Context Protocol (MCP) [bajrami2026robotignores]. Five safety invariants grounded in ISO 10218-2:2025 protective measures sit once in the system prompt as numeric rules (camera-off stop, 30% speed cap within 1.0 m, stop within 0.5 m, sit-down below 15% battery, workspace boundary) [bajrami2026robotignores]. Each safety-relevant response is classified automatically from logged tool calls as correct compliance, overcompliance, undercompliance or full violation [bajrami2026robotignores]. Layer 1 feeds scripted text commands with synthetic sensor readings through a 100-turn protocol; four backends (Claude Haiku 4.5, GPT-4o-mini, Gemini 2.5 Flash, qwen3:8b) ran under full-context and sliding-window conditions, five repetitions each, 40 sessions [bajrami2026robotignores]. Layer 2 (MuJoCo simulation of a Unitree G1) and Layer 3 (the physical Unitree G1 EDU) are described as ongoing; the only reported Layer-3 result is a single spot-check of invariant S1 with locally served qwen3:30b [bajrami2026robotignores]. No cost figure is published; Figure 4 plots estimated API cost per session on a log axis from USD 0.1 to USD 5 [bajrami2026robotignores]. A Layer-2 replication reproduced the ranking: Claude and Gemini 0 violations per 500 turns, GPT-4o-mini 34 and 29, qwen3:8b 180 and 65 against 156 and 51 at Layer 1 [bajrami2026robotignores]. 3 of 61 cloud-backend violations fell on turns where the sensed distance was compliant under +/-0.1 m sensing noise [bajrami2026robotignores]. Limitations: threshold-based invariants, a scripted protocol, one robot platform; scripts, logs and code \"will be released\" [bajrami2026robotignores]."
+}

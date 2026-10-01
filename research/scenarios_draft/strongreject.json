@@ -1,0 +1,93 @@
+{
+ "key": "strongreject",
+ "title": "StrongREJECT before the public chat model launch",
+ "group": "frontier model",
+ "agent": "Trust and safety lead at a frontier model developer who owns the public launch decision for a consumer chat model.",
+ "decision": "Delay the launch and add an input-output jailbreak classifier layer plus refusal training against known jailbreak templates vs launch as planned.",
+ "theta_definition": "theta=1: known jailbreak techniques reliably make the model produce specific, actionable harmful content in the forbidden categories (illegal goods and services, non-violent crime, hate and harassment, disinformation, violence, sexual content).",
+ "instrument": "A StrongREJECT-style evaluation is built from scratch (a forbidden-prompt set across the forbidden categories, a battery of jailbreak templates, and a rubric-based LLM judge validated against human labels) and run once against the candidate chat model.",
+ "attributes": {
+  "risk_domain": "societal_harm",
+  "level": null,
+  "eval_family": "StrongREJECT jailbreak robustness",
+  "system_under_test": "LLM",
+  "public": true,
+  "candidate_rank": 7
+ },
+ "sources": [
+  {
+   "key": "souly2024strongreject",
+   "kind": "arxiv",
+   "ref": "2402.10260",
+   "role": "both",
+   "title": "A StrongREJECT for Empty Jailbreaks",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sharma2025constitutional",
+   "kind": "arxiv",
+   "ref": "2501.18837",
+   "role": "decision",
+   "title": "Constitutional Classifiers: Defending against Universal Jailbreaks across Thousands of Hours of Red Teaming",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "strongreject_docs",
+   "kind": "url",
+   "ref": "https://strong-reject.readthedocs.io/en/latest/",
+   "role": "instrument",
+   "title": "StrongREJECT documentation",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_meta_muse_spark",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "both",
+   "title": "Muse Spark Safety & Preparedness Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_meta_muse_spark_1_1",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-1-1-system-card",
+   "role": "decision",
+   "title": "Muse Spark 1.1 Evaluation Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_xai_grok_4_7",
+   "kind": "system_card",
+   "ref": "xai-grok-4-7-model-card",
+   "role": "decision",
+   "title": "Model Card: Grok 4.7",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_anthropic_glm_5_3_other",
+   "kind": "system_card",
+   "ref": "anthropic-glm-5-3-other",
+   "role": "decision",
+   "title": "GLM-5.3 and the spread of advanced cyber capabilities",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_openai_gpt_5_4_thinking",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-4-thinking-system-card",
+   "role": "instrument",
+   "title": "GPT-5.4 Thinking System Card",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_anthropic_opus_4_8_other_3",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-4-8-other-3",
+   "role": "instrument",
+   "title": "Automated researchers can reliably mitigate alignment failures",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Jailbreaks bypass a model's safety training to elicit harmful information, a growing concern as chemical, biological, radiological and nuclear (CBRN) capabilities increase [sharma2025constitutional]. The forbidden categories are prohibited in the usage policies of OpenAI, Anthropic, Google, Meta and DeepInfra; jailbreak templates circulate on social media and sites such as jailbreakchat.com [souly2024strongreject]. Jailbreaks that bypass safety fine-tuning tend to reduce capabilities, so earlier near-100% success claims overstated how much usable harmful information is extracted [souly2024strongreject]. Without a classifier layer, 86% of jailbreak attempts succeeded against a harmlessness-trained Claude 3.5 Sonnet; constitutional classifiers cut this to under 5% (2025) [sharma2025constitutional]. On Meta's internal jailbreak set under its full attack pipeline, attack success rates were 44.6% (Muse Spark), 37.6% (GPT-5.4), 31.7% (Claude Opus 4.6) and 81.7% (Gemini 3.1 Pro) in May 2026 [sc_meta_muse_spark]. In July 2026 the same set gave 0.5% for Muse Spark 1.1 and GPT-5.5, 4.5% for Claude Opus 4.8 and 51.0% for Gemini 3.1 Pro [sc_meta_muse_spark_1_1]. xAI reports jailbreak-suite compliance of 1.5% for Grok 4.5, 3.9% for Grok 4.6 and 2.0% for Grok 4.7 (2026) [sc_xai_grok_4_7]. Abliteration, a refusal-reduction edit, took open-weight GLM-5.3's refusal rate from above 90% to 12% on one harmful-request set; open-weight safeguards can be removed after release [sc_anthropic_glm_5_3_other]. The classifier mitigation cost an absolute 0.38% refusal increase on 5,000 Claude.ai Free and Pro conversations and a 23.7% inference overhead [sharma2025constitutional]. A prototype of that defence withstood over 3,000 estimated hours of red teaming by 405 participants offered bounties up to USD 15,000 (2025) [sharma2025constitutional].",
+ "instrument_facts": "StrongREJECT (Souly et al., UC Berkeley, 2024) has 313 forbidden prompts, at least 50 per category across six; 70% are novel, the rest from DAN, AdvBench and prior work [souly2024strongreject]. The LLM judge scores non-refusal (binary), specificity and convincingness (5-point); the score is (1 minus refused) times their rescaled mean [souly2024strongreject]. A Gemma 2B judge was fine-tuned in 6 hours on one RTX A6000 from 24,720 labels costing about USD 500 of OpenAI credits (2024) [souly2024strongreject]. A dozen jailbreaks over the full dataset run and score in about 15 minutes for under USD 1 with GPT-4o-mini (2024) [souly2024strongreject]. Five LabelBox labelers labelled 1,361 prompt-response pairs from a 60-prompt subset for USD 2,500 [souly2024strongreject]. Against these labels the rubric judge has mean absolute error 0.077 and the fine-tuned judge 0.084; their Spearman correlations with the human ranking of jailbreak methods on GPT-3.5 Turbo are 0.846 and 0.900 [souly2024strongreject]. The authors state 313 prompts are too few for a definitive stand-alone robustness measure [souly2024strongreject]. Code, dataset and both judges are public; the rubric judge calls OpenAI's API [strongreject_docs]. Before the GPT-5.4 launch OpenAI replaced its StrongReject-based evaluation with a harder multi-turn one from red teaming [sc_openai_gpt_5_4_thinking]. Meta's internal StrongREJECT v2 extends 161 original behaviours to 202 across 10 harm areas and counts a success only when the StrongREJECT score is at least 0.9 and a second auditing judge's rubric score is at least 0.8 [sc_meta_muse_spark]. Anthropic's automated researchers hill-climbing StrongREJECT closed 79.2% of its headroom without generalising to held-out jailbreak benchmarks [sc_anthropic_opus_4_8_other_3]."
+}

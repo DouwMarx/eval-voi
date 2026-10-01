@@ -1,0 +1,11 @@
+{
+ "key": "sc_openai_gpt_5_4_thinking",
+ "kind": "system_card",
+ "ref": "openai-gpt-5-4-thinking-system-card",
+ "url": "https://deploymentsafety.openai.com/gpt-5-4-thinking/gpt-5-4-thinking.pdf",
+ "title": "GPT-5.4 Thinking System Card",
+ "fetched": "2026-10-01",
+ "abstract": "[openai-gpt-5-4-thinking-system-card] Ahead of the GPT-5.4 launch, we replaced our previous StrongReject-based benchmark with a more challenging multiturn jailbreak evaluation derived from red-teaming exercises.",
+ "text": "[openai-gpt-5-4-thinking-system-card] Ahead of the GPT-5.4 launch, we replaced our previous StrongReject-based benchmark with a more challenging multiturn jailbreak evaluation derived from red-teaming exercises.",
+ "chars": 211
+}

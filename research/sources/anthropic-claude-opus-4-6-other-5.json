@@ -1,0 +1,14 @@
+{
+ "key": "anthropic-claude-opus-4-6-other-5",
+ "kind": "system_card",
+ "ref": "anthropic-claude-opus-4-6-other-5",
+ "url": "https://www.anthropic.com/research/exploit",
+ "title": "Reverse engineering Claude's CVE-2026-2796 exploit (anthropic, 2026-03-06)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-opus-4-6-other-5] In September, we noted that Claude's success rate on Cybench had doubled in six months.\n\nCited sentences from the same document that do not name Cybench:\n[anthropic-claude-opus-4-6-other-5] Frontier Red Team Evyatar Ben Asher, Keane Lucas, Nicholas Carlini, Newton Cheng, and Daniel Freeman Today we published an update on our collaboration with Mozilla, in which Claude Opus 4.6 found 22 vulnerabilities in Firefox over the course of two weeks.\n[anthropic-claude-opus-4-6-other-5] And recall that Opus 4.6 only turned a vulnerability into an exploit in two cases (given hundreds of chances at dozens of bugs).",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-opus-4-6-other-5] In September, we noted that Claude's success rate on Cybench had doubled in six months.\n\nCited sentences from the same document that do not name Cybench:\n[anthropic-claude-opus-4-6-other-5] Frontier Red Team Evyatar Ben Asher, Keane Lucas, Nicholas Carlini, Newton Cheng, and Daniel Freeman Today we published an update on our collaboration with Mozilla, in which Claude Opus 4.6 found 22 vulnerabilities in Firefox over the course of two weeks.\n[anthropic-claude-opus-4-6-other-5] And recall that Opus 4.6 only turned a vulnerability into an exploit in two cases (given hundreds of chances at dozens of bugs).",
+ "chars": 739,
+ "publisher": "anthropic",
+ "publication_date": "2026-03-06",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

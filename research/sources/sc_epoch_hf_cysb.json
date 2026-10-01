@@ -1,0 +1,11 @@
+{
+ "key": "sc_epoch_hf_cysb",
+ "kind": "system_card",
+ "ref": "epoch-ai-gpt-5-6-sol-independent-eval",
+ "url": "https://epoch.ai/gradient-updates/openai-accidentally-hacked-hugging-face",
+ "title": "OpenAI accidentally hacked Hugging Face — should we have seen it coming? (epoch_ai, 2026-07-22)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming CyScenarioBench (system-card corpus docs.sqlite, document slug in brackets):\n[epoch-ai-gpt-5-6-sol-independent-eval] In particular, across multiple independent benchmarks (ExploitGym, ExploitBench, UK AISI’s Cyber Ranges, Irregular’s CyScenarioBench and FrontierCyber) we see that the current frontier models are capable of both discovering security vulnerabilities in real world code, and developing exploits using these vulnerabilities to hack into realistic systems.",
+ "text": "[epoch-ai-gpt-5-6-sol-independent-eval] In particular, across multiple independent benchmarks (ExploitGym, ExploitBench, UK AISI’s Cyber Ranges, Irregular’s CyScenarioBench and FrontierCyber) we see that the current frontier models are capable of both discovering security vulnerabilities in real world code, and developing exploits using these vulnerabilities to hack into realistic systems.",
+ "chars": 392
+}

@@ -1,0 +1,14 @@
+{
+ "key": "anthropic_opus_5_system_card",
+ "kind": "system_card",
+ "ref": "anthropic-claude-opus-5-system-card",
+ "url": "https://www-cdn.anthropic.com/b514064af1408018e64b1ad24e7d5e75850b4ffd/Claude%20Opus%205%20System%20Card.pdf",
+ "title": "System Card: Claude Opus 5",
+ "fetched": "2026-10-01",
+ "abstract": "We report five capability evaluations—ExploitBench, OSS-Fuzz, Firefox 147, and two newly added benchmarks, CyScenarioBench and ExploitGym—alongside external cyber range testing from the UK AI Security Institute.",
+ "text": "[anthropic-claude-opus-5-system-card] We report five capability evaluations—ExploitBench, OSS-Fuzz, Firefox 147, and two newly added benchmarks, CyScenarioBench and ExploitGym—alongside external cyber range testing from the UK AI Security Institute.\n[anthropic-claude-opus-5-system-card] We are also adding some new evaluations: CyScenarioBench and ExploitGym.\n[anthropic-claude-opus-5-system-card] 3.3.5 ExploitGym ExploitGym is a large-scale public benchmark developed by researchers at UC Berkeley together with collaborators at the Max Planck Institute for Security and Privacy, UC Santa 41 Barbara, Arizona State University, Anthropic, OpenAI, and Google.\n[anthropic-claude-opus-5-system-card] Whereas CyberGym (which we have retired from this card due to saturation) evaluated vulnerability reproduction, ExploitGym targets a wider range of applications and mainly focuses on converting a crash into unauthorized code execution.\n[anthropic-claude-opus-5-system-card] 42 [Figure 3.3.5.A] Claude Opus 5 is a substantial improvement over Opus 4.8 on ExploitGym, approaching Mythos 5 under a 2-hour budget.",
+ "chars": 1108,
+ "publisher": "anthropic",
+ "publication_date": "2026-07-24",
+ "note": "sentences naming ExploitGym from the system-card corpus docs.sqlite (normalised text), not the whole card"
+}

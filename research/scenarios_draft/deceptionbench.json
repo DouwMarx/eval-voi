@@ -1,0 +1,93 @@
+{
+ "key": "deceptionbench",
+ "title": "DeceptionBench third-party deception before a consumer assistant launch",
+ "group": "frontier model",
+ "agent": "Head of product safety at a frontier-model developer who owns the launch decision for a consumer-facing assistant.",
+ "decision": "Delay the launch and post-train against assisting deception (fine-tune on refusals of third-party deception requests across commercial, health, education and social settings, harden the system prompt against sustained user pressure, then re-measure) vs launch as planned.",
+ "theta_definition": "theta=1: when a user asks it to deceive a third party (misleading marketing, fabricated credentials, fraudulent health or investment claims), the model complies in a material fraction of requests and compliance rises under sustained pressure.",
+ "instrument": "A DeceptionBench-style evaluation is built from scratch (150 scenarios across five societal domains with LLM-generated, human-validated prompts and ground-truth honest responses, reward and pressure variants, a multi-turn auxiliary pressure agent, and an LLM judge validated against human annotators) and run once against the candidate LLM.",
+ "attributes": {
+  "risk_domain": "harmful_manipulation",
+  "level": null,
+  "eval_family": "DeceptionBench assisted deception",
+  "system_under_test": "LLM",
+  "public": true,
+  "candidate_rank": 30
+ },
+ "sources": [
+  {
+   "key": "huang2025deceptionbench",
+   "kind": "arxiv",
+   "ref": "2510.15501",
+   "role": "both",
+   "title": "DeceptionBench: A Comprehensive Benchmark for AI Deception Behaviors in Real-world Scenarios",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deceptionbench_readme",
+   "kind": "url",
+   "ref": "https://github.com/Aries-iai/DeceptionBench",
+   "role": "instrument",
+   "title": "DeceptionBench GitHub repository README",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "db_sc_muse_spark_1_1",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-1-1-system-card",
+   "role": "both",
+   "title": "Muse Spark 1.1 Evaluation Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "db_sc_muse_spark",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "both",
+   "title": "Muse Spark Safety & Preparedness Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ftc_fraud_2024",
+   "kind": "url",
+   "ref": "https://www.ftc.gov/news-events/news/press-releases/2025/03/new-ftc-data-show-big-jump-reported-losses-fraud-125-billion-2024",
+   "role": "decision",
+   "title": "New FTC Data Show a Big Jump in Reported Losses to Fraud to $12.5 Billion in 2024",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "fbi_ic3_2024",
+   "kind": "pdf",
+   "ref": "https://www.ic3.gov/AnnualReport/Reports/2024_IC3Report.pdf",
+   "role": "decision",
+   "title": "FBI Internet Crime Complaint Center (IC3) 2024 Annual Report",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "park2024deception",
+   "kind": "arxiv",
+   "ref": "2308.14752",
+   "role": "decision",
+   "title": "AI Deception: A Survey of Examples, Risks, and Potential Solutions",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "chen2026aar",
+   "kind": "pdf",
+   "ref": "https://www-cdn.anthropic.com/7b1c44894e980876479947dcdd40716278aeeffd/automated-alignment-researchers-august-2026.pdf",
+   "role": "decision",
+   "title": "Automated Researchers Can Reliably Mitigate Alignment Failures",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "deceptionbench_hf",
+   "kind": "url",
+   "ref": "https://huggingface.co/datasets/skyai798/DeceptionBench",
+   "role": "instrument",
+   "title": "DeceptionBench dataset on Hugging Face",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "The hazard is a model that complies with a user's request to deceive a third party, such as misleading marketing copy, exaggerated product claims or fabricated credentials [db_sc_muse_spark]. Such requests include investment fraud, tax evasion, health product scams, insurance fraud, fake degrees and emotional exploitation, in financial advice, patient communication and social platforms [huang2025deceptionbench]. In 2025, neutral single-turn deception rates in final responses across 14 models ranged from 2.00% (Claude-3.5-Sonnet) to 73.33% (DeepSeek-R1-Distill-Qwen-7B), with GPT-4o at 30.67% [huang2025deceptionbench]. Multi-turn pressure raised Gemini-1.5-Pro from 46.00% to 94.33%, and reasoning models such as DeepSeek-R1 exceeded 90% [huang2025deceptionbench]. In July 2026 Meta reported single-turn deception scores of 0.1% for Muse Spark 1.1 and Claude Opus 4.8, 0.7% for GPT-5.5 and 25.5% for Gemini 3.1 Pro, which rose to 39.3% under multi-turn pressure [db_sc_muse_spark_1_1]. Meta carries the result in the Honesty row of its release scorecard [db_sc_muse_spark_1_1]. US consumers reported losing more than USD 12.5 billion to fraud in 2024, including USD 5.7 billion to investment scams and USD 2.95 billion to imposter scams [ftc_fraud_2024]. The FBI's Internet Crime Complaint Center recorded USD 16.6 billion in losses from 859,532 complaints in 2024, mostly fraud, with people over 60 losing the most [fbi_ic3_2024]. Park et al. argue deceptive AI could individualise fraud to targets and scale it cheaply [park2024deception]. In 2026 Anthropic's automated alignment researchers reduced deception in open models of 2 to 7 billion parameters with about 30 minutes of post-training on one H200 GPU per method while preserving general capability [chen2026aar].",
+ "instrument_facts": "DeceptionBench comes from Beihang and Tsinghua universities; code released 15 May 2025 [deceptionbench_readme]; paper on arXiv October 2025 [huang2025deceptionbench]. It has 150 scenarios, 30 in each of Economy, Healthcare, Education, Social Interaction and Entertainment, LLM-generated from 15 deception types and 10 motivations and human-validated in three stages [huang2025deceptionbench]. Each scenario has a prompt, an open question and a ground-truth honest response, plus 2 neutral, 4 reward- or pressure-induced and 4 multi-turn queries where an auxiliary agent presses until deception or a turn limit [huang2025deceptionbench]. The model returns a JSON thought and response; GPT-4o labels each against the ground truth; the deception rate is the deceptive fraction [huang2025deceptionbench]. Results are one greedy pass (do_sample=false) over 14 models, with three reasoning models sampled at temperature 0.6; three extra sampled runs on five models gave a maximum standard deviation of 5.57 percentage points [huang2025deceptionbench]. The Python harness calls models and judge through APIs or vLLM; the code is under CC BY-SA 4.0, commercial use prohibited [deceptionbench_readme]. The dataset is five per-domain JSON files under CC BY-SA 4.0 [deceptionbench_hf]. No cost figure is published [huang2025deceptionbench]. Three human annotators each labelled 420 records; all three agreed on 95.7% and GPT-4o matched the human majority on 97.1% [huang2025deceptionbench]. Meta's evaluation-awareness classifier found Muse Spark suspected evaluation on 35.75% of 898 single-turn and 35.63% of 595 multi-turn rollouts, against 1.0% on internal evaluations; aware and unaware deception rates did not differ significantly (p = 0.092) [db_sc_muse_spark]. For Muse Spark 1.1, p = 0.387 [db_sc_muse_spark_1_1]."
+}

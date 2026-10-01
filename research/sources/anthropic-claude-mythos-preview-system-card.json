@@ -1,0 +1,14 @@
+{
+ "key": "anthropic-claude-mythos-preview-system-card",
+ "kind": "system_card",
+ "ref": "anthropic-claude-mythos-preview-system-card",
+ "url": "https://www-cdn.anthropic.com/8b8380204f74670be75e81c820ca8dda846ab289.pdf",
+ "title": "System Card: Claude Mythos Preview (anthropic, 2026-04-07)",
+ "fetched": "2026-10-01",
+ "abstract": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-mythos-preview-system-card] We use Cybench for general capability coverage.\n[anthropic-claude-mythos-preview-system-card] 3.3.1 Cybench This public cyber capabilities benchmark is made up of 40 CTF challenges gathered from four CTF competitions.\n[anthropic-claude-mythos-preview-system-card] Cybench: A framework for evaluating cybersecurity capabilities and risks of language models. arXiv:2408.08926. https://arxiv.org/abs/2408.08926 47 ​ [Figure 3.3.1.A] Results from Cybench public cyber capabilities benchmark.",
+ "text": "Corpus sentences naming Cybench (system-card corpus docs.sqlite, document slug in brackets):\n[anthropic-claude-mythos-preview-system-card] We use Cybench for general capability coverage.\n[anthropic-claude-mythos-preview-system-card] 3.3.1 Cybench This public cyber capabilities benchmark is made up of 40 CTF challenges gathered from four CTF competitions.\n[anthropic-claude-mythos-preview-system-card] Cybench: A framework for evaluating cybersecurity capabilities and risks of language models. arXiv:2408.08926. https://arxiv.org/abs/2408.08926 47 ​ [Figure 3.3.1.A] Results from Cybench public cyber capabilities benchmark.",
+ "chars": 626,
+ "publisher": "anthropic",
+ "publication_date": "2026-04-07",
+ "note": "text = corpus sentences naming the evaluation, not the whole document"
+}

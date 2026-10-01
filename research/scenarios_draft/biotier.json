@@ -1,0 +1,77 @@
+{
+ "key": "biotier",
+ "title": "BioTIER before the general-access launch of a biology-capable assistant",
+ "group": "frontier model",
+ "agent": "Head of preparedness at a frontier model developer who owns the general-access launch decision for a biology-capable chat assistant.",
+ "decision": "Delay the launch and harden biology-misuse safeguards (a classifier layer that declines high-risk biology requests, plus verified-researcher access for dual-use content) vs launch on schedule.",
+ "theta_definition": "theta=1: the deployed system, with safeguards on, gives substantive answers to more than 20% of requests for catastrophe-relevant biological knowledge (pathogen acquisition, pathogen enhancement, evasion of DNA synthesis screening).",
+ "instrument": "A BioTIER-style refusal evaluation is built from scratch (a risk taxonomy, expert-written high-risk and benign biology prompts with consensus review, and a model-jury rubric that scores whether the requested substance is present) and run once against the safeguarded release candidate.",
+ "attributes": {
+  "risk_domain": "cbrn",
+  "level": null,
+  "eval_family": "BioTIER biology refusal",
+  "system_under_test": "LLM",
+  "public": false,
+  "candidate_rank": 22
+ },
+ "sources": [
+  {
+   "key": "marshall2026biotier",
+   "kind": "arxiv",
+   "ref": "2607.14479",
+   "role": "both",
+   "title": "BioTIER: A Refusal Benchmark for Targeted Biological Risk Mitigation",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio2026biotier",
+   "kind": "url",
+   "ref": "https://securebio.org/blog/measuring-biosecurity-safeguard-effectiveness/",
+   "role": "both",
+   "title": "Measuring Biosecurity Safeguard Effectiveness with BioTIER",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio-gpt-6-astra-independent-eval__biotier",
+   "kind": "system_card",
+   "ref": "securebio-gpt-6-astra-independent-eval",
+   "role": "both",
+   "title": "SecureBio's GPT-6 Astra Pre-Release Testing Report (2026-09-14)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai-gpt-6-astra-system-card__biotier",
+   "kind": "system_card",
+   "ref": "openai-gpt-6-astra-system-card",
+   "role": "instrument",
+   "title": "GPT-6 Astra System Card (2026-09-03)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "meta-muse-spark-system-card__biotier",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "instrument",
+   "title": "Muse Spark Safety & Preparedness Report (2026-05-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio-kimi-k3-independent-eval__biotier",
+   "kind": "system_card",
+   "ref": "securebio-kimi-k3-independent-eval",
+   "role": "decision",
+   "title": "Kimi K3 Biology Capabilities Assessment (2026-08-07)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "securebio-claude-opus-4-6-independent-eval__biotier",
+   "kind": "system_card",
+   "ref": "securebio-claude-opus-4-6-independent-eval",
+   "role": "decision",
+   "title": "Review of Anthropic's Unredacted Chemical and Biological Risk Report: Claude Opus 4.6 (2026-07-28)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "Most AI use in biology is legitimate research and learning; a narrow slice of biohazardous knowledge needs securing [securebio2026biotier]. That slice covers obtaining dangerous pathogens, bypassing biosecurity measures and engineering pandemic-capable agents that could pose a catastrophic risk [marshall2026biotier]. Correct refusal of high-risk biology requests ranged from 5.6% to 96.4% over 52 models from 10 developers in 2026 [marshall2026biotier]. Most high-risk prompts can be answered by at least one of those 52 publicly accessible models, so one developer's policy protects incompletely [marshall2026biotier]. Kimi K3, an open-weight model, declined 26.9% of high-risk prompts and answered 99.3% of benign ones [securebio-kimi-k3-independent-eval__biotier]. Production GPT-6 Astra declined 82.9% of high-risk queries, GPT-5.6 Sol 66% [securebio-gpt-6-astra-independent-eval__biotier]. Anthropic applied AI Safety Level 3 (ASL-3) equivalent mitigations to Claude Opus 4.8, and OpenAI kept its High biological and chemical capability classification for GPT-5.5 [marshall2026biotier]. ASL-3 reflects evidence of plausible uplift to people with basic technical backgrounds pursuing non-novel biological weapons; Opus 4.8 does not cross the CB-2 threshold for expert uplift toward novel biological weapons [marshall2026biotier]. Google DeepMind added API-level refusals to Gemini 3.1 Pro after deployment, with minimal impact on benign biology compliance [marshall2026biotier]. Restriction has a price: the model declining high-risk prompts most reliably answered 76.3% of benign biology prompts, where most of the 52 exceeded 98% [marshall2026biotier]. Those forgone answers sat at the risk boundary, not on plainly benign biology [securebio2026biotier]. A pre-registered randomised controlled trial with mid-2025 models found no significant overall uplift for novices on virology wet-lab protocols, with limited power [marshall2026biotier].",
+ "instrument_facts": "SecureBio published BioTIER in July 2026 [marshall2026biotier]. Its 542 prompts were hand-written by 15 PhD subject matter experts in virology, microbiology, biosecurity or related disciplines, then validated by three rounds of expert review requiring consensus approval [marshall2026biotier]. The set splits into 249 catastrophe-avoidance and 149 biomedical dual-use prompts that models should decline, and 144 related-biology prompts they should answer [securebio2026biotier]. Models are run single-turn and free-response, without chain-of-thought prompting, tools or few-shot exemplars, under Inspect AI v0.3+ [marshall2026biotier]. Each model is evaluated 10 times per prompt and compliance is binary [marshall2026biotier]. An API refusal or content-filter stop reason is recorded directly; otherwise a jury of GPT-4.1 mini, Gemini 2.5 Flash and Claude Haiku 4.5 votes by majority under a question-aware rubric [marshall2026biotier]. The jury reached consensus on about 96% of model-graded answers, similar to human versus model scoring comparisons [marshall2026biotier]. Both full blocks and jury-graded soft declines, where a response is judged not to substantively answer the prompt, are counted [openai-gpt-6-astra-system-card__biotier]. No cost figure is published; the authors report funding from Sentinel Bio, Coefficient Giving, and support from several AI firms to offset development costs [marshall2026biotier]. The binary outcome bounds information access rather than measuring real-world uplift, and ignores actionability, completeness and accuracy [marshall2026biotier]. Jailbreak robustness and non-English prompts are future work [securebio2026biotier]. Access by developers and researchers creates evaluation-aware-training risk, countered by a hold-out set [marshall2026biotier]. Re-running four models weeks later moved three by 12 to 28 percentage points [marshall2026biotier]. The prompts are available on request at ai@securebio.org [meta-muse-spark-system-card__biotier]."
+}

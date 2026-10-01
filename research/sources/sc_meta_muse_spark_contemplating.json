@@ -1,0 +1,11 @@
+{
+ "key": "sc_meta_muse_spark_contemplating",
+ "kind": "system_card",
+ "ref": "meta-muse-spark-contemplating-system-card",
+ "url": "https://ai.meta.com/static-resource/muse-spark-contemplating-safety-and-preparedness-report/",
+ "title": "Muse Spark Contemplating Safety & Preparedness Report",
+ "fetched": "2026-10-01",
+ "abstract": "Muse Spark Contemplating Safety & Preparedness Report (meta, 2026-06-03). Sentences naming MASK from the system-card corpus.",
+ "text": "[meta-muse-spark-contemplating-system-card] Propensities, Refusals, and Robustness Related to Catastrophic Risk Domain Evaluation Muse Spark Contemplating Muse Spark GPT-5.4 Claude Opus 4.6 Gemini 3.1 Pro Chemical & Biological Refusals: BioTIER 95.4 98.0 74.7 95.4 61.5 Risks Refusals: Chemical Agent 99.8 99.4 88.4 97.6 96.6 Refusals: Severe Cybermisuse 98.7 99.6 99.0 94.9 98.6 Cybersecurity Refusals: Social Engineering 100.0 99.9 99.5 99.6 86.9 Cyber Misuse 7.2 9.0 59.0 31.7 32.8 Loss of Control MASK 82.5 89.1 90.3 82.4 44.1 Table 2 Muse Spark Contemplating safety and behavioral propensities scorecard.\n[meta-muse-spark-contemplating-system-card] For our loss of control risk assessment for Muse Spark Contemplating, we consider the following propensity evaluation to have cross-cutting implications for our threat models: • MASK (Ren et al., 2025): Tests how robustly a model will maintain its epistemic integrity (honesty) when pressured to produce statements contradicting its baseline knowledge (in- ternal beliefs), which has material implications for the robustness of oversight mechanisms.\n[meta-muse-spark-contemplating-system-card] Muse Spark Contemplating robustly maintains its epistemic integrity, achieving an 82.5% honesty score on MASK.\n[meta-muse-spark-contemplating-system-card] 24 Model Honesty (%) Muse Spark Contemplating 82.5 Muse Spark 89.1 GPT-5.4 90.3 Claude Opus 4.6 82.4 Gemini 3.1 Pro 44.1 Table 5 MASK honesty scores.\n[meta-muse-spark-contemplating-system-card] Honesty score by model on MASK.",
+ "chars": 1528
+}

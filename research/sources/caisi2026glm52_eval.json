@@ -1,0 +1,11 @@
+{
+ "key": "caisi2026glm52_eval",
+ "kind": "system_card",
+ "ref": "us-caisi-glm-5-2-independent-eval",
+ "url": "https://www.nist.gov/system/files/documents/2026/07/17/CAISI%20-%20Assessment%20of%20Z.ai%27s%20GLM-5.2.pdf",
+ "title": "CAISI Assessment of Z.ai's GLM-5.2 (us_caisi, 2026-07-17)",
+ "fetched": "2026-10-01",
+ "abstract": "[us-caisi-glm-5-2-independent-eval] The item response theory methodology (see Appendix A.4) used to generate the capability over time charts also factors in evaluation results of models on the historical cyber benchmarks Cybench and CVE-Bench.",
+ "text": "[us-caisi-glm-5-2-independent-eval] The item response theory methodology (see Appendix A.4) used to generate the capability over time charts also factors in evaluation results of models on the historical cyber benchmarks Cybench and CVE-Bench.",
+ "chars": 243
+}

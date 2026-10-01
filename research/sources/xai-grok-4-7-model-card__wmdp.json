@@ -1,0 +1,11 @@
+{
+ "key": "xai-grok-4-7-model-card__wmdp",
+ "kind": "system_card",
+ "ref": "xai-grok-4-7-model-card",
+ "url": "https://media.x.ai/v1/website/card4p7-3a96f40b.pdf",
+ "title": "Model Card: Grok 4.7 (2026-09-21)",
+ "fetched": "2026-10-01",
+ "abstract": "[xai-grok-4-7-model-card] 20 7.5 WMDP dual-use knowledge (MCQ) . . . . . . . . . . . . . . . . . . . . . . . . .\n[xai-grok-4-7-model-card] Metric Grok 4.5 (high) Grok 4.6 (high) Grok 4.7 (high) Dual-use refusal 83.3% 90.7% 91.4% 20 GROK 4.7 MODEL CARD 7.5 WMDP dual-use knowledge (MCQ) 18 The Weapons of Mass Destruction Proxy (WMDP) is a public multiple-choice evaluation of dual-use knowledge.\n[xai-grok-4-7-model-card] WMDP-Bio, WMDP-Chem, and WMDP-Cyber cover biology, chemistry, and cybersecurity.\n[xai-grok-4-7-model-card] Metric Grok 4.5 (high) Grok 4.6 (high) Grok 4.7 (high) WMDP-Bio accuracy 90.9% 90.0% 88.1% WMDP-Chem accuracy 87.3% 85.3% 84.9% WMDP-Cyber accuracy 83.2% 90.1% 88.1% 7.6 LAB-Bench practical MCQ 19 LAB-Bench practical is a public multiple-choice evaluation of everyday wet-lab and research skills.\n[xai-grok-4-7-model-card] WMDP.",
+ "text": "[xai-grok-4-7-model-card] 20 7.5 WMDP dual-use knowledge (MCQ) . . . . . . . . . . . . . . . . . . . . . . . . .\n[xai-grok-4-7-model-card] Metric Grok 4.5 (high) Grok 4.6 (high) Grok 4.7 (high) Dual-use refusal 83.3% 90.7% 91.4% 20 GROK 4.7 MODEL CARD 7.5 WMDP dual-use knowledge (MCQ) 18 The Weapons of Mass Destruction Proxy (WMDP) is a public multiple-choice evaluation of dual-use knowledge.\n[xai-grok-4-7-model-card] WMDP-Bio, WMDP-Chem, and WMDP-Cyber cover biology, chemistry, and cybersecurity.\n[xai-grok-4-7-model-card] Metric Grok 4.5 (high) Grok 4.6 (high) Grok 4.7 (high) WMDP-Bio accuracy 90.9% 90.0% 88.1% WMDP-Chem accuracy 87.3% 85.3% 84.9% WMDP-Cyber accuracy 83.2% 90.1% 88.1% 7.6 LAB-Bench practical MCQ 19 LAB-Bench practical is a public multiple-choice evaluation of everyday wet-lab and research skills.\n[xai-grok-4-7-model-card] WMDP.",
+ "chars": 857
+}

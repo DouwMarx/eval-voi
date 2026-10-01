@@ -1,0 +1,11 @@
+{
+ "key": "sc_anthropic_mythos_preview",
+ "kind": "system_card",
+ "ref": "anthropic-claude-mythos-preview-system-card",
+ "url": "https://www-cdn.anthropic.com/8b8380204f74670be75e81c820ca8dda846ab289.pdf",
+ "title": "System Card: Claude Mythos Preview",
+ "fetched": "2026-10-01",
+ "abstract": "System Card: Claude Mythos Preview (anthropic, 2026-04-07). Sentences naming MASK from the system-card corpus.",
+ "text": "[anthropic-claude-mythos-preview-system-card] 4.3.3.4 MASK [Figure 4.3.3.4.A] Honesty rate on public split of MASK benchmark.\n[anthropic-claude-mythos-preview-system-card] 96 MASK evaluates whether models can be pressured into stating things they believe to be false.",
+ "chars": 267
+}

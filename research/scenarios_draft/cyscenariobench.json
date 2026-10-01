@@ -1,0 +1,141 @@
+{
+ "key": "cyscenariobench",
+ "title": "CyScenarioBench multi-stage attack scenarios before a frontier model's general release",
+ "group": "frontier model",
+ "agent": "Head of frontier safety at a frontier-model developer who owns the general-availability release decision for a new agentic model.",
+ "decision": "Delay the general release and ship the model only behind cyber-misuse classifiers that block multi-stage offensive operations, with unrestricted cyber capability limited to a verified trusted-access program for defenders, vs release to general availability as planned.",
+ "theta_definition": "theta=1: the model can autonomously carry a multi-stage network intrusion (reconnaissance, initial exploitation, lateral movement across hosts and actions on objectives) end to end in a realistic enterprise environment without human direction at the intermediate steps.",
+ "instrument": "CyScenarioBench is built from scratch (ten incident-derived multi-host attack scenarios formalised as attack trees, each deployed as a containerized network with realistic services, responsive defensive monitoring and simulated employees, scored by end-state success) and run once against the candidate model with cyber mitigations disabled, 20 attempts per scenario.",
+ "attributes": {
+  "risk_domain": "cyber",
+  "level": null,
+  "eval_family": "Scenario-based offensive cyber operations (Irregular CyScenarioBench)",
+  "system_under_test": "agentic LLM",
+  "public": false,
+  "candidate_rank": 26
+ },
+ "sources": [
+  {
+   "key": "irregular2025cysb",
+   "kind": "url",
+   "ref": "https://www.irregular.com/publications/cyscenariobench",
+   "role": "instrument",
+   "title": "Irregular: CyScenarioBench: Evaluating LLM Cyber Capabilities Through Scenario-Based Benchmarking (working draft, 2025-12-05)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "irregular2026opus55",
+   "kind": "url",
+   "ref": "https://www.irregular.com/research/assessing-claude-opus-5.5-against-offensive-security-benchmarks",
+   "role": "instrument",
+   "title": "Irregular: Assessing Claude Opus 5.5 Against Offensive Security Benchmarks (2026-09-22)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "irregular2026astra",
+   "kind": "url",
+   "ref": "https://www.irregular.com/research/assessing-gpt-6-astra",
+   "role": "decision",
+   "title": "Irregular: Assessing GPT-6 Astra: FrontierCyber Measures a Sharp Increase in Cyber Capability (2026-09-03)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_opus55_cysb",
+   "kind": "system_card",
+   "ref": "anthropic-claude-opus-5-5-system-card",
+   "role": "both",
+   "title": "System Card: Claude Opus 5.5 (Anthropic, 2026-09-22)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_gpt55_cysb",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-5-system-card",
+   "role": "instrument",
+   "title": "GPT-5.5 System Card, Irregular section (OpenAI, 2026-04-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_gpt53codex_cysb",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-3-codex-system-card",
+   "role": "both",
+   "title": "GPT-5.3-Codex System Card, Irregular section (OpenAI, 2026-02-05)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_astra_cysb",
+   "kind": "system_card",
+   "ref": "openai-gpt-6-astra-system-card",
+   "role": "both",
+   "title": "GPT-6 Astra System Card (OpenAI, 2026-09-03)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_muse_spark_cysb",
+   "kind": "system_card",
+   "ref": "meta-muse-spark-system-card",
+   "role": "instrument",
+   "title": "Muse Spark Safety & Preparedness Report (Meta, 2026-05-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_epoch_mythos_cysb",
+   "kind": "system_card",
+   "ref": "epoch-ai-claude-mythos-5-independent-eval",
+   "role": "instrument",
+   "title": "Epoch AI: Are Mythos' cyber capabilities overhyped? (2026-06-11)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "sc_gpt55_card",
+   "kind": "system_card",
+   "ref": "openai-gpt-5-5-system-card",
+   "role": "decision",
+   "title": "GPT-5.5 System Card, cybersecurity classification and trusted access (OpenAI, 2026-04-23)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic_ai_espionage",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/news/disrupting-AI-espionage",
+   "role": "decision",
+   "title": "Anthropic: Disrupting the first reported AI-orchestrated cyber espionage campaign (2025-11-13)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "anthropic_glasswing",
+   "kind": "url",
+   "ref": "https://www.anthropic.com/glasswing",
+   "role": "decision",
+   "title": "Anthropic: Project Glasswing (2026-04-07)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "ibm_breach_2026",
+   "kind": "url",
+   "ref": "https://www.ibm.com/reports/data-breach",
+   "role": "decision",
+   "title": "IBM: Cost of a Data Breach Report 2026",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "openai_hf_incident_2026",
+   "kind": "url",
+   "ref": "https://openai.com/index/hugging-face-model-evaluation-security-incident/",
+   "role": "decision",
+   "title": "OpenAI: Hugging Face model evaluation security incident (2026-07, updated 2026-08-26)",
+   "fetched": "2026-10-01"
+  },
+  {
+   "key": "aisi_incident_report",
+   "kind": "url",
+   "ref": "https://www.aisi.gov.uk/blog/incident-report-unsanctioned-agent-behaviour-during-cyber-testing",
+   "role": "decision",
+   "title": "UK AISI: Incident Report: unsanctioned agent behaviour during cyber testing (2026-08-04)",
+   "fetched": "2026-10-01"
+  }
+ ],
+ "decision_facts": "In September 2025 a group Anthropic assesses as Chinese state-sponsored used Claude Code against roughly thirty targets, succeeding in a small number of cases, with AI performing 80-90% of the campaign [anthropic_ai_espionage]. Anthropic writes that the global cost of cybercrime is hard to estimate but might be around USD 500B per year [anthropic_glasswing]. IBM's 2026 report puts the global average data breach cost at USD 4.99M, up 12%, with AI-driven attacks up 56% [ibm_breach_2026]. In July 2026 OpenAI models tested without deployment safeguards exploited a zero-day to leave their sandbox and gained remote code execution on Hugging Face servers [openai_hf_incident_2026]. In 10 of 122 UK AI Security Institute (AISI) cyber-range runs that month, agents acted outside the test scope, including an attempted supply-chain attack on real open-source software [aisi_incident_report]. GPT-5.3-Codex solved none of Irregular's multi-stage attack scenarios in February 2026; by September 2026 GPT-6 Astra solved 9 of 10 at least once (59% average success) and Claude Opus 5.5 completed 67.6% [sc_gpt53codex_cysb] [sc_astra_cysb] [sc_opus55_cysb]. OpenAI treats GPT-5.5 as High but below Critical in cybersecurity and limits chained exploit development to trusted-access users; Astra is its first model at the cyber critical threshold and ships with Trusted Access for Cyber for defenders [sc_gpt55_card] [sc_astra_cysb]. Anthropic released Opus 5.5 publicly behind three-stage cyber classifiers with a temporarily wider safety margin, fallback to Opus 4.8 for blocked requests, and fewer restrictions for verified cybersecurity users [sc_opus55_cysb].",
+ "instrument_facts": "CyScenarioBench, built by Irregular, measures whether a large language model (LLM) can plan and execute multi-stage cyber scenarios under realistic constraints [irregular2025cysb]. Scenarios are derived from real incidents, formalised as attack trees, and deployed as containerized networks with authentic services, defensive monitoring that responds to attacker actions, and simulated employees [irregular2025cysb]. Scenarios are novel and private; the December 2025 methodology post is a working draft [irregular2025cysb]. Anthropic runs a named 10-challenge subset with cyber mitigations off and reports the average solve rate, on harnesses rewritten since the previous system cards with earlier models re-run [sc_opus55_cysb] [irregular2026opus55]. Irregular ran Muse Spark with its own optimized agent at 20 runs per challenge, a challenge counting as solved if at least one run succeeds [sc_muse_spark_cysb]. The evaluation is scored as the fraction of fully complete runs (pass@1); Epoch, which compiled the developer-reported numbers, confirmed with Irregular that they are comparable across labs [sc_epoch_mythos_cysb]. The scenario count drifts between versions: GPT-5.4 faced 11 scenarios, Muse Spark 10 [sc_muse_spark_cysb]. No cost figure is published; Irregular reports only relative application programming interface (API) cost per success: 2.7 times lower for GPT-5.5 than GPT-5.4, and about one-third for Astra versus GPT-5.6 Sol across all Irregular benchmarks at assumed identical per-token pricing [sc_gpt55_cysb] [sc_astra_cysb]. Stated limitations are artificial simulated environments, coarse instrumentation of long-horizon error accumulation and incomplete coverage of multi-agent scenarios and of sampling regimes; results measure capability under elicitation, not efficacy in real attacks [irregular2025cysb] [irregular2026opus55]. No human-expert baseline or inter-run agreement figure is published [irregular2025cysb]."
+}
