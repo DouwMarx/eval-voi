@@ -1,0 +1,31 @@
+name: p003
+stages:
+  - name: decision
+    template_path: templates/decision.md       # renders $agent $decision $theta_definition $decision_context
+    params: [p, B, K]
+    group_key: self                            # every scenario is its own decision
+  - name: instrument
+    template_path: templates/instrument.md     # renders the scenario and $context (instrument_context)
+    params: [s, t, C_build, C_run, n]
+template_vars:
+  perspective: society
+  # no worked numeric anchors in the headline (research/elicitation_lit.md implication 2).
+  # templates/anchors_*.md are kept for an anchors ablation; the C_build, C_run and n
+  # triples in templates/anchors_instrument.md are stylised placeholders, not sourced.
+  anchors_decision: ''
+  anchors_instrument: ''
+  context_mode: none                       # no curated facts in either prompt (the heading goes too)
+members:
+  - provider: claude_cli
+    model: haiku
+    k_repeats: 2
+  - provider: claude_cli
+    model: sonnet
+    k_repeats: 2
+notes: >
+  No-context ablation of p001: identical except context_mode none, so the
+  decision prompt renders only agent, decision, theta and perspective, and
+  the instrument prompt only title, agent, decision, theta and instrument;
+  neither carries the LLM-curated facts or their heading. It tests whether
+  the headline depends on the curated contexts. Run both stages; analyse
+  with the analysis CLI as for p001 (--protocol p003).

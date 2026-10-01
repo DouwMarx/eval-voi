@@ -108,6 +108,12 @@ DECISION_COLUMNS = {f: f for f in DECISION_FIELDS}
 # anchors_instrument only in the instrument template (DESIGN section 4: the
 # instrument prompt never carries a decision-level number); any other name
 # ($perspective, $context_mode) renders in both
+# template_vars context_mode: 'curated' renders the scenario's context field
+# ($decision_context, $context); 'none' (the no-context ablation) renders it
+# empty and drops the template section ('## ' heading to the next one) that
+# holds it, so the prompt carries neither the facts nor their heading
+CONTEXT_MODES = ("curated", "none")
+CONTEXT_PLACEHOLDER = {"decision": "decision_context", "instrument": "context"}
 TEMPLATE_VAR_OWNER = {"decision": re.compile(r"^(?:decision_|anchors_decision$)"),
                       "instrument": re.compile(r"^(?:instrument_|anchors_instrument$)")}
 # a plain-text answer (no JSON) that declines: stored as 'refusal: <text>'
@@ -232,6 +238,29 @@ def refuse_foreign_template_vars(template: string.Template, template_vars: dict[
                              " (DESIGN section 4: the two prompts are independent)")
 
 
+def context_off(template_vars: dict[str, str]) -> bool:
+    """Whether the protocol's context_mode renders no context (refuses a mode
+    the harness does not implement; absent = curated)."""
+    mode = template_vars.get("context_mode", "curated")
+    if mode not in CONTEXT_MODES:
+        raise SystemExit(f"template_vars context_mode {mode!r}: implemented modes are {list(CONTEXT_MODES)}")
+    return mode == "none"
+
+
+def without_context(template: string.Template, stage: str) -> string.Template:
+    """The template without the '## ' section that renders the stage's
+    context placeholder (CONTEXT_PLACEHOLDER), for context_mode 'none'. A
+    template whose placeholder sits outside a '## ' section is refused."""
+    name = CONTEXT_PLACEHOLDER[stage]
+    parts = re.split(r"(?m)^(?=## )", template.template)
+    hits = [i for i, part in enumerate(parts) if part.startswith("## ")
+            and re.search(rf"\$(?:{name}\b|\{{{name}\}})", part)]
+    if len(hits) != 1:
+        raise SystemExit(f"{stage} template: context_mode none needs ${name} inside exactly one '## '"
+                         f" section (found {len(hits)})")
+    return string.Template("".join(p for i, p in enumerate(parts) if i != hits[0]))
+
+
 def render_prompt(template: string.Template, sc, template_vars: dict[str, str]) -> str:
     """The instrument prompt: substitute $title $agent $decision
     $theta_definition $instrument $context (the scenario's
@@ -242,6 +271,8 @@ def render_prompt(template: string.Template, sc, template_vars: dict[str, str]) 
     refuse_foreign_template_vars(template, template_vars, "instrument")
     fields = {f: (sc[f] if sc[f] is not None else "") for f in INSTRUMENT_FIELDS if f != "context"}
     fields["context"] = sc["instrument_context"] if sc["instrument_context"] is not None else ""
+    if context_off(template_vars):
+        template, fields["context"] = without_context(template, "instrument"), ""
     try:
         return template.substitute({**template_vars, **fields})
     except KeyError as ex:
@@ -259,6 +290,8 @@ def render_decision_prompt(template: string.Template, sc, template_vars: dict[st
     prompt owns (instrument_*, anchors_instrument)."""
     refuse_foreign_template_vars(template, template_vars, "decision")
     fields = {f: (sc[f] if sc[f] is not None else "") for f in DECISION_FIELDS}
+    if context_off(template_vars):
+        template, fields["decision_context"] = without_context(template, "decision"), ""
     try:
         return template.substitute({**template_vars, **fields})
     except KeyError as ex:
@@ -267,11 +300,15 @@ def render_decision_prompt(template: string.Template, sc, template_vars: dict[st
                          f" {sorted(template_vars)} (no $instrument, $context or $title)") from None
 
 
-def empty_fields(template: string.Template, sc, columns: dict[str, str]) -> list[str]:
+def empty_fields(template: string.Template, sc, columns: dict[str, str],
+                 template_vars: dict[str, str] | None = None) -> list[str]:
     """The scenario fields ({placeholder: column}) the template renders whose
     value is empty (NULL or blank) for this scenario: the prompt would carry
-    an empty block where the template promises facts."""
-    names = template.get_identifiers()
+    an empty block where the template promises facts. Under context_mode
+    'none' the context fields are not rendered, so never count."""
+    names = set(template.get_identifiers())
+    if template_vars is not None and context_off(template_vars):
+        names -= set(CONTEXT_PLACEHOLDER.values())
     return [name for name, col in columns.items() if name in names and not (sc[col] or "").strip()]
 
 
@@ -612,7 +649,7 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
         if stage not in (None, gstage["name"]):
             continue
         rep_id = min(gids)
-        empty = empty_fields(template, checked[min(checked)], DECISION_COLUMNS)
+        empty = empty_fields(template, checked[min(checked)], DECISION_COLUMNS, template_vars)
         for m in members:
             done = db.valid_repeats(con, gids, prot["id"], m["provider"], m["model"], gstage["name"])
             for rix in range(effective_k(m, k_override)):
@@ -624,7 +661,7 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
         template = string.Template((study.root / sstage["template_path"]).read_text())
         for sc in scenarios:
             prompt = render_prompt(template, sc, template_vars)
-            empty = empty_fields(template, sc, INSTRUMENT_COLUMNS)
+            empty = empty_fields(template, sc, INSTRUMENT_COLUMNS, template_vars)
             for m in members:
                 done = db.valid_repeats(con, sc["id"], prot["id"], m["provider"], m["model"], sstage["name"])
                 for rix in range(effective_k(m, k_override)):

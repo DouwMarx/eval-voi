@@ -78,7 +78,7 @@ notes: >
   (OpenAI, Google, xAI); k=1 each, because between-member variance is at
   least the within-member repeat variance (HANDOVER section 2), so a call
   spent on a member is worth more than one spent on a repeat. No Anthropic
-  member: three of the frontier-model evaluations are Anthropic's own
-  (Agentic Misalignment, Petri, Bloom), and the pilots' main objection was
+  member: two of the LLM evaluations are Anthropic's own (Agentic
+  Misalignment, SHADE-Arena), and the pilots' main objection was
   Claude agreeing with Claude; the iteration runs use claude_cli. Request
   options per member: see the comment above members.

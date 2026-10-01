@@ -295,3 +295,36 @@ def test_dry_run_from_the_shell_entry_point(fresh_study):
 def test_templates_have_no_trailing_whitespace(name):
     text = (STUDY / "templates" / name).read_text()
     assert all(line == line.rstrip() for line in text.splitlines()) and text.endswith("\n")
+
+
+def test_p003_renders_no_context_and_no_context_heading(capsys, fresh_study):
+    """The no-context ablation: p003 equals p001 but for context_mode none, and
+    its dry run renders neither prompt's facts nor the facts heading, while
+    the rest of each prompt is p001's."""
+    p1, p3 = protocol("p001"), protocol("p003")
+    assert p3["template_vars"].pop("context_mode") == "none"
+    p1["template_vars"].pop("context_mode")
+    assert {k: v for k, v in p3.items() if k not in ("name", "notes")} == \
+        {k: v for k, v in p1.items() if k not in ("name", "notes")}
+    sc = scenarios()[0]
+    out = {}
+    for name in ("p001", "p003"):
+        elicit.main(["--study", str(fresh_study), "--protocol", name, "--dry-run"])
+        text = capsys.readouterr().out
+        dec, ins = text.split("first pending prompt of stage decision")[1].split(
+            "first pending prompt of stage instrument")
+        out[name] = (dec, ins)
+    dec, ins = out["p003"]
+    assert sc["decision_context"] not in dec and sc["instrument_context"] not in ins
+    assert "Background facts" not in dec and "Background facts" not in ins and "context mode" not in dec
+    assert sc["agent"] in dec and sc["decision"] in dec and sc["theta_definition"] in dec
+    assert sc["title"] in ins and sc["instrument"] in ins and "## Instructions" in ins
+    assert "warning" not in dec
+    d1, i1 = out["p001"]
+    assert sc["decision_context"] in d1 and "## Decision to elicit" in dec and "## Output" in dec
+    assert len(dec) < len(d1) and len(ins) < len(i1)
+
+
+def test_unknown_context_mode_is_refused():
+    with pytest.raises(SystemExit, match="implemented modes"):
+        elicit.context_off({"context_mode": "full"})
