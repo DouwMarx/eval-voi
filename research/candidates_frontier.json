@@ -30,7 +30,7 @@
    "Cyber range, end-to-end network attack (UK AISI 'The Last Ones'; OpenAI Cyber Range)",
    "Cybench (professional CTF suite)",
    "CVE-Bench (real web-application exploitation)",
-   "ExploitBench (browser-engine exploit development, Anthropic)",
+   "ExploitBench (browser-engine exploit development, Carnegie Mellon University)",
    "Binary Exploitation Benchmark, formerly OSS-Fuzz (Anthropic; CAISI private variant)",
    "CyScenarioBench (Irregular, multi-stage offensive scenarios)"
   ],
@@ -761,6 +761,176 @@
    "borderline_reason": ""
   },
   {
+   "name": "ExploitBench (browser-engine exploit development, Carnegie Mellon University)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Mean number of 16 capability flags reached across 41 browser-engine vulnerability environments, from crash reproduction to arbitrary code execution.",
+   "corpus": {
+    "name_queried": "ExploitBench",
+    "query": [
+     "\\bExploit[\\- ]?Bench\\b"
+    ],
+    "documents": 26,
+    "publishers_n": 7,
+    "publishers": [
+     "anthropic",
+     "epoch_ai",
+     "meta",
+     "openai",
+     "uk_aisi",
+     "us_caisi",
+     "zai"
+    ],
+    "mentions": 118,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "title": "ExploitBench: A Capability Ladder Benchmark for LLM Cybersecurity Agents",
+     "published": "2026-05-13",
+     "fetched": "2026-10-01",
+     "note": "Seunghyun Lee and David Brumley, Carnegie Mellon University. The earlier version of this entry named Anthropic as developer and the Fable 5.1 system card as the only primary source; corrected 2026-10-01 after fetching the paper and the repository.",
+     "availability": "public: paper on arXiv; runner, grader and audit code at https://github.com/exploitbench/exploitbench, MIT License (LICENSE file fetched 2026-10-01); pre-built per-bug V8 images on ghcr.io/exploitbench/v8-r1; leaderboard and per-CVE results at https://exploitbench.ai"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed 41-task set with a 16-flag programmatic scale"
+   },
+   "decision": "Delay the release and add cyber-misuse mitigations vs release on schedule.",
+   "theta": "theta = 1: the model develops working exploits for known browser-engine vulnerabilities, reaching code-execution flags on a material fraction of tasks.",
+   "cost": [
+    {
+     "quote": "Agent (arm) T5 Cov. T4 Trig. T3 Engine T2 General pc control ace Cost ($/ep, mean)",
+     "source": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "fetched": "2026-10-01",
+     "kind": "primary",
+     "note": "Table 1 rows (table cells, not a sentence), primary arm, USD per episode, mean: Mythos Preview 203.93; GPT-5.5 51.40; Opus 4.7 29.56; Haiku 4.5 0.81"
+    },
+    {
+     "quote": "The full matrix is 41 bugs × (nine models × 2 arms + 1 model × 1 arm) × three seeds, or 2,337 episodes.",
+     "source": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Each image is roughly 80 GB uncompressed.",
+     "source": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Parallelism is provider-rate-limit-bounded, not framework-bounded; given enough concurrent keys, the matrix sweeps in a few wall-clock hours per arm.",
+     "source": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Each task is graded on a 16-point scale, and the model's score per task is its best of three attempts.",
+     "source": "us-caisi-glm-5-3-independent-eval (us_caisi, 2026-09-17)",
+     "url": "https://www.nist.gov/news-events/news/2026/09/caisis-assessment-zais-glm-53-cyber-capabilities",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "Each capability is verified by a deterministic oracle that uses a per-run randomized challenge-response for primitives, differential execution against ground-truth binaries to measure progress, and a signal-handler proof for code execution.",
+     "source": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "The unanimity rule means produced exploits should be reliable, but does undercredit a flaky exploit that succeeds in only a few rounds.",
+     "source": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "429 PoCs hardcoded a leaked or guessed pointer value (the canonical example was a literal 0x12345678), and the multi-round randomization rule silently killed all of them",
+     "source": "2605.14153",
+     "url": "https://arxiv.org/abs/2605.14153",
+     "fetched": "2026-10-01",
+     "kind": "primary",
+     "note": "post-hoc audit of the 615 primary-arm runs"
+    },
+    {
+     "quote": "Claude Mythos 5.1 scored a mean of 11.80 capability flags across ExploitBench's 41 V8 environments in the plain arm.",
+     "source": "anthropic-claude-fable-5-1-system-card (anthropic, 2026-09-01)",
+     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "we ran Astra on ExploitBench where the model achieved a perfect score of 100% on the benchmark",
+     "source": "openai-gpt-6-astra-other (openai, 2026-09-01)",
+     "url": "https://openai.com/index/path-to-astra/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus",
+     "note": "https://openai.com/index/path-to-astra/ returns HTTP 403 to automated fetches (curl with and without a browser user agent, WebFetch; 2026-10-01); quote verified against the corpus copy, slug openai-gpt-6-astra-other (canonical_url identical), stored text fetched 2026-09-06T06:28:18Z"
+    },
+    {
+     "quote": "Due to contamination concerns, we then built an internal benchmark denoted \"ExploitBench - Internal Port (June–August 2026)\", which contains 20 high-severity V8 vulnerabilities that were disclosed more recently.",
+     "source": "openai-gpt-6-astra-other (openai, 2026-09-01)",
+     "url": "https://openai.com/index/path-to-astra/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus",
+     "note": "https://openai.com/index/path-to-astra/ returns HTTP 403 to automated fetches (curl with and without a browser user agent, WebFetch; 2026-10-01); quote verified against the corpus copy, slug openai-gpt-6-astra-other (canonical_url identical), stored text fetched 2026-09-06T06:28:18Z"
+    },
+    {
+     "quote": "ExploitBench, which has 41 tasks focused on exploit development",
+     "source": "uk-aisi-kimi-k3-independent-eval (uk_aisi, 2026-07-23)",
+     "url": "https://www.aisi.gov.uk/blog/preliminary-assessment-of-kimi-k3s-cyber-capabilities",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "saturated (Astra 100% reported)",
+    "contamination concerns led OpenAI to build an internal port of 20 more recent V8 vulnerabilities",
+    "unanimity rule undercredits flaky exploits; weaponization beyond code execution is not graded"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "saturated",
+    "construct"
+   ],
+   "score": {
+    "presence": 9.0,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "saturated": -1,
+     "construct": -1
+    },
+    "total": 14.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 6,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
    "name": "StrongREJECT (jailbreak robustness)",
    "pilot": true,
    "domain": "societal_harm",
@@ -872,7 +1042,7 @@
    },
    "passes_floor": true,
    "include": true,
-   "rank": 6,
+   "rank": 7,
    "borderline": false,
    "borderline_reason": ""
   },
@@ -981,7 +1151,7 @@
    },
    "passes_floor": true,
    "include": true,
-   "rank": 7,
+   "rank": 8,
    "borderline": false,
    "borderline_reason": ""
   },
@@ -1088,7 +1258,7 @@
    },
    "passes_floor": true,
    "include": true,
-   "rank": 8,
+   "rank": 9,
    "borderline": false,
    "borderline_reason": ""
   },
@@ -1191,7 +1361,7 @@
    },
    "passes_floor": true,
    "include": true,
-   "rank": 9,
+   "rank": 10,
    "borderline": false,
    "borderline_reason": ""
   },
@@ -1307,7 +1477,7 @@
    },
    "passes_floor": true,
    "include": true,
-   "rank": 10,
+   "rank": 11,
    "borderline": false,
    "borderline_reason": ""
   },
@@ -1429,7 +1599,7 @@
    },
    "passes_floor": true,
    "include": true,
-   "rank": 11,
+   "rank": 12,
    "borderline": false,
    "borderline_reason": ""
   },
@@ -1545,126 +1715,6 @@
      "construct": -1
     },
     "total": 11.25
-   },
-   "hard_criteria": {
-    "instrument_ge_1": true,
-    "source_ge_1": true,
-    "hazard_ge_1": true,
-    "presence_2pubs_or_10docs": true
-   },
-   "passes_floor": true,
-   "include": true,
-   "rank": 12,
-   "borderline": false,
-   "borderline_reason": ""
-  },
-  {
-   "name": "ExploitBench (browser-engine exploit development, Anthropic)",
-   "pilot": false,
-   "domain": "cyber",
-   "measures": "Mean number of 16 capability flags reached across 41 browser-engine vulnerability environments, from crash reproduction to arbitrary code execution.",
-   "corpus": {
-    "name_queried": "ExploitBench",
-    "query": [
-     "\\bExploit[\\- ]?Bench\\b"
-    ],
-    "documents": 26,
-    "publishers_n": 7,
-    "publishers": [
-     "anthropic",
-     "epoch_ai",
-     "meta",
-     "openai",
-     "uk_aisi",
-     "us_caisi",
-     "zai"
-    ],
-    "mentions": 118,
-    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
-   },
-   "primary": [
-    {
-     "kind": "url",
-     "id": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
-     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
-     "title": "Anthropic Claude Fable 5.1 system card (corpus)",
-     "fetched": "2026-10-01",
-     "note": "",
-     "availability": "developer-built; shared with UK AISI, US CAISI, Epoch AI, OpenAI, Meta, Z.ai; not public"
-    }
-   ],
-   "public_or_private": "private, shared with evaluators",
-   "single_instrument": {
-    "yes": true,
-    "why": "fixed 41-task set with a 16-flag programmatic scale"
-   },
-   "decision": "Delay the release and add cyber-misuse mitigations vs release on schedule.",
-   "theta": "theta = 1: the model develops working exploits for known browser-engine vulnerabilities, reaching code-execution flags on a material fraction of tasks.",
-   "cost": [
-    {
-     "quote": "Each task is graded on a 16-point scale, and the model's score per task is its best of three attempts.",
-     "source": "us-caisi-glm-5-3-independent-eval (us_caisi, 2026-09-17)",
-     "url": "https://www.nist.gov/news-events/news/2026/09/caisis-assessment-zais-glm-53-cyber-capabilities",
-     "fetched": "2026-10-01",
-     "kind": "system_card_corpus"
-    }
-   ],
-   "validity": [
-    {
-     "quote": "Claude Mythos 5.1 scored a mean of 11.80 capability flags across ExploitBench's 41 V8 environments in the plain arm.",
-     "source": "anthropic-claude-fable-5-1-system-card (anthropic, 2026-09-01)",
-     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
-     "fetched": "2026-10-01",
-     "kind": "system_card_corpus"
-    },
-    {
-     "quote": "we ran Astra on ExploitBench where the model achieved a perfect score of 100% on the benchmark",
-     "source": "openai-gpt-6-astra-other (openai, 2026-09-01)",
-     "url": "https://openai.com/index/path-to-astra/",
-     "fetched": "2026-10-01",
-     "kind": "system_card_corpus",
-     "note": "https://openai.com/index/path-to-astra/ returns HTTP 403 to automated fetches (curl with and without a browser user agent, WebFetch; 2026-10-01); quote verified against the corpus copy, slug openai-gpt-6-astra-other (canonical_url identical), stored text fetched 2026-09-06T06:28:18Z"
-    },
-    {
-     "quote": "Due to contamination concerns, we then built an internal benchmark denoted \"ExploitBench - Internal Port (June–August 2026)\", which contains 20 high-severity V8 vulnerabilities that were disclosed more recently.",
-     "source": "openai-gpt-6-astra-other (openai, 2026-09-01)",
-     "url": "https://openai.com/index/path-to-astra/",
-     "fetched": "2026-10-01",
-     "kind": "system_card_corpus",
-     "note": "https://openai.com/index/path-to-astra/ returns HTTP 403 to automated fetches (curl with and without a browser user agent, WebFetch; 2026-10-01); quote verified against the corpus copy, slug openai-gpt-6-astra-other (canonical_url identical), stored text fetched 2026-09-06T06:28:18Z"
-    },
-    {
-     "quote": "ExploitBench, which has 41 tasks focused on exploit development",
-     "source": "uk-aisi-kimi-k3-independent-eval (uk_aisi, 2026-07-23)",
-     "url": "https://www.aisi.gov.uk/blog/preliminary-assessment-of-kimi-k3s-cyber-capabilities",
-     "fetched": "2026-10-01",
-     "kind": "system_card_corpus"
-    }
-   ],
-   "problems": [
-    "developer-private, no standalone primary source",
-    "saturated (100% reported)",
-    "contamination concerns led OpenAI to build an internal port"
-   ],
-   "source": 1,
-   "hazard": 2,
-   "instrument": 2,
-   "penalties": [
-    "private",
-    "saturated",
-    "construct"
-   ],
-   "score": {
-    "presence": 9.0,
-    "source": 1,
-    "hazard": 2,
-    "instrument": 2,
-    "penalties": {
-     "private": -1,
-     "saturated": -1,
-     "construct": -1
-    },
-    "total": 11.0
    },
    "hard_criteria": {
     "instrument_ge_1": true,
@@ -3341,6 +3391,102 @@
    "borderline_reason": "passes every hard criterion, score 7.92 is below the floor of 8.0"
   },
   {
+   "name": "DeceptionBench (assisting user deception of third parties)",
+   "pilot": false,
+   "domain": "harmful_manipulation",
+   "measures": "Deceptive-response rate over 150 scenarios (1,000+ samples) in five societal domains under neutral, incentivised and coercive conditions, including multi-turn pressure.",
+   "corpus": {
+    "name_queried": "DeceptionBench",
+    "query": [
+     "\\bDeception[Bb]ench\\b"
+    ],
+    "documents": 3,
+    "publishers_n": 2,
+    "publishers": [
+     "anthropic",
+     "meta"
+    ],
+    "mentions": 20,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2510.15501",
+     "url": "https://arxiv.org/abs/2510.15501",
+     "title": "DeceptionBench: A Comprehensive Benchmark for AI Deception Behaviors in Real-world Scenarios",
+     "published": "2025-10-17",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: https://github.com/Aries-iai/DeceptionBench (stated in abstract)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed scenario set with judge scoring"
+   },
+   "decision": "Delay the consumer launch and add training against assisting deception vs launch on schedule.",
+   "theta": "theta = 1: the model helps users deceive third parties in a material fraction of scenarios.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "The results demonstrate robust inter-annotator agreement with an exact match rate of 95.7% (all three annotators concurring), and our automated evaluator achieves 97.1% alignment with human majority votes.",
+     "source": "2510.15501",
+     "url": "https://arxiv.org/html/2510.15501",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "To prevent potential bias in using GPT-4o as the evaluator, we conduct human validation on a representative subset of 420 interaction records (10 per model per inducement level).",
+     "source": "2510.15501",
+     "url": "https://arxiv.org/html/2510.15501",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Muse Spark 1.1 shows elevated verbalized evaluation awareness on DeceptionBench, which raises questions about the generalizability of these results",
+     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "elevated evaluation awareness reported by Meta",
+    "two publishers, three documents",
+    "human validation covers 420 of the 1,000+ records, scored by GPT-4o"
+   ],
+   "source": 3,
+   "hazard": 1.5,
+   "instrument": 2,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 2.25,
+    "source": 3,
+    "hazard": 1.5,
+    "instrument": 2,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 7.75
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": true,
+   "rank": 30,
+   "borderline": true,
+   "borderline_reason": "admitted by the domain floor (harmful_manipulation had 2 included candidates); passes every hard criterion, score 7.75 is below the floor of 8.0",
+   "domain_floor_admission": true
+  },
+  {
    "name": "Sabotage evaluations suite (Anthropic 2024; UK AISI unprompted research sabotage)",
    "pilot": false,
    "domain": "loss_of_control",
@@ -3500,102 +3646,6 @@
    "rank": 32,
    "borderline": true,
    "borderline_reason": "passes every hard criterion, score 7.42 is below the floor of 8.0"
-  },
-  {
-   "name": "DeceptionBench (assisting user deception of third parties)",
-   "pilot": false,
-   "domain": "harmful_manipulation",
-   "measures": "Deceptive-response rate over 150 scenarios (1,000+ samples) in five societal domains under neutral, incentivised and coercive conditions, including multi-turn pressure.",
-   "corpus": {
-    "name_queried": "DeceptionBench",
-    "query": [
-     "\\bDeception[Bb]ench\\b"
-    ],
-    "documents": 3,
-    "publishers_n": 2,
-    "publishers": [
-     "anthropic",
-     "meta"
-    ],
-    "mentions": 20,
-    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
-   },
-   "primary": [
-    {
-     "kind": "arxiv",
-     "id": "2510.15501",
-     "url": "https://arxiv.org/abs/2510.15501",
-     "title": "DeceptionBench: A Comprehensive Benchmark for AI Deception Behaviors in Real-world Scenarios",
-     "published": "2025-10-17",
-     "fetched": "2026-10-01",
-     "note": "",
-     "availability": "public: https://github.com/Aries-iai/DeceptionBench (stated in abstract)"
-    }
-   ],
-   "public_or_private": "public",
-   "single_instrument": {
-    "yes": true,
-    "why": "fixed scenario set with judge scoring"
-   },
-   "decision": "Delay the consumer launch and add training against assisting deception vs launch on schedule.",
-   "theta": "theta = 1: the model helps users deceive third parties in a material fraction of scenarios.",
-   "cost": [],
-   "validity": [
-    {
-     "quote": "The results demonstrate robust inter-annotator agreement with an exact match rate of 95.7% (all three annotators concurring), and our automated evaluator achieves 97.1% alignment with human majority votes.",
-     "source": "2510.15501",
-     "url": "https://arxiv.org/html/2510.15501",
-     "fetched": "2026-10-01",
-     "kind": "primary"
-    },
-    {
-     "quote": "To prevent potential bias in using GPT-4o as the evaluator, we conduct human validation on a representative subset of 420 interaction records (10 per model per inducement level).",
-     "source": "2510.15501",
-     "url": "https://arxiv.org/html/2510.15501",
-     "fetched": "2026-10-01",
-     "kind": "primary"
-    },
-    {
-     "quote": "Muse Spark 1.1 shows elevated verbalized evaluation awareness on DeceptionBench, which raises questions about the generalizability of these results",
-     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
-     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
-     "fetched": "2026-10-01",
-     "kind": "system_card_corpus"
-    }
-   ],
-   "problems": [
-    "elevated evaluation awareness reported by Meta",
-    "two publishers, three documents",
-    "human validation covers 420 of the 1,000+ records, scored by GPT-4o"
-   ],
-   "source": 3,
-   "hazard": 1.5,
-   "instrument": 2,
-   "penalties": [
-    "construct"
-   ],
-   "score": {
-    "presence": 2.25,
-    "source": 3,
-    "hazard": 1.5,
-    "instrument": 2,
-    "penalties": {
-     "construct": -1
-    },
-    "total": 7.75
-   },
-   "hard_criteria": {
-    "instrument_ge_1": true,
-    "source_ge_1": true,
-    "hazard_ge_1": true,
-    "presence_2pubs_or_10docs": true
-   },
-   "passes_floor": false,
-   "include": true,
-   "rank": 30,
-   "borderline": true,
-   "borderline_reason": "admitted by the domain floor (harmful_manipulation had 2 included candidates); passes every hard criterion, score 7.75 is below the floor of 8.0",
-   "domain_floor_admission": true
   },
   {
    "name": "Indirect prompt injection evaluations (Gray Swan IPI; lab-internal)",
