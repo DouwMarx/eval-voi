@@ -23,6 +23,9 @@ The numbers are a present-day snapshot. As robot fleets grow, the stakes per rel
 ## Checking the decision model
 - Compare the binary model with other value-of-information models (the pilots' Gaussian-state model is one; archived at tag pilot-2026-09-30) to see whether rankings survive a change of model.
 
+## Agentic elicitation
+- Elicitors with web search or an agent harness, compared with the one-shot prompt on the same scenarios. The literature we found suggests retrieval does not help strong models on forecasting and costs reproducibility, so this is an experiment, not a default.
+
 ## Measurement
 - External anchors for sensitivity and specificity (for example, IIHS ratings against insurance claims for the AEB protocol).
 - Documented gating decisions from system cards, as a check on whether the result can change the decision.
