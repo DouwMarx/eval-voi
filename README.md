@@ -52,9 +52,9 @@ their citation markers); edit the drafts, not the file.
 
 Eight elicited parameters: decision level `p, B, K`; instrument level `s, t,
 C_build, C_run, n`. Beta fits for `p, s, t`, lognormal for the rest, fitted
-once at elicitation time. Per draw: EVSI, EVPI, the indifference value EVSI°
+once at elicitation time. Per draw: EVSI, EVPI, the maximum EVSI EVSI_max (code: EVSI_ind)
 = (B+K) p(1-p)|s+t-1| (an inverted evaluation is read the other way
-round, as EVSI is), C = C_build + C_run, eta = EVSI/C, eta° = EVSI°/C,
+round, as EVSI is), C = C_build + C_run, eta = EVSI/C, eta_max = EVSI_max/C,
 eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
 (C_build + n C_run), the break-even reuse count n* = C_build/(EVSI - C_run)
 (infinite where EVSI <= C_run) and pays = 1[n >= n*] (`voi_rank/model.py`).

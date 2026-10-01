@@ -16,11 +16,11 @@ The elicitation is a means, not the contribution. The paper states what was used
 | LLM safety evaluation; short: LLM evaluation; label "LLM". An evaluation of a language or agent model, reported in at least one LLM system card, whose hazard is not physical. (Changed 2026-10-01 from "frontier-model", which is ambiguous: robotics companies can be frontier too.) | AI eval, AI safety eval, software eval, frontier-model evaluation |
 | safety evaluation (the genus); "evaluation" once the context is clear | benchmark (only when the source calls itself one) |
 | fidelity level 0-9 (text question answering ... deployment data) | rung, ladder |
-| the result can change the decision / cannot change the decision; decision-changing | gate, gated, in gate, closed gate |
-| responds regardless; deploys regardless (the two regimes where EVSI = 0) | always respond, never respond |
+| the result can change the decision (the condition pi0 < pi* < pi1); decision-changing | gate, gated, in gate, closed gate |
+| the prior is already decisive (responds regardless / deploys regardless): the prior sits so far past the threshold, for this evaluation's sensitivity and specificity, that neither result moves the belief across it; replaces "cannot change the decision" as the name of the case, the phrase "the result can change the decision" stays for the condition | always respond, never respond, cannot change the decision (as the case's name) |
 | EVSI: the developer's expected value of one run of the evaluation, at the elicited prior and threshold | plug-in value, gated value |
-| indifference value EVSI°: EVSI's maximum over the threshold at fixed stakes, reached when the developer is exactly undecided (prior equals threshold); EVSI° = (B+K) p(1-p)|s+t-1| | fence value, on the fence, threshold-free value, EVSI* |
-| efficiency eta = EVSI/C; eta° = EVSI°/C; run-only efficiency eta_run = EVSI/C_run | eff, eff* |
+| maximum EVSI EVSI_max, the value to a developer on the fence (prior equal to the threshold); replaces "indifference value" (2026-10-01). EVSI's maximum over the threshold at fixed stakes; EVSI_max = (B+K) p(1-p)|s+t-1|. Reported because today's prior is a snapshot: EVSI_max is the value to any developer still undecided. Code and DB keep the name EVSI_ind / eta_ind; macros carry both EtaInd... and the display alias EtaMax... | indifference value, EVSI°, fence value, threshold-free value, EVSI* |
+| efficiency eta = EVSI/C; eta_max = EVSI_max/C; run-only efficiency eta_run = EVSI/C_run | eff, eff*, eta° |
 | central estimate: the model evaluated at the pooled medians (the median over valid elicitations of each elicited median) | plug-in point, plug-in |
 | Monte Carlo over the pooled belief: draws from the equal-weight mixture of the fitted elicitation distributions | bootstrap, replicate (both retired) |
 | reuse count n; break-even reuse count n* | |
@@ -37,15 +37,15 @@ One developer, one release decision: respond (delay and mitigate) or deploy as p
 Closed forms (voi_rank/model.py):
 - P1 = ps + (1-p)(1-t); pi1 = ps/P1; pi0 = p(1-s)/(1-P1)
 - EVSI = P1 V(pi1) + (1-P1) V(pi0) - V(p); EVPI = min(pB, (1-p)K)
-- EVSI° = Lambda p(1-p)|s+t-1|; an inverted evaluation (s+t < 1, which the elicitation rejects but a mixture draw can produce) is read the other way round, as EVSI is.
-- EVSI = 0 unless pi0 < pi* < pi1 (the result can change the decision).
+- EVSI_max = Lambda p(1-p)|s+t-1| (code: EVSI_ind); an inverted evaluation (s+t < 1, which the elicitation rejects but a mixture draw can produce) is read the other way round, as EVSI is.
+- EVSI = 0 unless pi0 < pi* < pi1 (the result can change the decision); otherwise the prior is already decisive (pi0 >= pi*: responds regardless; pi1 <= pi*: deploys regardless).
 
 Elicited parameters (eight): decision level p, B, K; instrument level s, t, C_build, C_run, n.
 - C_build: cost to build the evaluation from scratch (design, data or scenes, hardware, engineering). C_run: cost of one run against one system. C = C_build + C_run.
 - n: number of distinct deployment decisions the built evaluation will inform over its useful life (model releases, product versions, calibrations); n >= 1, lognormal.
 - Perspective of B and K: `society` (all parties' welfare: harm avoided, benefits forgone) or `developer` (the developer's own financial exposure: liability, recall, reputation, lost revenue, delay). The headline uses `society`; `developer` is an ablation. The perspective is a template variable set by the protocol, never hard-coded in a template.
 
-Derived per draw (voi_rank/mc.py): EVSI, EVPI, EVSI°, C, eta = EVSI/C, eta° = EVSI°/C, eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI/(C_build + n C_run), n* = C_build/(EVSI - C_run) when EVSI > C_run else infinity, pays = 1[n >= n*].
+Derived per draw (voi_rank/mc.py): EVSI, EVPI, EVSI_max, C, eta = EVSI/C, eta_max = EVSI_max/C, eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI/(C_build + n C_run), n* = C_build/(EVSI - C_run) when EVSI > C_run else infinity, pays = 1[n >= n*].
 
 Not in the model, stated as limitations: batteries of evaluations, graded responses, repeated testing, correlation between parameters, growth of the deployed base over time (n partly absorbs it), whose utility the developer maximises beyond the two perspectives.
 
@@ -72,7 +72,7 @@ voi_rank/context.py builds the two context blocks from three reproducible inputs
 
 - Pooled belief per parameter per scenario: equal-weight mixture over the fitted distributions of every valid elicitation (all members, all repeats). This is the linear opinion pool. Parameters are drawn independently. 100,000 aligned draws per scenario, seed stored.
 - Central estimate: model at pooled medians. Point tables and the headline figure use it.
-- From the draws: per-scenario quantiles of every metric; P(EVSI > 0); P(EVSI > C); rank quantiles by eta (rank 1 = best, ties averaged); P(rank <= k); pairwise P(eta_i > eta_j); group comparison A = P(eta of a random physical-AI evaluation > eta of a random LLM evaluation); the percentile curve P(eta of a random physical-AI evaluation > q-th percentile of the LLM evaluations' eta) for q in 0..100, per draw, with a 90% band, as the central-estimate value and as its distribution over draws; per physical-AI evaluation, the distribution of its percentile among the LLM evaluations; break-even n* distribution and P(pays). Exact Mann-Whitney on the central estimates is the frequentist companion.
+- From the draws: per-scenario quantiles of every metric; P(EVSI > 0); P(EVSI > C); rank quantiles by eta (rank 1 = best, ties averaged) and the rank interquartile range (q25..q75) per evaluation, with its median over all evaluations and per group; P(rank <= k) (extended report only); per draw the rank of the best-ranked physical-AI evaluation among all evaluations, reported as P(best physical-AI rank <= N) for N = 1..S; the ROC curve of "physical AI" given eta and given eta_max (threshold swept over the score, ties entering together, so its area is A), at the central estimate and as a pointwise 5-95% band over draws of the TPR at a fixed FPR grid; pairwise P(eta_i > eta_j); group comparison A = P(eta of a random physical-AI evaluation > eta of a random LLM evaluation); the percentile curve P(eta of a random physical-AI evaluation > q-th percentile of the LLM evaluations' eta) for q in 0..100, per draw, with a 90% band, as the central-estimate value and as its distribution over draws; per physical-AI evaluation, the distribution of its percentile among the LLM evaluations; break-even n* distribution and P(pays). Exact Mann-Whitney on the central estimates is the frequentist companion.
 - Sensitivity: Spearman of each parameter's draws against eta per scenario; mean |rho| across scenarios.
 - Retired: the bootstrap over elicitations, the MC median as a ranking, the linear-pool developer, member-subset weighting schemes, the Gaussian-state family.
 
@@ -80,7 +80,7 @@ voi_rank/context.py builds the two context blocks from three reproducible inputs
 
 Generated by `scripts/regen.sh` from the database alone (deterministic), into studies/safety-evals/report/generated/: figures, tables, and one macros.tex with every number either document cites. No hand-written numbers file.
 
-Figures: F1 pipeline diagram (TikZ, in the tex) plus EVSI against C with iso-efficiency lines, two groups; F2 the same for EVSI°; F3 elicited parameters per evaluation (one panel per parameter, pooled mixture shown as a strip of elicited medians with the pooled median marked); F4 percentile of each physical-AI evaluation among the LLM evaluations (violins); F5 rank intervals; F6 break-even reuse count distributions with the elicited n; F7 sensitivity heatmap; F8 fidelity level against Youden's index and against cost; F9 cross-member agreement; F10 ablations (perspective, anchors, context mode, number of evaluations).
+Figures: F1 pipeline diagram (TikZ, in the tex) plus EVSI against C with iso-efficiency lines, two groups; F2 the same for EVSI_max; F3 elicited parameters per evaluation (one panel per parameter, pooled mixture shown as a strip of elicited medians with the pooled median marked); F4 percentile of each physical-AI evaluation among the LLM evaluations (violins); F5 rank intervals (q05-q95 thin bar, q25-q75 thick bar); F5b P(best physical-AI rank <= N); F5c ROC curves for eta and eta_max; F6 break-even reuse count distributions with the elicited n; F7 sensitivity heatmap; F8 fidelity level against Youden's index and against cost; F9 cross-member agreement; F10 ablations (perspective, anchors, context mode, number of evaluations).
 
 Documents: studies/safety-evals/report/main.tex (4-page body plus appendices, anonymous CoRL 2026 template) and studies/safety-evals/report/extended/main.tex (no page limit; every alternative figure, the ablations, the pilot findings, the reviewer objections section; no code listings).
 

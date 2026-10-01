@@ -69,7 +69,7 @@ Every figure below is written by the same analysis run as the paper's Figure~\re
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.62\linewidth]{fig_indifference.pdf}
-  \caption{The indifference value $\EVSI^\circ$, the value of one run to a developer who is exactly undecided before the evaluation, against cost $C$. It is smooth in every input, so no evaluation sits on the zero row.}
+  \caption{The maximum EVSI $\EVSImax$, the value of one run to a developer on the fence (prior equal to the threshold), against cost $C$. It is smooth in every input, so no evaluation sits on the zero row.}
   \label{fig:indifference}
 \end{figure}
 \candidate{it removes the threshold from the comparison. A reader who doubts the elicited prior and stakes can still compare the evaluations' discriminating power per dollar, and no evaluation is hidden on a zero row.}
@@ -85,10 +85,26 @@ Every figure below is written by the same analysis run as the paper's Figure~\re
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=\linewidth]{fig_rank_intervals.pdf}
-  \caption{Rank by $\eta$ per evaluation (1 = best): central estimate (marker), median over draws (tick) and 90\% interval over draws (bar). Evaluations whose result cannot change the decision on a draw share the average rank of the tied zeros.}
+  \caption{Rank by $\eta$ per evaluation (1 = best): central estimate (marker), median over draws (tick), interquartile range over draws (thick bar) and 90\% interval (thin bar). On a draw where an evaluation's prior is already decisive it shares the average rank of the tied zeros. Median interquartile range: \voiRankIQRMedian{} places (physical AI \voiRankIQRMedianPhysical, LLM \voiRankIQRMedianLLM).}
   \label{fig:rank}
 \end{figure}
 \candidate{it shows per evaluation how settled its place is under the pooled uncertainty; a narrow bar means the place hardly moves across draws.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_best_physical_rank.pdf}
+  \caption{On each draw, the rank by $\eta$ of the best-ranked physical-AI evaluation among all \voiNScenarios{} evaluations; the curve is the share of draws on which that rank is at most $N$. Top 1: \voiPBestPhysicalTopOne, top 3: \voiPBestPhysicalTopThree, top 5: \voiPBestPhysicalTopFive, top 10: \voiPBestPhysicalTopTen. Dashed: the central estimate, whose best physical-AI evaluation ranks \voiBestPhysicalRankCentral.}
+  \label{fig:bestphys}
+\end{figure}
+\candidate{it asks whether at least one physical-AI evaluation competes with the best LLM ones, which $A$, a comparison of the groups as wholes, does not answer; the paper already quotes its top-5 and top-10 values.}
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_roc.pdf}
+  \caption{Receiver operating characteristic (ROC) curve of ``physical AI'' given the score, for $\eta$ (left) and $\etamax$ (right). A threshold sweeps down the score; each point gives the share of physical-AI evaluations (y) and of LLM evaluations (x) above it. Black: central estimate; orange: median and 5--95\% band over draws, pointwise at a fixed grid of x values. Evaluations tied across the groups enter at one threshold, so the curve runs diagonally there; its area is then exactly $A$, ties counted as one half (\voiEtaACentral{} and \voiEtaMaxACentral{} at the central estimate). Below the diagonal, physical-AI evaluations score lower.}
+  \label{fig:roc}
+\end{figure}
+\candidate{it shows where along the score the groups separate, not only how much, and makes the identity of $A$ with the area under the ROC curve visible.}
 
 \begin{figure}[!htbp]
   \centering
@@ -132,7 +148,7 @@ Every figure below is written by the same analysis run as the paper's Figure~\re
 
 \begin{table}[!htbp]
   \centering
-  \caption{Per-evaluation numbers at the central estimate, ordered by $\eta$. Rank 90\%: interval over draws. $P(\EVSI>0)$: share of draws on which the result can change the decision. $n^*$: break-even reuse count.}
+  \caption{Per-evaluation numbers at the central estimate, ordered by $\eta$. Rank 90\%: interval over draws. $P(\mathrm{rank}\le k)$: share of draws on which the evaluation ranks in the top $k$. $P(\EVSI>0)$: share of draws on which the result can change the decision. $n^*$: break-even reuse count.}
   \label{tab:headline}
   \resizebox{\linewidth}{!}{\input{../generated/tab_headline.tex}}
 \end{table}
@@ -161,7 +177,7 @@ The developer-perspective decision prompt has not yet been elicited for every ev
 \emph{Run-only efficiency.} A developer who adopts a published evaluation pays only the run. Its efficiency is $\eta_\mathrm{run}=\EVSI/C_\mathrm{run}$, the value per dollar to an adopter of an evaluation that already exists. Under $\eta_\mathrm{run}$ a random physical-AI evaluation beats a random LLM evaluation with probability \voiEtaRunACentral{} at the central estimate (90\% interval over draws \voiEtaRunAQLo{} to \voiEtaRunAQHi{}; exact Mann-Whitney $p=\voiEtaRunMWp$), against \voiEtaACentral{} under $\eta$. % CHECK-DATA
 Removing the build cost does not lift the physical-AI evaluations, consistent with build costs that are similar in the two groups. % CHECK-DATA
 
-\emph{Indifference value.} Under $\eta^\circ=\EVSI^\circ/C$ the probability is \voiEtaIndACentral{} (90\% interval \voiEtaIndAQLo{} to \voiEtaIndAQHi{}; $p=\voiEtaIndMWp$).
+\emph{Maximum EVSI.} Under $\etamax=\EVSImax/C$ the probability is \voiEtaMaxACentral{} (90\% interval \voiEtaMaxAQLo{} to \voiEtaMaxAQHi{}; $p=\voiEtaMaxMWp$).
 
 \emph{Sensitivity.} Averaged over evaluations, the absolute Spearman correlation of each parameter's draws with $\eta$ is \voiRhoP{} for $p$, \voiRhoS{} for $s$, \voiRhoT{} for $t$, \voiRhoB{} for $B$, \voiRhoK{} for $K$, \voiRhoCBuild{} for $C_\mathrm{build}$, \voiRhoCRun{} for $C_\mathrm{run}$ and \voiRhoN{} for $n$ ($n$ does not enter $\eta$; its row checks that the draws are independent).
 
@@ -305,12 +321,12 @@ Each objection is stated as a reviewer would put it, followed by our answer.
 \begin{enumerate}
 \item \emph{``Language models made up the numbers.''} They did, and the paper says so. The claim is comparative: where one group sits relative to the other, under one set of beliefs applied to both. Every member answers every evaluation from the same template and the same kind of sourced facts, so a bias common to all evaluations moves both groups. A bias specific to physical-AI knowledge would not cancel, and the Monte Carlo interval does not capture it, because members are drawn independently per evaluation; a leave-one-member-out analysis is the planned check. Where a measured sensitivity, specificity or cost exists, it can replace the elicited one without changing the method.
 \item \emph{``The members are one population. Their agreement proves nothing.''} Agreement between models trained on similar data cannot separate shared knowledge from shared bias~\citep{kim2025correlated}. The analysed run uses two Claude models, so this objection applies in full; the planned final ensemble uses six models from six other developers (Section~\ref{sec:final}). We report cross-member agreement only as evidence about the inputs (Fig.~\ref{fig:members}). It remains a limitation.
-\item \emph{``You wrote the decisions, so you rank the decisions, not the evaluations.''} The pilots found exactly this: most of the variance of the indifference value per dollar came from the stakes per dollar of the decision attached to each evaluation. Here each decision is the release decision the evaluation's own sources describe, written to a fixed schema, and the decision prompt never sees the evaluation. The question asked is the one a developer faces: what is this evaluation worth for the decision it is used for. Pricing physical-AI and LLM evaluations against one shared decision, matched pairs, would separate the two.
-\item \emph{``A binary pass or fail is a caricature of an evaluation that returns a score.''} The model is deliberately simple and aims at orders of magnitude and rankings. A score read against a threshold set for the decision can only widen the range of priors for which the result changes the decision. The indifference value, which does not depend on the threshold, places the groups the same way and more sharply (Section~\ref{sec:ablations}). % CHECK-DATA
+\item \emph{``You wrote the decisions, so you rank the decisions, not the evaluations.''} The pilots found exactly this: most of the variance of the maximum EVSI per dollar came from the stakes per dollar of the decision attached to each evaluation. Here each decision is the release decision the evaluation's own sources describe, written to a fixed schema, and the decision prompt never sees the evaluation. The question asked is the one a developer faces: what is this evaluation worth for the decision it is used for. Pricing physical-AI and LLM evaluations against one shared decision, matched pairs, would separate the two.
+\item \emph{``A binary pass or fail is a caricature of an evaluation that returns a score.''} The model is deliberately simple and aims at orders of magnitude and rankings. A score read against a threshold set for the decision can only widen the range of priors for which the result changes the decision. The maximum EVSI, which does not depend on the threshold, places the groups the same way and more sharply (Section~\ref{sec:ablations}). % CHECK-DATA
 \item \emph{``Half of your physical-AI evaluations test a language model inside a robot, and one is a car.''} That is what published physical-AI safety evaluation looks like today. The set spans fidelity levels from text question answering to track testing, and the fidelity analysis (Fig.~\ref{fig:level}) uses that spread.
 \item \emph{``The groups are small and chosen by different rules.''} The two lists are ranked by fixed inclusion rules, and the test is exact. It separates the groups despite low power and many ties, and the separation has a named cause, the stakes per decision, that a reader can check against Figure~\ref{fig:params}. % CHECK-DATA
 \item \emph{``Society's stakes are arbitrary.''} The developer-perspective ablation re-elicits $B$ and $K$ as the developer's own exposure (Section~\ref{sec:ablations}).
-\item \emph{``Many evaluations have zero value, so the ranking is mostly ties.''} Ties count as one half in every comparison, and the zeros are themselves a finding: for those decisions the developer should mitigate first and evaluate the mitigated system. The indifference value has no zeros and gives a full ranking.
+\item \emph{``Many evaluations have zero value, so the ranking is mostly ties.''} Ties count as one half in every comparison, and the zeros are themselves a finding: for those decisions the developer should mitigate first and evaluate the mitigated system. The maximum EVSI has no zeros and gives a full ranking.
 \item \emph{``Drawing parameters independently distorts the uncertainty.''} It does, in a direction we cannot sign: EVSI is not monotone in $p$, $B$ and $K$, and independence across evaluations narrows the interval of $A$. The planned ablation that draws whole elicitations measures the effect.
 \item \emph{``Models refuse biosecurity and cyber prompts, so the sample is biased.''} Refusals are counted per member and class (Table~\ref{tab:health}); a slot with no valid answer after one retry is missing, not imputed.
 \item \emph{``The context is cherry-picked.''} The facts are sentences we selected from the sources, so selection is possible. Every fact cites a source whose text is fetched programmatically and cached in the repository, the same facts go to every member, and the planned context-mode ablation replaces our selection with the sources' abstracts or full text.
@@ -321,7 +337,7 @@ Each objection is stated as a reviewer would put it, followed by our answer.
 \section{What the pilots found}
 \label{sec:pilots}
 
-Two pilot studies preceded this one, with fewer evaluations and members from a single developer. The first priced ten LLM and five physical-AI evaluations. Its ranking by indifference value per dollar was stable across members, but mostly because the members agreed on the stakes of the decisions; whether a single result could change the decision varied between members. With five physical-AI evaluations it could not place the groups. The second priced evaluations of increasing fidelity for two fixed decisions. A single prompt let the instrument description move the elicited prior; separate decision and instrument prompts removed that effect. Its indifference value per dollar fell with fidelity level on both decisions. This study adopts both lessons: separate prompts, more evaluations per group, members from several developers, and fidelity as one discussion point.
+Two pilot studies preceded this one, with fewer evaluations and members from a single developer. The first priced ten LLM and five physical-AI evaluations. Its ranking by maximum EVSI per dollar was stable across members, but mostly because the members agreed on the stakes of the decisions; whether a single result could change the decision varied between members. With five physical-AI evaluations it could not place the groups. The second priced evaluations of increasing fidelity for two fixed decisions. A single prompt let the instrument description move the elicited prior; separate decision and instrument prompts removed that effect. Its maximum EVSI per dollar fell with fidelity level on both decisions. This study adopts both lessons: separate prompts, more evaluations per group, members from several developers, and fidelity as one discussion point.
 
 %===============================================================================
 \FloatBarrier
