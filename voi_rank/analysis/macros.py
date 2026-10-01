@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from voi_rank.analysis.summary import CURVE_QS, ERROR_CLASSES, GROUPS, LLM, PHYS, Summary
+from voi_rank.analysis.summary import CURVE_QS, ERROR_CLASSES, GROUPS, LLM, PHYS, Summary, member_display
 from voi_rank.fit import PARAM_NAMES
 
 FILE = "macros.tex"
@@ -28,6 +28,12 @@ CURVE_AT = (10, 25, 50, 75, 90)
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_", "{": r"\{", "}": r"\}",
                   "~": r"\textasciitilde{}", "^": r"\textasciicircum{}", "\\": r"\textbackslash{}"}
 GROUP_WORD = {PHYS: "Physical", LLM: "LLM"}
+PARAM_TEX = {"C_build": r"$C_\mathrm{build}$", "C_run": r"$C_\mathrm{run}$"}   # else $<name>$
+
+
+def param_tex(name: str) -> str:
+    """A parameter name as LaTeX text (math mode): C_build -> C sub build in roman, K -> K."""
+    return PARAM_TEX.get(name, f"${name}$")
 
 
 # --- formats -----------------------------------------------------------------
@@ -175,7 +181,7 @@ def group_medians(s: Summary, m: dict) -> None:
         m[f"NDeploysRegardless{w}"] = str(int((zero[idx] & (pi1[idx] <= pistar[idx])).sum()))
     m["StakesPerCostRatio"] = num(_ratio(med[LLM]["spc"], med[PHYS]["spc"]))
     m["EtaIndRatio"] = num(_ratio(med[LLM]["ind"], med[PHYS]["ind"]))
-    m["MemberList"] = esc(", ".join(lab.split(":", 1)[-1] for lab in s.member_labels))
+    m["MemberList"] = esc(", ".join(member_display(lab) for lab in s.member_labels))
 
 
 def collect(s: Summary) -> dict[str, str]:
@@ -197,6 +203,9 @@ def collect(s: Summary) -> dict[str, str]:
         for q, v in zip(("Lo", "Med", "Hi"), g["A_q"], strict=True):
             m[f"{word}AQ{q}"] = pct(v)
         m[f"{word}MWp"] = num(g["mw_p"])
+    ac = o["eta_A_changing"]
+    m["EtaAChanging"] = pct(ac["A"])
+    m["EtaAChangingN"] = str(ac["n_pairs"])
     if "curve_q" in o:
         for q in CURVE_AT:
             i = int(np.searchsorted(CURVE_QS, q))
@@ -228,9 +237,11 @@ def collect(s: Summary) -> dict[str, str]:
         m[f"Rho{camel(name)}"] = num(rho[name])
         m[f"MemberRho{camel(name)}"] = num(o["member_rho"][name])
     ranked = sorted((v, k) for k, v in rho.items() if v is not None)
-    m["RhoTopParam"] = esc(ranked[-1][1]) if ranked else "--"
+    m["RhoTopParam"] = param_tex(ranked[-1][1]) if ranked else "--"
     m["LevelRhoJ"] = num(o["level_rho_J"])
     m["LevelRhoC"] = num(o["level_rho_C"])
+    m["LevelRhoJp"] = num(o["level_p_J"])
+    m["LevelRhoCp"] = num(o["level_p_C"])
     m["NLevel"] = str(len(o["level_ids"]))
     top = min(range(len(s.scenarios)), key=lambda i: (o["rank_central"][i], s.scenarios[i].id))
     m["TopShort"] = esc(s.scenarios[top].short)

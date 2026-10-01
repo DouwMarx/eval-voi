@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from voi_rank.analysis.macros import esc, num, pct, rank, usd
-from voi_rank.analysis.summary import ERROR_CLASSES, PHYS, Summary, order
+from voi_rank.analysis.summary import ERROR_CLASSES, PHYS, Summary, member_display, order
 
 SMALL_OPEN = r"\begingroup\footnotesize\setlength{\tabcolsep}{3pt}"
 SMALL_CLOSE = r"\endgroup"
@@ -50,7 +50,7 @@ def headline_table(s: Summary) -> str:
 def health_table(s: Summary) -> str:
     rows, tot = [], {"attempts": 0, "valid": 0, "usd": 0.0, **{k: 0 for k in ERROR_CLASSES}}
     for h in s.health:
-        rows.append([esc(h["member"]), str(h["attempts"]),
+        rows.append([esc(member_display(h["member"])), str(h["attempts"]),
                      pct(h["valid"] / h["attempts"] if h["attempts"] else None),
                      *[str(h[k]) for k in ERROR_CLASSES], usd(h["usd"])])
         for k in tot:

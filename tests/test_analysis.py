@@ -295,3 +295,40 @@ def test_api_refusal_envelope_counts_as_refusal():
     assert error_class("cli: exit 1: ", raw) == "refusal"
     assert error_class("cli: exit 1: ", '{"stop_reason": "end_turn"}') == "cli"
     assert error_class("json: bad", None) == "json"
+
+
+def test_truncated_answers_have_their_own_error_class():
+    from voi_rank.analysis.summary import ERROR_CLASSES, error_class
+    assert "truncated" in ERROR_CLASSES
+    assert error_class("truncated: finish_reason=length after 4096 tokens", None) == "truncated"
+
+
+def test_new_macros_match_their_definitions(elicited):
+    """A among decision-changing evaluations, the fidelity-level p-values and a
+    LaTeX-safe top parameter."""
+    study, _ = elicited
+    s = summary.load(study.connect_copy(), "pS", draws=1000)
+    m = macros.collect(s)
+    ch = s.central["EVSI"] > 0
+    phys, llm = s.ids_in(PHYS), s.ids_in(LLM)
+    pc, lc = phys[ch[phys]], llm[ch[llm]]
+    assert m["EtaAChangingN"] == str(len(pc) * len(lc))
+    assert m["EtaAChanging"] == macros.pct(pairwise_share(s.central["eta"][pc], s.central["eta"][lc]))
+    lev = s.out["level_ids"]
+    levels = [s.scenarios[i].level for i in lev]
+    J = s.pooled["s"] + s.pooled["t"] - 1
+    assert m["LevelRhoJp"] == macros.num(stats.spearmanr(levels, J[lev]).pvalue)
+    assert m["LevelRhoCp"] == macros.num(stats.spearmanr(levels, s.central["C"][lev]).pvalue)
+    assert m["RhoTopParam"] in {macros.param_tex(n) for n in db.PARAM_NAMES}
+    assert macros.param_tex("C_build") == r"$C_\mathrm{build}$" and macros.param_tex("K") == "$K$"
+
+
+def test_member_labels_are_shown_without_provider_prefix(elicited):
+    from voi_rank.analysis import tables
+    study, _ = elicited
+    s = summary.load(study.connect_copy(), "pS", draws=1000)
+    health = tables.health_table(s)
+    assert "haiku" in health and "claude" not in health
+    assert HAIKU in summary.to_json(s)          # the machine-readable output keeps the full label
+    assert summary.member_display("openrouter:meta/llama-3") == "meta/llama-3"
+

@@ -37,7 +37,8 @@ from voi_rank.sensitivity import spearman
 PHYS, LLM = "physical AI", "LLM"
 GROUPS = (PHYS, LLM)
 GROUP_ALIASES = {"frontier model": LLM}
-ERROR_CLASSES = ("json", "schema", "constraint", "fit", "refusal", "cli", "http", "api", "provider", "other")
+ERROR_CLASSES = ("json", "schema", "constraint", "fit", "refusal", "truncated", "cli", "http", "api",
+                 "provider", "other")
 CURVE_QS = np.arange(101)
 QS = (0.05, 0.50, 0.95)
 TOP_K = (3, 5)
@@ -156,9 +157,23 @@ def mann_whitney_p(a, b) -> float | None:
 
 
 def spearman_or_none(x, y) -> float | None:
+    return spearman_test(x, y)[0]
+
+
+def spearman_test(x, y) -> tuple[float | None, float | None]:
+    """Spearman's rho and its two-sided p-value (scipy's t approximation,
+    which handles ties); (None, None) below 3 points or on a constant input."""
     if len(x) < 3 or len(set(x)) < 2 or len(set(y)) < 2:
-        return None
-    return float(stats.spearmanr(x, y).statistic)
+        return None, None
+    r = stats.spearmanr(x, y)
+    return float(r.statistic), float(r.pvalue)
+
+
+def member_display(label: str) -> str:
+    """A member label for figures and tables: the model id without the
+    provider prefix ('claude_cli:haiku' -> 'haiku'). summary.json keeps the
+    full label."""
+    return label.split(":", 1)[-1]
 
 
 def error_class(error: str | None, raw: str | None = None) -> str:
@@ -367,6 +382,12 @@ def compute(s: Summary) -> dict:
             "A_central": pairwise_share(a_c, b_c),
             "A_q": quantiles(a_d) if len(phys) and len(llm) else [None] * 3,
             "mw_p": mann_whitney_p(a_c, b_c)}
+    # A among the evaluations whose result can change the decision (EVSI > 0 at the central estimate)
+    ch = s.central["EVSI"] > 0
+    pc, lc = phys[ch[phys]], llm[ch[llm]]
+    out["eta_A_changing"] = {"A": pairwise_share(s.central["eta"][pc], s.central["eta"][lc]),
+                             "n_pairs": int(len(pc) * len(lc)), "n_phys": int(len(pc)),
+                             "n_llm": int(len(lc))}
     if len(phys) and len(llm):
         curve_d = percentile_curve(eta[phys], eta[llm])
         out["curve_central"] = percentile_curve(s.central["eta"][phys], s.central["eta"][llm])
@@ -395,8 +416,8 @@ def compute(s: Summary) -> dict:
     J = s.pooled["s"] + s.pooled["t"] - 1.0
     out["youden"] = J
     levels = [s.scenarios[i].level for i in lev]
-    out["level_rho_J"] = spearman_or_none(levels, list(J[lev]))
-    out["level_rho_C"] = spearman_or_none(levels, list(s.central["C"][lev]))
+    out["level_rho_J"], out["level_p_J"] = spearman_test(levels, list(J[lev]))
+    out["level_rho_C"], out["level_p_C"] = spearman_test(levels, list(s.central["C"][lev]))
 
     out["member_p50"] = member_pooled(s)
     out["member_rho"] = member_agreement(s, out["member_p50"])
@@ -465,6 +486,7 @@ def to_json(s: Summary) -> str:
     data = {"run": s.run, "n_group": o["n_group"], "groups": o["groups"],
             "changes_share": o["changes_share"], "mean_abs_rho": o["mean_abs_rho"],
             "level_rho_J": o["level_rho_J"], "level_rho_C": o["level_rho_C"],
+            "level_p_J": o["level_p_J"], "level_p_C": o["level_p_C"], "eta_A_changing": o["eta_A_changing"],
             "member_rho": o["member_rho"], "health": s.health, "scenarios": per}
     if "curve_q" in o:
         data["curve"] = {"q": CURVE_QS, "central": o["curve_central"], "q05_q50_q95": o["curve_q"]}
