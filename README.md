@@ -49,7 +49,8 @@ decision, theta_definition, instrument` (required), `group` ("physical AI" |
 Eight elicited parameters: decision level `p, B, K`; instrument level `s, t,
 C_build, C_run, n`. Beta fits for `p, s, t`, lognormal for the rest, fitted
 once at elicitation time. Per draw: EVSI, EVPI, the indifference value EVSI°
-= (B+K) p(1-p)(s+t-1), C = C_build + C_run, eta = EVSI/C, eta° = EVSI°/C,
+= (B+K) p(1-p)|s+t-1| (an inverted evaluation is read the other way
+round, as EVSI is), C = C_build + C_run, eta = EVSI/C, eta° = EVSI°/C,
 eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
 (C_build + n C_run), the break-even reuse count n* = C_build/(EVSI - C_run)
 (infinite where EVSI <= C_run) and pays = 1[n >= n*] (`voi_rank/model.py`).
@@ -58,18 +59,19 @@ eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
 
 1. `uv run pytest -q`
 2. `uv run python -m voi_rank.elicit --study studies/safety-evals --protocol p001 --dry-run`
-   plans on an in-memory copy of the DB: both stages' pending slots per member
-   and the first rendered prompt of each stage; nothing is called or written,
-   not even `voi.db`. `--stage decision|instrument` plans one stage, `--k N`
-   overrides every member's repeats, `--members a:b,c:d` restricts the
-   members, `--scenarios all|seed|1,2,3` the scenarios.
+   plans on an in-memory copy of the DB: both stages' pending slots per
+   member, the cost estimate (from the members' stored attempt costs,
+   `unknown` without history) and the first rendered prompt of each stage;
+   nothing is called or written, not even `voi.db`. `--stage
+   decision|instrument` plans one stage, `--k N` overrides every member's
+   repeats, `--members a:b,c:d` restricts the members, `--scenarios
+   all|seed|1,2,3` the scenarios.
 3. `uv run python -m voi_rank.elicit --study studies/safety-evals --protocol p001 --yes [--workers 8]`
-   prints the plan and the cost estimate (from the members' stored attempt
-   costs, `unknown` without history), checks the members' credentials, then
-   seeds the scenarios, registers the protocol and submits. Without `--yes` it
-   asks on a TTY and otherwise writes nothing. A slot is (scenario, protocol,
-   member, repeat, stage); slots with a valid answer are skipped, so a re-run
-   resumes.
+   prints the same plan and cost estimate, checks the members' credentials,
+   then seeds the scenarios, registers the protocol and submits. Without
+   `--yes` it asks on a TTY and otherwise writes nothing. A slot is (scenario,
+   protocol, member, repeat, stage); slots with a valid answer are skipped, so
+   a re-run resumes.
 4. `uv run python -m voi_rank.mc --study studies/safety-evals --protocol p001 --seed 42 --draws 100000 [--members claude_cli:sonnet]`
    draws the pooled belief and stores the run (refused on uncommitted code
    under `voi_rank/`, `pyproject.toml` or `uv.lock` unless `--allow-dirty`).
@@ -164,4 +166,6 @@ retired code (six parameters, single-prompt and Gaussian protocols). The
 current code opens them read-only (`db.connect_copy`, used by every dry run)
 or migrates a copy in place by adding the new columns; it cannot elicit
 their protocols or replay their runs. Never write to a database under
-`archive/`.
+`archive/`: `Study.connect` refuses a study there, so `elicit` (the paid
+path) and `mc` exit before touching the file; copy the study outside
+`archive/` to migrate it.

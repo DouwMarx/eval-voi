@@ -199,6 +199,11 @@ def test_dry_run_calls_nothing_and_writes_nothing(study, monkeypatch, capsys):
     assert "Context: Background for scenario 0." in ins and "Anchor A1: instrument block." in ins
     assert "Decision facts" not in ins
     assert "48 slots would be elicited; no provider was called." in out
+    # the plan and its cost estimate (DESIGN section 4), before the prompts
+    assert "plan: protocol p001, 48 pending slots" in out
+    assert f"{HAIKU}: 32 slots (decision 16, instrument 16), estimated cost unknown" in out
+    assert f"{OR_MEMBER}: 16 slots (decision 8, instrument 8), estimated cost unknown" in out
+    assert out.index("estimated total: $0.00 + unknown") < out.index("first pending prompt of stage decision")
     # side-effect free: no voi.db (or journal) was created, nothing registered on disk
     assert not list(study.root.glob("voi.db*"))
     # --members filter, --k override (the effective k is printed) and --stage
@@ -219,6 +224,10 @@ def test_dry_run_calls_nothing_and_writes_nothing(study, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert f"member {HAIKU} (k=2): 15 pending slots over 8 groups" in out
     assert f"member {HAIKU} (k=2): 15 pending slots over 8 scenarios" in out
+    # the estimate uses the two stored haiku attempts ($0.01 each)
+    assert (f"{HAIKU}: 30 slots (decision 15, instrument 15), estimated cost $0.30"
+            " (mean $0.0100/attempt over 2 stored attempts)") in out
+    assert "estimated total: $0.30 + unknown" in out
     assert study.db.read_bytes() == before
 
 

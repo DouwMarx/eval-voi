@@ -11,6 +11,7 @@ import yaml
 
 from voi_rank import db, mc
 from voi_rank.fit import DECISION_PARAMS, INSTRUMENT_PARAMS, fit_param
+from voi_rank.study import Study
 
 ARCHIVE = Path(__file__).resolve().parent.parent / "archive"
 
@@ -272,6 +273,42 @@ def test_archived_pilot_db_opens_read_only(tmp_path):
     assert con.execute("SELECT COUNT(*) FROM elicitations").fetchone()[0] >= n_elic
     con.close()
     assert src.read_bytes() == before
+
+
+def test_archived_study_is_refused_by_connect_and_mc(tmp_path, monkeypatch):
+    """DESIGN section 9: never write to a database under archive/. On a copy
+    of a pilot study placed under <root>/archive/ (the repo root redirected
+    to tmp_path, so the committed file is never touched), Study.connect and
+    mc.main (whose first act is to connect, which would migrate the file in
+    place) exit before writing; connect_copy still reads it."""
+    src = ARCHIVE / "pilots" / "sim2real" / "voi.db"
+    root = tmp_path.resolve()
+    study_dir = root / "archive" / "pilots" / "sim2real"
+    study_dir.mkdir(parents=True)
+    shutil.copy(src, study_dir / "voi.db")
+    before = (study_dir / "voi.db").read_bytes()
+    monkeypatch.setattr(db, "ROOT", root)
+    study = Study.resolve(study_dir)
+    assert study.archived
+    with pytest.raises(SystemExit, match="archived study .*read-only"):
+        mc.main(["--study", str(study_dir), "--protocol", "p004", "--allow-dirty"])
+    with pytest.raises(SystemExit, match="archived study"):
+        study.connect()
+    assert (study_dir / "voi.db").read_bytes() == before
+    ro = sqlite3.connect(f"file:{study_dir / 'voi.db'}?mode=ro", uri=True)
+    cols = {r[1] for r in ro.execute("PRAGMA table_info(scenarios)")}
+    ro.close()
+    assert "decision_context" not in cols   # the archived schema, not migrated
+    con = study.connect_copy()   # reading stays allowed
+    assert db.protocol_by_name(con, "p004")["name"] == "p004"
+    con.close()
+    assert (study_dir / "voi.db").read_bytes() == before
+    # a study elsewhere under the same root is not archived
+    other = root / "studies" / "x"
+    other.mkdir(parents=True)
+    assert not Study.resolve(other).archived
+    Study.resolve(other).connect().close()
+    assert (other / "voi.db").exists()
 
 
 def test_unique_index_on_valid_slots(tmp_path):

@@ -67,7 +67,24 @@ class Study:
             return self.root / p
         return p
 
+    @property
+    def archived(self) -> bool:
+        """Whether the study lies under <repo>/archive/ (the pilots, frozen at
+        tag pilot-2026-09-30): read through connect_copy only."""
+        return self.root.resolve().is_relative_to((db.ROOT / "archive").resolve())
+
+    def check_writable(self) -> None:
+        """DESIGN section 9: never write to a database under archive/. Called
+        by connect() (whose migration would otherwise alter the tracked file
+        in place) and by elicit's paid path before the confirmation."""
+        if self.archived:
+            raise SystemExit(f"archived study {self.root}: read-only (frozen at tag pilot-2026-09-30);"
+                             " read it with connect_copy or --dry-run, or copy it outside archive/")
+
     def connect(self) -> sqlite3.Connection:
+        """The study's voi.db, created and migrated as needed; refused for a
+        study under archive/."""
+        self.check_writable()
         return db.connect(self.db)
 
     def connect_copy(self) -> sqlite3.Connection:

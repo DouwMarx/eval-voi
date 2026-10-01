@@ -128,6 +128,10 @@ def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys):
         assert f"member {member} (k=3): 45 pending slots over 15 groups ({groups})" in out
         assert f"member {member} (k=3): 45 pending slots over 15 scenarios (ids 1..15)" in out
     assert "180 slots would be elicited; no provider was called." in out
+    assert "plan: protocol p001, 180 pending slots" in out
+    for member in ("claude_cli:haiku", "claude_cli:sonnet"):
+        assert f"{member}: 90 slots (decision 45, instrument 45), estimated cost unknown" in out
+    assert "estimated total: $0.00 + unknown" in out
     scen = json.loads((STUDY / "scenarios.json").read_text())
     dec, ins = out.split("first pending prompt of stage decision")[1].split(
         "first pending prompt of stage instrument")

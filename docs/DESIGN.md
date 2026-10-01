@@ -19,7 +19,7 @@ The elicitation is a means, not the contribution. The paper states what was used
 | the result can change the decision / cannot change the decision; decision-changing | gate, gated, in gate, closed gate |
 | responds regardless; deploys regardless (the two regimes where EVSI = 0) | always respond, never respond |
 | EVSI: the developer's expected value of one run of the evaluation, at the elicited prior and threshold | plug-in value, gated value |
-| indifference value EVSI°: EVSI's maximum over the threshold at fixed stakes, reached when the developer is exactly undecided (prior equals threshold); EVSI° = (B+K) p(1-p)(s+t-1) | fence value, on the fence, threshold-free value, EVSI* |
+| indifference value EVSI°: EVSI's maximum over the threshold at fixed stakes, reached when the developer is exactly undecided (prior equals threshold); EVSI° = (B+K) p(1-p)|s+t-1| | fence value, on the fence, threshold-free value, EVSI* |
 | efficiency eta = EVSI/C; eta° = EVSI°/C; run-only efficiency eta_run = EVSI/C_run | eff, eff* |
 | central estimate: the model evaluated at the pooled medians (the median over valid elicitations of each elicited median) | plug-in point, plug-in |
 | Monte Carlo over the pooled belief: draws from the equal-weight mixture of the fitted elicitation distributions | bootstrap, replicate (both retired) |
@@ -37,7 +37,7 @@ One developer, one release decision: respond (delay and mitigate) or deploy as p
 Closed forms (voi_rank/model.py):
 - P1 = ps + (1-p)(1-t); pi1 = ps/P1; pi0 = p(1-s)/(1-P1)
 - EVSI = P1 V(pi1) + (1-P1) V(pi0) - V(p); EVPI = min(pB, (1-p)K)
-- EVSI° = Lambda p(1-p)(s+t-1)
+- EVSI° = Lambda p(1-p)|s+t-1|; an inverted evaluation (s+t < 1, which the elicitation rejects but a mixture draw can produce) is read the other way round, as EVSI is.
 - EVSI = 0 unless pi0 < pi* < pi1 (the result can change the decision).
 
 Elicited parameters (eight): decision level p, B, K; instrument level s, t, C_build, C_run, n.
@@ -51,7 +51,7 @@ Not in the model, stated as limitations: batteries of evaluations, graded respon
 
 ## 4. Elicitation
 
-- Two prompts per scenario. The decision prompt renders agent, decision, theta definition and the scenario's `decision_context`; it never mentions the instrument. It asks p, B, K under the protocol's perspective. The instrument prompt renders title, theta definition, instrument and the scenario's `instrument_context`; it never mentions B, K or p. It asks s, t, C_build, C_run, n. The two are independent calls (the pilots showed a single prompt lets instrument text move the prior).
+- Two prompts per scenario. The decision prompt renders agent, decision, theta definition and the scenario's `decision_context`; it never mentions the instrument. It asks p, B, K under the protocol's perspective. The instrument prompt renders title, agent, decision, theta definition, instrument and the scenario's `instrument_context` (the agent and decision text fix the release cadence that n and the costs depend on and carry no number); it never mentions B, K, p or the `decision_context`. It asks s, t, C_build, C_run, n. The two are independent calls (the pilots showed a single prompt lets instrument text move the prior).
 - Every scenario is its own decision (stage group = the scenario). Protocol-level decision contexts are gone.
 - Reasoning paragraph before each parameter's three percentiles (5th, 50th, 95th). Strict JSON: {"parameters": {"p": {"reasoning": "...", "p5": .., "p50": .., "p95": ..}, ...}}. Numbers may be plain or scientific notation. No unit field: the units are fixed by the template.
 - Anchors: an optional template block (`$anchors`, protocol template variable), with sourced numbers; an ablation drops it. Which is the headline is decided from data (docs/QUESTIONS.md records the decision).
@@ -100,6 +100,6 @@ Deleted (recoverable from git): the Gaussian-state family, the proposer, the man
 ## 9. Rules for agents
 
 - No OpenRouter call except the designated smoke test with PERSONAL_OPENROUTER_API_KEY; no paid claude_cli elicitation except the designated run steps.
-- Never write to a database under archive/. Never read a secret's value (key names only).
+- Never write to a database under archive/ (`Study.connect` refuses one; `connect_copy` and `--dry-run` read it). Never read a secret's value (key names only).
 - Work in the assigned worktree or directory; commit there with the trailer "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"; never push, never touch master.
 - Tests: `uv run pytest -q` and `uv run ruff check .` green before every commit. No test is skipped or weakened to pass.

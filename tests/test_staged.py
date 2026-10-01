@@ -515,6 +515,25 @@ def test_plan_refuses_a_decision_text_changed_after_the_decision_stage(tmp_path,
         elicit.main(["--study", str(study.root), "--protocol", "pS", "--dry-run"])
 
 
+def test_archived_study_dry_runs_but_is_never_elicited(tmp_path, monkeypatch, capsys):
+    """A two-stage protocol dropped into a study under archive/ plans on the
+    in-memory copy (--dry-run) but the paid path is refused before the
+    confirmation, the preflight and the connect that would create or migrate
+    voi.db; no provider is called and no file appears."""
+    root = tmp_path.resolve()
+    monkeypatch.setattr(db, "ROOT", root)
+    study = build(root / "archive" / "pilots")   # <root>/archive/pilots/study
+    assert study.archived
+    monkeypatch.setattr(elicit, "get_provider",
+                        lambda name: (_ for _ in ()).throw(AssertionError("provider called")))
+    elicit.main(["--study", str(study.root), "--protocol", "pS", "--dry-run"])
+    out = capsys.readouterr().out
+    assert "DRY RUN: protocol pS" in out and "estimated total: $0.00 + unknown" in out
+    with pytest.raises(SystemExit, match="archived study .*read-only"):
+        elicit.main(["--study", str(study.root), "--protocol", "pS", "--yes"])
+    assert not list(study.root.glob("voi.db*"))
+
+
 def test_archived_single_stage_protocol_cannot_be_elicited(tmp_path):
     """An archived database's single-prompt protocol row (no stages_json) is
     readable but the harness refuses to plan it."""

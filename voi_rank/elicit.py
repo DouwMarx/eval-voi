@@ -18,12 +18,13 @@ Every attempt (valid or not) is stored with its raw response; a plain-text
 answer that declines (REFUSAL_RE) or an OpenRouter content_filter finish is
 stored with error 'refusal: <first 200 chars>'. The plan (pending slots and
 estimated cost per member) is made on an in-memory copy of the study DB, so
---dry-run and a declined plan write nothing, not even voi.db, and register
-no protocol; a paid run needs --yes, or an interactive confirmation on a
-TTY. Once confirmed, the preflight checks the members' credentials (a
-logged-in claude CLI, an OpenRouter key the free /auth/key accepts) and
-only then the real DB is opened, seeded, the protocol registered and the
-jobs submitted.
+--dry-run (which prints it) and a declined plan write nothing, not even
+voi.db, and register no protocol; a paid run needs --yes, or an interactive
+confirmation on a TTY, and is refused outright for a study under archive/
+(Study.check_writable). Once confirmed, the preflight checks the members'
+credentials (a logged-in claude CLI, an OpenRouter key the free /auth/key
+accepts) and only then the real DB is opened, seeded, the protocol
+registered and the jobs submitted.
 
 Paid work is never discarded: an interrupted run (Ctrl-C, a failed DB write,
 any error in the main thread) cancels the pending slots, launches no retry,
@@ -617,11 +618,12 @@ def group_sort_key(value: str) -> tuple:
     return (not value.isdigit(), int(value) if value.isdigit() else 0, value)
 
 
-def dry_run(prot, members, jobs, k_override: int | None = None, stage: str | None = None):
+def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str | None = None):
     """Render prompts and list pending slots per stage and member (over
-    groups for the decision stage, scenarios for the instrument stage) and
-    print the first pending prompt of each stage; a stage --stage left out
-    is marked as not planned. Nothing is called."""
+    groups for the decision stage, scenarios for the instrument stage), print
+    the plan with its cost estimate (print_plan, from the attempts stored on
+    `con`, the in-memory copy) and the first pending prompt of each stage; a
+    stage --stage left out is marked as not planned. Nothing is called."""
     stages = db.protocol_stages(prot)
     print(f"DRY RUN: protocol {prot['name']} (stages {' + '.join(s['name'] for s in stages)},"
           f" hash {prot['template_hash'][:12]}, scenarios {db.protocol_selector(prot)},"
@@ -644,6 +646,7 @@ def dry_run(prot, members, jobs, k_override: int | None = None, stage: str | Non
                 where = f"{len(sids)} scenarios" + (f" (ids {sids[0]}..{sids[-1]})" if sids else "")
             print(f"    member {db.member_label(m)} ({k_label(m, k_override)}): {len(pending)} pending"
                   f" slots over {where}")
+    print_plan(con, prot, members, jobs)
     for st in stages:
         sjobs = [j for j in jobs if j["stage"] == st["name"]]
         if sjobs:
@@ -1199,8 +1202,8 @@ def main(argv=None):
                     help="plan and elicit this stage only, decision or instrument (default: both)")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true",
-                    help="plan on an in-memory copy of the DB, render prompts and list pending"
-                         " slots; call no provider and write nothing")
+                    help="plan on an in-memory copy of the DB, render prompts, list pending"
+                         " slots and estimate the cost; call no provider and write nothing")
     ap.add_argument("--yes", action="store_true",
                     help="submit the paid run without the interactive confirmation (required"
                          " when stdin is not a TTY)")
@@ -1213,8 +1216,9 @@ def main(argv=None):
     plan_con = study.connect_copy()
     _, prot, members, jobs = plan(plan_con, study, args, preview=True)
     if args.dry_run:
-        dry_run(prot, members, jobs, args.k, args.stage)
+        dry_run(plan_con, prot, members, jobs, args.k, args.stage)
         return
+    study.check_writable()   # an archived study is refused before the confirmation and the preflight
     if not jobs:
         print("nothing to do: all requested slots already have valid elicitations (nothing written)")
         return
