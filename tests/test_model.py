@@ -1,5 +1,5 @@
-"""M0 acceptance tests (spec §12): closed forms vs brute-force enumeration,
-EVSI identities, bounds, and distribution-fit sanity."""
+"""Closed forms vs brute-force enumeration, EVSI identities, bounds, the
+indifference value, the per-draw metrics, and distribution-fit sanity."""
 
 import numpy as np
 import pytest
@@ -89,7 +89,49 @@ def test_degenerate_edges_no_nan():
         assert 0.0 <= evsi <= evpi + 1e-15
 
 
-# --- fit sanity (spec §3) ---------------------------------------------------
+def test_indifference_value_is_the_maximum_over_the_threshold():
+    """EVSI° = (B+K) p(1-p)(s+t-1) is EVSI maximised over pi* = K/(B+K) at
+    fixed stakes: no split of the stakes beats it, and the split K = (1-p)
+    Lambda (pi* = p) reaches it."""
+    rng = np.random.default_rng(4)
+    p, s, t, _, _ = random_params(rng, 300)
+    s, t = np.maximum(s, 1 - t) + 1e-3, t          # informative: s + t > 1
+    s = np.minimum(s, 1.0)
+    lam = rng.lognormal(np.log(1e5), 1.0, 300)
+    ind = model.voi_indifference(p, s, t, lam * 0.3, lam * 0.7)   # the stakes split does not matter
+    assert np.allclose(ind, lam * p * (1 - p) * (s + t - 1))
+    for pi_star in np.linspace(0.01, 0.99, 25):
+        evsi, _ = model.voi(p, s, t, lam * (1 - pi_star), lam * pi_star)
+        assert np.all(evsi <= ind * (1 + 1e-9) + 1e-9 * lam)
+    evsi_at_p, _ = model.voi(p, s, t, lam * (1 - p), lam * p)
+    assert np.allclose(evsi_at_p, ind, rtol=1e-9, atol=1e-9 * lam.max())
+    assert model.voi_indifference(0.5, 0.2, 0.3, 1.0, 1.0) == pytest.approx(2 * 0.25 * 0.5)   # |s+t-1|
+
+
+def test_metrics_derived_per_draw():
+    draws = {"p": np.array([0.3, 0.3, 0.01]), "s": np.array([0.9, 0.9, 0.9]), "t": np.array([0.9, 0.9, 0.9]),
+             "B": np.array([1e5, 1e5, 1e5]), "K": np.array([1e4, 1e4, 1e4]),
+             "C_build": np.array([5e3, 5e3, 5e3]), "C_run": np.array([1e3, 1e3, 1e3]),
+             "n": np.array([10.0, 1.0, 10.0])}
+    m = model.metrics(draws)
+    assert list(m) == model.METRIC_NAMES == ["EVSI", "EVPI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run",
+                                             "net_n", "eta_n", "n_star", "pays"]
+    evsi, evpi = model.voi(draws["p"], draws["s"], draws["t"], draws["B"], draws["K"])
+    assert np.array_equal(m["EVSI"], evsi) and np.array_equal(m["EVPI"], evpi)
+    assert np.array_equal(m["C"], np.array([6e3, 6e3, 6e3]))
+    assert np.allclose(m["eta"], evsi / 6e3) and np.allclose(m["eta_run"], evsi / 1e3)
+    assert np.allclose(m["eta_ind"], model.voi_indifference(draws["p"], 0.9, 0.9, 1e5, 1e4) / 6e3)
+    assert np.allclose(m["net_n"], draws["n"] * evsi - 5e3 - draws["n"] * 1e3)
+    assert np.allclose(m["eta_n"], draws["n"] * evsi / (5e3 + draws["n"] * 1e3))
+    # draw 0: EVSI > C_run (p = 0.3 is inside the decision-changing region), n* = C_build / (EVSI - C_run)
+    assert evsi[0] > 1e3 and m["n_star"][0] == pytest.approx(5e3 / (evsi[0] - 1e3))
+    assert m["pays"][0] == 1.0 and m["pays"][1] == 0.0   # 10 reuses pay, one does not
+    # draw 2: p = 0.01, the developer deploys regardless, EVSI = 0 <= C_run: n* infinite, never pays
+    assert evsi[2] == 0.0 and m["n_star"][2] == np.inf and m["pays"][2] == 0.0
+    assert np.all(np.isfinite(m["eta"])) and m["eta"][2] == 0.0
+
+
+# --- fit sanity -------------------------------------------------------------
 
 def test_fit_rejects_non_monotone():
     with pytest.raises(ValueError):
@@ -137,3 +179,4 @@ def test_rank_stability_zero_ties_do_not_count():
     p = rank_stability(eff, top=3)
     assert p[3] == 1.0
     assert np.all(p[[0, 1, 2, 4]] == 0.0)
+    assert rank_stability(eff).shape == (5,)   # the default top is 5 (p_top5)

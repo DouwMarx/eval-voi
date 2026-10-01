@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build a study's CoRL report and check the body page limit.
-# Usage: scripts/build_paper.sh <study-dir>   e.g. scripts/build_paper.sh studies/sim2real
+# Usage: scripts/build_paper.sh <study-dir>   e.g. scripts/build_paper.sh studies/safety-evals
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 study="${1:?usage: build_paper.sh <study-dir>}"

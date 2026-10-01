@@ -127,11 +127,20 @@ def test_choice_error_and_error_finish_reasons_are_api_errors(monkeypatch, key):
     env, raw, err = openrouter.call_openrouter("x", "m", "s")
     assert err.startswith("api: choices[0].error") and "upstream failed" in err
     assert env["total_cost_usd"] == pytest.approx(0.0123)  # a paid failure keeps its cost
-    for finish in ("error", "content_filter"):
-        monkeypatch.setattr(urllib.request, "urlopen",
-                            lambda req, timeout=None, f=finish: FakeResponse(_ok_body(finish=f).encode()))
-        env, raw, err = openrouter.call_openrouter("x", "m", "s")
-        assert err == f"api: finish_reason={finish}"
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda req, timeout=None: FakeResponse(_ok_body(finish="error").encode()))
+    assert openrouter.call_openrouter("x", "m", "s")[2] == "api: finish_reason=error"
+    # a content_filter finish is a refusal: the first 200 characters of the answer, else the reason
+    long_text = "I cannot help with this request because it concerns pathogens. " * 10
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda req, timeout=None: FakeResponse(_ok_body(text=long_text,
+                                                                        finish="content_filter").encode()))
+    env, raw, err = openrouter.call_openrouter("x", "m", "s")
+    assert err == "refusal: " + long_text[:200] and env["total_cost_usd"] == pytest.approx(0.0123)
+    empty = _ok_body(text="", finish="content_filter").encode()
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: FakeResponse(empty))
+    assert openrouter.call_openrouter("x", "m", "s")[2] == "refusal: finish_reason=content_filter"
+    assert elicit.retry_delay("refusal: finish_reason=content_filter") == 0.0
     monkeypatch.setattr(urllib.request, "urlopen",
                         lambda req, timeout=None: FakeResponse(b'{"choices": [{"message": {}}]}'))
     assert openrouter.call_openrouter("x", "m", "s")[2].startswith("schema:")

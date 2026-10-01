@@ -1,0 +1,28 @@
+name: p001
+stages:
+  - name: decision
+    template_path: templates/decision.md       # renders $agent $decision $theta_definition $decision_context
+    params: [p, B, K]
+    group_key: self                            # every scenario is its own decision
+  - name: instrument
+    template_path: templates/instrument.md     # renders the scenario and $context (instrument_context)
+    params: [s, t, C_build, C_run, n]
+template_vars:
+  perspective: society
+  anchors_decision: '@file:templates/anchors_decision.md'
+  anchors_instrument: '@file:templates/anchors_instrument.md'
+  context_mode: curated
+members:
+  - provider: claude_cli
+    model: haiku
+    k_repeats: 3
+  - provider: claude_cli
+    model: sonnet
+    k_repeats: 3
+notes: >
+  Iteration protocol of the 2026-09-30 restructure (DESIGN sections 3 and 4):
+  the eight-parameter model elicited in two independent prompts per scenario,
+  the society perspective, the two anchors split by prompt, curated context
+  (the facts fields themselves until voi_rank/context.py exists). Members and
+  k are the iteration pair; the final run uses OpenRouter members with a
+  dedicated key.
