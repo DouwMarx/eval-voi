@@ -4,6 +4,8 @@ The 15 scenarios were converted from the pilot (archive/pilots/ai-safety-evals/s
 
 ## Per scenario: `decision_facts` is empty
 
+Until it is filled, `elicit` refuses the decision stage (its prompt would carry an empty facts block; the dry run warns). Fill it before any paid run: an elicited scenario is frozen, so it cannot be filled after an instrument-only run.
+
 Every scenario needs curated decision-level sentences (each ending in a [key] citation to `sources`), none of which may describe the evaluation: the deployment or release at stake and its cadence, the base rate of the hazardous property in comparable releases, the harm if it is present and the release goes ahead (society perspective) and the developer's exposure (liability, recall, reputation, lost revenue, delay), and what responding costs when the property is absent. The sources that back them get `role: decision` (or `both`).
 
 1. Virology Capabilities Test before releasing a frontier model

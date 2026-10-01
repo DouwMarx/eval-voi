@@ -26,6 +26,7 @@ SEED = {
     "C_run": (300.0, 1000.0, 5000.0), "n": (2.0, 10.0, 50.0),
 }
 HAIKU, SONNET = "claude_cli:haiku", "claude_cli:sonnet"
+ARCHIVE_SIM2REAL = Path(__file__).resolve().parent.parent / "archive" / "pilots" / "sim2real"
 HOME, AV = "home manipulator", "AV AEB"
 MEMBERS = [{"provider": "claude_cli", "model": "haiku", "k_repeats": 2},
            {"provider": "claude_cli", "model": "sonnet", "k_repeats": 2}]
@@ -513,6 +514,122 @@ def test_plan_refuses_a_decision_text_changed_after_the_decision_stage(tmp_path,
     con.close()
     with pytest.raises(SystemExit, match=r"Change the scenario's title \(a new scenario\), or start a new"):
         elicit.main(["--study", str(study.root), "--protocol", "pS", "--dry-run"])
+
+
+def test_plan_refuses_a_decision_text_changed_after_the_instrument_stage(tmp_path, monkeypatch, capsys):
+    """The mirror of the test above: the instrument stage first, then the
+    whole home group renamed under a new decision text. No decision rows
+    exist, so the prompt-hash check cannot fire; the retired rungs hold
+    valid instrument rows elicited for the old decision and stay in the
+    one-decision check (elicited_scenario_rows: a valid row at any stage),
+    so every plan, the decision stage first of all, refuses instead of
+    storing the new decision's p, B, K on the retired representative and
+    pooling the retired rungs' instrument rows with them."""
+    study = build(tmp_path)
+    monkeypatch.setattr(elicit, "get_provider", lambda name: StagedFake())
+    base = ["--study", str(study.root), "--protocol", "pG", "--members", HAIKU, "--k", "1", "--yes"]
+    elicit.main([*base, "--stage", "instrument"])
+    assert "done: 5/5 slots valid" in capsys.readouterr().out
+    original = json.loads(study.scenarios_json.read_text())
+    scen = json.loads(study.scenarios_json.read_text())
+    for sc in scen[:3]:
+        sc["title"] += " v2"
+        sc["decision"] = "A new decision: whether to ship a coffee machine"
+    study.scenarios_json.write_text(json.dumps(scen))
+    refusal = (f"stage decision: group '{HOME}' \\(scenarios \\[1, 2, 3, 6, 7, 8\\]\\) mixes 2 different"
+               r" agent / decision / theta / decision_context texts: not one decision"
+               r" \(scenarios \[1, 2, 3\] are retired rows holding valid elicitations under pG;"
+               r" give the changed scenarios a new attributes.context_group value, or start a new voi.db\)")
+    for extra_args in (["--stage", "decision"], ["--stage", "instrument"], [],
+                       ["--stage", "decision", "--scenarios", "6"]):
+        with pytest.raises(SystemExit, match=refusal):
+            elicit.main([*base, *extra_args])   # a real run, not a dry run: refused before any write
+    con = study.connect()
+    pid = db.protocol_by_name(con, "pG")["id"]
+    assert con.execute("SELECT COUNT(*) FROM elicitations WHERE stage='decision'").fetchone()[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM scenarios").fetchone()[0] == 5   # the plan copy refused first
+    assert mc.complete_fits(con, pid) == {}
+    con.close()
+    # renamed titles alone (the decision text restored) plan: the retired rungs keep their
+    # instrument rows and the decision stage stores the group's rows on their representative
+    for sc, was in zip(scen[:3], original[:3], strict=True):
+        sc["decision"] = was["decision"]
+    study.scenarios_json.write_text(json.dumps(scen))
+    elicit.main([*base, "--stage", "decision", "--dry-run"])
+    assert f"member {HAIKU} (k=1 (override of 2)): 2 pending slots over 2 groups" in capsys.readouterr().out
+
+
+def test_relocated_template_is_a_stage_change(tmp_path):
+    """template_path is part of the stage config the protocol hash freezes:
+    the same template text under a new path is refused like an edit, and
+    the registered row keeps its template_path (there is no relocation
+    branch to reach)."""
+    study = build(tmp_path)
+    con = study.connect()
+    pid = db.get_or_create_protocol(con, study.protocol_path("pG"), study.root)
+    (study.root / "templates/decision_moved.md").write_text(DECISION_TEMPLATE)
+    cfg = cfg_of(study, "pG")
+    cfg["stages"][0]["template_path"] = "templates/decision_moved.md"
+    write_cfg(study, cfg)
+    with pytest.raises(RuntimeError, match=r"different \['template_hash', 'stages'\]"):
+        db.get_or_create_protocol(con, study.protocol_path("pG"), study.root)
+    prot = db.protocol_by_name(con, "pG")
+    assert prot["id"] == pid and prot["template_path"] == "templates/decision.md + templates/instrument.md"
+    con.close()
+
+
+def test_empty_rendered_field_warns_in_the_dry_run_and_refuses_the_paid_stage(tmp_path, monkeypatch, capsys):
+    """A scenario field a planned stage's template renders is empty (the
+    committed study's decision_context until its decision_facts are
+    written): the dry run warns per stage and field, the paid run of a
+    stage that renders it is refused before the credentials check and any
+    write, the other stage alone still runs, and the field cannot be filled
+    afterwards (an elicited scenario is frozen), which is why the refusal
+    says to fill it first."""
+    scen = scenarios()
+    for sc in scen[:3]:   # the home group's shared decision context
+        sc["decision_context"] = "  "
+    study = build(tmp_path, scen)
+    fake, calls = StagedFake(), []
+    monkeypatch.setattr(elicit, "get_provider", lambda name: lambda *a: calls.append(a) or fake(*a))
+    base = ["--study", str(study.root), "--protocol", "pG", "--members", HAIKU, "--k", "1"]
+    elicit.main([*base, "--dry-run"])
+    out = capsys.readouterr().out
+    assert ("  warning: stage decision: the template renders $decision_context, which is empty for 1 planned"
+            " scenario(s) [1]; the paid run of this stage is refused until the field is filled in"
+            " scenarios.json") in out
+    assert "renders $context" not in out and "7 slots would be elicited" in out
+    refusal = (r"stage decision: the template renders \$decision_context, which is empty for 1 planned"
+               r" scenario\(s\) \[1\]\nfill the field in scenarios.json first \(an elicited scenario is"
+               r" frozen, so it cannot be filled later\); nothing was written")
+    for extra_args in ([], ["--stage", "decision"]):
+        with pytest.raises(SystemExit, match=refusal):
+            elicit.main([*base, "--yes", *extra_args])
+    assert calls == [] and not list(study.root.glob("voi.db*"))
+    elicit.main([*base, "--yes", "--stage", "instrument"])   # renders $context, filled for every scenario
+    assert "done: 5/5 slots valid" in capsys.readouterr().out and len(calls) == 5
+    for sc in scen[:3]:
+        sc["decision_context"] = f"Decision facts for {HOME}."
+    study.scenarios_json.write_text(json.dumps(scen))
+    with pytest.raises(SystemExit, match=r"already has 1 elicitation\(s\): elicited scenarios are frozen"):
+        elicit.main([*base, "--dry-run"])
+
+
+@pytest.mark.parametrize("protocol, match", [
+    ("p004", r"^protocol p004: stage decision: protocol-level decision_contexts are gone"),
+    ("p003", r"^protocol p003: .*single-prompt protocols were retired"),
+    ("g001", r"^protocol g001: .*only the binary model remains"),
+])
+def test_dry_run_of_an_archived_protocol_exits_with_its_message(protocol, match):
+    """The documented read of an archived study (README: connect_copy, used
+    by every dry run) meets a protocol in one of the retired forms: the
+    registration's refusal is the exit message, not a traceback, and the
+    frozen file is untouched. Read-only on the committed archive."""
+    src = ARCHIVE_SIM2REAL / "voi.db"
+    before = src.read_bytes()
+    with pytest.raises(SystemExit, match=match):
+        elicit.main(["--study", str(ARCHIVE_SIM2REAL), "--protocol", protocol, "--dry-run"])
+    assert src.read_bytes() == before
 
 
 def test_archived_study_dry_runs_but_is_never_elicited(tmp_path, monkeypatch, capsys):

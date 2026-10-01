@@ -146,6 +146,9 @@ def replay_efficiency(con, run_id: int):
     run = db.get_run(con, run_id)
     ids, effs, ppos = [], [], []
     fits = complete_fits(con, run["protocol_id"], db.run_member_labels(run))   # the stored subset
+    if not fits:
+        raise RuntimeError(f"run {run_id}: no scenarios with complete valid elicitations under its protocol"
+                           " (an archived six-parameter run cannot be replayed by the current code)")
     for sid, draws in iter_scenario_draws(fits, run["seed"], run["n_draws"]):
         ids.append(sid)
         metrics = scenario_metrics(draws)

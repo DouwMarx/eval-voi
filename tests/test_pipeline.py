@@ -1076,7 +1076,7 @@ def test_declined_plan_writes_nothing_and_keeps_the_template_editable(study, mon
     # once registered, an edited anchors file (a template variable) is refused like a template edit
     con.close()
     anchors.write_text("Anchor A1: decision block, revised again.\n")
-    with pytest.raises(RuntimeError, match=r"different \['template_hash', 'template_vars'\]"):
+    with pytest.raises(SystemExit, match=r"different \['template_hash', 'template_vars'\]"):   # no traceback
         elicit.main(["--study", str(study.root), "--protocol", "p001", "--dry-run"])
 
 

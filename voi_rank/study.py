@@ -79,7 +79,8 @@ class Study:
         in place) and by elicit's paid path before the confirmation."""
         if self.archived:
             raise SystemExit(f"archived study {self.root}: read-only (frozen at tag pilot-2026-09-30);"
-                             " read it with connect_copy or --dry-run, or copy it outside archive/")
+                             " read it with connect_copy (a dry run needs a two-stage protocol file),"
+                             " or copy it outside archive/")
 
     def connect(self) -> sqlite3.Connection:
         """The study's voi.db, created and migrated as needed; refused for a

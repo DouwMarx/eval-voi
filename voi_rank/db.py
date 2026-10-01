@@ -664,8 +664,8 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
     """Register a protocol YAML (template paths relative to the study root).
     Protocol files are immutable: re-registering a name with a changed
     template (either stage's file, or a file a template variable inlines),
-    template variable, member list, scenario scope or stage config is an
-    error (make a new protocol file)."""
+    template variable, member list, scenario scope or stage config (a
+    template's path included) is an error (make a new protocol file)."""
     yaml_path = Path(yaml_path)
     cfg = yaml.safe_load(yaml_path.read_text())
     try:
@@ -695,11 +695,6 @@ def get_or_create_protocol(con, yaml_path: str | Path, study_root: str | Path) -
             raise RuntimeError(
                 f"protocol {cfg['name']} already registered with different {changed}; "
                 "create a new protocol file instead of editing an old one")
-        if row["template_path"] != template_path_text:
-            # same content, relocated file: keep the row self-describing
-            con.execute("UPDATE protocols SET template_path=? WHERE id=?",
-                        (template_path_text, row["id"]))
-            con.commit()
         return row["id"]
     cur = con.execute(
         "INSERT INTO protocols (name, template_path, template_hash, model_alias,"

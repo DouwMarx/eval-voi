@@ -275,6 +275,22 @@ def test_archived_pilot_db_opens_read_only(tmp_path):
     assert src.read_bytes() == before
 
 
+def test_replay_of_an_archived_run_is_refused_with_a_message():
+    """An archived run's protocol has no scenario with the eight parameters
+    (its rows carry p, s, t, B, K and the retired C), so a replay says so
+    instead of failing inside NumPy on an empty draw matrix. Read-only on
+    the committed archive."""
+    src = ARCHIVE / "pilots" / "sim2real" / "voi.db"
+    before = src.read_bytes()
+    con = db.connect_copy(src)
+    run = db.latest_run(con)
+    with pytest.raises(RuntimeError, match=rf"^run {run['id']}: no scenarios with complete valid elicitations"
+                                           r" under its protocol \(an archived six-parameter run cannot be"):
+        mc.replay_efficiency(con, run["id"])
+    con.close()
+    assert src.read_bytes() == before
+
+
 def test_archived_study_is_refused_by_connect_and_mc(tmp_path, monkeypatch):
     """DESIGN section 9: never write to a database under archive/. On a copy
     of a pilot study placed under <root>/archive/ (the repo root redirected

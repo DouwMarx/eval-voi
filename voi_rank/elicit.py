@@ -97,6 +97,9 @@ INSTRUMENT_FIELDS = ("title", "agent", "decision", "theta_definition", "instrume
 # the decision prompt renders the decision text and the scenario's
 # decision_context, and nothing of the instrument
 DECISION_FIELDS = ("agent", "decision", "theta_definition", "decision_context")
+# placeholder -> scenario column, per template (empty_fields)
+INSTRUMENT_COLUMNS = {f: ("instrument_context" if f == "context" else f) for f in INSTRUMENT_FIELDS}
+DECISION_COLUMNS = {f: f for f in DECISION_FIELDS}
 # a plain-text answer (no JSON) that declines: stored as 'refusal: <text>'
 REFUSAL_RE = re.compile(
     r"I can.t help|I cannot (?:help|assist)|I.m not able to provide|I must decline|against my guidelines"
@@ -230,6 +233,26 @@ def render_decision_prompt(template: string.Template, sc, template_vars: dict[st
         raise SystemExit(f"decision template uses ${ex.args[0]}: it renders only "
                          f"{', '.join('$' + f for f in DECISION_FIELDS)} and the protocol's template_vars"
                          f" {sorted(template_vars)} (no $instrument, $context or $title)") from None
+
+
+def empty_fields(template: string.Template, sc, columns: dict[str, str]) -> list[str]:
+    """The scenario fields ({placeholder: column}) the template renders whose
+    value is empty (NULL or blank) for this scenario: the prompt would carry
+    an empty block where the template promises facts."""
+    names = template.get_identifiers()
+    return [name for name, col in columns.items() if name in names and not (sc[col] or "").strip()]
+
+
+def empty_field_lines(jobs: list[dict]) -> list[str]:
+    """One line per (stage, field) over the planned slots whose prompt renders
+    an empty scenario field, with the scenario ids (the group's representative
+    for a decision-stage slot); [] when every rendered field is filled."""
+    found: dict[tuple[str, str], set[int]] = {}
+    for job in jobs:
+        for name in job.get("empty", ()):
+            found.setdefault((job["stage"], name), set()).add(job["scenario_id"])
+    return [f"stage {stage}: the template renders ${name}, which is empty for {len(ids)} planned"
+            f" scenario(s) {sorted(ids)}" for (stage, name), ids in sorted(found.items())]
 
 
 def refusal(text: str) -> str | None:
@@ -510,8 +533,9 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
     those rows were elicited for) share the agent, decision, theta and
     decision_context text, and that the decision rows the group already holds
     were rendered from that text (check_group_decision_rows). A job carries
-    its stage and the stage's parameter names; stage=NAME plans that stage
-    only."""
+    its stage, the stage's parameter names and the rendered scenario fields
+    that are empty for it (empty_fields: the dry run warns, the paid path
+    refuses); stage=NAME plans that stage only."""
     gstage, sstage = db.group_stage(stages), db.scenario_stage(stages)
     if stage is not None and stage not in (gstage["name"], sstage["name"]):
         raise SystemExit(f"--stage {stage!r}: protocol {prot['name']} has stages"
@@ -551,24 +575,26 @@ def plan_staged_jobs(con, study: Study, prot, stages: list[dict], members: list[
         if stage not in (None, gstage["name"]):
             continue
         rep_id = min(gids)
+        empty = empty_fields(template, checked[min(checked)], DECISION_COLUMNS)
         for m in members:
             done = db.valid_repeats(con, gids, prot["id"], m["provider"], m["model"], gstage["name"])
             for rix in range(effective_k(m, k_override)):
                 if rix not in done:
                     jobs.append({"scenario_id": rep_id, "member": m, "repeat_ix": rix,
                                  "prompt": prompt, "stage": gstage["name"],
-                                 "names": list(gstage["params"]), "group": value})
+                                 "names": list(gstage["params"]), "group": value, "empty": empty})
     if stage in (None, sstage["name"]):
         template = string.Template((study.root / sstage["template_path"]).read_text())
         for sc in scenarios:
             prompt = render_prompt(template, sc, template_vars)
+            empty = empty_fields(template, sc, INSTRUMENT_COLUMNS)
             for m in members:
                 done = db.valid_repeats(con, sc["id"], prot["id"], m["provider"], m["model"], sstage["name"])
                 for rix in range(effective_k(m, k_override)):
                     if rix not in done:
                         jobs.append({"scenario_id": sc["id"], "member": m, "repeat_ix": rix,
                                      "prompt": prompt, "stage": sstage["name"],
-                                     "names": list(sstage["params"])})
+                                     "names": list(sstage["params"]), "empty": empty})
     return jobs
 
 
@@ -623,7 +649,9 @@ def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str 
     groups for the decision stage, scenarios for the instrument stage), print
     the plan with its cost estimate (print_plan, from the attempts stored on
     `con`, the in-memory copy) and the first pending prompt of each stage; a
-    stage --stage left out is marked as not planned. Nothing is called."""
+    stage --stage left out is marked as not planned, and a planned slot whose
+    prompt renders an empty scenario field is warned about (the paid path
+    refuses it). Nothing is called."""
     stages = db.protocol_stages(prot)
     print(f"DRY RUN: protocol {prot['name']} (stages {' + '.join(s['name'] for s in stages)},"
           f" hash {prot['template_hash'][:12]}, scenarios {db.protocol_selector(prot)},"
@@ -646,6 +674,9 @@ def dry_run(con, prot, members, jobs, k_override: int | None = None, stage: str 
                 where = f"{len(sids)} scenarios" + (f" (ids {sids[0]}..{sids[-1]})" if sids else "")
             print(f"    member {db.member_label(m)} ({k_label(m, k_override)}): {len(pending)} pending"
                   f" slots over {where}")
+    for line in empty_field_lines(jobs):
+        print(f"  warning: {line}; the paid run of this stage is refused until the field is filled"
+              " in scenarios.json")
     print_plan(con, prot, members, jobs)
     for st in stages:
         sjobs = [j for j in jobs if j["stage"] == st["name"]]
@@ -1214,7 +1245,10 @@ def main(argv=None):
     # registered there only): a dry run or a declined plan creates nothing,
     # not even voi.db, and freezes no template hash
     plan_con = study.connect_copy()
-    _, prot, members, jobs = plan(plan_con, study, args, preview=True)
+    try:
+        _, prot, members, jobs = plan(plan_con, study, args, preview=True)
+    except RuntimeError as ex:   # a refused protocol file or a frozen scenario: a usage error, no traceback
+        raise SystemExit(str(ex)) from None
     if args.dry_run:
         dry_run(plan_con, prot, members, jobs, args.k, args.stage)
         return
@@ -1222,6 +1256,10 @@ def main(argv=None):
     if not jobs:
         print("nothing to do: all requested slots already have valid elicitations (nothing written)")
         return
+    empty = empty_field_lines(jobs)
+    if empty:   # an empty block where the template promises facts: never paid for
+        raise SystemExit("\n".join(empty) + "\nfill the field in scenarios.json first (an elicited"
+                         " scenario is frozen, so it cannot be filled later); nothing was written")
     check_credentials(members)
     print_plan(plan_con, prot, members, jobs)
     plan_con.close()

@@ -95,11 +95,13 @@ scripts/             regen.sh, build_paper.sh, check_pages.py
 docs/                DESIGN.md, QUESTIONS.md
 ```
 
+Status (2026-10-01): not yet written are voi_rank/context.py (the context fields equal the facts fields; `curated` is the only mode), voi_rank/analysis/, scripts/regen.sh and studies/safety-evals/report/ (sections 6 and 7), the price-based cost estimate for a member without history (`--dry-run` prints `unknown` for it) and the cache_control breakpoint (section 4). Everything else in this section exists.
+
 Deleted (recoverable from git): the Gaussian-state family, the proposer, the manual protocol, the bootstrap, the ladder and level analyses, member-subset weighting, the legacy efficacy macros, spec.md, the pilot READMEs, handover/.
 
 ## 9. Rules for agents
 
 - No OpenRouter call except the designated smoke test with PERSONAL_OPENROUTER_API_KEY; no paid claude_cli elicitation except the designated run steps.
-- Never write to a database under archive/ (`Study.connect` refuses one; `connect_copy` and `--dry-run` read it). Never read a secret's value (key names only).
+- Never write to a database under archive/ (`Study.connect` refuses one; `connect_copy` reads it, and `--dry-run` plans a two-stage protocol file on a copy: the archived protocols exit with the registration's message). Never read a secret's value (key names only).
 - Work in the assigned worktree or directory; commit there with the trailer "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"; never push, never touch master.
 - Tests: `uv run pytest -q` and `uv run ruff check .` green before every commit. No test is skipped or weakened to pass.

@@ -148,6 +148,17 @@ def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys):
     assert re.search(r"\bB\b|\bK\b|\bprior\b", ins.split("## Scenario to elicit")[0], re.IGNORECASE) is None
     # the second stage of the same scenario shares nothing elicited: no decision-level number appears
     assert '"p":' in dec and '"p":' not in ins and '"n":' in ins and '"n":' not in dec
+    # decision_facts are not written yet (SCENARIOS_TODO.md), so the decision prompt would carry an
+    # empty facts block: the dry run says so and the paid run of p001 is refused before any provider
+    # call or write (--stage instrument renders only filled fields)
+    assert ("  warning: stage decision: the template renders $decision_context, which is empty for 15 planned"
+            " scenario(s) [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; the paid run of this stage is"
+            " refused until the field is filled in scenarios.json") in out
+    assert "renders $context" not in out
+    with pytest.raises(SystemExit, match=r"renders \$decision_context, which is empty for 15 planned.*\n"
+                                         r"fill the field in scenarios.json first"):
+        elicit.main(["--study", "studies/safety-evals", "--protocol", "p001", "--yes"])
+    assert not list(STUDY.glob("voi.db*"))
 
 
 def test_dry_run_from_the_shell_entry_point(tmp_path):
