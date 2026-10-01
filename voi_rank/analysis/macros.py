@@ -17,7 +17,16 @@ from pathlib import Path
 
 import numpy as np
 
-from voi_rank.analysis.summary import CURVE_QS, ERROR_CLASSES, GROUPS, LLM, PHYS, Summary, member_display
+from voi_rank.analysis.summary import (
+    BEST_TOP,
+    CURVE_QS,
+    ERROR_CLASSES,
+    GROUPS,
+    LLM,
+    PHYS,
+    Summary,
+    member_display,
+)
 from voi_rank.fit import PARAM_NAMES
 
 FILE = "macros.tex"
@@ -25,9 +34,12 @@ DIGITS = ("Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"
 QWORDS = {5: "Five", 10: "Ten", 25: "TwentyFive", 50: "Fifty", 75: "SeventyFive", 90: "Ninety",
           95: "NinetyFive"}
 CURVE_AT = (10, 25, 50, 75, 90)
+TOPWORDS = {1: "One", 3: "Three", 5: "Five", 10: "Ten"}   # keys: summary.BEST_TOP
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_", "{": r"\{", "}": r"\}",
                   "~": r"\textasciitilde{}", "^": r"\textasciicircum{}", "\\": r"\textbackslash{}"}
 GROUP_WORD = {PHYS: "Physical", LLM: "LLM"}
+# display aliases: the code and the DB keep eta_ind (EtaInd); the documents say eta_max
+ALIASES = (("EtaInd", "EtaMax"),)
 PARAM_TEX = {"C_build": r"$C_\mathrm{build}$", "C_run": r"$C_\mathrm{run}$"}   # else $<name>$
 
 
@@ -212,6 +224,10 @@ def collect(s: Summary) -> dict[str, str]:
             m[f"CurveCentral{QWORDS[q]}"] = pct(o["curve_central"][i])
             for name, v in zip(("Lo", "Med", "Hi"), o["curve_q"][i], strict=True):
                 m[f"Curve{name}{QWORDS[q]}"] = pct(v)
+        for n in BEST_TOP:
+            if n <= len(o["best_phys_curve"]):
+                m[f"PBestPhysicalTop{TOPWORDS[n]}"] = pct(o["best_phys_curve"][n - 1])
+        m["BestPhysicalRankCentral"] = rank(o["best_phys_central"])
         pb = o["p_beats_median"]
         m["NPhysicalBeatMedian"] = str(int((pb > 0.5).sum()))
         m["PhysicalPctCentralMedian"] = sig(float(np.median(o["pct_central"])))
@@ -232,6 +248,10 @@ def collect(s: Summary) -> dict[str, str]:
         m[f"PPaysMedian{w}"] = pct(float(np.median(o["p_pays"][idx])) if len(idx) else None)
         m[f"EtaMedian{w}"] = num(float(np.median(s.central["eta"][idx])) if len(idx) else None)
     group_medians(s, m)
+    iqr = o["rank_iqr"]
+    m["RankIQRMedian"] = num(_median(iqr))
+    for g in GROUPS:
+        m[f"RankIQRMedian{GROUP_WORD[g]}"] = num(_median(iqr[s.ids_in(g)]))
     rho = o["mean_abs_rho"]
     for name in PARAM_NAMES:
         m[f"Rho{camel(name)}"] = num(rho[name])
@@ -256,6 +276,9 @@ def collect(s: Summary) -> dict[str, str]:
     m["USD"] = usd(sum(h["usd"] for h in s.health))
     for c in ERROR_CLASSES:
         m[f"Invalid{camel(c)}"] = str(sum(h[c] for h in s.health))
+    for old, new in ALIASES:
+        for k in [k for k in m if old in k]:
+            m[k.replace(old, new)] = m[k]
     return m
 
 

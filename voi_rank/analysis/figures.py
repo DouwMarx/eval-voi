@@ -23,9 +23,11 @@ import numpy as np  # noqa: E402
 from matplotlib.transforms import offset_copy  # noqa: E402
 
 from voi_rank.analysis.summary import (  # noqa: E402
+    BEST_TOP,
     CURVE_QS,
     LLM,
     PHYS,
+    ROC_FPR,
     Summary,
     log_param,
     member_display,
@@ -258,7 +260,7 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
     handles = group_handles(groups)
     if zero.any():
         handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec=INK, ms=4,
-                                  label="cannot change the decision (value 0)"))
+                                  label="prior already decisive (value 0)"))
     fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False,
                handletextpad=0.3)
     fig.draw_without_rendering()           # final layout: display coordinates are stable from here
@@ -333,7 +335,7 @@ def fig_headline(s: Summary, out: Path) -> Path | None:
 def fig_indifference(s: Summary, out: Path) -> Path | None:
     with plt.rc_context(STYLE):
         fig, ax = plt.subplots(figsize=(FIG_W * 0.6, FIG_W * 0.6 + 0.3))
-        value_cost_panel(ax, s, "EVSI_ind", r"indifference value EVSI$^\circ$ (USD)")
+        value_cost_panel(ax, s, "EVSI_ind", r"maximum EVSI $\mathrm{EVSI}_{\max}$ (USD)")
         return save(fig, out, "fig_indifference.pdf")
 
 
@@ -400,15 +402,87 @@ def fig_rank_intervals(s: Summary, out: Path) -> Path | None:
         for p, i in zip(pos, idx, strict=True):
             g = s.scenarios[i].group
             lo, med, hi = o["rank_q"][i]
-            ax.plot([lo, hi], [p, p], color=color(g), lw=2.0, alpha=0.6, solid_capstyle="round")
+            q25, q75 = o["rank_iqr_q"][i]
+            ax.plot([lo, hi], [p, p], color=color(g), lw=0.8, alpha=0.8, solid_capstyle="butt")
+            ax.plot([q25, q75], [p, p], color=color(g), lw=3.2, alpha=0.55, solid_capstyle="butt")
             ax.plot(o["rank_central"][i], p, marker(g), color=color(g), ms=4, mec="white", mew=0.4)
             ax.plot(med, p, "|", color=INK, ms=5)
         ax.set_yticks(pos, [scenario_label(s, i) for i in idx])
         ax.set_xlim(0.5, len(idx) + 0.5)
-        ax.set_xlabel("rank by $\\eta$ (1 = best; bar: 90% interval over draws, |: median)")
-        ax.legend(handles=group_handles({sc.group for sc in s.scenarios}), loc="lower right", frameon=False)
+        ax.set_xlabel("rank by $\\eta$ over the Monte Carlo draws (1 = best)")
+        handles = group_handles({sc.group for sc in s.scenarios})
+        handles += [plt.Line2D([], [], color=MUTED, lw=3.2, label="interquartile range"),
+                    plt.Line2D([], [], color=MUTED, lw=0.8, label="90% interval"),
+                    plt.Line2D([], [], marker="|", ls="", color=INK, ms=5, label="median")]
+        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False)
         ax.grid(axis="y", visible=False)
         return save(fig, out, "fig_rank_intervals.pdf")
+
+
+def fig_best_physical_rank(s: Summary, out: Path) -> Path | None:
+    """P(the best-ranked physical-AI evaluation has rank <= N) against N, over
+    the draws, with the central estimate's step (0 below its best physical-AI
+    rank, 1 from it on)."""
+    o = s.out
+    if "best_phys_curve" not in o:
+        print("fig_best_physical_rank: skipped (needs both groups)")
+        return None
+    ns, curve, c = o["best_phys_ns"], o["best_phys_curve"], o["best_phys_central"]
+    with plt.rc_context(STYLE):
+        fig, ax = plt.subplots(figsize=(FIG_W, 2.1))
+        ax.step(ns, curve, where="post", color=COLOR[PHYS], lw=1.4, label="over draws")
+        ax.step(ns, (ns >= c).astype(float), where="post", color=INK, lw=0.9, ls="--",
+                label=f"central estimate (best physical-AI rank {c:g})")
+        for n in BEST_TOP:
+            if n <= len(ns):
+                v = curve[n - 1]
+                ax.plot(n, v, "o", color=COLOR[PHYS], ms=3.5, mec="white", mew=0.4, zorder=3)
+                first = n == ns[0]   # left of the first point is the y axis: label to its right
+                ax.annotate(pct_text(v), (n, v), xytext=(2.5 if first else -2.5, 2.5),
+                            textcoords="offset points", ha="left" if first else "right",
+                            va="bottom", fontsize=MIN_FONT, color=INK, annotation_clip=False)
+        ax.set_xlim(0.5, len(ns) + 0.5)
+        ax.set_ylim(0, 1.03)
+        ax.xaxis.set_major_locator(mticker.FixedLocator([1, *range(5, len(ns) + 1, 5)]))
+        ax.yaxis.set_major_formatter(mticker.PercentFormatter(1.0))
+        ax.set_xlabel(f"$N$ (rank by $\\eta$ among all {len(ns)} evaluations, 1 = best)")
+        ax.set_ylabel("P(best physical-AI rank $\\leq N$)")
+        ax.legend(loc="lower right", frameon=False)
+        return save(fig, out, "fig_best_physical_rank.pdf")
+
+
+ROC_PANELS = (("eta", r"$\eta$"), ("eta_ind", r"$\eta_{\max}$"))
+
+
+def fig_roc(s: Summary, out: Path) -> Path | None:
+    """ROC of 'physical AI' given the score, one panel per metric: the central
+    estimate's curve (its area is A) and the pointwise 5-95% band of the
+    per-draw curves at a fixed false-positive grid."""
+    o = s.out
+    if "roc" not in o:
+        print("fig_roc: skipped (needs both groups)")
+        return None
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, len(ROC_PANELS), figsize=(FIG_W, FIG_W / 2 - 0.05))
+        for ax, (metric, name) in zip(axes, ROC_PANELS, strict=True):
+            r = o["roc"][metric]
+            lo, med, hi = r["band"].T
+            ax.fill_between(ROC_FPR, lo, hi, color=COLOR[PHYS], alpha=0.22, lw=0, label="5-95% over draws")
+            ax.plot(ROC_FPR, med, color=COLOR[PHYS], lw=1.1, label="median over draws")
+            ax.plot(r["fpr"], r["tpr"], color=INK, lw=1.1, label="central estimate")
+            ax.plot([0, 1], [0, 1], color=MUTED, lw=0.6, ls=":")
+            ax.text(0.04, 0.96, f"threshold on {name}\ncentral area $A$ = {pct_text(r['area'])}",
+                    transform=ax.transAxes, ha="left", va="top", fontsize=7, color=INK, linespacing=1.4)
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.set_aspect("equal")
+            ax.xaxis.set_major_formatter(mticker.PercentFormatter(1.0))
+            ax.yaxis.set_major_formatter(mticker.PercentFormatter(1.0))
+            ax.set_xlabel("share of LLM evaluations above the threshold")
+            ax.set_ylabel("share of physical-AI evaluations above it")
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="outside upper center", ncol=len(handles), frameon=False)
+        return save(fig, out, "fig_roc.pdf")
 
 
 def fig_breakeven(s: Summary, out: Path) -> Path | None:
@@ -607,8 +681,9 @@ def fig_members(s: Summary, out: Path) -> Path | None:
         return save(fig, out, "fig_members.pdf")
 
 
-FIGURES = (fig_headline, fig_indifference, fig_percentile_violins, fig_rank_intervals, fig_breakeven,
-           fig_params, fig_sensitivity, fig_level, fig_members)
+FIGURES = (fig_headline, fig_indifference, fig_percentile_violins, fig_rank_intervals,
+           fig_best_physical_rank, fig_roc, fig_breakeven, fig_params, fig_sensitivity, fig_level,
+           fig_members)
 
 
 def write_all(s: Summary, out: Path) -> list[Path]:

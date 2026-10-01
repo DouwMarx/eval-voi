@@ -42,6 +42,10 @@ ERROR_CLASSES = ("json", "schema", "constraint", "fit", "refusal", "truncated", 
 CURVE_QS = np.arange(101)
 QS = (0.05, 0.50, 0.95)
 TOP_K = (3, 5)
+IQR_QS = (0.25, 0.75)
+BEST_TOP = (1, 3, 5, 10)                 # N of the reported P(best physical-AI rank <= N)
+ROC_FPR = np.linspace(0.0, 1.0, 101)     # the false-positive grid of the ROC band
+ROC_METRICS = ("eta", "eta_ind")
 DRAWN = ("EVSI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run", "n_star", "pays")
 COMPARED = ("eta", "eta_ind", "eta_run")
 CHUNK = 20_000   # draws per block in the broadcasting comparisons (memory bound)
@@ -125,6 +129,44 @@ def percentile_among(a, b):
 def ranks_desc(x, axis=0):
     """Rank 1 = the largest value, ties averaged."""
     return stats.rankdata(-np.asarray(x, dtype=float), method="average", axis=axis)
+
+
+def best_rank_curve(ranks, ns):
+    """P(min over rows of rank <= N) for each N, over the columns (draws):
+    ranks is (n_group, D), the group's ranks among every evaluation."""
+    best = np.asarray(ranks, dtype=float).min(axis=0)
+    return np.array([(best <= n).mean() for n in ns])
+
+
+def roc_curve(pos, neg) -> tuple[np.ndarray, np.ndarray]:
+    """ROC of 'positive class' given the score, sweeping a threshold from the
+    highest value down: (FPR, TPR) vertices from (0, 0) to (1, 1). Values tied
+    across the classes enter at one threshold, so the curve runs diagonally
+    there and its trapezoid area is pairwise_share(pos, neg) (ties half)."""
+    pos, neg = np.asarray(pos, dtype=float), np.asarray(neg, dtype=float)
+    lab = np.concatenate([np.ones(len(pos)), np.zeros(len(neg))])
+    _, inv = np.unique(-np.concatenate([pos, neg]), return_inverse=True)   # descending thresholds
+    tp = np.bincount(inv, weights=lab)
+    fp = np.bincount(inv, weights=1.0 - lab)
+    return (np.concatenate([[0.0], np.cumsum(fp) / len(neg)]),
+            np.concatenate([[0.0], np.cumsum(tp) / len(pos)]))
+
+
+def roc_area(fpr, tpr) -> float:
+    return float(np.sum(np.diff(fpr) * (tpr[1:] + tpr[:-1]) / 2.0))
+
+
+def roc_band(pos, neg, grid=ROC_FPR, qs=QS) -> np.ndarray:
+    """Per draw (column), the ROC's TPR linearly interpolated at the FPR grid;
+    returns the quantiles over draws, (len(grid), len(qs)). At a vertical
+    step the interpolation takes numpy's choice of end; the grid rarely hits
+    one exactly."""
+    pos, neg = np.asarray(pos, dtype=float), np.asarray(neg, dtype=float)
+    tprs = np.empty((pos.shape[1], len(grid)))
+    for d in range(pos.shape[1]):
+        f, t = roc_curve(pos[:, d], neg[:, d])
+        tprs[d] = np.interp(grid, f, t)
+    return np.quantile(tprs, qs, axis=0).T
 
 
 def quantiles(vec, qs=QS) -> list[float | None]:
@@ -373,6 +415,9 @@ def compute(s: Summary) -> dict:
     out["rank_central"] = ranks_desc(s.central["eta"])
     out["rank_q"] = np.quantile(ranks, QS, axis=1).T                    # (S, 3)
     out["p_rank_le"] = {k: (ranks <= k).mean(axis=1) for k in TOP_K}
+    iq = np.quantile(ranks, IQR_QS, axis=1).T                             # (S, 2)
+    out["rank_iqr_q"] = iq
+    out["rank_iqr"] = iq[:, 1] - iq[:, 0]
 
     out["groups"] = {}
     for metric in COMPARED:
@@ -389,6 +434,15 @@ def compute(s: Summary) -> dict:
                              "n_pairs": int(len(pc) * len(lc)), "n_phys": int(len(pc)),
                              "n_llm": int(len(lc))}
     if len(phys) and len(llm):
+        top_ns = np.arange(1, len(s.scenarios) + 1)
+        out["best_phys_ns"] = top_ns
+        out["best_phys_curve"] = best_rank_curve(ranks[phys], top_ns)
+        out["best_phys_central"] = float(out["rank_central"][phys].min())
+        out["roc"] = {}
+        for metric in ROC_METRICS:
+            f, t = roc_curve(s.central[metric][phys], s.central[metric][llm])
+            out["roc"][metric] = {"fpr": f, "tpr": t, "area": roc_area(f, t),
+                                  "band": roc_band(s.draws[metric][phys], s.draws[metric][llm])}
         curve_d = percentile_curve(eta[phys], eta[llm])
         out["curve_central"] = percentile_curve(s.central["eta"][phys], s.central["eta"][llm])
         out["curve_q"] = np.quantile(curve_d, QS, axis=1).T              # (101, 3)
@@ -481,6 +535,7 @@ def to_json(s: Summary) -> str:
                     "central": {k: v[i] for k, v in s.central.items()},
                     "rank_central": o["rank_central"][i], "rank_q": o["rank_q"][i],
                     "p_rank_le": {k: v[i] for k, v in o["p_rank_le"].items()},
+                    "rank_q25_q75": o["rank_iqr_q"][i], "rank_iqr": o["rank_iqr"][i],
                     "p_changes": o["p_changes"][i], "p_pays": o["p_pays"][i],
                     "nstar_q": list(o["nstar_q"][i])})
     data = {"run": s.run, "n_group": o["n_group"], "groups": o["groups"],
@@ -493,4 +548,8 @@ def to_json(s: Summary) -> str:
         data["physical_percentile"] = [
             {"id": s.scenarios[i].id, "central": o["pct_central"][k], "q05_q50_q95": o["pct_q"][k],
              "p_beats_median": o["p_beats_median"][k]} for k, i in enumerate(s.ids_in(PHYS))]
+        data["best_physical_rank"] = {"n": o["best_phys_ns"], "p_le": o["best_phys_curve"],
+                                      "central": o["best_phys_central"]}
+        data["roc"] = {m: {"fpr": r["fpr"], "tpr": r["tpr"], "area": r["area"], "grid": ROC_FPR,
+                           "tpr_q05_q50_q95": r["band"]} for m, r in o["roc"].items()}
     return json.dumps(_plain(data), indent=1, sort_keys=True) + "\n"

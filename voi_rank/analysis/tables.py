@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from voi_rank.analysis.macros import esc, num, pct, rank, usd
-from voi_rank.analysis.summary import ERROR_CLASSES, PHYS, Summary, member_display, order
+from voi_rank.analysis.summary import ERROR_CLASSES, PHYS, TOP_K, Summary, member_display, order
 
 SMALL_OPEN = r"\begingroup\footnotesize\setlength{\tabcolsep}{3pt}"
 SMALL_CLOSE = r"\endgroup"
@@ -41,10 +41,11 @@ def headline_table(s: Summary) -> str:
         lo, _, hi = o["rank_q"][i]
         rows.append([str(sc.id), esc(sc.short), usd(c["EVSI"][i]), usd(c["C"][i]), num(c["eta"][i]),
                      num(c["eta_ind"][i]), rank(o["rank_central"][i]), f"{rank(lo)}--{rank(hi)}",
-                     pct(o["p_changes"][i]), num(c["n_star"][i])])
-    header = ["id", "evaluation", "EVSI", "$C$", r"$\eta$", r"$\eta^\circ$", "rank", "rank 90\\%",
-              r"$P(\mathrm{EVSI}>0)$", "$n^*$"]
-    return tabular("rlrrrrrrrr", header, rows)
+                     *[pct(o["p_rank_le"][k][i]) for k in TOP_K], pct(o["p_changes"][i]),
+                     num(c["n_star"][i])])
+    header = ["id", "evaluation", "EVSI", "$C$", r"$\eta$", r"$\eta_{\max}$", "rank", "rank 90\\%",
+              *[rf"$P(\mathrm{{rank}}\le{k})$" for k in TOP_K], r"$P(\mathrm{EVSI}>0)$", "$n^*$"]
+    return tabular("rl" + "r" * (len(header) - 2), header, rows)
 
 
 def health_table(s: Summary) -> str:

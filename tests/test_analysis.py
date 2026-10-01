@@ -20,11 +20,15 @@ from voi_rank.analysis import macros, summary
 from voi_rank.analysis.summary import (
     LLM,
     PHYS,
+    best_rank_curve,
     mann_whitney_p,
     pairwise_share,
     percentile_among,
     percentile_curve,
     ranks_desc,
+    roc_area,
+    roc_band,
+    roc_curve,
 )
 
 # --- hand-built cases ---------------------------------------------------------------
@@ -86,6 +90,34 @@ def test_rank_intervals_of_a_dominant_scenario():
     q = np.quantile(ranks, summary.QS, axis=1).T
     assert q[2].tolist() == [1.0, 1.0, 1.0]
     assert np.all(ranks[3] == 4.5) and np.all(ranks[4] == 4.5)   # tied zeros share 4 and 5
+
+
+def test_roc_area_equals_a_with_ties_half():
+    """The ROC of 'physical AI' given the score has area A = pairwise_share,
+    ties across the groups counting half (the curve runs diagonally there)."""
+    rng = np.random.default_rng(4)
+    for _ in range(50):
+        a = np.where(rng.random(7) < 0.4, 0.0, np.round(rng.lognormal(0, 1, 7), 1))
+        b = np.where(rng.random(11) < 0.4, 0.0, np.round(rng.lognormal(0, 1, 11), 1))
+        f, t = roc_curve(a, b)
+        assert f[0] == t[0] == 0.0 and f[-1] == t[-1] == 1.0
+        assert np.all(np.diff(f) >= 0) and np.all(np.diff(t) >= 0)
+        assert roc_area(f, t) == pytest.approx(pairwise_share(a, b))
+    # all tied: the diagonal, area one half; perfect separation: area one
+    assert roc_area(*roc_curve(np.zeros(3), np.zeros(4))) == pytest.approx(0.5)
+    assert roc_area(*roc_curve(np.array([5.0, 6.0]), np.array([1.0, 2.0, 3.0]))) == 1.0
+    # the band: quantiles over draws, ordered, inside [0, 1], ending at (1, 1)
+    pa = np.where(rng.random((5, 200)) < 0.3, 0.0, rng.lognormal(0, 1, (5, 200)))
+    pb = np.where(rng.random((8, 200)) < 0.3, 0.0, rng.lognormal(0, 1, (8, 200)))
+    band = roc_band(pa, pb)
+    assert band.shape == (101, 3) and np.all(band[:, 0] <= band[:, 1]) and np.all(band[:, 1] <= band[:, 2])
+    assert np.allclose(band[-1], 1.0)
+
+
+def test_best_rank_curve_takes_the_best_member_per_draw():
+    ranks = np.array([[3.0, 1.0, 7.0, 4.5], [5.0, 6.0, 2.0, 4.5]])   # best per draw: 3, 1, 2, 4.5
+    curve = best_rank_curve(ranks, np.arange(1, 6))
+    assert curve.tolist() == [0.25, 0.5, 0.75, 0.75, 1.0]
 
 
 def test_macro_formats():
@@ -209,7 +241,7 @@ def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys
     names = {p.name for p in out.iterdir()}
     want = {"fig_headline.pdf", "fig_indifference.pdf", "fig_percentile_violins.pdf",
             "fig_rank_intervals.pdf", "fig_breakeven.pdf", "fig_params.pdf", "fig_sensitivity.pdf",
-            "fig_level.pdf", "fig_members.pdf",
+            "fig_level.pdf", "fig_members.pdf", "fig_best_physical_rank.pdf", "fig_roc.pdf",
             "tab_scenarios.tex", "tab_headline.tex", "tab_health.tex", "macros.tex", "summary.json"}
     assert want <= names
     for name in want:
@@ -223,7 +255,8 @@ def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys
     names_ = [m.group(1) for m in parsed]
     assert len(names_) == len(set(names_))
     assert {"EtaACentral", "EtaMWp", "CurveMedFifty", "PctScRoboZeroCentral", "USD",
-            "InvalidRefusal"} <= set(names_)
+            "InvalidRefusal", "PBestPhysicalTopOne", "PBestPhysicalTopFive", "BestPhysicalRankCentral",
+            "RankIQRMedian", "RankIQRMedianPhysical", "RankIQRMedianLLM", "EtaMaxACentral"} <= set(names_)
     body = ("\\input{macros.tex}\n" + "\n".join(f"\\voi{n}\\par" for n in names_)
             + "\n" + "\n".join(f"\\input{{{t}}}" for t in ("tab_scenarios", "tab_headline", "tab_health")))
     for f in ("macros.tex", "tab_scenarios.tex", "tab_headline.tex", "tab_health.tex"):
@@ -398,3 +431,26 @@ def test_row_labels_are_abbreviated_at_a_word():
     out = abbreviate(long)
     assert len(out) <= LABEL_CHARS and out.endswith("…") and long.startswith(out[:-1])
     assert abbreviate("3 VCT") == "3 VCT"
+
+
+def test_robustness_outputs_match_their_definitions(elicited):
+    """The ROC area at the central estimate and on every draw is A; the
+    best-physical-rank curve and the rank IQR macros follow from the draws."""
+    study, _ = elicited
+    s = summary.load(study.connect_copy(), "pS", draws=400)
+    o, m = s.out, macros.collect(s)
+    phys, llm = s.ids_in(PHYS), s.ids_in(LLM)
+    for metric in summary.ROC_METRICS:
+        assert o["roc"][metric]["area"] == pytest.approx(o["groups"][metric]["A_central"])
+        d_phys, d_llm = s.draws[metric][phys], s.draws[metric][llm]
+        per_draw = [roc_area(*roc_curve(d_phys[:, d], d_llm[:, d])) for d in range(400)]
+        assert np.allclose(per_draw, pairwise_share(s.draws[metric][phys], s.draws[metric][llm]))
+    ranks = ranks_desc(s.draws["eta"], axis=0)
+    best = ranks[phys].min(axis=0)
+    assert m["PBestPhysicalTopThree"] == macros.pct((best <= 3).mean())
+    assert o["best_phys_curve"][-1] == 1.0 and np.all(np.diff(o["best_phys_curve"]) >= 0)
+    assert m["BestPhysicalRankCentral"] == macros.rank(o["rank_central"][phys].min())
+    iqr = np.quantile(ranks, 0.75, axis=1) - np.quantile(ranks, 0.25, axis=1)
+    assert m["RankIQRMedian"] == macros.num(float(np.median(iqr)))
+    assert m["RankIQRMedianLLM"] == macros.num(float(np.median(iqr[llm])))
+    assert m["EtaMaxACentral"] == m["EtaIndACentral"] and m["MedEtaMaxLLM"] == m["MedEtaIndLLM"]
