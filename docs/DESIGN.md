@@ -104,5 +104,5 @@ Deleted (recoverable from git): the Gaussian-state family, the proposer, the man
 
 - No OpenRouter call except the designated smoke test with PERSONAL_OPENROUTER_API_KEY; no paid claude_cli elicitation except the designated run steps.
 - Never write to a database under archive/ (`Study.connect` refuses one; `connect_copy` reads it, and `--dry-run` plans a two-stage protocol file on a copy: the archived protocols exit with the registration's message). Never read a secret's value (key names only).
-- Work in the assigned worktree or directory; commit there with the trailer "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"; never push, never touch master.
+- Work in the assigned worktree or directory; commit there with the Co-Authored-By trailer the session specifies; never push, never touch master.
 - Tests: `uv run pytest -q` and `uv run ruff check .` green before every commit. No test is skipped or weakened to pass.
