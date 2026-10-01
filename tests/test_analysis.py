@@ -235,6 +235,26 @@ def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys
     assert all((out / n).read_bytes() == before[n] for n in want)
 
 
+def test_group_medians_explain_the_comparison(elicited):
+    """The why-macros: per-group medians, the LLM-to-physical ratios, and the two
+    zero regimes, which together never exceed the evaluations that cannot change
+    the decision."""
+    study, _ = elicited
+    s = summary.load(study.connect_copy(), "pS", draws=1000)
+    m = macros.collect(s)
+    for w in ("Physical", "LLM"):
+        want_keys = {f"MedStakes{w}", f"MedStakesPerCost{w}", f"MedEtaInd{w}", f"MedCBuild{w}", f"MedP{w}"}
+        assert want_keys <= set(m)
+        idx = s.ids_in(PHYS if w == "Physical" else LLM)
+        zeros = int((~(s.central["EVSI"][idx] > 0)).sum())
+        assert int(m[f"NRespondsRegardless{w}"]) + int(m[f"NDeploysRegardless{w}"]) <= zeros
+    stakes = s.pooled["B"] + s.pooled["K"]
+    spc = stakes / s.central["C"]
+    want = float(np.median(spc[s.ids_in(LLM)]) / np.median(spc[s.ids_in(PHYS)]))
+    assert m["StakesPerCostRatio"] == macros.num(want)
+    assert m["MemberList"] == "haiku, sonnet"
+
+
 def test_developer_ablation_is_tagged_and_takes_p_b_k_from_the_other_protocol(elicited):
     study, _ = elicited
     cli.main(["--study", str(study.root), "--protocol", "pS", "--decision-from", "pD", "--tag", "dev",

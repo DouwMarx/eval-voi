@@ -132,6 +132,52 @@ class Unique(dict):
         super().__setitem__(key, value)
 
 
+def _median(v) -> float | None:
+    v = np.asarray(v, dtype=float)
+    v = v[np.isfinite(v)]
+    return float(np.median(v)) if v.size else None
+
+
+def _ratio(a, b) -> float | None:
+    return a / b if a is not None and b not in (None, 0.0) else None
+
+
+def group_medians(s: Summary, m: dict) -> None:
+    """Why the groups differ: per group, the median over evaluations of each
+    pooled median (Med<Param><Group>), of the stakes B+K, of the stakes per
+    dollar (B+K)/C and of eta_ind; the LLM-to-physical ratios of the last two
+    (StakesPerCostRatio, EtaIndRatio: the factor by which physical-AI stakes
+    would have to grow to match, since EVSI and EVSI° scale with B+K at a fixed
+    threshold K/(B+K)); and the two regimes in which the central estimate's
+    result cannot change the decision (NRespondsRegardless: pi0 >= pi*,
+    NDeploysRegardless: pi1 <= pi*). MemberList: the members' model ids."""
+    pl = s.pooled
+    stakes = pl["B"] + pl["K"]
+    per_cost = stakes / s.central["C"]
+    p, sens, spec = pl["p"], pl["s"], pl["t"]
+    p1 = p * sens + (1 - p) * (1 - spec)
+    pi1 = p * sens / p1
+    pi0 = p * (1 - sens) / (1 - p1)
+    pistar = pl["K"] / stakes
+    zero = ~(s.central["EVSI"] > 0)
+    med: dict[str, dict[str, float | None]] = {}
+    for g in GROUPS:
+        idx = s.ids_in(g)
+        w = GROUP_WORD[g]
+        med[g] = {"spc": _median(per_cost[idx]), "ind": _median(s.central["eta_ind"][idx])}
+        for name in PARAM_NAMES:
+            v = _median(pl[name][idx])
+            m[f"Med{camel(name)}{w}"] = usd(v) if name in ("B", "K", "C_build", "C_run") else num(v)
+        m[f"MedStakes{w}"] = usd(_median(stakes[idx]))
+        m[f"MedStakesPerCost{w}"] = num(med[g]["spc"])
+        m[f"MedEtaInd{w}"] = num(med[g]["ind"])
+        m[f"NRespondsRegardless{w}"] = str(int((zero[idx] & (pi0[idx] >= pistar[idx])).sum()))
+        m[f"NDeploysRegardless{w}"] = str(int((zero[idx] & (pi1[idx] <= pistar[idx])).sum()))
+    m["StakesPerCostRatio"] = num(_ratio(med[LLM]["spc"], med[PHYS]["spc"]))
+    m["EtaIndRatio"] = num(_ratio(med[LLM]["ind"], med[PHYS]["ind"]))
+    m["MemberList"] = esc(", ".join(lab.split(":", 1)[-1] for lab in s.member_labels))
+
+
 def collect(s: Summary) -> dict[str, str]:
     o, m = s.out, Unique()
     keys = scenario_keys(s)
@@ -176,6 +222,7 @@ def collect(s: Summary) -> dict[str, str]:
         m[f"NPays{w}"] = str(int((o["p_pays"][idx] > 0.5).sum()))
         m[f"PPaysMedian{w}"] = pct(float(np.median(o["p_pays"][idx])) if len(idx) else None)
         m[f"EtaMedian{w}"] = num(float(np.median(s.central["eta"][idx])) if len(idx) else None)
+    group_medians(s, m)
     rho = o["mean_abs_rho"]
     for name in PARAM_NAMES:
         m[f"Rho{camel(name)}"] = num(rho[name])
