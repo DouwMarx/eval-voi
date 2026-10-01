@@ -332,3 +332,69 @@ def test_member_labels_are_shown_without_provider_prefix(elicited):
     assert HAIKU in summary.to_json(s)          # the machine-readable output keeps the full label
     assert summary.member_display("openrouter:meta/llama-3") == "meta/llama-3"
 
+
+# --- figure layout -----------------------------------------------------------------------
+
+def test_fan_positions_keep_order_pitch_and_bounds():
+    from voi_rank.analysis.figures import fan_positions
+    anchor = np.array([50.0, 10.0, 30.0, 30.0, 20.0])
+    cx = fan_positions(anchor, [8.0] * 5, lo=0.0, hi=100.0, gap=2.0)
+    order_ = np.argsort(anchor, kind="stable")
+    assert np.allclose(np.diff(cx[order_]), 6.0)                    # one pitch: half a label + gap
+    assert cx.min() - 4.0 >= 0.0 and cx.max() + 4.0 <= 100.0
+    pushed = fan_positions(np.array([1.0, 2.0, 3.0]), [8.0] * 3, lo=0.0, hi=100.0, gap=2.0)
+    assert pushed.min() - 4.0 >= -1e-9                               # shifted right, inside the axes
+
+
+def _boxes(fig, texts):
+    """The text boxes alone (an Annotation's own extent includes its leader line)."""
+    from matplotlib.text import Text
+    fig.draw_without_rendering()
+    r = fig.canvas.get_renderer()
+    return [Text.get_window_extent(t, r) for t in texts]
+
+
+def test_value_cost_panel_labels_do_not_overlap_and_the_arrow_is_orthogonal():
+    """17 zero-value evaluations within one decade of cost (the real run's
+    shape) and a dense positive cluster: no two id labels overlap, the arrow
+    points along (-1, +1) on equal decades and sits clear of every marker."""
+    from types import SimpleNamespace
+
+    import matplotlib.pyplot as plt
+
+    from voi_rank.analysis import figures
+    rng = np.random.default_rng(3)
+    n_pos, n_zero = 22, 17
+    c = np.concatenate([10 ** rng.uniform(4.4, 6.3, n_pos), 10 ** rng.uniform(5.0, 6.0, n_zero)])
+    v = np.concatenate([10 ** rng.uniform(5.0, 8.3, n_pos), np.zeros(n_zero)])
+    scen = [SimpleNamespace(id=i + 1, group=PHYS if i % 3 == 0 else LLM) for i in range(n_pos + n_zero)]
+    s = SimpleNamespace(central={"C": c, "EVSI": v}, scenarios=scen)
+    with plt.rc_context(figures.STYLE):
+        fig, ax = plt.subplots(figsize=(figures.FIG_W / 2, figures.FIG_W / 2 + 0.3))
+        figures.value_cost_panel(ax, s, "EVSI", "EVSI (USD)")
+        labels = [t for t in ax.texts if t.get_text().isdigit()]
+        assert sorted(int(t.get_text()) for t in labels) == list(range(1, n_pos + n_zero + 1))
+        boxes = _boxes(fig, labels)
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                assert not boxes[i].overlaps(boxes[j]), (labels[i].get_text(), labels[j].get_text())
+        arrows = [t for t in ax.texts if t.get_text() == "" and getattr(t, "arrow_patch", None) is not None]
+        assert len(arrows) == 1
+        head = ax.transAxes.transform(arrows[0].xy)
+        tail = ax.transAxes.transform(arrows[0].xyann)
+        d = head - tail
+        assert d[0] < 0 < d[1] and abs(abs(d[0]) - abs(d[1])) < 0.5     # (-1, +1): 45 degrees on screen
+        lo, hi = ax.get_xlim(), ax.get_ylim()
+        assert np.isclose(np.log10(lo[1] / lo[0]), np.log10(hi[1] / hi[0]))   # equal decades
+        pts = ax.transData.transform(np.column_stack([c[:n_pos], v[:n_pos]]))
+        seg = np.linspace(tail, head, 20)
+        assert np.hypot(*(seg[:, None, :] - pts[None, :, :]).transpose(2, 0, 1)).min() > 5.0
+        plt.close(fig)
+
+
+def test_row_labels_are_abbreviated_at_a_word():
+    from voi_rank.analysis.figures import LABEL_CHARS, abbreviate
+    long = "31 ISO 10218 / ISO/TS 15066 power-and-force-limiting contact tests"
+    out = abbreviate(long)
+    assert len(out) <= LABEL_CHARS and out.endswith("…") and long.startswith(out[:-1])
+    assert abbreviate("3 VCT") == "3 VCT"

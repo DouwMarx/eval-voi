@@ -22,12 +22,19 @@ import matplotlib.ticker as mticker  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.transforms import offset_copy  # noqa: E402
 
-from voi_rank.analysis.summary import CURVE_QS, LLM, PHYS, Summary, log_param, order  # noqa: E402
+from voi_rank.analysis.summary import (  # noqa: E402
+    CURVE_QS,
+    LLM,
+    PHYS,
+    Summary,
+    log_param,
+    member_display,
+    order,
+)
 from voi_rank.fit import PARAM_NAMES  # noqa: E402
 
 logging.getLogger("fontTools").setLevel(logging.ERROR)   # TrueType embedding chatter
 FIG_W = 5.5
-FLOOR_STAGGER = (0.0, 0.3, -0.3)   # decades: the sub-rows of the zero row
 MIN_FONT = 6.5
 COLOR = {PHYS: "#D55E00", LLM: "#0072B2", None: "#7f7f7f"}
 MARKER = {PHYS: "^", LLM: "o", None: "s"}
@@ -79,19 +86,24 @@ def group_handles(groups) -> list:
 OFFSETS = ((3.5, 2.0, "left", "bottom"), (-3.5, 2.0, "right", "bottom"), (3.5, -2.0, "left", "top"),
            (-3.5, -2.0, "right", "top"), (0.0, 4.5, "center", "bottom"), (0.0, -4.5, "center", "top"),
            (5.0, 0.0, "left", "center"), (-5.0, 0.0, "right", "center"))
+FAR = 2.6           # the second ring of candidates: OFFSETS scaled, with a leader line
+FAR_COST = 0.15     # a far label costs this share of its own area (prefer the near ring)
+LABEL_PAD_PT = 1.0  # labels closer than this to each other count as overlapping
 
 
 def place_labels(ax, xy, texts, marker_pt: float = 5.0, avoid=()) -> None:
     """Label each point at the candidate offset that overlaps least with the
-    markers, the labels already placed, the `avoid` artists and the outside
-    of the axes (greedy, most crowded points first). Call once limits and
-    layout are final."""
+    markers, the labels already placed (padded by LABEL_PAD_PT), the `avoid`
+    artists and the outside of the axes (greedy, most crowded points first).
+    Candidates: OFFSETS, then the same directions FAR times farther with a
+    leader line, at a small extra cost. Call once limits and layout are final."""
     fig = ax.figure
     fig.draw_without_rendering()
     renderer = fig.canvas.get_renderer()
     data = np.asarray(xy, dtype=float).reshape(-1, 2)
     pts = ax.transData.transform(data)
     half = marker_pt / 2.0 * fig.dpi / 72.0
+    pad = LABEL_PAD_PT * fig.dpi / 72.0
     boxes = [np.array([x - half, y - half, x + half, y + half]) for x, y in pts]
     for a in avoid:
         e = a.get_window_extent(renderer)
@@ -102,26 +114,31 @@ def place_labels(ax, xy, texts, marker_pt: float = 5.0, avoid=()) -> None:
         return max(0.0, min(b[2], o[2]) - max(b[0], o[0])) * max(0.0, min(b[3], o[3]) - max(b[1], o[1]))
 
     frame = np.array([fr.x0, fr.y0, fr.x1, fr.y1])
+    cands = [(dx, dy, ha, va, False) for dx, dy, ha, va in OFFSETS]
+    cands += [(FAR * dx, FAR * dy, ha, va, True) for dx, dy, ha, va in OFFSETS]
     crowd = (np.hypot(*(pts[:, None, :] - pts[None, :, :]).transpose(2, 0, 1)) < 20.0).sum(axis=1)
     for i in sorted(range(len(pts)), key=lambda k: (-crowd[k], k)):
         ann = ax.annotate(texts[i], tuple(data[i]), textcoords="offset points", xytext=(0, 0),
                           fontsize=MIN_FONT, color=INK, zorder=4, annotation_clip=False)
-        ann.set_in_layout(False)
         best = None
-        for dx, dy, ha, va in OFFSETS:
+        for dx, dy, ha, va, far in cands:
             ann.set_position((dx, dy))
             ann.set_ha(ha)
             ann.set_va(va)
             e = ann.get_window_extent(renderer)
-            b = np.array([e.x0, e.y0, e.x1, e.y1])
+            b = np.array([e.x0 - pad, e.y0 - pad, e.x1 + pad, e.y1 + pad])
             area = (b[2] - b[0]) * (b[3] - b[1])
-            cost = sum(overlap(b, o) for o in boxes) + 4.0 * (area - overlap(b, frame))
+            cost = (sum(overlap(b, o) for o in boxes) + 4.0 * (area - overlap(b, frame))
+                    + (FAR_COST * area if far else 0.0))
             if best is None or cost < best[0] - 1e-9:
-                best = (cost, (dx, dy, ha, va), b)
-        dx, dy, ha, va = best[1]
-        ann.set_position((dx, dy))
-        ann.set_ha(ha)
-        ann.set_va(va)
+                best = (cost, (dx, dy, ha, va, far), b)
+        ann.remove()
+        dx, dy, ha, va, far = best[1]
+        lead = {"arrowstyle": "-", "color": MUTED, "lw": 0.4, "shrinkA": 0.5, "shrinkB": 2.5}
+        ann = ax.annotate(texts[i], tuple(data[i]), textcoords="offset points", xytext=(dx, dy), ha=ha,
+                          va=va, fontsize=MIN_FONT, color=INK, zorder=4, annotation_clip=False,
+                          arrowprops=lead if far else None)
+        ann.set_in_layout(False)
         boxes.append(best[2])
 
 
@@ -134,22 +151,74 @@ def floor_of(values) -> float:
     return 10.0 ** (math.floor(math.log10(v.min())) - 1) if v.size else 1.0
 
 
+def fan_positions(anchor, widths, lo: float, hi: float, gap: float) -> np.ndarray:
+    """Label centres (display units) for labels whose anchors cluster: in
+    anchor order, alternating between two rows, consecutive labels one
+    pitch apart (pitch = widest label + gap, so neighbours within a row are
+    two pitches apart), the run centred on the anchors' mean and shifted to
+    stay inside [lo, hi]. Returns one centre per label, in input order."""
+    anchor = np.asarray(anchor, dtype=float)
+    n = len(anchor)
+    if n == 0:
+        return np.zeros(0)
+    pitch = max(widths) / 2.0 + gap
+    span = (n - 1) * pitch
+    start = float(anchor.mean()) - span / 2.0
+    start = min(max(start, lo + max(widths) / 2.0), hi - max(widths) / 2.0 - span)
+    out = np.empty(n)
+    out[np.argsort(anchor, kind="stable")] = start + pitch * np.arange(n)
+    return out
+
+
+ARROW_LEN = 0.13   # axes fraction, along (-1, +1)
+ARROW_INSET = 0.05
+
+
+def arrow_corners(band_top: float) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    """(head, tail) in axes fraction for the four corners above the zero
+    band, the head always up-left of the tail: direction (-1, +1), which on
+    equal decades is orthogonal to the iso-efficiency lines."""
+    m, L, b = ARROW_INSET, ARROW_LEN, band_top
+    return [((m, 1 - m), (m + L, 1 - m - L)), ((1 - m - L, 1 - m), (1 - m, 1 - m - L)),
+            ((m, b + m + L), (m + L, b + m)), ((1 - m - L, b + m + L), (1 - m, b + m))]
+
+
+def best_corner(ax, obstacles_px: np.ndarray, band_top: float):
+    """The corner whose arrow lies farthest (minimum distance, display units)
+    from every obstacle point; ties go to the first corner in arrow_corners."""
+    best = None
+    for head, tail in arrow_corners(band_top):
+        seg = ax.transAxes.transform(np.linspace(head, tail, 12))
+        d = (np.hypot(*(seg[:, None, :] - obstacles_px[None, :, :]).transpose(2, 0, 1)).min()
+             if len(obstacles_px) else math.inf)
+        if best is None or d > best[0] + 1e-9:
+            best = (d, head, tail)
+    return best[1], best[2]
+
+
+ZERO_ROWS = (0.5, 1.0)   # decades below the zero row: the two staggered rows of its ids
+ZERO_BAND = 1.35         # decades from the zero row to the bottom of the axes
+
+
 def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
     """EVSI-type value (y) against C (x) at the central estimate, log-log
     with equal decades, iso-efficiency lines, the 'better' arrow along
-    (-1, +1) in log space (orthogonal to the iso-lines), zero values on a
-    floor row labelled 0, ids as labels."""
+    (-1, +1) in log space (orthogonal to the iso-lines) in the corner
+    farthest from the points, ids as labels. Zero values sit on a row
+    labelled 0 at their true cost; their ids, which would collide (the
+    zeros cluster in cost), fan out below in two staggered rows with leader
+    lines, in cost order."""
+    fig = ax.figure
     x, y = s.central["C"], s.central[metric]
     zero = ~(y > 0)
     floor = floor_of(y)
-    # the zero row, staggered over three sub-rows (by cost order) so its labels have room
-    stagger = np.zeros(len(y))
+    lf = math.log10(floor)
+    ids = [str(sc.id) for sc in s.scenarios]
     zi = np.flatnonzero(zero)
-    stagger[zi[np.argsort(x[zi], kind="stable")]] = np.resize(FLOOR_STAGGER, len(zi))
-    yy = np.where(zero, floor * 10.0 ** stagger, y)
+    pos = y[~zero]
     lx = [math.log10(x.min()) - 0.4, math.log10(x.max()) + 0.4]
-    ly = [math.log10(floor) - 0.5 if zero.any() else math.log10(yy.min()) - 0.4,
-          math.log10(yy.max()) + 0.6]
+    ly = [lf - ZERO_BAND if zero.any() else math.log10(pos.min()) - 0.4,
+          (math.log10(pos.max()) if pos.size else lf) + 0.6]
     span = max(lx[1] - lx[0], ly[1] - ly[0])
     lx = [(lx[0] + lx[1] - span) / 2, (lx[0] + lx[1] + span) / 2]
     ly = [ly[0], ly[0] + span]
@@ -164,16 +233,19 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
         # label where the line leaves the top or right edge
         xe = min(lx[1], ly[1] - k) - 0.35
         ye = xe + k
-        if lx[0] + 0.5 < xe and ly[0] + 0.8 < ye < ly[1] - 0.05 and k % 2 == 0:
+        if lx[0] + 0.5 < xe and lf + 1.0 < ye < ly[1] - 0.05 and k % 2 == 0:
             ax.text(10 ** xe, 10 ** ye, rf"$\eta=10^{{{k}}}$", fontsize=MIN_FONT, color=MUTED,
                     rotation=45, rotation_mode="anchor", ha="right", va="bottom")
+    avoid, band_top = [], 0.0
     if zero.any():
-        ax.axhspan(10 ** ly[0], floor * 10 ** 0.45, color="#f3f3f3", lw=0, zorder=0.5)
-        ticks = [10.0 ** k for k in range(math.ceil(math.log10(floor) + 1), math.floor(ly[1]) + 1)]
+        avoid.append(ax.axhspan(10 ** ly[0], floor * 10 ** 0.45, color="#f3f3f3", lw=0, zorder=0.5))
+        band_top = (lf + 0.45 - ly[0]) / (ly[1] - ly[0])
+        ticks = [10.0 ** k for k in range(math.ceil(lf + 1), math.floor(ly[1]) + 1)]
         ax.yaxis.set_major_locator(mticker.FixedLocator([floor, *ticks]))
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(
             lambda v, _: "0" if math.isclose(v, floor) else f"$10^{{{round(math.log10(v))}}}$"))
         ax.yaxis.set_minor_locator(mticker.NullLocator())
+    yy = np.where(zero, floor, y)
     groups = [sc.group for sc in s.scenarios]
     for g in sorted(set(groups), key=str):
         m = np.array([gg == g for gg in groups])
@@ -181,18 +253,55 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
                 mew=0.4, zorder=3)
         ax.plot(x[m & zero], yy[m & zero], marker(g), ls="", mfc="white", mec=color(g), ms=4.5,
                 mew=0.8, zorder=3)
-    arrow = ax.annotate("better", xy=(0.06, 0.94), xytext=(0.22, 0.78), xycoords="axes fraction",
-                        textcoords="axes fraction", fontsize=MIN_FONT, color=INK, ha="left", va="top",
-                        arrowprops={"arrowstyle": "-|>", "color": INK, "lw": 0.8})
     ax.set_xlabel("cost $C$ (USD)")
     ax.set_ylabel(ylabel)
     handles = group_handles(groups)
     if zero.any():
         handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec=INK, ms=4,
                                   label="cannot change the decision (value 0)"))
-    ax.figure.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False,
-                     handletextpad=0.3)
-    place_labels(ax, np.column_stack([x, yy]), [str(sc.id) for sc in s.scenarios], avoid=[arrow])
+    fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False,
+               handletextpad=0.3)
+    fig.draw_without_rendering()           # final layout: display coordinates are stable from here
+    renderer = fig.canvas.get_renderer()
+    if len(zi):
+        fr = ax.get_window_extent(renderer)
+        probe = ax.text(0, 0, "", fontsize=MIN_FONT)
+        widths = []
+        for i in zi:
+            probe.set_text(ids[i])
+            widths.append(probe.get_window_extent(renderer).width)
+        probe.remove()
+        anchor = ax.transData.transform(np.column_stack([x[zi], yy[zi]]))[:, 0]
+        cx = fan_positions(anchor, widths, fr.x0 + 2, fr.x1 - 2, 3.0 * fig.dpi / 72.0)
+        row = np.empty(len(zi), dtype=int)
+        row[np.argsort(anchor, kind="stable")] = np.arange(len(zi)) % 2
+        inv = ax.transData.inverted()
+        for k, i in enumerate(zi):
+            lx_data = inv.transform((cx[k], 0.0))[0]
+            ann = ax.annotate(ids[i], (x[i], floor), xytext=(lx_data, floor * 10.0 ** -ZERO_ROWS[row[k]]),
+                              ha="center", va="center", fontsize=MIN_FONT, color=INK, zorder=4,
+                              annotation_clip=False,
+                              arrowprops={"arrowstyle": "-", "color": MUTED, "lw": 0.4, "shrinkA": 1.5,
+                                          "shrinkB": 2.5})
+            ann.set_in_layout(False)
+    # the arrow goes to the corner farthest from the points and the iso-line labels
+    obst = [ax.transData.transform(np.column_stack([x[~zero], yy[~zero]]))]
+    for txt in ax.texts:
+        e = txt.get_window_extent(renderer)
+        obst.append(np.array([[e.x0, e.y0], [e.x1, e.y1], [e.x0, e.y1], [e.x1, e.y0],
+                              [(e.x0 + e.x1) / 2, (e.y0 + e.y1) / 2]]))
+    head, tail = best_corner(ax, np.vstack(obst), band_top)
+    arrow = ax.annotate("", xy=head, xytext=tail, xycoords="axes fraction", textcoords="axes fraction",
+                        arrowprops={"arrowstyle": "-|>", "color": INK, "lw": 0.8})
+    mid = ((head[0] + tail[0]) / 2, (head[1] + tail[1]) / 2)
+    word = ax.annotate("better", mid, xycoords="axes fraction", textcoords="offset points",
+                       xytext=(1.5, 1.5), rotation=-45, rotation_mode="anchor", ha="center", va="bottom",
+                       fontsize=MIN_FONT, color=INK)
+    for a in (arrow, word):
+        a.set_in_layout(False)
+    nz = np.flatnonzero(~zero)
+    place_labels(ax, np.column_stack([x[nz], yy[nz]]), [ids[i] for i in nz],
+                 avoid=[*avoid, arrow, word, *ax.texts])
 
 
 def curve_panel(ax, s: Summary) -> None:
@@ -230,9 +339,19 @@ def fig_indifference(s: Summary, out: Path) -> Path | None:
 
 # --- distributions per evaluation ------------------------------------------------------
 
+LABEL_CHARS = 28   # row labels longer than this are cut at a word boundary with an ellipsis
+
+
+def abbreviate(text: str, limit: int = LABEL_CHARS) -> str:
+    if len(text) <= limit:
+        return text
+    cut = text[:limit - 1].rsplit(" ", 1)[0] if " " in text[:limit - 1] else text[:limit - 1]
+    return cut.rstrip(" -/,:;") + "\u2026"
+
+
 def scenario_label(s: Summary, i: int) -> str:
     sc = s.scenarios[i]
-    return f"{sc.id} {sc.short}"
+    return abbreviate(f"{sc.id} {sc.short}")
 
 
 def _violins(ax, data, positions, col):
@@ -314,16 +433,36 @@ def fig_breakeven(s: Summary, out: Path) -> Path | None:
             plt.close(fig)
             return None
         ax.set_yticks(pos, [scenario_label(s, i) for i in idx])
+        ax.set_ylim(-0.7, len(idx) - 0.3)
+        lo, hi = ax.get_xlim()
+        step = max(1, math.ceil((hi - lo) / 8))
+        ax.xaxis.set_major_locator(mticker.MultipleLocator(step))
+        ax.xaxis.set_minor_locator(mticker.MultipleLocator(1))
         ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"$10^{{{v:g}}}$"))
-        ax.xaxis.set_major_locator(mticker.MultipleLocator(1))
-        ax.set_xlabel("break-even reuse count $n^*$ (violin: finite draws; x: elicited $n$;"
-                      " right: P(pays))")
-        ax.legend(handles=group_handles({sc.group for sc in s.scenarios}), loc="lower right", frameon=False)
+        ax.set_xlabel("break-even reuse count $n^*$ (log scale; violin: finite draws over the Monte Carlo)")
+        ax.annotate("P(pays)", (1.0, 1.0), xycoords="axes fraction", xytext=(3, 1),
+                    textcoords="offset points", ha="left", va="bottom", fontsize=MIN_FONT, color=INK,
+                    annotation_clip=False)
+        handles = group_handles({sc.group for sc in s.scenarios})
+        handles.append(plt.Line2D([], [], marker="x", ls="", color=INK, ms=4, mew=0.9, label="elicited $n$"))
+        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False)
         ax.grid(axis="y", visible=False)
         return save(fig, out, "fig_breakeven.pdf")
 
 
 # --- inputs --------------------------------------------------------------------------
+
+def decade_ticks(ax, max_ticks: int = 3) -> None:
+    """At most max_ticks major ticks on a log x axis, at whole decades
+    evenly stepped, labelled 10^k unrotated; minor ticks at every decade."""
+    lo, hi = ax.get_xlim()
+    k0, k1 = math.ceil(math.log10(lo)), math.floor(math.log10(hi))
+    step = max(1, math.ceil((k1 - k0 + 1) / max_ticks))
+    ax.xaxis.set_major_locator(mticker.FixedLocator([10.0 ** k for k in range(k0, k1 + 1, step)]))
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"$10^{{{round(math.log10(v))}}}$"))
+    ax.xaxis.set_minor_locator(mticker.FixedLocator([10.0 ** k for k in range(k0, k1 + 1)]))
+    ax.xaxis.set_minor_formatter(mticker.NullFormatter())
+
 
 def fig_params(s: Summary, out: Path) -> Path | None:
     """One panel per parameter: every member's elicited medians per scenario
@@ -344,25 +483,21 @@ def fig_params(s: Summary, out: Path) -> Path | None:
                 ax.plot(s.pooled[name][i], p, "|", color=INK, ms=5, mew=1.0)
             if log_param(name):
                 ax.set_xscale("log")
-                lo, hi = ax.get_xlim()
-                k0, k1 = math.ceil(math.log10(lo)), math.floor(math.log10(hi))
-                step = max(1, math.ceil((k1 - k0 + 1) / 3))
-                ax.xaxis.set_major_locator(mticker.FixedLocator([10.0 ** k for k in range(k0, k1 + 1, step)]))
-                ax.xaxis.set_minor_locator(mticker.NullLocator())
-                ax.tick_params(axis="x", labelrotation=90)
+                decade_ticks(ax, max_ticks=2)
             else:
                 ax.set_xlim(0, 1)
-                ax.set_xticks([0, 0.5, 1], ["0", ".5", "1"])
+                ax.set_xticks([0, 0.5, 1], ["0", "", "1"])
             ax.set_title(PARAM_LABEL[name].replace(" (USD)", ""), fontsize=7)
             ax.grid(axis="y", visible=False)
         axes[0].set_yticks(pos, [scenario_label(s, i) for i in idx])
+        axes[0].set_ylim(-0.7, len(idx) - 0.3)
         axes[0].tick_params(axis="y", pad=10)
         for p, i in zip(pos, idx, strict=True):
             g = s.scenarios[i].group
             axes[0].plot([0.0], [p], marker(g), color=color(g), ms=3, clip_on=False,
                          transform=offset_copy(axes[0].get_yaxis_transform(), fig, x=-6, units="points"))
         handles = [plt.Line2D([], [], marker="o", ls="", ms=3, color=MEMBER_COLORS[k % len(MEMBER_COLORS)],
-                              label=lab) for k, lab in enumerate(labs)]
+                              label=member_display(lab)) for k, lab in enumerate(labs)]
         handles.append(plt.Line2D([], [], marker="|", ls="", ms=5, color=INK, label="pooled median"))
         handles += group_handles({sc.group for sc in s.scenarios})
         fig.legend(handles=handles, loc="outside upper center", ncol=min(len(handles), 5), frameon=False)
@@ -459,14 +594,14 @@ def fig_members(s: Summary, out: Path) -> Path | None:
                 ax.set_xlim(lo, hi)
                 ax.set_ylim(lo, hi)
             ax.set_title(PARAM_LABEL[name].replace(" (USD)", ""), fontsize=7)
-        xl = labs[0] if len(labs) == 2 else "member"
-        yl = labs[1] if len(labs) == 2 else "median of the other members"
+        xl = member_display(labs[0]) if len(labs) == 2 else "member"
+        yl = member_display(labs[1]) if len(labs) == 2 else "median of the other members"
         fig.supxlabel(f"pooled median of {xl}", fontsize=7)
         fig.supylabel(yl, fontsize=7)
         handles = group_handles(set(groups))
         if len(labs) > 2:
             handles += [plt.Line2D([], [], marker="o", ls="", ms=4, mfc="white", mew=1.0,
-                                   mec=MEMBER_COLORS[k % len(MEMBER_COLORS)], label=lab)
+                                   mec=MEMBER_COLORS[k % len(MEMBER_COLORS)], label=member_display(lab))
                         for k, lab in enumerate(labs)]
         fig.legend(handles=handles, loc="outside upper center", ncol=min(len(handles), 4), frameon=False)
         return save(fig, out, "fig_members.pdf")
