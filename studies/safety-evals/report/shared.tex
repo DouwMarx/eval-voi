@@ -8,8 +8,7 @@
 % colours of the two elicitation prompts in the method figure
 \definecolor{decisioncol}{HTML}{009E73}
 \definecolor{instrumentcol}{HTML}{CC79A7}
-% \reportdir: path from the compiling document to this directory; \inextended{x}: "the
-% extended report" in the paper, x in the extended report (which sets \extendedtrue first).
+% \reportdir: path from the compiling document to this directory. \ifextended: true in the
+% extended report only (it sets \extendedtrue); the paper never mentions that report.
 \providecommand{\reportdir}{}
 \newif\ifextended
-\newcommand{\inextended}[1]{\ifextended #1\else the extended report\fi}

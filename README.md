@@ -45,8 +45,11 @@ decision, theta_definition, instrument` (required), `group` ("physical AI" |
 (rendered by the decision prompt), `instrument_context` (rendered as `$context`
 by the instrument prompt). The whole entry is stored as `raw_json`. The file is
 generated: `uv run python scripts/build_scenarios.py` rebuilds it from
-`research/scenarios_draft/*.json` (the context fields are the facts without
-their citation markers); edit the drafts, not the file.
+`research/scenarios_draft/*.json`, keeping the drafts that
+`studies/safety-evals/include.yaml` marks `include: true` (every draft listed
+once, with a reason; review in `research/scenarios_draft/QUALITY_REVIEW.md`).
+The context fields are the facts without their citation markers; edit the
+drafts or the include list, not the file.
 
 ## The model (DESIGN section 3)
 
@@ -151,7 +154,11 @@ variables, the stage config, the members and the scope are hashed and a
 changed file is refused (make a new protocol file). Scenarios are seeded from
 `scenarios.json` at every run; a scenario without elicitations is refreshed
 in place, an elicited one is frozen (change its title to make a new row; the
-old one is retired, kept with its elicitations).
+old one is retired, kept with its elicitations). `voi_rank.mc` seeds too, so a
+scenario cut from `scenarios.json` is retired by the next Monte Carlo run
+without any elicitation; MC runs and the analysis use active scenarios only.
+Template variable `context_mode`: `curated` renders the facts; `none` (the
+no-context ablation, protocol p003) drops the facts section from both prompts.
 
 Validation of an answer (DESIGN section 4): strict JSON with exactly the
 stage's parameters, each with `reasoning` and `p5 < p50 < p95`;

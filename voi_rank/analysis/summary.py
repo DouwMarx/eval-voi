@@ -274,13 +274,19 @@ def _verify(con, run_id: int, sid: int, metrics: dict) -> None:
 
 
 def health_rows(con, sources: list[tuple[int, str | None]], members: list[dict],
-                labels: list[str] | None) -> list[dict]:
+                labels: list[str] | None, scenario_ids=None) -> list[dict]:
     """Per member: attempts, valid, invalid by ERROR_CLASSES and USD over the
     elicitation rows of the (protocol id, stage or None = every stage) pairs
-    the analysis draws from."""
+    the analysis draws from, on the scenarios `scenario_ids` (None = all; the
+    analysis passes the analysed ones, so a retired scenario's attempts do
+    not count)."""
     out = {db.member_label(m): {"member": db.member_label(m), "attempts": 0, "valid": 0, "usd": 0.0,
                                 **{c: 0 for c in ERROR_CLASSES}} for m in members}
     clause, args = db.member_filter(labels)
+    if scenario_ids is not None:
+        ids = sorted(int(i) for i in scenario_ids)
+        clause += f" AND e.scenario_id IN ({','.join('?' * len(ids))})"
+        args = [*args, *ids]
     for pid, stage in sources:
         sclause, sargs = db.stage_clause(stage) if stage is not None else ("", [])
         for r in con.execute("SELECT e.provider, e.model, e.valid, e.error, e.raw_response"
@@ -296,6 +302,18 @@ def health_rows(con, sources: list[tuple[int, str | None]], members: list[dict],
             else:
                 h[error_class(r["error"], r["raw_response"])] += 1
     return list(out.values())
+
+
+def _row_scenarios(con, sources: list[tuple[int, str | None]], ids: list[int]) -> set[int]:
+    """The scenarios whose elicitation rows feed the analysed ones: each
+    analysed id plus, under a grouped decision stage, its group's rows
+    (db.elicited_source_ids of a decision parameter)."""
+    out = set(ids)
+    for pid, _ in sources:
+        for sid in ids:
+            for name in DECISION_PARAMS:
+                out.update(db.elicited_source_ids(con, pid, sid, name))
+    return out
 
 
 def decision_fits(con, prot, labels: list[str] | None) -> dict[int, dict[str, list[dict]]]:
@@ -405,7 +423,8 @@ def load(con, protocol: str, members: list[str] | None = None, draws: int | None
                 "decision_from": decision_from, "verified": not decision_from}
     s = Summary(run=run_info, scenarios=scen, pooled=pooled, elicited=elicited, member_labels=all_labels,
                 central=central, draws={k: np.vstack(v) for k, v in drawn.items()}, sensitivity=sens,
-                health=health_rows(con, health_src, [m for ms in member_sets.values() for m in ms], labels))
+                health=health_rows(con, health_src, [m for ms in member_sets.values() for m in ms], labels,
+                                   scenario_ids=_row_scenarios(con, health_src, ids)))
     compute(s)
     return s
 

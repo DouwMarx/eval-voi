@@ -258,6 +258,12 @@ def test_a_scenario_cut_from_scenarios_json_leaves_new_runs_and_the_analysis(eli
     s = summary.load(con, "pS")
     assert s.run["id"] == new and {sc.title for sc in s.scenarios} == set(rows) - cut
     assert [sc.group for sc in s.scenarios] == [PHYS] * 3 + [LLM] * 4
+    # elicitation health counts only the analysed scenarios' attempts
+    pid = db.protocol_by_name(con, "pS")["id"]
+    kept_attempts = con.execute(
+        f"SELECT COUNT(*) FROM elicitations WHERE protocol_id=? AND scenario_id IN"
+        f" ({','.join(str(sc.id) for sc in s.scenarios)})", (pid,)).fetchone()[0]
+    assert sum(h["attempts"] for h in s.health) == kept_attempts < n_elicited
     cli.main(["--study", str(study.root), "--protocol", "pS", "--draws", "500"])
 
 

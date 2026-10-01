@@ -133,7 +133,7 @@ Every figure below is written by the same analysis run as the paper's Figure~\re
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=\linewidth]{fig_level.pdf}
-  \caption{Physical-AI evaluations by fidelity level (0: text question answering, 8: track testing): elicited Youden's index $J=s+t-1$ (left) and cost $C$ (right). Spearman correlation with level: \voiLevelRhoJ{} for $J$ and \voiLevelRhoC{} for $C$, over \voiNLevel{} evaluations.}
+  \caption{Physical-AI evaluations by fidelity level (3: video question answering, 8: track testing), at the central estimate. Top: efficiency $\eta$ (left) and $\etamax$ (right); open markers on the bottom row are evaluations worth zero because the prior is already decisive. Spearman correlation with level: \voiLevelRhoEta{} ($p=\voiLevelRhoEtap$) for $\eta$ and \voiLevelRhoEtaMax{} ($p=\voiLevelRhoEtaMaxp$) for $\etamax$, over \voiNLevel{} evaluations. Bottom, secondary: elicited Youden's index $J=s+t-1$ (\voiLevelRhoJ, $p=\voiLevelRhoJp$) and cost $C$ (\voiLevelRhoC, $p=\voiLevelRhoCp$).}
   \label{fig:level}
 \end{figure}
 \candidate{it carries the sim-to-real result of the paper's fidelity paragraph, which a robotics audience will look for first.}
@@ -162,7 +162,7 @@ Every figure below is written by the same analysis run as the paper's Figure~\re
 \emph{Developer perspective.} The headline values $B$ and $K$ for society. A developer may weigh only its own exposure: liability, recall, regulatory action, reputation and lost revenue. We elicit the decision prompt again under that perspective and keep the instrument parameters of the headline run.
 \ifdev
 Under the developer perspective a random physical-AI evaluation beats a random LLM evaluation with probability \voidevEtaACentral{} at the central estimate (90\% interval over draws \voidevEtaAQLo{} to \voidevEtaAQHi{}; exact Mann-Whitney $p=\voidevEtaMWp$), against \voiEtaACentral{} for society. The result can change the decision for \voidevChangesSharePhysical{} of the physical-AI and \voidevChangesShareLLM{} of the LLM evaluations (society: \voiChangesSharePhysical{} and \voiChangesShareLLM). % CHECK-DATA
-Whose payoff the stakes measure does not change the placement. % CHECK-DATA
+Under the developer's own payoff the direction is the same but the groups are no longer separated. % CHECK-DATA
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=\linewidth]{dev/fig_headline.pdf}
@@ -181,7 +181,7 @@ Removing the build cost does not lift the physical-AI evaluations, consistent wi
 
 \emph{Sensitivity.} Averaged over evaluations, the absolute Spearman correlation of each parameter's draws with $\eta$ is \voiRhoP{} for $p$, \voiRhoS{} for $s$, \voiRhoT{} for $t$, \voiRhoB{} for $B$, \voiRhoK{} for $K$, \voiRhoCBuild{} for $C_\mathrm{build}$, \voiRhoCRun{} for $C_\mathrm{run}$ and \voiRhoN{} for $n$ ($n$ does not enter $\eta$; its row checks that the draws are independent).
 
-\emph{Planned ablations, not yet run.} Numeric anchors in the prompts (the template has an optional block, empty in the headline); the context mode (curated facts only, facts plus source abstracts, facts plus full source text); drawing whole elicitations instead of independent parameters, which keeps each member's parameters together; and the number of evaluations per group.
+\emph{Planned ablations, not yet run.} Numeric anchors in the prompts (the template has an optional block, empty in the headline); the context mode: no facts at all (protocol p003, set up, not run), which tests whether the result depends on the curated facts, and facts plus source abstracts or full source text (not implemented); drawing whole elicitations instead of independent parameters, which keeps each member's parameters together; and the number of evaluations per group.
 
 %===============================================================================
 \FloatBarrier
@@ -190,7 +190,7 @@ Removing the build cost does not lift the physical-AI evaluations, consistent wi
 
 \emph{Prompts.} Each evaluation gets two prompts, rendered from the two templates below. The decision prompt fills in the agent, the decision, the definition of $\theta$ and the decision facts; it never describes the evaluation. The instrument prompt fills in the evaluation's title, agent, decision, definition of $\theta$, the instrument and the instrument facts; it never states $p$, $B$ or $K$. The two are separate calls because a single prompt lets the instrument text move the elicited prior. The perspective (society or developer) is a template variable set by the protocol. The facts are sentences taken from the cited sources, each traceable to a cached copy of its source text.
 
-\emph{Where the facts come from.} The decision and instrument facts were written and checked by language-model agents, not by hand (research/scenarios\_draft/PROVENANCE.md in the repository, with every prompt verbatim). The model was Claude Fable 5.1, run as Claude Code subagents that could fetch web pages and read the repository, before any elicitation existed. One agent ranked the candidate evaluations by the stated inclusion rules, a second verified every citation and number in the ranking, and a third fixed what it found. For each evaluation, one agent fetched the primary sources, cached their full text and wrote a cited decision paragraph and a cited instrument paragraph of 120 to 250 words each. A separate agent checked every sentence against the cached text and the separation rule (no instrument facts in the decision paragraph, no stakes in the instrument paragraph), and a third fixed what it found. A final agent checked all 39 evaluations together for consistency. A script then removes the citation markers and writes the scenarios the prompts render. This guarantees that every sentence an elicitor reads traces to a cached source and was checked by a second agent. It does not guarantee a neutral selection: an agent chose which facts to include within the word limit. For that reason the final ensemble (Section~\ref{sec:final}) has no Anthropic model: Anthropic develops the curating model, and three of the LLM evaluations (Petri, Bloom and the agentic misalignment scenarios) are Anthropic's own, so an Anthropic member would let one developer's models both select the facts and price that developer's own evaluations.
+\emph{Where the facts come from.} The decision and instrument facts were written and checked by language-model agents, not by hand (research/scenarios\_draft/PROVENANCE.md in the repository, with every prompt verbatim). The model was Claude Fable 5.1, run as Claude Code subagents that could fetch web pages and read the repository, before any elicitation existed. One agent ranked the candidate evaluations by the stated inclusion rules, a second verified every citation and number in the ranking, and a third fixed what it found. For each evaluation, one agent fetched the primary sources, cached their full text and wrote a cited decision paragraph and a cited instrument paragraph of 120 to 250 words each. A separate agent checked every sentence against the cached text and the separation rule (no instrument facts in the decision paragraph, no stakes in the instrument paragraph), and a third fixed what it found. A final agent checked all 39 evaluations together for consistency. A script then removes the citation markers and writes the scenarios the prompts render. This guarantees that every sentence an elicitor reads traces to a cached source and was checked by a second agent. It does not guarantee a neutral selection: an agent chose which facts to include within the word limit. For that reason the final ensemble (Section~\ref{sec:final}) has no Anthropic model: Anthropic develops the curating model, and two of the analysed LLM evaluations (the agentic misalignment scenarios and SHADE-Arena) are Anthropic's own, so an Anthropic member would let one developer's models both select the facts and price that developer's own evaluations.
 
 \emph{Order and format.} Per parameter, the member writes a short reasoning paragraph, then the 5th and 95th percentiles as exclusion questions ("a value you would be surprised to see the true value fall below or above"), then the median. Extremes first is standard practice against anchoring on the best guess~\citep{ohagan2006uncertain}. Numbers are plain decimals; the parser also reads scientific notation.
 
@@ -218,11 +218,11 @@ Removing the build cost does not lift the physical-AI evaluations, consistent wi
 \section{The evaluations}
 \label{sec:catalogue}
 
-Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain or fidelity level. The LLM safety evaluations come from a ranked list of evaluations reported in LLM system cards; the physical-AI safety evaluations from a ranked list of published evaluations of embodied systems, chosen to span fidelity levels. Table~\ref{tab:provenance} gives the primary source of each evaluation's instrument facts; every decision and instrument fact cites a source, and the source texts are cached in the repository.
+Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain or fidelity level. The LLM safety evaluations come from a ranked list of evaluations reported in LLM system cards; the physical-AI safety evaluations from a ranked list of published evaluations of embodied systems, chosen to span fidelity levels. A quality review then cut 39 drafted evaluations to these \voiNScenarios{}, before any result was looked at: it dropped auditing tools and evaluation generators (Petri, Bloom, ControlArena), developer-private evaluations without a standalone source (the Binary Exploitation Benchmark, CyScenarioBench, the Human Pathogen Capabilities Test), duplicates of a better documented evaluation of the same construct (ExploitBench, LAB-Bench, BioTIER, HarmBench), the one domain-floor entry (DeceptionBench), and physical-AI evaluations with a weak source or a same-level duplicate (ManiGuard-Bench, IS-Bench, EgoSafetyBench, ASIMOV-Agentic, SafePlan, the humanoid orchestrator benchmark). Their elicitations stay in the database and enter no Monte Carlo run (research/scenarios\_draft/QUALITY\_REVIEW.md and studies/safety-evals/include.yaml in the repository). Table~\ref{tab:provenance} gives the primary source of each evaluation's instrument facts; every decision and instrument fact cites a source, and the source texts are cached in the repository.
 
 \begin{table}[!htbp]
   \centering
-  \caption{The evaluations. Domain for LLM evaluations; fidelity level (0 to 8) for physical-AI evaluations.}
+  \caption{The evaluations. Domain for LLM evaluations; fidelity level (3 to 8) for physical-AI evaluations.}
   \label{tab:scenarios}
   \input{../generated/tab_scenarios.tex}
 \end{table}
@@ -245,41 +245,24 @@ Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain
   Exploit development (ExploitGym) & \citet{wang2026exploitgym}\\
   Virology Capabilities Test & \citet{gotting2025vct}; system cards\\
   Cyber range & \citet{folkerts2026cyberranges}; system cards\\
-  LAB-Bench & \citet{laurent2024labbench}; system cards\\
-  Exploit development (ExploitBench) & \citet{lee2026exploitbench}; system cards\\
   StrongREJECT jailbreak robustness & \citet{souly2024strongreject}; system cards\\
   CTF suites (Cybench) & \citet{zhang2024cybench,aisi2024o1}\\
   CVE-Bench & \citet{zhu2025cvebench}; system cards\\
   MASK honesty under pressure & \citet{ren2025mask}; system cards\\
   WMDP hazardous-knowledge questions & \citet{li2024wmdp,vanderweij2024sandbagging}\\
   SHADE-Arena covert sabotage & \citet{kutasov2025shade}; system cards\\
-  Automated behavioral audit (Petri) & \citet{anthropic2025petri}\\
-  Bloom & \citet{anthropic2025bloom}; system cards\\
-  AI control setting (ControlArena) & \citet{ukaisi2025controlarena}\\
   Agentic misalignment & \citet{lynch2025agentic}; system cards\\
   ABC-Bench & \citet{liu2026abcbench}\\
   AgentHarm & \citet{andriushchenko2024agentharm}; system cards\\
-  Unguided vulnerability discovery & \citet{anthropic2026opus55}; system cards\\
   FORTRESS & \citet{knight2025fortress}; system cards\\
   BBQ demographic bias & \citet{parrish2021bbq}; system cards\\
-  BioTIER biology refusal & \citet{marshall2026biotier}; system cards\\
-  HarmBench & \citet{mazeika2024harmbench}; system cards\\
-  Scenario-based offensive cyber operations & \citet{irregular2025cyscenariobench}; system cards\\
-  Human Pathogen Capabilities Test & \citet{securebio2026hpct}; system cards\\
-  DeceptionBench & \citet{huang2025deceptionbench}; system cards\\
   Pedestrian AEB track protocol & \citet{iihs2024paeb}\\
   RoboPAIR robot jailbreaking & \citet{robey2024robopair,ravichandran2025roboguard}\\
   World-model policy evaluation (Veo) & \citet{geminirobotics2025veo}\\
   RedVLA physical red teaming & \citet{zhang2026redvla}\\
   ISO 10218 power-and-force-limiting contact tests & \citet{svarny2022skins}\\
-  ManiGuard-Bench & \citet{peng2026maniguard}\\
   SafeAgentBench & \citet{yin2024safeagentbench}\\
-  IS-Bench & \citet{lu2025isbench}\\
   ASIMOV semantic physical safety & \citet{jindal2025danger}\\
-  ASIMOV agentic safety orchestration & \citet{deepmind2026gr2safety}; system cards\\
-  EgoSafetyBench & \citet{panpatil2026egosafetybench}\\
-  Robot-command refusal suites (SafePlan) & \citet{obi2025safeplan,obi2026safegate}\\
-  LLM-orchestrator humanoid safety & \citet{bajrami2026robotignores}\\
 \end{longtable}
 }
 
@@ -288,7 +271,7 @@ Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain
 \section{The final ensemble (planned run)}
 \label{sec:final}
 
-The final run uses six members from six developers through one routing service, one call per member and prompt, the society perspective, no numeric anchors and the curated facts. Three members come from Chinese developers and three from US developers. Members were chosen for developer diversity, reliable JSON output and price. Some evaluations come from member developers (Google DeepMind's ASIMOV and Veo evaluations), and three LLM evaluations from Anthropic, which has no member; we treat this as a limitation, not a correction. Each member is pinned to one endpoint with fallbacks disabled, so the weights and the price cannot change during the run; endpoints were chosen among those that keep no data. Reasoning effort is set low for the two members that reason longest at their default and medium for the others. Requests ask for a JSON object and refuse endpoints that ignore the request options.
+The final run uses six members from six developers through one routing service, one call per member and prompt, the society perspective, no numeric anchors and the curated facts. Three members come from Chinese developers and three from US developers. Members were chosen for developer diversity, reliable JSON output and price. Some evaluations come from member developers (Google DeepMind's ASIMOV and Veo evaluations), and two LLM evaluations from Anthropic, which has no member; we treat this as a limitation, not a correction. Each member is pinned to one endpoint with fallbacks disabled, so the weights and the price cannot change during the run; endpoints were chosen among those that keep no data. Reasoning effort is set low for the two members that reason longest at their default and medium for the others. Requests ask for a JSON object and refuse endpoints that ignore the request options.
 
 \begin{table}[!htbp]
   \centering\footnotesize
@@ -310,7 +293,7 @@ The final run uses six members from six developers through one routing service, 
 
 Why many members and no repeats. In the pilots the variance between members was comparable to the variance between repeats of one member, even with members from one developer, so a call spent on a new member buys at least as much as a call spent on a repeat. A diverse crowd of LLMs forecasts about as well as a human crowd~\citep{schoenegger2024wisdom}, and models of different developers make less correlated errors than models of one developer~\citep{kim2025correlated}. The counter-argument, that a few strong models beat a mix, assumes a verifier that tells which model is best; for elicited priors there is none.
 
-Cost. The dry run of the protocol estimates USD 5.7 for the headline run (low USD 3.1, high USD 11) from the routing service's published prices and token counts measured in a smoke test, and USD 2.8 (low USD 1.6, high USD 5.4) for the developer-perspective decision prompt. % SOURCE: voi_rank.elicit --dry-run --protocol final (and final_dev --stage decision), catalogue of 2026-10-01; not a generated macro
+Cost. The dry run of the protocol estimates USD 3.2 for the headline run on the \voiNScenarios{} evaluations (low USD 1.8, high USD 6.1) from the routing service's published prices and token counts measured in a smoke test, and USD 1.6 (low USD 0.9, high USD 3.0) for the developer-perspective decision prompt. % SOURCE: voi_rank.elicit --dry-run --protocol final (and final_dev --stage decision), catalogue of 2026-10-01; not a generated macro
 Prompt caching saves little at one call per member and prompt, and the estimate ignores it.
 
 %===============================================================================
@@ -325,13 +308,13 @@ Each objection is stated as a reviewer would put it, followed by our answer.
 \item \emph{``The members are one population. Their agreement proves nothing.''} Agreement between models trained on similar data cannot separate shared knowledge from shared bias~\citep{kim2025correlated}. The analysed run uses two Claude models, so this objection applies in full; the planned final ensemble uses six models from six other developers (Section~\ref{sec:final}). We report cross-member agreement only as evidence about the inputs (Fig.~\ref{fig:members}). It remains a limitation.
 \item \emph{``You wrote the decisions, so you rank the decisions, not the evaluations.''} The pilots found exactly this: most of the variance of the maximum EVSI per dollar came from the stakes per dollar of the decision attached to each evaluation. Here each decision is the release decision the evaluation's own sources describe, written to a fixed schema, and the decision prompt never sees the evaluation. The question asked is the one a developer faces: what is this evaluation worth for the decision it is used for. Pricing physical-AI and LLM evaluations against one shared decision, matched pairs, would separate the two.
 \item \emph{``A binary pass or fail is a caricature of an evaluation that returns a score.''} The model is deliberately simple and aims at orders of magnitude and rankings. A score read against a threshold set for the decision can only widen the range of priors for which the result changes the decision. The maximum EVSI, which does not depend on the threshold, places the groups the same way and more sharply (Section~\ref{sec:ablations}). % CHECK-DATA
-\item \emph{``Half of your physical-AI evaluations test a language model inside a robot, and one is a car.''} That is what published physical-AI safety evaluation looks like today. The set spans fidelity levels from text question answering to track testing, and the fidelity analysis (Fig.~\ref{fig:level}) uses that spread.
+\item \emph{``Three of your seven physical-AI evaluations test a language model inside a robot, and one is a car.''} That is what published physical-AI safety evaluation looks like today. The set spans fidelity levels from video question answering to track testing, and the fidelity analysis (Fig.~\ref{fig:level}) uses that spread.
 \item \emph{``The groups are small and chosen by different rules.''} The two lists are ranked by fixed inclusion rules, and the test is exact. It separates the groups despite low power and many ties, and the separation has a named cause, the stakes per decision, that a reader can check against Figure~\ref{fig:params}. % CHECK-DATA
 \item \emph{``Society's stakes are arbitrary.''} The developer-perspective ablation re-elicits $B$ and $K$ as the developer's own exposure (Section~\ref{sec:ablations}).
 \item \emph{``Many evaluations have zero value, so the ranking is mostly ties.''} Ties count as one half in every comparison, and the zeros are themselves a finding: for those decisions the developer should mitigate first and evaluate the mitigated system. The maximum EVSI has no zeros and gives a full ranking.
 \item \emph{``Drawing parameters independently distorts the uncertainty.''} It does, in a direction we cannot sign: EVSI is not monotone in $p$, $B$ and $K$, and independence across evaluations narrows the interval of $A$. The planned ablation that draws whole elicitations measures the effect.
 \item \emph{``Models refuse biosecurity and cyber prompts, so the sample is biased.''} Refusals are counted per member and class (Table~\ref{tab:health}); a slot with no valid answer after one retry is missing, not imputed.
-\item \emph{``The context is cherry-picked.''} The facts are sentences we selected from the sources, so selection is possible. Every fact cites a source whose text is fetched programmatically and cached in the repository, the same facts go to every member, and the planned context-mode ablation replaces our selection with the sources' abstracts or full text.
+\item \emph{``The context is cherry-picked.''} The facts are sentences we selected from the sources, so selection is possible. Every fact cites a source whose text is fetched programmatically and cached in the repository, the same facts go to every member, and the planned no-context ablation (protocol p003) removes our selection altogether.
 \end{enumerate}
 
 %===============================================================================
