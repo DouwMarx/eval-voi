@@ -50,7 +50,8 @@ def template(name: str) -> string.Template:
 def test_default_study_is_safety_evals():
     assert study_mod.DEFAULT_STUDY == "studies/safety-evals"
     assert study_mod.Study.resolve().root == STUDY.resolve()
-    assert not (STUDY / "voi.db").exists()   # no database is committed
+    assert "studies/safety-evals/voi.db" not in __import__("subprocess").run(
+        ["git", "ls-files", "studies/safety-evals"], cwd=ROOT, capture_output=True, text=True).stdout   # no database is committed
 
 
 def test_scenarios_json_is_the_build_of_the_drafts():
@@ -192,13 +193,27 @@ def test_protocols_p001_headline_and_p002_developer_ablation():
     assert p1_rest == p2_rest   # identical except the name and the perspective
 
 
-def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys):
+@pytest.fixture
+def fresh_study(tmp_path):
+    """A copy of the study without its voi.db: the dry-run tests check the
+    plan from scratch and that a dry run writes no database, whatever the
+    real study's elicitation state."""
+    import shutil
+    dst = tmp_path / "safety-evals"
+    dst.mkdir()
+    shutil.copy(STUDY / "scenarios.json", dst / "scenarios.json")
+    for sub in ("protocols", "templates"):
+        shutil.copytree(STUDY / sub, dst / sub)
+    return dst
+
+
+def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys, fresh_study):
     monkeypatch.setattr(elicit, "get_provider",
                         lambda name: (_ for _ in ()).throw(AssertionError("provider called")))
-    assert not list(STUDY.glob("voi.db*"))
-    elicit.main(["--study", "studies/safety-evals", "--protocol", "p001", "--dry-run"])
+    assert not list(fresh_study.glob("voi.db*"))
+    elicit.main(["--study", str(fresh_study), "--protocol", "p001", "--dry-run"])
     out = capsys.readouterr().out
-    assert not list(STUDY.glob("voi.db*"))   # the plan ran on an in-memory copy
+    assert not list(fresh_study.glob("voi.db*"))   # the plan ran on an in-memory copy
     assert "DRY RUN: protocol p001 (stages decision + instrument, hash" in out
     assert "stage decision (template templates/decision.md, params p, B, K, group_key self):" in out
     assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run, n):" in out
@@ -223,25 +238,25 @@ def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys):
     assert '"p":' in dec and '"p":' not in ins and '"n":' in ins and '"n":' not in dec
 
 
-def test_dry_run_p002_decision_stage_only(capsys):
-    elicit.main(["--study", "studies/safety-evals", "--protocol", "p002", "--stage", "decision", "--dry-run"])
+def test_dry_run_p002_decision_stage_only(capsys, fresh_study):
+    elicit.main(["--study", str(fresh_study), "--protocol", "p002", "--stage", "decision", "--dry-run"])
     out = capsys.readouterr().out
     assert "plan: protocol p002, 156 pending slots" in out and "not planned (--stage decision)" in out
     assert "from the developer perspective" in out
-    assert not list(STUDY.glob("voi.db*"))
+    assert not list(fresh_study.glob("voi.db*"))
 
 
-def test_dry_run_from_the_shell_entry_point():
+def test_dry_run_from_the_shell_entry_point(fresh_study):
     """The README's command, as a user runs it (a subprocess, the repo root
     as cwd), creates no database."""
     import subprocess
     import sys
-    proc = subprocess.run([sys.executable, "-m", "voi_rank.elicit", "--study", "studies/safety-evals",
+    proc = subprocess.run([sys.executable, "-m", "voi_rank.elicit", "--study", str(fresh_study),
                            "--protocol", "p001", "--dry-run"], cwd=ROOT, capture_output=True, text=True,
                           timeout=120)
     assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
     assert "312 slots would be elicited; no provider was called." in proc.stdout
-    assert not list(STUDY.glob("voi.db*"))
+    assert not list(fresh_study.glob("voi.db*"))
 
 
 @pytest.mark.parametrize("name", ["decision.md", "instrument.md", "anchors_decision.md",

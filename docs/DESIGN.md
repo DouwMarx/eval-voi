@@ -96,7 +96,7 @@ scripts/             regen.sh, build_paper.sh, check_pages.py
 docs/                DESIGN.md, QUESTIONS.md
 ```
 
-Status (2026-10-01): not yet written are voi_rank/context.py and its cache research/sources/ (scripts/build_scenarios.py sets the context fields to the facts fields without their [key] markers; `curated` is the only mode), voi_rank/analysis/, scripts/regen.sh and studies/safety-evals/report/ (sections 6 and 7), the price-based cost estimate for a member without history (`--dry-run` prints `unknown` for it) and the cache_control breakpoint (section 4). studies/safety-evals/voi.db appears with the first elicitation run. The candidate lists under research/ are on the iteration branch (commit b8dce27) and arrive with its merge. Everything else in this section exists.
+Status (2026-10-01): voi_rank/context.py is not written; the context fields equal the facts fields without their [key] markers (scripts/build_scenarios.py), so `curated` is the only mode. The fetched source texts are cached in research/sources/. Analysis, regen.sh, the catalogue-price cost estimate and the cache_control breakpoint exist. Everything else in this section exists.
 
 Deleted (recoverable from git): the Gaussian-state family, the proposer, the manual protocol, the bootstrap, the ladder and level analyses, member-subset weighting, the legacy efficacy macros, spec.md, the pilot READMEs, handover/.
 

@@ -22,13 +22,13 @@ lab notebook.
 
 ```
 voi_rank/              model, fit, mc, db, study, elicit, validate, sensitivity, dotenv,
-                       providers/{claude_cli, openrouter}
-studies/safety-evals/  scenarios.json, protocols/, templates/ (voi.db and report/ later)
+                       providers/{claude_cli, openrouter}, pricing, analysis/{summary, figures, tables, macros}
+studies/safety-evals/  scenarios.json, protocols/, templates/, voi.db, report/
 research/              literature catalogue, refs.bib, system-card mining, scenarios_draft/ (the 39
                        fact-checked scenario drafts), sources/ (cached source texts)
 archive/               business/ (the external chapter reads its voi.db) and pilots/ (frozen at tag
                        pilot-2026-09-30; read-only, not re-runnable by the current code)
-scripts/               build_scenarios.py, build_paper.sh, check_pages.py
+scripts/               build_scenarios.py, regen.sh, build_paper.sh, check_pages.py
 docs/                  DESIGN.md, QUESTIONS.md
 ```
 
@@ -91,9 +91,19 @@ eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
    `--members` pools one subset of the protocol's members as its own stored
    run (an ablation scores one elicitor); a subset naming every member is the
    ordinary run.
-5. The analyses of DESIGN sections 6 and 7 (`voi_rank/analysis/`,
-   `scripts/regen.sh`, `studies/safety-evals/report/`) are the next step and
-   do not exist yet.
+5. `scripts/regen.sh [study-dir]` (env `PROTOCOL`, default p001; `DRAWS`
+   to subsample) analyses the latest stored run of the headline protocol:
+   `uv run python -m voi_rank.analysis --study studies/safety-evals --protocol p001`
+   re-draws the run from the DB, verifies it against the stored quantiles
+   and writes `report/generated/`: `fig_*.pdf`, `tab_*.tex`, `macros.tex`
+   (every cited number as `\voi...`) and `summary.json`. It reads the DB
+   through an in-memory copy and never writes it. The developer-perspective
+   ablation (`DEV_PROTOCOL`, default p002, which elicits only the decision
+   prompt) runs as `--decision-from p002 --tag dev`: p, B, K from p002, the
+   other five parameters from the headline run, written to
+   `report/generated/dev/` with macros `\voidev...`; regen skips it while
+   p002 has no valid decision elicitations. The report
+   (`studies/safety-evals/report/`) does not exist yet.
 
 ## Protocols
 
