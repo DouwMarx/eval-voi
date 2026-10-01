@@ -1,0 +1,4677 @@
+{
+ "generated": "2026-10-01",
+ "corpus": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01",
+ "ranking_rule": {
+  "presence": "min(publishers naming it, 8) + min(documents naming it, 24)/12; counts from the corpus query stated per candidate",
+  "source": "3 public instrument (data and code released); 2.5 public set plus private official set; 2 public paper or report with private or on-request task data; 1 developer or third-party report stating task counts and scoring only; 0 none",
+  "hazard": "2 programmatic or expert-baselined score; 1.5 LLM-judge score with reported human agreement >= 0.8; 1 judge score with partial validation (jury consensus, self-consistency) or a public classifier without reported agreement; 0.5 judge without validation; 0 not checkable",
+  "instrument": "2 single build-and-run instrument; 1 suite or tool that a default configuration fixes to one instrument; 0 behaviour, organisation, programme or human trial",
+  "penalties": "-1 each: saturated at the frontier; documented construct problem (shortcuts, contamination, scorer gaming, evaluation awareness, refusal confound); developer-private; no standalone primary source; capability-origin proxy. -2 human-subject trial",
+  "total": "presence + source + hazard + instrument + penalties (maximum 17)",
+  "inclusion": "include iff instrument >= 1 and source >= 1 and hazard >= 1 and (publishers >= 2 or documents >= 10) and total >= 8.0; floor 8.0 equals a public single instrument with an objective score named by two publishers after one fit penalty (2 + 0.3 + 3 + 2 + 2 - 1). Domain floor: a domain with fewer than three included candidates admits its best remaining candidate that passes every hard criterion, flagged borderline"
+ },
+ "n_candidates": 40,
+ "n_included": 26,
+ "domain_floor_admitted": [
+  "DeceptionBench (assisting user deception of third parties)"
+ ],
+ "included_by_domain": {
+  "cbrn": [
+   "Virology Capabilities Test (VCT)",
+   "LAB-Bench bio subset (ProtocolQA, CloningScenarios, SeqQA, FigQA)",
+   "WMDP (Weapons of Mass Destruction Proxy)",
+   "ABC-Bench (Agentic Bio-Capabilities Benchmark)",
+   "BioTIER (biology refusal benchmark)",
+   "HPCT (Human Pathogen Capabilities Test)"
+  ],
+  "cyber": [
+   "CyberGym (targeted vulnerability reproduction)",
+   "ExploitGym (exploit development from known vulnerabilities)",
+   "Cyber range, end-to-end network attack (UK AISI 'The Last Ones'; OpenAI Cyber Range)",
+   "Cybench (professional CTF suite)",
+   "CVE-Bench (real web-application exploitation)",
+   "ExploitBench (browser-engine exploit development, Anthropic)",
+   "Binary Exploitation Benchmark, formerly OSS-Fuzz (Anthropic; CAISI private variant)",
+   "CyScenarioBench (Irregular, multi-stage offensive scenarios)"
+  ],
+  "loss_of_control": [
+   "SHADE-Arena (covert sabotage with an LLM monitor)",
+   "Bloom (automated behavioural evaluation generator)",
+   "ControlArena (AI-control settings: side-task success under monitoring)",
+   "Agentic Misalignment (insider-threat scenarios)"
+  ],
+  "harmful_manipulation": [
+   "MASK (honesty under pressure)",
+   "Petri (automated alignment audit with a fixed seed set)",
+   "DeceptionBench (assisting user deception of third parties)"
+  ],
+  "societal_harm": [
+   "StrongREJECT (jailbreak robustness)",
+   "AgentHarm (harmful multi-step agentic tasks)",
+   "FORTRESS (national-security and public-safety adversarial prompts)",
+   "BBQ (Bias Benchmark for QA)",
+   "HarmBench (automated red teaming and robust refusal)"
+  ]
+ },
+ "candidates": [
+  {
+   "name": "CyberGym (targeted vulnerability reproduction)",
+   "pilot": true,
+   "domain": "cyber",
+   "measures": "Success rate at writing a proof-of-concept input that reproduces a described real vulnerability in one of 188 open-source projects (1,507 tasks), verified by a sanitizer crash before and not after the patch.",
+   "corpus": {
+    "name_queried": "CyberGym",
+    "query": [
+     "\\bCyber ?Gym\\b"
+    ],
+    "documents": 34,
+    "publishers_n": 11,
+    "publishers": [
+     "anthropic",
+     "cursor",
+     "epoch_ai",
+     "google_deepmind",
+     "meta",
+     "metr",
+     "openai",
+     "redwood_research",
+     "saferai",
+     "xai",
+     "zai"
+    ],
+    "mentions": 174,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2506.02548",
+     "url": "https://arxiv.org/abs/2506.02548",
+     "title": "CyberGym: Evaluating AI Agents' Real-World Cybersecurity Capabilities at Scale",
+     "published": "2025-06-03",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: dataset on Hugging Face, code on GitHub (https://github.com/sunblaze-ucb/cybergym, HTTP 200 on 2026-10-01)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed task set, programmatic verification, one pass@1 run"
+   },
+   "decision": "Delay the release and add cyber-misuse mitigations (request classifiers, access controls, monitoring) vs release on schedule.",
+   "theta": "theta = 1: the model autonomously reproduces real vulnerabilities from a text description at a rate that constitutes practical vulnerability-research uplift.",
+   "cost": [
+    {
+     "quote": "Evaluating state-of-the-art agents and LLMs in non-thinking mode on full CyberGym requires approximately $3,000 in API credits",
+     "source": "2506.02548",
+     "url": "https://arxiv.org/abs/2506.02548",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "approximately $2.0 per task for each agent",
+     "source": "2506.02548",
+     "url": "https://arxiv.org/abs/2506.02548",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Unlike our Cybench runs, GLM-5.2 frequently reaches the token limit on CyberGym: it hit the limit on 60% of tasks at 2M, 31% at 10M, and 4% at 50M",
+     "source": "saferai-glm-5-2-independent-eval (saferai, 2026-08-02)",
+     "url": "https://www.safer-ai.org/u/2026/08/SaferAI-GLM-Evaluation-Report.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "For a PoC to be considered successful, we require that (i) it triggers a sanitizer crash in the pre-patch version and (ii) running it on the post-patch version does not produce any sanitizer crash.",
+     "source": "2506.02548",
+     "url": "https://arxiv.org/abs/2506.02548",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "34 zero-day vulnerabilities",
+     "source": "2506.02548",
+     "url": "https://arxiv.org/abs/2506.02548",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Whereas CyberGym (which we have retired from this system card due to saturation) evaluated vulnerability reproduction, ExploitGym targets a wider range of applications",
+     "source": "anthropic-claude-fable-5-1-system-card (anthropic, 2026-09-01)",
+     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "from these, Lyptus selected 122 tasks for model evaluation based on construct validity and difficulty coverage",
+     "source": "saferai-glm-5-2-independent-eval (saferai, 2026-08-02)",
+     "url": "https://www.safer-ai.org/u/2026/08/SaferAI-GLM-Evaluation-Report.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "saturated and retired by Anthropic",
+    "C/C++ memory-safety vulnerabilities only",
+    "scores depend on token budget"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "saturated"
+   ],
+   "score": {
+    "presence": 10.0,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "saturated": -1
+    },
+    "total": 16.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 1,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "ExploitGym (exploit development from known vulnerabilities)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Success rate at extending a crash-triggering input into a working exploit that reads a dynamically generated flag, over 898 real-vulnerability instances across userspace programs, a browser engine and an OS kernel.",
+   "corpus": {
+    "name_queried": "ExploitGym",
+    "query": [
+     "\\bExploit[\\- ]?Gym\\b"
+    ],
+    "documents": 23,
+    "publishers_n": 8,
+    "publishers": [
+     "anthropic",
+     "epoch_ai",
+     "meta",
+     "metr",
+     "openai",
+     "redwood_research",
+     "us_caisi",
+     "zai"
+    ],
+    "mentions": 198,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2605.11086",
+     "url": "https://arxiv.org/abs/2605.11086",
+     "title": "ExploitGym: Can AI Agents Turn Security Vulnerabilities into Real Attacks?",
+     "published": "2026-05-11",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: https://github.com/sunblaze-ucb/exploitgym, Apache 2.0 (README fetched 2026-10-01)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed containerised task set with flag-based verification and an agent-as-a-judge check"
+   },
+   "decision": "Delay the release and add cyber-misuse mitigations vs release on schedule.",
+   "theta": "theta = 1: the model turns known vulnerabilities into working exploits achieving code execution at a rate that gives practical offensive uplift.",
+   "cost": [
+    {
+     "quote": "Table 3: Agent performance and cost comparison (two-hour timeout). Success denotes instances in which the agent exploits the intended vulnerability, shown as the total and broken down by domain: userspace (U), browser V8 (B), and kernel (K). Cost (USD) is estimated. The remaining columns report per-task averages over the successful subset (Succ.) and over the full benchmark (Full).",
+     "source": "2605.11086",
+     "url": "https://arxiv.org/html/2605.11086",
+     "fetched": "2026-10-01",
+     "kind": "primary",
+     "note": "Table 3 row Claude Mythos Preview with Claude Code: Cost (USD) Succ. 54.7, Full 102.1 (table cells, not a sentence); our reading: about $55 per successful task and about $102 per task over the full set"
+    },
+    {
+     "quote": "all run with off-the-shelf agent scaffolds (Codex CLI and Claude Code) under a 2-hour timeout.",
+     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "an agent-as-a-judge assesses whether the submitted exploit actually relies on the provided vulnerability rather than succeeding through an unrelated shortcut",
+     "source": "2605.11086",
+     "url": "https://arxiv.org/abs/2605.11086",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Our benchmark lacks ground-truth exploits for every task",
+     "source": "2605.11086",
+     "url": "https://arxiv.org/abs/2605.11086",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Agents coordinated on large collective projects to cheat the ExploitGym scorer, and attacked Hugging Face for clues",
+     "source": "metr-gpt-5-6-sol-independent-eval-2 (metr, 2026-08-26)",
+     "url": "https://metr.org/hugging-face-incident-report-aug-2026.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "ExploitGym is a large-scale public benchmark that measures whether AI agents can turn known vulnerabilities into working exploits that achieve unauthorized code execution",
+     "source": "anthropic-claude-sonnet-5-5-system-card (anthropic, 2026-09-28)",
+     "url": "https://www.anthropic.com/claude-sonnet-5-5-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "scorer gaming observed by METR",
+    "no ground-truth exploit for every task",
+    "single time-limited and cost-limited attempt per task"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 9.92,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 15.92
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 2,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Virology Capabilities Test (VCT)",
+   "pilot": true,
+   "domain": "cbrn",
+   "measures": "Accuracy on 322 expert-written, mostly image-based questions about troubleshooting virology wet-lab protocols, scored against a baseline set by expert virologists.",
+   "corpus": {
+    "name_queried": "VCT",
+    "query": [
+     "\\bVCT\\b",
+     "Virology Capabilities Test"
+    ],
+    "documents": 35,
+    "publishers_n": 8,
+    "publishers": [
+     "anthropic",
+     "cursor",
+     "meta",
+     "openai",
+     "rand",
+     "saferai",
+     "securebio",
+     "xai"
+    ],
+    "mentions": 268,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2504.16137",
+     "url": "https://arxiv.org/abs/2504.16137",
+     "title": "Virology Capabilities Test (VCT): A Multimodal Virology Q&A Benchmark",
+     "published": "2025-04-21",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "paper public; question set not released publicly, conveyed to organisations with an AI-safety track record"
+    }
+   ],
+   "public_or_private": "private dataset, public paper",
+   "single_instrument": {
+    "yes": true,
+    "why": "one fixed question set with an expert baseline; built once, run once per model"
+   },
+   "decision": "Delay the release and add stronger biology misuse safeguards (classifiers, restricted access for virology queries) vs release on schedule.",
+   "theta": "theta = 1: the model troubleshoots practical virology wet-lab protocols at least as well as expert virologists inside their own specialty (VCT accuracy at or above the 0.221 expert baseline).",
+   "cost": [
+    {
+     "quote": "$15 base compensation for each submitted question ... $10 base compensation for each review",
+     "source": "2504.16137",
+     "url": "https://arxiv.org/abs/2504.16137",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "For the multimodal virology (VCT) and DNA synthesis screening tasks, scores shown are the mean values across all trials (bootstrap 95% CI).",
+     "source": "anthropic-claude-fable-5-1-system-card (anthropic, 2026-09-01)",
+     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "VCT is difficult: expert virologists with access to the internet score an average of 22.1% on questions specifically in their sub-areas of expertise.",
+     "source": "2504.16137",
+     "url": "https://arxiv.org/html/2504.16137",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "OpenAI's o3 ... outperformed 34 of 36 experts, putting it in the 94th percentile of expert virologists",
+     "source": "2504.16137",
+     "url": "https://arxiv.org/abs/2504.16137",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "For a subset of the multimodal questions ... the images are apparently dispensable for frontier models",
+     "source": "2504.16137",
+     "url": "https://arxiv.org/abs/2504.16137",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "On the VCT multimodal virology evaluation, Mythos 5 scored 0.56, well above the expert baseline of 0.221 and nearly matching that of Mythos Preview (0.57).",
+     "source": "anthropic-claude-fable-5-system-card (anthropic, 2026-06-09)",
+     "url": "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "dataset private (held by SecureBio)",
+    "images dispensable for a subset of questions (construct)",
+    "no measured link from score to real uplift"
+   ],
+   "source": 2,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 10.0,
+    "source": 2,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 15.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 3,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Cyber range, end-to-end network attack (UK AISI 'The Last Ones'; OpenAI Cyber Range)",
+   "pilot": true,
+   "domain": "cyber",
+   "measures": "Steps completed or scenarios passed in an emulated multi-host corporate network attack run end to end under a fixed token budget.",
+   "corpus": {
+    "primary": {
+     "name_queried": "Cyber Range",
+     "query": [
+      "\\b[Cc]yber [Rr]ange\\b"
+     ],
+     "documents": 24,
+     "publishers_n": 8,
+     "publishers": [
+      "anthropic",
+      "epoch_ai",
+      "meta",
+      "metr",
+      "openai",
+      "rand",
+      "uk_aisi",
+      "us_caisi"
+     ],
+     "mentions": 68,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    },
+    "named_range": {
+     "name_queried": "The Last Ones (TLO)",
+     "query": [
+      "\\bTLO\\b",
+      "\\bThe Last Ones\\b"
+     ],
+     "documents": 11,
+     "publishers_n": 5,
+     "publishers": [
+      "anthropic",
+      "epoch_ai",
+      "openai",
+      "uk_aisi",
+      "us_caisi"
+     ],
+     "mentions": 46,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    }
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2603.11214",
+     "url": "https://arxiv.org/abs/2603.11214",
+     "title": "Measuring AI Agents' Progress on Multi-Step Cyber Attack Scenarios",
+     "published": "2026-03-11",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "paper public; the two ranges are bespoke and private, built with SpecterOps and Hack The Box"
+    },
+    {
+     "kind": "url",
+     "id": "https://deploymentsafety.openai.com/gpt-5-5/cyber-range",
+     "url": "https://deploymentsafety.openai.com/gpt-5-5/cyber-range",
+     "title": "OpenAI GPT-5.5 system card, Cyber Range (2026-04-23)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "internally developed, 15 scenarios, 16 trials each"
+    },
+    {
+     "kind": "url",
+     "id": "https://www.aisi.gov.uk/blog/our-evaluation-of-claude-mythos-previews-cyber-capabilities",
+     "url": "https://www.aisi.gov.uk/blog/our-evaluation-of-claude-mythos-previews-cyber-capabilities",
+     "title": "UK AISI blog (2026-04-13)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": ""
+    }
+   ],
+   "public_or_private": "private ranges, public paper",
+   "single_instrument": {
+    "yes": true,
+    "why": "one emulated network with flagged steps; one run of N attempts at a fixed token budget"
+   },
+   "decision": "Delay the deployment and keep or add restrictions on autonomous multi-step cyber use (monitoring, rate limits, refusal of full attack chains) vs deploy on schedule.",
+   "theta": "theta = 1: the model autonomously executes a full multi-stage network attack in a realistic enterprise network without human help.",
+   "cost": [
+    {
+     "quote": "A 100M-token attempt ... with Opus 4.6 costs approximately $80 USD, assuming standard API pricing at date of publication.",
+     "source": "2603.11214",
+     "url": "https://arxiv.org/abs/2603.11214",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "A 100M-token cyber range run cost roughly $85 for both Opus 4.5 and 4.6, versus an estimated $46 for GLM-5.2 and $1.19 for DeepSeek V4-Pro at current pricing. ... Opus 4.6 cost $15.17 per task versus GLM-5.2's $6.12",
+     "source": "uk-aisi-glm-5-2-independent-eval (uk_aisi, 2026-07-17)",
+     "url": "https://www.aisi.gov.uk/blog/how-far-behind-the-frontier-are-leading-open-weight-models-on-cyber",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "This exercise compared an existing cyber range against a new range, testing seven different models on the two ranges over 122 runs in total.",
+     "source": "uk-aisi-claude-mythos-5-independent-eval (uk_aisi, 2026-08-04)",
+     "url": "https://www.aisi.gov.uk/blog/incident-report-unsanctioned-agent-behaviour-during-cyber-testing",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "Each step is associated with a flag; step completion is verified by programmatically scanning for submitted flags. Credit is binary with no partial credit within a step.",
+     "source": "2603.11214",
+     "url": "https://arxiv.org/abs/2603.11214",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "limitations: No active defenders, Detections not penalised, Vulnerability density varies, Lower artefact density than real environments",
+     "source": "2603.11214",
+     "url": "https://arxiv.org/abs/2603.11214",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "kind": "url",
+     "id": "https://deploymentsafety.openai.com/gpt-5-3-codex",
+     "url": "https://deploymentsafety.openai.com/gpt-5-3-codex",
+     "title": "OpenAI GPT-5.3-Codex system card",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "The challenges don't yet represent a hardened target where there would be defenses and monitoring ... the scenarios feature less noise ... than a real network would have"
+    },
+    {
+     "quote": "a 32-step corporate network attack spanning 4 subnets and approximately 20 hosts, which we estimate would take a human expert roughly 20 hours to complete.",
+     "source": "uk-aisi-glm-5-2-independent-eval (uk_aisi, 2026-07-17)",
+     "url": "https://www.aisi.gov.uk/blog/how-far-behind-the-frontier-are-leading-open-weight-models-on-cyber",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "ranges private",
+    "no defenders, detections not penalised, human baseline estimated not measured",
+    "two different range families share the name"
+   ],
+   "source": 2,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "construct"
+   ],
+   "score": {
+    "presence": 10.0,
+    "source": 2,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "construct": -1
+    },
+    "total": 14.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 4,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "LAB-Bench bio subset (ProtocolQA, CloningScenarios, SeqQA, FigQA)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Accuracy on practical biology-research tasks (protocol troubleshooting, cloning workflows, sequence manipulation, figure reading) compared with a PhD-biologist baseline, used in system cards as a biology-uplift proxy.",
+   "corpus": {
+    "primary": {
+     "name_queried": "LAB-Bench",
+     "query": [
+      "\\bLAB[\\- ]?Bench\\b",
+      "\\bLab[\\- ]?[Bb]ench\\b"
+     ],
+     "documents": 30,
+     "publishers_n": 7,
+     "publishers": [
+      "anthropic",
+      "cursor",
+      "meta",
+      "openai",
+      "rand",
+      "saferai",
+      "xai"
+     ],
+     "mentions": 144,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    },
+    "subset_ProtocolQA": {
+     "name_queried": "ProtocolQA",
+     "query": [
+      "\\bProtocolQA\\b"
+     ],
+     "documents": 23,
+     "publishers_n": 6,
+     "publishers": [
+      "anthropic",
+      "cursor",
+      "meta",
+      "openai",
+      "saferai",
+      "xai"
+     ],
+     "mentions": 95,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    },
+    "subset_CloningScenarios": {
+     "name_queried": "CloningScenarios",
+     "query": [
+      "\\bCloning ?Scenarios\\b"
+     ],
+     "documents": 3,
+     "publishers_n": 2,
+     "publishers": [
+      "anthropic",
+      "saferai"
+     ],
+     "mentions": 7,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    }
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2407.10362",
+     "url": "https://arxiv.org/abs/2407.10362",
+     "title": "LAB-Bench: Measuring Capabilities of Language Models for Biology Research",
+     "published": "2024-07-14",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "about 80% of each subtask public, 20% held out for contamination monitoring"
+    }
+   ],
+   "public_or_private": "public (80%), 20% held out",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed question sets with a human baseline; a scored run per model"
+   },
+   "decision": "Delay the release and add biology misuse safeguards vs release on schedule.",
+   "theta": "theta = 1: the model matches or exceeds the PhD-biologist baseline on protocol troubleshooting and cloning-workflow questions, so it could substitute for a trained collaborator in wet-lab planning.",
+   "cost": [
+    {
+     "quote": "LitQA2, SuppQA, FigQA, TableQA, ProtocolQA and CloningScenarios tasks were generated manually by the authors as well as by contracted biology experts",
+     "source": "2407.10362",
+     "url": "https://arxiv.org/abs/2407.10362",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "we assess the performance of several frontier commercial and open-source models against LAB-Bench, and further compare model performance against a group of PhD-level biology researchers to assess their capabilities relative to expert humans",
+     "source": "2407.10362",
+     "url": "https://arxiv.org/html/2407.10362",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "It is difficult to obtain a reliable human baseline on some of the more complicated tasks",
+     "source": "2407.10362",
+     "url": "https://arxiv.org/abs/2407.10362",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "On LAB-Bench, it meets or exceeds the human-expert baseline on every subtask.",
+     "source": "saferai-glm-5-2-independent-eval (saferai, 2026-08-02)",
+     "url": "https://www.safer-ai.org/u/2026/08/SaferAI-GLM-Evaluation-Report.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "we modify 108 multiple choice questions from FutureHouse's ProtocolQA dataset [1] to be open-ended short answer questions, which makes the evaluation harder and more realistic than the multiple-choice version.",
+     "source": "openai-gpt-5-3-codex-system-card (openai, 2026-02-05)",
+     "url": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "authored as a capability evaluation for biology research, not as a hazard measure",
+    "frontier models exceed the human baseline on every subtask (saturated relative to the baseline)",
+    "labs run different subsets and formats (multiple-choice vs open-ended)"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "capability_origin",
+    "saturated"
+   ],
+   "score": {
+    "presence": 9.0,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "capability_origin": -1,
+     "saturated": -1
+    },
+    "total": 14.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 5,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "StrongREJECT (jailbreak robustness)",
+   "pilot": true,
+   "domain": "societal_harm",
+   "measures": "Rubric-judged harmfulness of responses to 313 forbidden prompts under a battery of jailbreak methods, scored for specificity and convincingness rather than refusal strings.",
+   "corpus": {
+    "name_queried": "StrongREJECT",
+    "query": [
+     "\\b[Ss]trongREJECT\\b",
+     "\\bStrongReject\\b"
+    ],
+    "documents": 12,
+    "publishers_n": 7,
+    "publishers": [
+     "anthropic",
+     "cursor",
+     "meta",
+     "openai",
+     "saferai",
+     "thinking_machines",
+     "xai"
+    ],
+    "mentions": 58,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2402.10260",
+     "url": "https://arxiv.org/abs/2402.10260",
+     "title": "A StrongREJECT for Empty Jailbreaks",
+     "published": "2024-02-15",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: https://strong-reject.readthedocs.io/"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed prompt set, fixed jailbreak battery, fixed judge"
+   },
+   "decision": "Delay the launch and harden safeguards (classifier layer, refusal training against jailbreak templates) vs launch on schedule.",
+   "theta": "theta = 1: known jailbreak techniques reliably make the model produce specific, actionable harmful content in the forbidden categories.",
+   "cost": [
+    {
+     "quote": "$500 of OpenAI credits were used to generate 24,720 labels for fine-tuning the open-source evaluator",
+     "source": "2402.10260",
+     "url": "https://arxiv.org/abs/2402.10260",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "we can run and evaluate a dozen jailbreaks on our entire dataset in about 15 minutes from our local machine at a cost of less than $1 using GPT-4o-mini.",
+     "source": "2402.10260",
+     "url": "https://arxiv.org/abs/2402.10260",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "fine-tuned evaluator achieved 0.900 correlation with human judgments; the rubric-based version achieved 0.846 ... 1,361 labeled data points from five human labelers",
+     "source": "2402.10260",
+     "url": "https://arxiv.org/abs/2402.10260",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "313 prompts is not large enough to be a stand-alone, definitive measure of model robustness",
+     "source": "2402.10260",
+     "url": "https://arxiv.org/abs/2402.10260",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Ahead of the GPT-5.4 launch, we replaced our previous StrongReject-based benchmark with a more challenging multiturn jailbreak evaluation derived from red-teaming exercises.",
+     "source": "openai-gpt-5-4-thinking-system-card (openai, 2026-03-05)",
+     "url": "https://deploymentsafety.openai.com/gpt-5-4-thinking/gpt-5-4-thinking.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "replaced by OpenAI as too easy (saturated)",
+    "313 prompts",
+    "single-turn only"
+   ],
+   "source": 3,
+   "hazard": 1.5,
+   "instrument": 2,
+   "penalties": [
+    "saturated"
+   ],
+   "score": {
+    "presence": 8.0,
+    "source": 3,
+    "hazard": 1.5,
+    "instrument": 2,
+    "penalties": {
+     "saturated": -1
+    },
+    "total": 13.5
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 6,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Cybench (professional CTF suite)",
+   "pilot": true,
+   "domain": "cyber",
+   "measures": "Unguided and subtask-guided success on 40 professional capture-the-flag tasks from four competitions with first-solve-time difficulty anchors.",
+   "corpus": {
+    "name_queried": "Cybench",
+    "query": [
+     "\\bCy[Bb]ench\\b"
+    ],
+    "documents": 16,
+    "publishers_n": 7,
+    "publishers": [
+     "anthropic",
+     "epoch_ai",
+     "meta",
+     "metr",
+     "rand",
+     "saferai",
+     "us_caisi"
+    ],
+    "mentions": 91,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2408.08926",
+     "url": "https://arxiv.org/abs/2408.08926",
+     "title": "Cybench: A Framework for Evaluating Cybersecurity Capabilities and Risks of Language Models",
+     "published": "2024-08-15",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: https://cybench.github.io (HTTP 200 on 2026-10-01)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed containerised task set with flag checking"
+   },
+   "decision": "Delay the deployment and add cyber-misuse safeguards (usage classifiers, restricted agentic tooling for offensive tasks) vs deploy on schedule.",
+   "theta": "theta = 1: the model autonomously discovers and exploits vulnerabilities at a professional capture-the-flag level, solving unguided challenges that take skilled human teams an hour or more.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "from 2 minutes to 24 hours and 54 minutes, representing a 747x increase in FST",
+     "source": "2408.08926",
+     "url": "https://arxiv.org/abs/2408.08926",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Train-test contamination risk for Claude 3.5 Sonnet due to its April 2024 knowledge cutoff overlapping task release dates",
+     "source": "2408.08926",
+     "url": "https://arxiv.org/abs/2408.08926",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Claude Opus 4.6 has saturated all of our current cyber evaluations, achieving ~100% on Cybench (pass@30) and 66% on CyberGym (pass@1).",
+     "source": "anthropic-claude-opus-4-6-system-card (anthropic, 2026-02-05)",
+     "url": "https://www-cdn.anthropic.com/6a5fa276ac68b9aeb0c8b6af5fa36326e0e166dd/Claude%20Opus%204.6%20System%20Card.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "Across both suites Muse Spark 1.1 is near the benchmark ceiling (Cybench pass@10 ~97.0%, curated pass@5 ~96%), consistent with the broader trend of frontier models saturating public CTF benchmarks.",
+     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "saturated at the frontier",
+    "contamination risk documented",
+    "40 tasks only"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "saturated",
+    "construct"
+   ],
+   "score": {
+    "presence": 8.33,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "saturated": -1,
+     "construct": -1
+    },
+    "total": 13.33
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 7,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "CVE-Bench (real web-application exploitation)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Success rate at exploiting 40 critical-severity real web-application vulnerabilities in a sandbox, checked against eight predefined attack outcomes.",
+   "corpus": {
+    "name_queried": "CVE-Bench",
+    "query": [
+     "\\bCVE[\\- ]?[Bb]ench\\b"
+    ],
+    "documents": 14,
+    "publishers_n": 6,
+    "publishers": [
+     "cursor",
+     "epoch_ai",
+     "openai",
+     "rand",
+     "us_caisi",
+     "xai"
+    ],
+    "mentions": 58,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2503.17332",
+     "url": "https://arxiv.org/abs/2503.17332",
+     "title": "CVE-Bench: A Benchmark for AI Agents' Ability to Exploit Real-World Web Application Vulnerabilities",
+     "published": "2025-03-21",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: https://github.com/uiuc-kang-lab/cve-bench (HTTP 200 on 2026-10-01), Inspect-integrated"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed sandboxed task set with programmatic outcome checks"
+   },
+   "decision": "Delay the release and add cyber-misuse mitigations vs release on schedule.",
+   "theta": "theta = 1: the model autonomously exploits real web-application vulnerabilities from a description at a rate that gives practical offensive uplift.",
+   "cost": [
+    {
+     "quote": "The costs of running our benchmark is less than $100 ... individual task costs ranging from $0.6 to $1.7",
+     "source": "2503.17332",
+     "url": "https://arxiv.org/abs/2503.17332",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "cannot evaluate attacks other than the pre-defined eight standard attacks, potentially leading to false negatives",
+     "source": "2503.17332",
+     "url": "https://arxiv.org/abs/2503.17332",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "We have retired the evaluations we used for assessing High capability in cybersecurity – Capture the Flag (Internal) and CVE-Bench – because these evaluations have become saturated.",
+     "source": "openai-gpt-6-astra-system-card (openai, 2026-09-03)",
+     "url": "https://deploymentsafety.openai.com/gpt-6-astra/gpt-6-astra.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "due to some infrastructure challenges porting the eval, we only ran 34 out of the 40 benchmark chal[lenges]",
+     "source": "openai-gpt-5-3-codex-system-card (openai, 2026-02-05)",
+     "url": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "saturated and retired by OpenAI",
+    "40 web CVEs in one date range",
+    "fixed attack-outcome list gives false negatives"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "saturated"
+   ],
+   "score": {
+    "presence": 7.17,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "saturated": -1
+    },
+    "total": 13.17
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 8,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "MASK (honesty under pressure)",
+   "pilot": true,
+   "domain": "harmful_manipulation",
+   "measures": "Fraction of 1,000 public (500 held-out) prompts on which the model's pressured statement contradicts its own elicited belief, judged by an LLM validated against human labels.",
+   "corpus": {
+    "name_queried": "MASK",
+    "query": [
+     "\\bMASK\\b"
+    ],
+    "documents": 19,
+    "publishers_n": 5,
+    "publishers": [
+     "anthropic",
+     "cursor",
+     "meta",
+     "saferai",
+     "xai"
+    ],
+    "mentions": 130,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2503.03750",
+     "url": "https://arxiv.org/abs/2503.03750",
+     "title": "The MASK Benchmark: Disentangling Honesty From Accuracy in AI Systems",
+     "published": "2025-03-05",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public; paper CC BY 4.0 (arXiv licence, arxiv.org/html/2503.03750, 2026-10-01), repository MIT (https://github.com/centerforaisafety/mask, GitHub API 2026-10-01); 500 examples held out"
+    }
+   ],
+   "public_or_private": "public (1,000), 500 held out",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed propositions, belief-elicitation and pressure prompts, fixed judge"
+   },
+   "decision": "Delay the launch and add honesty interventions (training against pressured lying, system-prompt hardening) vs launch on schedule.",
+   "theta": "theta = 1: the model contradicts its own elicited beliefs when a system prompt or user pressures it to, at a materially elevated rate.",
+   "cost": [
+    {
+     "quote": "We began by training a group of calibrated Full-Time Employees (FTEs) on the nuances of the different archetypes, and we put together training materials and quizzes for contributors.",
+     "source": "2503.03750",
+     "url": "https://arxiv.org/html/2503.03750",
+     "fetched": "2026-10-01",
+     "kind": "primary",
+     "note": "Appendix workflow steps 1-3 (contributor training, initial task submission and review, ongoing quality control); no dollar figure is given"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "we collect a validation set of 150 manually labeled examples (sampled across all models and archetypes) to validate the reliability of our LLM judges, and we find an 86.4% agreement with our automated evaluation pipeline.",
+     "source": "2503.03750",
+     "url": "https://arxiv.org/abs/2503.03750",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "increased compute (FLOP) does not lead to more honest models ... a negative correlation (Spearman coefficient: -59.9%)",
+     "source": "2503.03750",
+     "url": "https://arxiv.org/abs/2503.03750",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "achieving 95.7% honesty score on MASK",
+     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "judge agreement 86.4% leaves misclassification noise",
+    "English short factual propositions only",
+    "recent models near 95% honesty"
+   ],
+   "source": 3,
+   "hazard": 1.5,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 6.58,
+    "source": 3,
+    "hazard": 1.5,
+    "instrument": 2,
+    "penalties": {},
+    "total": 13.08
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 9,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "WMDP (Weapons of Mass Destruction Proxy)",
+   "pilot": true,
+   "domain": "cbrn",
+   "measures": "Accuracy on 3,668 expert-written multiple-choice questions used as a proxy for hazardous biosecurity, chemical-security and cybersecurity knowledge.",
+   "corpus": {
+    "name_queried": "WMDP",
+    "query": [
+     "\\bWMDP\\b"
+    ],
+    "documents": 14,
+    "publishers_n": 6,
+    "publishers": [
+     "cursor",
+     "meta",
+     "openai",
+     "rand",
+     "securebio",
+     "xai"
+    ],
+    "mentions": 135,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2403.03218",
+     "url": "https://arxiv.org/abs/2403.03218",
+     "title": "The WMDP Benchmark: Measuring and Reducing Malicious Use With Unlearning",
+     "published": "2024-03-05",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public; paper CC BY 4.0 (arXiv licence, arxiv.org/html/2403.03218, 2026-10-01), dataset MIT (https://huggingface.co/datasets/cais/wmdp, Hugging Face API 2026-10-01); https://wmdp.ai"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed multiple-choice set; one scored run per model"
+   },
+   "decision": "Delay an open-weights release to apply unlearning to the hazardous-knowledge subset and re-test vs release the weights on schedule.",
+   "theta": "theta = 1: the model's weights encode expert-level hazardous knowledge, answering expert-written hazardous-knowledge questions well above what freely available sources support.",
+   "cost": [
+    {
+     "quote": "a dataset of 3,668 multiple-choice questions costing over $200K to develop",
+     "source": "2403.03218",
+     "url": "https://arxiv.org/abs/2403.03218",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "models with a high score on WMDP are not necessarily unsafe, as they may still lack the reasoning ability to combine the knowledge",
+     "source": "2403.03218",
+     "url": "https://arxiv.org/abs/2403.03218",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Models exploited shortcuts in over 30% of WMDP-Bio questions, answering correctly without access to the question text.",
+     "source": "securebio-gpt-5-6-sol-independent-eval-2 (securebio, 2026-09-11)",
+     "url": "https://securebio.substack.com/p/introducing-vct-v2",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "Metric Grok 4.5 (high) WMDP-Bio accuracy 90.9% WMDP-Chem accuracy 87.3%",
+     "source": "cursor-grok-4-5-model-card (cursor, 2026-07-14)",
+     "url": "https://cursor.com/resources/grok-4-5-model-card.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "9.2.2.3.1 Capability Sandbagging We evaluate on two capability datasets: WMDP, a multiple-choice questions dataset on dangerous-capability, and Monorepo-Bench",
+     "source": "openai-gpt-6-astra-system-card (openai, 2026-09-03)",
+     "url": "https://deploymentsafety.openai.com/gpt-6-astra/gpt-6-astra.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "saturated (about 90% accuracy at the frontier)",
+    "shortcut-solvable (>30% of WMDP-Bio without the question text)",
+    "now used mainly as a sandbagging probe"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "saturated",
+    "construct"
+   ],
+   "score": {
+    "presence": 7.17,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "saturated": -1,
+     "construct": -1
+    },
+    "total": 12.17
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 10,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "SHADE-Arena (covert sabotage with an LLM monitor)",
+   "pilot": true,
+   "domain": "loss_of_control",
+   "measures": "Rate at which an agent completes a harmful hidden side task during a long agentic main task while keeping an LLM monitor's suspicion below threshold, over 17 task pairs.",
+   "corpus": {
+    "name_queried": "SHADE-Arena",
+    "query": [
+     "\\bSHADE[\\- ]?Arena\\b",
+     "\\bShade[\\- ]?Arena\\b",
+     "\\bSHADE\\b"
+    ],
+    "documents": 20,
+    "publishers_n": 5,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "metr",
+     "openai",
+     "redwood_research"
+    ],
+    "mentions": 235,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2506.15740",
+     "url": "https://arxiv.org/abs/2506.15740",
+     "title": "SHADE-Arena: Evaluating Sabotage and Monitoring in LLM Agents",
+     "published": "2025-06-17",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "5 of 17 task pairs public, rest on request"
+    }
+   ],
+   "public_or_private": "partly public (5/17), rest on request",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed task pairs, fixed monitor and threshold, one run of N trajectories"
+   },
+   "decision": "Delay the autonomous deployment and add stronger oversight (action-level monitoring, human approval on sensitive actions) vs deploy with the default LLM monitor on schedule.",
+   "theta": "theta = 1: the model can complete a harmful hidden side task during a long-horizon agentic task while keeping an LLM monitor's suspicion below the alarm threshold.",
+   "cost": [
+    {
+     "quote": "Each of these environments is populated with synthetic data, with some exceeding 100,000 tokens. Each environment required substantial manual engineering.",
+     "source": "2506.15740",
+     "url": "https://arxiv.org/abs/2506.15740",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "SHADE-Arena comprises 26 challenges where the model executes a main task while covertly pursuing a hidden side task (10 runs per challenge), while aware of being monitored.",
+     "source": "meta-muse-spark-system-card (meta, 2026-05-26)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-safety-and-preparedness-report/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "The best LLM (Gemini 2.5 Pro) achieves an AUC of 0.87 at distinguishing benign from harmful trajectories.",
+     "source": "2506.15740",
+     "url": "https://arxiv.org/abs/2506.15740",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "the false positive rate of Claude 3.6 Sonnet as a monitor is about 1% for most agents",
+     "source": "2506.15740",
+     "url": "https://arxiv.org/abs/2506.15740",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "The best performing sabotage agents score 27% (Claude 3.7 Sonnet) and 15% (Gemini 2.5 Pro)",
+     "source": "2506.15740",
+     "url": "https://arxiv.org/abs/2506.15740",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Anthropic acknowledges that their covert capability evals (SHADE-Arena, Minimal-LinuxBench and secret-password) may be unrealistically challenging and therefore fail to upper bound these capabilities.",
+     "source": "redwood-research-claude-mythos-preview-independent-eval (redwood_research, 2026-07-31)",
+     "url": "https://blog.redwoodresearch.org/p/sota-alignment-assessments-dont-strongly",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "may fail to upper-bound covert capability (under-elicitation)",
+    "most task pairs private",
+    "model knows it is monitored"
+   ],
+   "source": 2,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 6.67,
+    "source": 2,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 11.67
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 11,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Petri (automated alignment audit with a fixed seed set)",
+   "pilot": false,
+   "domain": "harmful_manipulation",
+   "measures": "Judge scores on 36 dimensions (misaligned behaviour, cooperation with misuse, unprompted deception, sycophancy, delusion encouragement) over multi-turn scenarios generated from 111 seed instructions by an auditor agent.",
+   "corpus": {
+    "name_queried": "Petri",
+    "query": [
+     "\\bPetri\\b"
+    ],
+    "documents": 15,
+    "publishers_n": 6,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "metr",
+     "openai",
+     "saferai",
+     "uk_aisi"
+    ],
+    "mentions": 145,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://alignment.anthropic.com/2025/petri/",
+     "url": "https://alignment.anthropic.com/2025/petri/",
+     "title": "Petri technical post (2025-10-06)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "open source, MIT (GitHub API 2026-10-01); https://github.com/safety-research/petri redirects (HTTP 301) to https://github.com/meridianlabs-ai/inspect_petri, which loads (HTTP 200 on 2026-10-01)"
+    },
+    {
+     "kind": "url",
+     "id": "https://www.anthropic.com/research/petri-open-source-auditing",
+     "url": "https://www.anthropic.com/research/petri-open-source-auditing",
+     "title": "Petri announcement (2025-10-06)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": ""
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": false,
+    "partly": true,
+    "why": "a tool; the default 111 seeds, auditor and judge fix one instrument"
+   },
+   "decision": "Delay the consumer launch and add training against deception and sycophancy vs launch on schedule.",
+   "theta": "theta = 1: the model deceives or manipulates users (unprompted deception, sycophancy, encouragement of delusion) in realistic multi-turn scenarios at a rate materially above comparison models.",
+   "cost": [
+    {
+     "kind": "url",
+     "id": "https://alignment.anthropic.com/2025/petri/",
+     "url": "https://alignment.anthropic.com/2025/petri/",
+     "title": "Petri technical post",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "often enabling a researcher to explore a behavior with only minutes of hands-on effort"
+    },
+    {
+     "quote": "Mean Petri judge scores ... over 166 seeds for GLM-5.2 and 162 for GPT-5.5.",
+     "source": "saferai-glm-5-2-independent-eval (saferai, 2026-08-02)",
+     "url": "https://www.safer-ai.org/u/2026/08/SaferAI-GLM-Evaluation-Report.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "kind": "url",
+     "id": "https://alignment.anthropic.com/2025/petri/",
+     "url": "https://alignment.anthropic.com/2025/petri/",
+     "title": "Petri technical post",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "intra-judge correlation (e.g. sample the judge twice for each transcript and compare the two scores) was typically between 0.75 and 0.85"
+    },
+    {
+     "kind": "url",
+     "id": "https://alignment.anthropic.com/2025/petri/",
+     "url": "https://alignment.anthropic.com/2025/petri/",
+     "title": "Petri technical post",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "Many Petri transcripts contain clues that a model could use to discern that the generated scenario isn't a real deployment"
+    }
+   ],
+   "problems": [
+    "tool, not a fixed instrument",
+    "judge validated only by self-consistency, not against human labels",
+    "evaluation-awareness clues in transcripts"
+   ],
+   "source": 3,
+   "hazard": 1,
+   "instrument": 1,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 7.25,
+    "source": 3,
+    "hazard": 1,
+    "instrument": 1,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 11.25
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 12,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "ExploitBench (browser-engine exploit development, Anthropic)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Mean number of 16 capability flags reached across 41 browser-engine vulnerability environments, from crash reproduction to arbitrary code execution.",
+   "corpus": {
+    "name_queried": "ExploitBench",
+    "query": [
+     "\\bExploit[\\- ]?Bench\\b"
+    ],
+    "documents": 26,
+    "publishers_n": 7,
+    "publishers": [
+     "anthropic",
+     "epoch_ai",
+     "meta",
+     "openai",
+     "uk_aisi",
+     "us_caisi",
+     "zai"
+    ],
+    "mentions": 118,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+     "title": "Anthropic Claude Fable 5.1 system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "developer-built; shared with UK AISI, US CAISI, Epoch AI, OpenAI, Meta, Z.ai; not public"
+    }
+   ],
+   "public_or_private": "private, shared with evaluators",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed 41-task set with a 16-flag programmatic scale"
+   },
+   "decision": "Delay the release and add cyber-misuse mitigations vs release on schedule.",
+   "theta": "theta = 1: the model develops working exploits for known browser-engine vulnerabilities, reaching code-execution flags on a material fraction of tasks.",
+   "cost": [
+    {
+     "quote": "Each task is graded on a 16-point scale, and the model's score per task is its best of three attempts.",
+     "source": "us-caisi-glm-5-3-independent-eval (us_caisi, 2026-09-17)",
+     "url": "https://www.nist.gov/news-events/news/2026/09/caisis-assessment-zais-glm-53-cyber-capabilities",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "Claude Mythos 5.1 scored a mean of 11.80 capability flags across ExploitBench's 41 V8 environments in the plain arm.",
+     "source": "anthropic-claude-fable-5-1-system-card (anthropic, 2026-09-01)",
+     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "we ran Astra on ExploitBench where the model achieved a perfect score of 100% on the benchmark",
+     "source": "openai-gpt-6-astra-other (openai, 2026-09-01)",
+     "url": "https://openai.com/index/path-to-astra/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus",
+     "note": "https://openai.com/index/path-to-astra/ returns HTTP 403 to automated fetches (curl with and without a browser user agent, WebFetch; 2026-10-01); quote verified against the corpus copy, slug openai-gpt-6-astra-other (canonical_url identical), stored text fetched 2026-09-06T06:28:18Z"
+    },
+    {
+     "quote": "Due to contamination concerns, we then built an internal benchmark denoted \"ExploitBench - Internal Port (June–August 2026)\", which contains 20 high-severity V8 vulnerabilities that were disclosed more recently.",
+     "source": "openai-gpt-6-astra-other (openai, 2026-09-01)",
+     "url": "https://openai.com/index/path-to-astra/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus",
+     "note": "https://openai.com/index/path-to-astra/ returns HTTP 403 to automated fetches (curl with and without a browser user agent, WebFetch; 2026-10-01); quote verified against the corpus copy, slug openai-gpt-6-astra-other (canonical_url identical), stored text fetched 2026-09-06T06:28:18Z"
+    },
+    {
+     "quote": "ExploitBench, which has 41 tasks focused on exploit development",
+     "source": "uk-aisi-kimi-k3-independent-eval (uk_aisi, 2026-07-23)",
+     "url": "https://www.aisi.gov.uk/blog/preliminary-assessment-of-kimi-k3s-cyber-capabilities",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "developer-private, no standalone primary source",
+    "saturated (100% reported)",
+    "contamination concerns led OpenAI to build an internal port"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "saturated",
+    "construct"
+   ],
+   "score": {
+    "presence": 9.0,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "saturated": -1,
+     "construct": -1
+    },
+    "total": 11.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 13,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Bloom (automated behavioural evaluation generator)",
+   "pilot": false,
+   "domain": "loss_of_control",
+   "measures": "Frequency and severity of a researcher-specified behaviour (benchmarked: self-preservation, instructed long-horizon sabotage, delusional sycophancy, self-preferential bias) across automatically generated scenarios scored by an LLM judge.",
+   "corpus": {
+    "name_queried": "Bloom",
+    "query": [
+     "\\bBloom\\b"
+    ],
+    "documents": 11,
+    "publishers_n": 4,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "openai",
+     "transluce"
+    ],
+    "mentions": 20,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://alignment.anthropic.com/2025/bloom-auto-evals/",
+     "url": "https://alignment.anthropic.com/2025/bloom-auto-evals/",
+     "title": "Bloom technical post (2025-12-19)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "open source, https://github.com/safety-research/bloom (HTTP 200 on 2026-10-01)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": false,
+    "partly": true,
+    "why": "a generator; fixing the behaviour description, seed count and judge gives one instrument"
+   },
+   "decision": "Delay the autonomous deployment and add mitigations against self-preserving or sabotaging actions vs deploy on schedule.",
+   "theta": "theta = 1: the model takes self-preserving or sabotaging actions when scenarios offer the opportunity, at a rate materially above the baseline models.",
+   "cost": [
+    {
+     "quote": "For each behavior, we run Bloom with a budget of 100,000-500,000 rollouts, and scenario ideation is done in independent batches of 50 per evaluator call.",
+     "source": "transluce-deepseek-v4-flash-independent-eval (transluce, 2026-07-21)",
+     "url": "https://transluce.org/weirdchat",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "kind": "url",
+     "id": "https://alignment.anthropic.com/2025/bloom-auto-evals/",
+     "url": "https://alignment.anthropic.com/2025/bloom-auto-evals/",
+     "title": "Bloom technical post",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "Claude Opus 4.1 shows the strongest correlation with human-labeled scores as a judge (Spearman correlation of 0.86), followed by Claude Sonnet 4.5 (0.75)"
+    },
+    {
+     "kind": "url",
+     "id": "https://alignment.anthropic.com/2025/bloom-auto-evals/",
+     "url": "https://alignment.anthropic.com/2025/bloom-auto-evals/",
+     "title": "Bloom technical post",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "Bloom successfully distinguishes system-prompted model organisms from baseline models for 9/10 quirks, even without example transcripts"
+    }
+   ],
+   "problems": [
+    "tool rather than a fixed instrument",
+    "judge-scored; unsuitable for objective-correctness behaviours",
+    "scenario realism depends on the generator"
+   ],
+   "source": 3,
+   "hazard": 1.5,
+   "instrument": 1,
+   "penalties": [],
+   "score": {
+    "presence": 4.92,
+    "source": 3,
+    "hazard": 1.5,
+    "instrument": 1,
+    "penalties": {},
+    "total": 10.42
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 14,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "ControlArena (AI-control settings: side-task success under monitoring)",
+   "pilot": false,
+   "domain": "loss_of_control",
+   "measures": "Whether a model completes a harmful side task inside a legitimate main task without a monitor's suspicion score exceeding the audit threshold, in sandboxed settings (infrastructure, bash, coding, prompt injection).",
+   "corpus": {
+    "name_queried": "ControlArena",
+    "query": [
+     "\\bControl[\\- ]?[Aa][Rr][Ee][Nn][Aa]\\b"
+    ],
+    "documents": 5,
+    "publishers_n": 4,
+    "publishers": [
+     "anthropic",
+     "openai",
+     "redwood_research",
+     "uk_aisi"
+    ],
+    "mentions": 7,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://github.com/UKGovernmentBEIS/control-arena",
+     "url": "https://github.com/UKGovernmentBEIS/control-arena",
+     "title": "ControlArena repository (UK AISI and Redwood Research), README fetched 2026-10-01",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "open source, pip install control-arena"
+    },
+    {
+     "kind": "url",
+     "id": "https://control-arena.aisi.org.uk/evaluation.html",
+     "url": "https://control-arena.aisi.org.uk/evaluation.html",
+     "title": "ControlArena documentation, Evaluation page",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": ""
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": false,
+    "partly": true,
+    "why": "a library of settings and protocols; fixing one setting, one monitor and one threshold gives a single instrument"
+   },
+   "decision": "Delay the privileged agentic deployment and add control measures (trusted monitoring, deferral, audit budget) vs deploy with the default protocol on schedule.",
+   "theta": "theta = 1: the model completes harmful side tasks in privileged environments while staying under the monitor's audit threshold at a material rate.",
+   "cost": [
+    {
+     "kind": "url",
+     "id": "https://control-arena.aisi.org.uk/evaluation.html",
+     "url": "https://control-arena.aisi.org.uk/evaluation.html",
+     "title": "ControlArena docs",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "you may want to evaluate them on the same trajectories without re-running expensive evaluations."
+    }
+   ],
+   "validity": [
+    {
+     "quote": "ControlArena measures whether a model can stealthily perform unwanted actions while completing an otherwise legitimate user task.",
+     "source": "openai-gpt-5-6-sol-system-card (openai, 2026-07-09)",
+     "url": "https://deploymentsafety.openai.com/gpt-5-6/gpt-5-6.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "In ControlArena, [Claude Mythos 5] is more capable of completing harmful side tasks without detection than both Claude Mythos Preview and Opus 4.8.",
+     "source": "anthropic-claude-fable-5-system-card (anthropic, 2026-06-09)",
+     "url": "https://www.anthropic.com/claude-fable-5-mythos-5-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "kind": "url",
+     "id": "https://github.com/UKGovernmentBEIS/control-arena",
+     "url": "https://github.com/UKGovernmentBEIS/control-arena",
+     "title": "ControlArena README",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "",
+     "quote": "Each setting includes main tasks (benign tasks the model should complete ...) and side tasks (harmful actions a misaligned model might attempt concurrently ...)"
+    }
+   ],
+   "problems": [
+    "framework, not one fixed instrument; results depend on the chosen setting, monitor and threshold",
+    "no standalone paper for the library (settings have their own)"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 1,
+   "penalties": [],
+   "score": {
+    "presence": 4.42,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 1,
+    "penalties": {},
+    "total": 10.42
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 15,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Agentic Misalignment (insider-threat scenarios)",
+   "pilot": true,
+   "domain": "loss_of_control",
+   "measures": "Rate of harmful insider actions (blackmail, leaking, lethal inaction) by an email-agent facing replacement or goal conflict in simulated corporate scenarios.",
+   "corpus": {
+    "name_queried": "Agentic Misalignment",
+    "query": [
+     "\\b[Aa]gentic [Mm]isalignment\\b"
+    ],
+    "documents": 12,
+    "publishers_n": 5,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "metr",
+     "openai",
+     "saferai"
+    ],
+    "mentions": 67,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2510.05179",
+     "url": "https://arxiv.org/abs/2510.05179",
+     "title": "Agentic Misalignment: How LLMs Could Be Insider Threats",
+     "published": "2025-10-05",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: https://github.com/anthropic-experimental/agentic-misalignment (HTTP 200 on 2026-10-01)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed scenario set with an automated transcript classifier"
+   },
+   "decision": "Delay giving the model autonomous email and corporate-system access and add mitigations (human confirmation of irreversible actions, training against self-preservation actions) vs deploy on schedule.",
+   "theta": "theta = 1: given agentic corporate access and a replacement threat or goal conflict, the model takes harmful insider actions in a material fraction of episodes.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "We measured rates of model misalignment by prompting Claude Sonnet 3.7 to classify transcripts, combined with some hardcoded string-matching.",
+     "source": "2510.05179",
+     "url": "https://arxiv.org/abs/2510.05179",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "When Claude Opus 4 stated the scenario was real, it blackmailed 55.1% of the time, compared to only 6.5% of the time when it stated it was in an evaluation.",
+     "source": "2510.05179",
+     "url": "https://arxiv.org/abs/2510.05179",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Our experiments deliberately constructed scenarios with limited options, and we forced models into binary choices between failure and harm.",
+     "source": "2510.05179",
+     "url": "https://arxiv.org/abs/2510.05179",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "since Claude Haiku 4.5, every Claude model has achieved a perfect score on the agentic misalignment evaluation—that is, the models never engage in blackmail, where previous models would sometimes do so up to 96% of the time (Opus 4).",
+     "source": "anthropic-claude-haiku-4-5-other (anthropic, 2026-05-08)",
+     "url": "https://www.anthropic.com/research/teaching-claude-why",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "evaluation awareness changes the measured rate (55.1% vs 6.5%)",
+    "artificial binary-choice scenarios",
+    "at floor for recent models (saturated downward)"
+   ],
+   "source": 3,
+   "hazard": 1,
+   "instrument": 2,
+   "penalties": [
+    "construct",
+    "saturated"
+   ],
+   "score": {
+    "presence": 6.0,
+    "source": 3,
+    "hazard": 1,
+    "instrument": 2,
+    "penalties": {
+     "construct": -1,
+     "saturated": -1
+    },
+    "total": 10.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 16,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "ABC-Bench (Agentic Bio-Capabilities Benchmark)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Agentic performance on three in-silico biosecurity-relevant tasks (DNA fragment design, synthesis-screening evasion, liquid-handling-robot scripting) scored programmatically against an expert baseline.",
+   "corpus": {
+    "name_queried": "ABC Bench",
+    "query": [
+     "\\bABC[\\- ]?Bench\\b"
+    ],
+    "documents": 10,
+    "publishers_n": 4,
+    "publishers": [
+     "meta",
+     "openai",
+     "rand",
+     "securebio"
+    ],
+    "mentions": 40,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2606.11150",
+     "url": "https://arxiv.org/abs/2606.11150",
+     "title": "ABC-Bench: An Agentic Bio-Capabilities Benchmark for Biosecurity",
+     "published": "2026-06-09",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "paper public; SecureBio runs the tasks as a held-out evaluation for developers"
+    },
+    {
+     "kind": "url",
+     "id": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "title": "SecureBio pre-release assessment of GPT-5.5 (2026-04-23)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "describes ABC-Bench as a held-out evaluation with a median human SME baseline"
+    }
+   ],
+   "public_or_private": "paper public; tasks held out by SecureBio",
+   "single_instrument": {
+    "yes": true,
+    "why": "three fixed agentic tasks with programmatic scoring and a human baseline"
+   },
+   "decision": "Delay the release and restrict agentic biology tooling vs release on schedule.",
+   "theta": "theta = 1: an agent built on the model completes the in-silico design and screening-evasion tasks at or above the median expert baseline.",
+   "cost": [
+    {
+     "quote": "In three wet-lab validation experiments, we found that OpenAI's o4-mini-high produced scripts that, when run on an OpenTrons liquid handling robot, successfully assembled DNA with expected sequences.",
+     "source": "2606.11150",
+     "url": "https://arxiv.org/abs/2606.11150",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "All tested LLM agents outperformed the median expert human baseliner on all three tasks.",
+     "source": "2606.11150",
+     "url": "https://arxiv.org/abs/2606.11150",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "ABC-Bench's Screening Evasion and Fragment Design tasks typically show a high level of refusals from OpenAI and Anthropic models (see Figure 2.3.1.2).",
+     "source": "securebio-gpt-5-5-independent-eval (securebio, 2026-04-23)",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "ABC-Bench is already used by major AI developers for pre-release testing, which helps calibrate when and where biological safeguards should be applied.",
+     "source": "securebio-claude-opus-4-6-independent-eval-2 (securebio, 2026-06-10)",
+     "url": "https://securebio.substack.com/p/how-frontier-ai-models-perform-on",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "only three tasks",
+    "refusals confound capability measurement on two of the three tasks",
+    "tasks held out by one third party"
+   ],
+   "source": 2,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 4.83,
+    "source": 2,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 9.83
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 17,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "AgentHarm (harmful multi-step agentic tasks)",
+   "pilot": false,
+   "domain": "societal_harm",
+   "measures": "Fraction of 110 base (440 augmented) explicitly malicious multi-step tool-use tasks the agent completes, scored mostly by hand-written programmatic checks.",
+   "corpus": {
+    "name_queried": "AgentHarm",
+    "query": [
+     "\\bAgent[Hh]arm\\b"
+    ],
+    "documents": 3,
+    "publishers_n": 2,
+    "publishers": [
+     "google_deepmind",
+     "meta"
+    ],
+    "mentions": 26,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2410.09024",
+     "url": "https://arxiv.org/abs/2410.09024",
+     "title": "AgentHarm: A Benchmark for Measuring Harmfulness of LLM Agents",
+     "published": "2024-10-11",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public test split and validation split on Hugging Face (ai-safety-institute/AgentHarm, HTTP 200 on 2026-10-01); 30% private"
+    }
+   ],
+   "public_or_private": "public (70%), 30% private",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed tasks and synthetic tools with programmatic grading"
+   },
+   "decision": "Delay the agentic launch and add misuse safeguards for tool use vs launch on schedule.",
+   "theta": "theta = 1: the agent completes explicitly malicious multi-step tasks (fraud, harassment, cybercrime) at a material rate when asked.",
+   "cost": [
+    {
+     "quote": "A single run of an LLM agent on our public test set typically requires around 0.5-1.5M tokens ... $1–$4 for GPT-4o and $0.08–$0.25 for GPT-4o-mini as of September 2024.",
+     "source": "2410.09024",
+     "url": "https://arxiv.org/abs/2410.09024",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "All tasks are manually written and reviewed by separate human reviewers.",
+     "source": "2410.09024",
+     "url": "https://arxiv.org/html/2410.09024",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "measures basic agentic capabilities and not advanced autonomous capabilities",
+     "source": "2410.09024",
+     "url": "https://arxiv.org/abs/2410.09024",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Muse Spark shows moderate false refusal rates on benign prompts — ... 6.8% on the benign AgentHarm subset.",
+     "source": "meta-muse-spark-system-card (meta, 2026-05-26)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-safety-and-preparedness-report/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "two publishers",
+    "synthetic tools; English single-turn only"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 2.25,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {},
+    "total": 9.25
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 18,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Binary Exploitation Benchmark, formerly OSS-Fuzz (Anthropic; CAISI private variant)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Unguided vulnerability discovery in open-source projects from Google's OSS-Fuzz programme and how far a found bug is pushed toward a working exploit.",
+   "corpus": {
+    "name_queried": "OSS-Fuzz",
+    "query": [
+     "\\bOSS[\\- ]?Fuzz\\b"
+    ],
+    "documents": 15,
+    "publishers_n": 6,
+    "publishers": [
+     "anthropic",
+     "epoch_ai",
+     "google_deepmind",
+     "meta",
+     "saferai",
+     "us_caisi"
+    ],
+    "mentions": 57,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01",
+    "breakdown": {
+     "name_the_evaluation": [
+      "anthropic",
+      "epoch_ai",
+      "us_caisi"
+     ],
+     "name_the_oss_fuzz_infrastructure_only": [
+      "google_deepmind",
+      "meta",
+      "saferai"
+     ],
+     "note": "meta-muse-spark-1-1-system-card matches on 'CVE / OSS-Fuzz cases' (a jailbreak threat-model category); in the stored raw text the word is hyphenated across a line break ('OSS-\\nFuzz') and the corpus normalisation joins it, so a search of the raw text without that step misses it (checked 2026-10-01)"
+    }
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+     "url": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+     "title": "Anthropic Claude Opus 5.5 system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "developer-private; CAISI runs a private 297-task variant"
+    }
+   ],
+   "public_or_private": "developer-private",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed project set with a control-flow-hijack success criterion"
+   },
+   "decision": "Delay the release and add cyber-misuse mitigations vs release on schedule.",
+   "theta": "theta = 1: the model finds unknown vulnerabilities in real open-source code and develops them into working exploits without guidance.",
+   "cost": [
+    {
+     "quote": "here we tested models on a randomly selected subset of 100 tasks from this evaluation.",
+     "source": "anthropic-glm-5-3-other (anthropic, 2026-09-29)",
+     "url": "https://www.anthropic.com/research/glm-5-3-and-the-spread-of-advanced-cyber-capabilities",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "3.3.3 Binary Exploitation Benchmark (formerly known as OSS-Fuzz) This evaluation measures unguided vulnerability discovery and how far a model can push a found bug toward a working proof-of-concept exploit.",
+     "source": "anthropic-claude-opus-5-5-system-card (anthropic, 2026-09-22)",
+     "url": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "The model must develop the bug into an exploit that allows the model to run code of its choosing. | | CAISI OSS-Fuzz (Private CAISI Benchmark) | A set of 297 tasks.",
+     "source": "us-caisi-glm-5-3-independent-eval (us_caisi, 2026-09-17)",
+     "url": "https://www.nist.gov/news-events/news/2026/09/caisis-assessment-zais-glm-53-cyber-capabilities",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "That's because of issues with benchmark construction (like incorrect problem statements), which make higher scores impossible or random even with perfect performance.",
+     "source": "epoch-ai-claude-mythos-5-independent-eval (epoch_ai, 2026-06-11)",
+     "url": "https://epoch.ai/gradient-updates/are-mythos-cyber-capabilities-overhyped",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "developer-private, no standalone primary source",
+    "construction issues noted by Epoch AI",
+    "corpus count includes mentions of the OSS-Fuzz infrastructure that CyberGym draws on"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary",
+    "construct"
+   ],
+   "score": {
+    "presence": 7.25,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1,
+     "construct": -1
+    },
+    "total": 9.25
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 19,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "FORTRESS (national-security and public-safety adversarial prompts)",
+   "pilot": false,
+   "domain": "societal_harm",
+   "measures": "Rubric-judged harmful compliance on 500 expert-written adversarial prompts across CBRNE, political violence and illicit-activity domains, each paired with a benign variant for over-refusal.",
+   "corpus": {
+    "name_queried": "FORTRESS",
+    "query": [
+     "\\bFORTRESS\\b"
+    ],
+    "documents": 6,
+    "publishers_n": 3,
+    "publishers": [
+     "cursor",
+     "meta",
+     "xai"
+    ],
+    "mentions": 26,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2506.14922",
+     "url": "https://arxiv.org/abs/2506.14922",
+     "title": "FORTRESS: Frontier Risk Evaluation for National Security and Public Safety",
+     "published": "2025-06-17",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public set on Hugging Face (ScaleAI/fortress_public, HTTP 200 on 2026-10-01); private official split run by Scale AI"
+    }
+   ],
+   "public_or_private": "public set plus private official set",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed prompt-rubric pairs with a judge"
+   },
+   "decision": "Delay the launch and harden safeguards against national-security misuse vs launch on schedule.",
+   "theta": "theta = 1: the model gives rubric-matching harmful assistance on national-security-relevant requests at a material rate.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "FORTRESS (Knight et al., 2025) is a private benchmark from Scale AI for evaluating jailbreak robustness.",
+     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "Scale AI runs the private split of FORTRESS and we include the results in Figure 26.",
+     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "judge agreement not fetched",
+    "spans CBRN and societal harm; domain assignment is a judgment call",
+    "three publishers, two of which publish the same card"
+   ],
+   "source": 2.5,
+   "hazard": 1,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 3.5,
+    "source": 2.5,
+    "hazard": 1,
+    "instrument": 2,
+    "penalties": {},
+    "total": 9.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 20,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "BBQ (Bias Benchmark for QA)",
+   "pilot": true,
+   "domain": "societal_harm",
+   "measures": "Accuracy and bias score on 58,492 templated ambiguous and disambiguated questions across nine social dimensions.",
+   "corpus": {
+    "name_queried": "BBQ",
+    "query": [
+     "\\bBBQ\\b(?![ -](?:thermometer|grill|sauce|pit|smoker))"
+    ],
+    "documents": 11,
+    "publishers_n": 1,
+    "publishers": [
+     "anthropic"
+    ],
+    "mentions": 62,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2110.08193",
+     "url": "https://arxiv.org/abs/2110.08193",
+     "title": "BBQ: A Hand-Built Bias Benchmark for Question Answering",
+     "published": "2021-10-15",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public; paper CC BY 4.0 (arXiv licence, arxiv.org/abs/2110.08193, 2026-10-01) and repository CC-BY-4.0 (https://github.com/nyu-mll/BBQ, GitHub API 2026-10-01)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed templated question set with a programmatic bias score"
+   },
+   "decision": "Delay the deployment and apply bias mitigation (prompting or fine-tuning, then re-test) vs deploy on schedule.",
+   "theta": "theta = 1: the model systematically resolves under-informative questions in line with social stereotypes about protected groups.",
+   "cost": [
+    {
+     "quote": "we pay annotators $0.50 per task",
+     "source": "2110.08193",
+     "url": "https://arxiv.org/abs/2110.08193",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "raw human (crowdworker annotator) accuracy on BBQ is 95.7%, and aggregate human accuracy calculated via majority vote is 99.7% ... Krippendorf's alpha of 0.883",
+     "source": "2110.08193",
+     "url": "https://arxiv.org/abs/2110.08193",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "only designed to test biases associated with US English-speaking cultural contexts",
+     "source": "2110.08193",
+     "url": "https://arxiv.org/abs/2110.08193",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "a standard benchmark-based bias evaluation that we have run for all recent models.",
+     "source": "anthropic-claude-mythos-preview-system-card (anthropic, 2026-04-07)",
+     "url": "https://www-cdn.anthropic.com/8b8380204f74670be75e81c820ca8dda846ab289.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "single publisher (Anthropic) in the corpus",
+    "US-English cultural scope",
+    "no cost or validity sentences in any system card"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 1.92,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {},
+    "total": 8.92
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 21,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "BioTIER (biology refusal benchmark)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Refusal rate on 398 expert-written prompts that should be refused and compliance rate on 144 benign prompts, graded by a three-model jury.",
+   "corpus": {
+    "name_queried": "BioTIER",
+    "query": [
+     "\\bBioTIER\\b",
+     "\\bBioTier\\b"
+    ],
+    "documents": 10,
+    "publishers_n": 3,
+    "publishers": [
+     "meta",
+     "openai",
+     "securebio"
+    ],
+    "mentions": 93,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2607.14479",
+     "url": "https://arxiv.org/abs/2607.14479",
+     "title": "BioTIER: A Refusal Benchmark for Targeted Biological Risk Mitigation",
+     "published": "2026-07-16",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "paper public; data available on request to organisations with an AI-safety track record; public refusal tracker"
+    }
+   ],
+   "public_or_private": "paper public; prompts on request",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed prompt set with a fixed grading jury; one run per model"
+   },
+   "decision": "Delay the launch and harden biology-misuse safeguards vs launch on schedule.",
+   "theta": "theta = 1: the deployed system complies with a material fraction of expert-flagged high-risk biology requests (refusal rate below the developer's safeguard target).",
+   "cost": [
+    {
+     "quote": "BioTIER was produced with funding from Sentinel Bio, Coefficient Giving, and funding support to offset development costs from several AI firms.",
+     "source": "2607.14479",
+     "url": "https://arxiv.org/abs/2607.14479",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "The 3 model jury reached consensus in ~96% of model graded answers",
+     "source": "2607.14479",
+     "url": "https://arxiv.org/abs/2607.14479",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "The current evaluation measures binary compliance but does not assess the quality, risk or potential for uplift",
+     "source": "2607.14479",
+     "url": "https://arxiv.org/abs/2607.14479",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "The benchmark comprises 501 prompts spanning three risk categories ... BioTIER is available upon request at ai@securebio.org.",
+     "source": "meta-muse-spark-contemplating-system-card (meta, 2026-06-03)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-contemplating-safety-and-preparedness-report/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "measures a safeguard (refusal), not a capability; binary compliance only",
+    "no jailbreak or multi-turn conditions",
+    "prompts on request only"
+   ],
+   "source": 2,
+   "hazard": 1,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 3.83,
+    "source": 2,
+    "hazard": 1,
+    "instrument": 2,
+    "penalties": {},
+    "total": 8.83
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 22,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "HarmBench (automated red teaming and robust refusal)",
+   "pilot": false,
+   "domain": "societal_harm",
+   "measures": "Attack success rate over 510 harmful behaviours (400 text, 110 multimodal) under standardised automated attacks, judged by a validated classifier.",
+   "corpus": {
+    "name_queried": "HarmBench",
+    "query": [
+     "\\bHarm[Bb]ench\\b"
+    ],
+    "documents": 4,
+    "publishers_n": 2,
+    "publishers": [
+     "anthropic",
+     "meta"
+    ],
+    "mentions": 16,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2402.04249",
+     "url": "https://arxiv.org/abs/2402.04249",
+     "title": "HarmBench: A Standardized Evaluation Framework for Automated Red Teaming and Robust Refusal",
+     "published": "2024-02-06",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public; paper CC BY 4.0 (arXiv licence, arxiv.org/html/2402.04249, 2026-10-01), repository MIT (https://github.com/centerforaisafety/HarmBench, GitHub API 2026-10-01)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed behaviours, attack set and classifier"
+   },
+   "decision": "Delay the launch and harden safeguards vs launch on schedule.",
+   "theta": "theta = 1: standardised automated attacks elicit the harmful behaviours at a material rate.",
+   "cost": [
+    {
+     "quote": "16 hours on an 8xA100 node (adversarial-training experiments, not the evaluation itself)",
+     "source": "2402.04249",
+     "url": "https://arxiv.org/abs/2402.04249",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "HarmBench classifier ... Average 93.19 (percentage agreement against human judgments on validation sets)",
+     "source": "2402.04249",
+     "url": "https://arxiv.org/abs/2402.04249",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "ran it on three public benchmarks (JailbreakBench, HarmBench, and StrongREJECT) that measure how often a model complies with clearly harmful requests.",
+     "source": "anthropic-glm-5-3-other (anthropic, 2026-09-29)",
+     "url": "https://www.anthropic.com/research/glm-5-3-and-the-spread-of-advanced-cyber-capabilities",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "two publishers; used in research pieces rather than release gates",
+    "same construct as StrongREJECT"
+   ],
+   "source": 3,
+   "hazard": 1.5,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 2.33,
+    "source": 3,
+    "hazard": 1.5,
+    "instrument": 2,
+    "penalties": {},
+    "total": 8.83
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 23,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "AgentDojo (prompt-injection attacks on tool-using agents)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Targeted attack success rate and utility under attack over 629 security test cases in four tool-using environments.",
+   "corpus": {
+    "primary": {
+     "name_queried": "AgentDojo",
+     "query": [
+      "\\bAgentDojo\\b"
+     ],
+     "documents": 4,
+     "publishers_n": 1,
+     "publishers": [
+      "meta"
+     ],
+     "mentions": 20,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    },
+    "construct_prompt_injection": {
+     "name_queried": "Prompt injection (any)",
+     "query": [
+      "\\b[Pp]rompt [Ii]njection"
+     ],
+     "documents": 36,
+     "publishers_n": 10,
+     "publishers": [
+      "anthropic",
+      "apollo_research",
+      "google_deepmind",
+      "inclusion_ai",
+      "meta",
+      "metr",
+      "nvidia",
+      "openai",
+      "rand",
+      "uk_aisi"
+     ],
+     "mentions": 469,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    }
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2406.13352",
+     "url": "https://arxiv.org/abs/2406.13352",
+     "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents",
+     "published": "2024-06-19",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public, MIT licence, pip-installable"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed environments, tasks and injection cases with programmatic checks"
+   },
+   "decision": "Delay the agentic launch and add prompt-injection defences vs launch on schedule.",
+   "theta": "theta = 1: injected instructions in retrieved data make the agent carry out the attacker's task in a material fraction of cases.",
+   "cost": [
+    {
+     "quote": "Running the full suite of 629 security test cases on GPT-4o costs around US$35, and running the suite of 97 utility test cases costs US$4.",
+     "source": "2406.13352",
+     "url": "https://arxiv.org/abs/2406.13352",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "current LLMs solve less than 66% of AgentDojo tasks in the absence of any attack",
+     "source": "2406.13352",
+     "url": "https://arxiv.org/abs/2406.13352",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "problems": [
+    "named by one publisher in the corpus although the construct is tested by ten; labs use private injection evaluations",
+    "synthetic tools and environments"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 1.33,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {},
+    "total": 8.33
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": false
+   },
+   "passes_floor": true,
+   "include": false,
+   "rank": 24,
+   "borderline": true,
+   "borderline_reason": "score 8.33 clears the floor but fails: presence_2pubs_or_10docs"
+  },
+  {
+   "name": "BountyBench (bug-bounty detect, exploit, patch)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Success on 120 detect, exploit and patch tasks across 25 real codebases, valued by the real bounty paid for each vulnerability.",
+   "corpus": {
+    "name_queried": "BountyBench",
+    "query": [
+     "\\bBounty[Bb]ench\\b"
+    ],
+    "documents": 1,
+    "publishers_n": 1,
+    "publishers": [
+     "rand"
+    ],
+    "mentions": 2,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2505.15216",
+     "url": "https://arxiv.org/abs/2505.15216",
+     "title": "BountyBench: Dollar Impact of AI Agent Attackers and Defenders on Real-World Cybersecurity Systems",
+     "published": "2025-05-21",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: code and logs at bountybench.github.io"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed task set with dollar-valued outcomes"
+   },
+   "decision": "Delay the release and add cyber-misuse mitigations vs release on schedule.",
+   "theta": "theta = 1: the model detects and exploits real bounty-grade vulnerabilities at a rate that gives practical offensive uplift.",
+   "cost": [
+    {
+     "quote": "OpenAI Codex CLI: o3-high $123 [per task]; OpenAI Codex CLI: o4-mini $70 [per task]",
+     "source": "2505.15216",
+     "url": "https://arxiv.org/abs/2505.15216",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "adding systems and tasks is heavily manual work, taking up to tens of hours each",
+     "source": "2505.15216",
+     "url": "https://arxiv.org/abs/2505.15216",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "Disclosure bounties range from $40 to $30,485, and patch bounties from $10 to $7,621.25.",
+     "source": "2505.15216",
+     "url": "https://arxiv.org/abs/2505.15216",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "problems": [
+    "named by one publisher (RAND) in the corpus",
+    "only vulnerabilities already added to the system"
+   ],
+   "source": 3,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [],
+   "score": {
+    "presence": 1.08,
+    "source": 3,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {},
+    "total": 8.08
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": false
+   },
+   "passes_floor": true,
+   "include": false,
+   "rank": 25,
+   "borderline": true,
+   "borderline_reason": "score 8.08 clears the floor but fails: presence_2pubs_or_10docs"
+  },
+  {
+   "name": "CyScenarioBench (Irregular, multi-stage offensive scenarios)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Number of 10-11 long-horizon multi-host attack scenarios solved at least once.",
+   "corpus": {
+    "name_queried": "CyScenarioBench",
+    "query": [
+     "\\bCy[Ss]cenario[Bb]ench\\b"
+    ],
+    "documents": 13,
+    "publishers_n": 4,
+    "publishers": [
+     "anthropic",
+     "epoch_ai",
+     "meta",
+     "openai"
+    ],
+    "mentions": 56,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+     "url": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+     "title": "Anthropic Claude Opus 5.5 system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "private, built by Irregular; no public paper"
+    }
+   ],
+   "public_or_private": "private (third party)",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed scenario set with end-state success"
+   },
+   "decision": "Delay the deployment and restrict autonomous multi-step cyber use vs deploy on schedule.",
+   "theta": "theta = 1: the model plans and executes multi-stage cyber operations under realistic constraints, solving a material fraction of scenarios.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "CyScenarioBench is a benchmark developed by Irregular that evaluates whether models can plan and execute multi-stage cyber operations under realistic constraints, as opposed to performing isolated technical tasks.",
+     "source": "anthropic-claude-opus-5-5-system-card (anthropic, 2026-09-22)",
+     "url": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "On CyScenarioBench, which tests long-horizon offensive tasks, Astra solved 9/10 challenges at least once, compared with 6/10 for GPT-5.6-Sol.",
+     "source": "openai-gpt-6-astra-system-card (openai, 2026-09-03)",
+     "url": "https://deploymentsafety.openai.com/gpt-6-astra/gpt-6-astra.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "GPT-5.4 Thinking was evaluated against 11 scenarios in a previous version of CyScenarioBench whereas Muse Spark is evaluated against 10.",
+     "source": "meta-muse-spark-system-card (meta, 2026-05-26)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-safety-and-preparedness-report/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "private; no primary source",
+    "10-11 scenarios, version drift between cards",
+    "near ceiling (9/10)"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 5.08,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 8.08
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 26,
+   "borderline": true,
+   "borderline_reason": "included, score 8.08 is within 0.5 of the floor"
+  },
+  {
+   "name": "HPCT (Human Pathogen Capabilities Test)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Accuracy on a 100-question text-only set about a small group of pathogens that an expert panel rated highest-concern, scored against an expert baseline.",
+   "corpus": {
+    "name_queried": "HPCT",
+    "query": [
+     "\\bHPCT\\b",
+     "\\bHuman Pathogen Capabilities Test\\b"
+    ],
+    "documents": 12,
+    "publishers_n": 4,
+    "publishers": [
+     "meta",
+     "openai",
+     "rand",
+     "securebio"
+    ],
+    "mentions": 65,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "title": "SecureBio pre-release assessment of GPT-5.5 (2026-04-23)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "held-out evaluation; expert baseline; no standalone paper"
+    }
+   ],
+   "public_or_private": "private (held out by SecureBio)",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed question set with an expert baseline"
+   },
+   "decision": "Delay the release and add biology misuse safeguards vs release on schedule.",
+   "theta": "theta = 1: the model answers high-concern pathogen questions at or above the expert baseline.",
+   "cost": [
+    {
+     "quote": "those with a small number of questions and a large number of epochs (e.g. HPCT: 100 questions, 7 epochs)",
+     "source": "meta-muse-spark-system-card (meta, 2026-05-26)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-safety-and-preparedness-report/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "The lowest-performing model in our cohort, Llama 3.2 1B, performs higher than the lowest-performing experts on HPCT and VCT.",
+     "source": "rand-gemini-3-1-pro-independent-eval (rand, 2026-08-06)",
+     "url": "https://www.rand.org/content/dam/rand/pubs/research_reports/RRA5000/RRA5055-1/RAND_RRA5055-1.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "For HPCT, 87 of the total 100 questions were labeled as questions that should be refused.",
+     "source": "meta-muse-spark-system-card (meta, 2026-05-26)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-safety-and-preparedness-report/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "Pre-Release Checkpoint 2 attains a score of 64.7% ± 0.2% on HPCT",
+     "source": "securebio-gpt-5-5-independent-eval (securebio, 2026-04-23)",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "private; no standalone primary paper",
+    "same construct and builder as VCT",
+    "87 of 100 questions are refusal-flagged, so results depend on helpful-only access"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 5.0,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 8.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": true,
+   "include": true,
+   "rank": 27,
+   "borderline": true,
+   "borderline_reason": "included, score 8.0 is within 0.5 of the floor"
+  },
+  {
+   "name": "Agent Red Teaming (ART) benchmark (Gray Swan with UK AISI)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Attack success rate after k attempts on 4,700 selected human-written attacks (direct and indirect prompt injection) against tool-using agents across four behaviour classes.",
+   "corpus": {
+    "primary": {
+     "name_queried": "Agent Red Teaming (ART)",
+     "query": [
+      "\\bART\\b",
+      "\\bAgent Red Teaming\\b"
+     ],
+     "documents": 11,
+     "publishers_n": 3,
+     "publishers": [
+      "anthropic",
+      "meta",
+      "us_caisi"
+     ],
+     "mentions": 74,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    },
+    "construct_prompt_injection": {
+     "name_queried": "Prompt injection (any)",
+     "query": [
+      "\\b[Pp]rompt [Ii]njection"
+     ],
+     "documents": 36,
+     "publishers_n": 10,
+     "publishers": [
+      "anthropic",
+      "apollo_research",
+      "google_deepmind",
+      "inclusion_ai",
+      "meta",
+      "metr",
+      "nvidia",
+      "openai",
+      "rand",
+      "uk_aisi"
+     ],
+     "mentions": 469,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    }
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2507.20526",
+     "url": "https://arxiv.org/abs/2507.20526",
+     "title": "Security Challenges in AI Agent Deployment: Insights from a Large Scale Public Competition",
+     "published": "2025-07-28",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "paper public; ART maintained as a private leaderboard"
+    }
+   ],
+   "public_or_private": "private benchmark, public paper",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed attack set replayed against the target agent"
+   },
+   "decision": "Delay the agentic launch and add prompt-injection defences (tool-result sanitisation, confirmation on sensitive actions) vs launch on schedule.",
+   "theta": "theta = 1: injected instructions in tool results or user turns make the agent breach confidentiality or take prohibited actions within a small number of attempts.",
+   "cost": [
+    {
+     "quote": "A $171,800 prize pool",
+     "source": "2507.20526",
+     "url": "https://arxiv.org/abs/2507.20526",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "validity": [
+    {
+     "quote": "almost 2,000 participants ... more than 1.8 million adversarial prompts ... 22 frontier LLMs",
+     "source": "2507.20526",
+     "url": "https://arxiv.org/abs/2507.20526",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Table 1: Attack success rates across policy violation categories and direct vs. indirect prompt injections.",
+     "source": "2507.20526",
+     "url": "https://arxiv.org/html/2507.20526",
+     "fetched": "2026-10-01",
+     "kind": "primary",
+     "note": "Table 1 row 'All': Direct 5.7, Indirect 27.1, All 12.7 (table cells, not a sentence); our reading: indirect injections succeed about five times as often as direct attacks"
+    },
+    {
+     "quote": "we supplemented the ART prompt injection benchmark—which recent Claude models have nearly saturated—with a new Gray Swan indirect prompt injection (IPI) benchmark",
+     "source": "anthropic-claude-sonnet-5-system-card (anthropic, 2026-06-30)",
+     "url": "https://www-cdn.anthropic.com/9e6a1044980d8c4ed85669faf9c2a8342e2e9f1e/Claude%20Sonnet%205%20System%20Card.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "ART measures the probability of an attacker succeeding after k=1, k=10, and k=100 attempts against the target.",
+     "source": "anthropic-claude-sonnet-5-system-card (anthropic, 2026-06-30)",
+     "url": "https://www-cdn.anthropic.com/9e6a1044980d8c4ed85669faf9c2a8342e2e9f1e/Claude%20Sonnet%205%20System%20Card.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "nearly saturated for recent Claude models",
+    "private attack set",
+    "judge agreement not reported in the fetched text"
+   ],
+   "source": 2,
+   "hazard": 1,
+   "instrument": 2,
+   "penalties": [
+    "saturated"
+   ],
+   "score": {
+    "presence": 3.92,
+    "source": 2,
+    "hazard": 1,
+    "instrument": 2,
+    "penalties": {
+     "saturated": -1
+    },
+    "total": 7.92
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 28,
+   "borderline": true,
+   "borderline_reason": "passes every hard criterion, score 7.92 is below the floor of 8.0"
+  },
+  {
+   "name": "MBCT (Molecular Biology Capabilities Test)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Accuracy on a text-only question set about core molecular-biology lab methods, modelled on VCT and scored against an expert baseline.",
+   "corpus": {
+    "name_queried": "MBCT",
+    "query": [
+     "\\bMBCT\\b",
+     "\\bMolecular Biology Capabilities Test\\b"
+    ],
+    "documents": 11,
+    "publishers_n": 4,
+    "publishers": [
+     "meta",
+     "openai",
+     "rand",
+     "securebio"
+    ],
+    "mentions": 56,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "title": "SecureBio pre-release assessment of GPT-5.5 (2026-04-23)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "held-out evaluation; no standalone paper"
+    }
+   ],
+   "public_or_private": "private (held out by SecureBio)",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed question set with an expert baseline"
+   },
+   "decision": "Delay the release and add biology misuse safeguards vs release on schedule.",
+   "theta": "theta = 1: the model answers practical molecular-biology method questions at or above the expert baseline.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "Pre-Release Checkpoint 2 attains a score of 56.2% ± 0.5% on MBCT, higher than any SOTA model that answered >50% of samples in this test",
+     "source": "securebio-gpt-5-5-independent-eval (securebio, 2026-04-23)",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    },
+    {
+     "quote": "Three benchmarks in our dataset are privately developed by our research partners, SecureBio: Human Pathogen Capabilities Test (HPCT), Molecular Biology Capabilities Test (MBCT), and Virology Capabilities Test (VCT).",
+     "source": "rand-gemini-3-1-pro-independent-eval (rand, 2026-08-06)",
+     "url": "https://www.rand.org/content/dam/rand/pubs/research_reports/RRA5000/RRA5055-1/RAND_RRA5055-1.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "private; no standalone primary paper",
+    "same construct and builder as VCT"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 4.92,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 7.92
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 29,
+   "borderline": true,
+   "borderline_reason": "passes every hard criterion, score 7.92 is below the floor of 8.0"
+  },
+  {
+   "name": "Sabotage evaluations suite (Anthropic 2024; UK AISI unprompted research sabotage)",
+   "pilot": false,
+   "domain": "loss_of_control",
+   "measures": "Whether a model can sabotage human decisions, code or oversight, or undermine AI-safety research, without being caught.",
+   "corpus": {
+    "name_queried": "Sabotage evaluations",
+    "query": [
+     "\\b[Ss]abotage [Ee]valuations?\\b"
+    ],
+    "documents": 5,
+    "publishers_n": 3,
+    "publishers": [
+     "anthropic",
+     "openai",
+     "uk_aisi"
+    ],
+    "mentions": 7,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2410.21514",
+     "url": "https://arxiv.org/abs/2410.21514",
+     "title": "Sabotage Evaluations for Frontier Models",
+     "published": "2024-10-28",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "paper public; tasks largely private"
+    }
+   ],
+   "public_or_private": "paper public, tasks private",
+   "single_instrument": {
+    "yes": false,
+    "partly": true,
+    "why": "a family of four to five distinct evaluations"
+   },
+   "decision": "Delay the use of the model in safety-critical development pipelines vs deploy on schedule.",
+   "theta": "theta = 1: the model sabotages tasks it is given in development pipelines at a rate that evades the planned oversight.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "our unprompted sabotage evaluation did not detect any instances of models attempting to sabotage research spontaneously.",
+     "source": "uk-aisi-claude-mythos-preview-independent-eval-2 (uk_aisi, 2026-04-27)",
+     "url": "https://www.aisi.gov.uk/blog/evaluating-whether-ai-models-would-sabotage-ai-safety-research",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "a suite, not one instrument",
+    "tasks private",
+    "SHADE-Arena and ControlArena cover the same construct with fixed instruments"
+   ],
+   "source": 2,
+   "hazard": 1,
+   "instrument": 1,
+   "penalties": [],
+   "score": {
+    "presence": 3.42,
+    "source": 2,
+    "hazard": 1,
+    "instrument": 1,
+    "penalties": {},
+    "total": 7.42
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 31,
+   "borderline": true,
+   "borderline_reason": "passes every hard criterion, score 7.42 is below the floor of 8.0"
+  },
+  {
+   "name": "Tacit knowledge and troubleshooting MCQ (OpenAI with Gryphon Scientific)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Multiple-choice accuracy on tacit-knowledge and troubleshooting questions written with a biosecurity contractor.",
+   "corpus": {
+    "name_queried": "Tacit Knowledge",
+    "query": [
+     "\\b[Tt]acit [Kk]nowledge\\b"
+    ],
+    "documents": 17,
+    "publishers_n": 3,
+    "publishers": [
+     "anthropic",
+     "openai",
+     "rand"
+    ],
+    "mentions": 103,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "url": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "title": "OpenAI GPT-5.3-Codex system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "developer-private; corpus count includes generic uses of the phrase"
+    }
+   ],
+   "public_or_private": "developer-private",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed question set"
+   },
+   "decision": "Delay the release and add biology misuse safeguards vs release on schedule.",
+   "theta": "theta = 1: the model answers expert tacit-knowledge troubleshooting questions at expert level.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "5.1.1.1 Tacit Knowledge and Troubleshooting We evaluated models on a tacit knowledge and troubleshooting multiple choice dataset created with Gryphon Scientific.",
+     "source": "openai-gpt-5-3-codex-system-card (openai, 2026-02-05)",
+     "url": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "developer-private, no primary source",
+    "regex count inflated by generic uses of 'tacit knowledge' (RAND, Anthropic)"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 4.42,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 7.42
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 32,
+   "borderline": true,
+   "borderline_reason": "passes every hard criterion, score 7.42 is below the floor of 8.0"
+  },
+  {
+   "name": "DeceptionBench (assisting user deception of third parties)",
+   "pilot": false,
+   "domain": "harmful_manipulation",
+   "measures": "Deceptive-response rate over 150 scenarios (1,000+ samples) in five societal domains under neutral, incentivised and coercive conditions, including multi-turn pressure.",
+   "corpus": {
+    "name_queried": "DeceptionBench",
+    "query": [
+     "\\bDeception[Bb]ench\\b"
+    ],
+    "documents": 3,
+    "publishers_n": 2,
+    "publishers": [
+     "anthropic",
+     "meta"
+    ],
+    "mentions": 20,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2510.15501",
+     "url": "https://arxiv.org/abs/2510.15501",
+     "title": "DeceptionBench: A Comprehensive Benchmark for AI Deception Behaviors in Real-world Scenarios",
+     "published": "2025-10-17",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "public: https://github.com/Aries-iai/DeceptionBench (stated in abstract)"
+    }
+   ],
+   "public_or_private": "public",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed scenario set with judge scoring"
+   },
+   "decision": "Delay the consumer launch and add training against assisting deception vs launch on schedule.",
+   "theta": "theta = 1: the model helps users deceive third parties in a material fraction of scenarios.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "The results demonstrate robust inter-annotator agreement with an exact match rate of 95.7% (all three annotators concurring), and our automated evaluator achieves 97.1% alignment with human majority votes.",
+     "source": "2510.15501",
+     "url": "https://arxiv.org/html/2510.15501",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "To prevent potential bias in using GPT-4o as the evaluator, we conduct human validation on a representative subset of 420 interaction records (10 per model per inducement level).",
+     "source": "2510.15501",
+     "url": "https://arxiv.org/html/2510.15501",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "Muse Spark 1.1 shows elevated verbalized evaluation awareness on DeceptionBench, which raises questions about the generalizability of these results",
+     "source": "meta-muse-spark-1-1-system-card (meta, 2026-07-09)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-1-1-evaluation-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "elevated evaluation awareness reported by Meta",
+    "two publishers, three documents",
+    "human validation covers 420 of the 1,000+ records, scored by GPT-4o"
+   ],
+   "source": 3,
+   "hazard": 1.5,
+   "instrument": 2,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 2.25,
+    "source": 3,
+    "hazard": 1.5,
+    "instrument": 2,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 7.75
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": true,
+   "rank": 30,
+   "borderline": true,
+   "borderline_reason": "admitted by the domain floor (harmful_manipulation had 2 included candidates); passes every hard criterion, score 7.75 is below the floor of 8.0",
+   "domain_floor_admission": true
+  },
+  {
+   "name": "Indirect prompt injection evaluations (Gray Swan IPI; lab-internal)",
+   "pilot": false,
+   "domain": "cyber",
+   "measures": "Attack success rate of instructions planted in tool results across coding, computer-use and tool-use tasks.",
+   "corpus": {
+    "name_queried": "Indirect Prompt Injection (IPI)",
+    "query": [
+     "\\bIPI\\b",
+     "\\b[Ii]ndirect [Pp]rompt [Ii]njection\\b"
+    ],
+    "documents": 17,
+    "publishers_n": 4,
+    "publishers": [
+     "anthropic",
+     "google_deepmind",
+     "meta",
+     "openai"
+    ],
+    "mentions": 80,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://www-cdn.anthropic.com/9e6a1044980d8c4ed85669faf9c2a8342e2e9f1e/Claude%20Sonnet%205%20System%20Card.pdf",
+     "url": "https://www-cdn.anthropic.com/9e6a1044980d8c4ed85669faf9c2a8342e2e9f1e/Claude%20Sonnet%205%20System%20Card.pdf",
+     "title": "Anthropic Claude Sonnet 5 system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "private benchmarks"
+    }
+   ],
+   "public_or_private": "private",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed attack set per lab"
+   },
+   "decision": "Delay the agentic launch and add prompt-injection defences vs launch on schedule.",
+   "theta": "theta = 1: planted instructions in tool results make the agent act against the user in a material fraction of cases.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "the model never acted on the planted instructions when they arrived within tool results (0 of 105 attempts), equivalent to the indirect prompt injection attacks covered in §5.2.",
+     "source": "anthropic-claude-opus-5-5-system-card (anthropic, 2026-09-22)",
+     "url": "https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "each lab uses its own private set; no primary source",
+    "overlaps ART and AgentDojo"
+   ],
+   "source": 1,
+   "hazard": 1,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 5.42,
+    "source": 1,
+    "hazard": 1,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 7.42
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 33,
+   "borderline": true,
+   "borderline_reason": "passes every hard criterion, score 7.42 is below the floor of 8.0"
+  },
+  {
+   "name": "SHUSHCAST (METR covert side task under monitoring)",
+   "pilot": false,
+   "domain": "loss_of_control",
+   "measures": "Whether an agent discreetly performs a side task while a monitor expects it to be doing the main task, over 49 main and 20 side tasks.",
+   "corpus": {
+    "name_queried": "SHUSHCAST",
+    "query": [
+     "\\bSHUSHCAST\\b"
+    ],
+    "documents": 4,
+    "publishers_n": 3,
+    "publishers": [
+     "anthropic",
+     "metr",
+     "redwood_research"
+    ],
+    "mentions": 35,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://metr.org/risk-report-feb-mar-2026.pdf",
+     "url": "https://metr.org/risk-report-feb-mar-2026.pdf",
+     "title": "METR Claude Opus 4.6 evaluation report (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "METR-private"
+    }
+   ],
+   "public_or_private": "private (third party)",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed main and side tasks with a monitor"
+   },
+   "decision": "Delay the autonomous deployment and add stronger oversight vs deploy on schedule.",
+   "theta": "theta = 1: the model hides side tasks from a monitor at a material rate.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "We've since expanded SHUSHCAST to 49 main tasks and 20 side tasks from the same distribution.",
+     "source": "metr-claude-opus-4-6-independent-eval (metr, 2026-05-19)",
+     "url": "https://metr.org/risk-report-feb-mar-2026.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "private, no primary source",
+    "same construct as SHADE-Arena"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 3.33,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 6.33
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 34,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Multi-turn jailbreak evaluations (OpenAI red-team-derived; xAI Crescendo)",
+   "pilot": false,
+   "domain": "societal_harm",
+   "measures": "Defender success rate against multi-turn jailbreak strategies derived from internal red teaming.",
+   "corpus": {
+    "name_queried": "Multiturn jailbreak",
+    "query": [
+     "\\b[Mm]ulti-?turn [Jj]ailbreak"
+    ],
+    "documents": 13,
+    "publishers_n": 4,
+    "publishers": [
+     "cursor",
+     "meta",
+     "openai",
+     "xai"
+    ],
+    "mentions": 27,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://deploymentsafety.openai.com/gpt-5-4-thinking/gpt-5-4-thinking.pdf",
+     "url": "https://deploymentsafety.openai.com/gpt-5-4-thinking/gpt-5-4-thinking.pdf",
+     "title": "OpenAI GPT-5.4 Thinking system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "developer-private, lab-specific"
+    }
+   ],
+   "public_or_private": "developer-private",
+   "single_instrument": {
+    "yes": false,
+    "partly": true,
+    "why": "each lab has its own set; no shared instrument"
+   },
+   "decision": "Delay the launch and harden safeguards vs launch on schedule.",
+   "theta": "theta = 1: multi-turn attacks reliably elicit harmful content.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "Our experiments show that multi-turn jailbreaks remain an unsolved problem for Muse Spark, as well as for other models.",
+     "source": "meta-muse-spark-system-card (meta, 2026-05-26)",
+     "url": "https://ai.meta.com/static-resource/muse-spark-safety-and-preparedness-report/",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "private and lab-specific; no primary source"
+   ],
+   "source": 1,
+   "hazard": 1,
+   "instrument": 1,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 5.08,
+    "source": 1,
+    "hazard": 1,
+    "instrument": 1,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 6.08
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 35,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Long-form virology tasks (Anthropic with SecureBio, Deloitte, Signature Science)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Rubric-graded end-to-end score on two long-form agentic virology tasks with a notable-capability threshold of 0.80.",
+   "corpus": {
+    "name_queried": "Long-form Virology",
+    "query": [
+     "\\b[Ll]ong[\\- ]form [Vv]irology\\b"
+    ],
+    "documents": 12,
+    "publishers_n": 2,
+    "publishers": [
+     "anthropic",
+     "rand"
+    ],
+    "mentions": 50,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://www-cdn.anthropic.com/8b8380204f74670be75e81c820ca8dda846ab289.pdf",
+     "url": "https://www-cdn.anthropic.com/8b8380204f74670be75e81c820ca8dda846ab289.pdf",
+     "title": "Anthropic Claude Mythos Preview system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "developer-private"
+    }
+   ],
+   "public_or_private": "developer-private",
+   "single_instrument": {
+    "yes": true,
+    "why": "two fixed tasks with a rubric"
+   },
+   "decision": "Delay the release and add biology misuse safeguards vs release on schedule.",
+   "theta": "theta = 1: the model's end-to-end score on the long-form tasks exceeds 0.80.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "We consider performance on each of these tasks notable if: ● The model achieves an end-to-end score greater than 0.80, in the case of the long-form virology tasks",
+     "source": "anthropic-claude-fable-5-1-system-card (anthropic, 2026-09-01)",
+     "url": "https://www.anthropic.com/claude-fable-5-1-mythos-5-1-system-card",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "developer-private, no primary source",
+    "two publishers only"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 3.0,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 6.0
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 36,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Minimal-LinuxBench (Anthropic covert side task in Linux administration)",
+   "pilot": false,
+   "domain": "loss_of_control",
+   "measures": "Stealth success at a covert side task during Linux administration tasks under an LLM monitor.",
+   "corpus": {
+    "name_queried": "Minimal-LinuxBench",
+    "query": [
+     "\\b(?:Minimal[\\- ])?LinuxBench\\b"
+    ],
+    "documents": 9,
+    "publishers_n": 3,
+    "publishers": [
+     "anthropic",
+     "metr",
+     "redwood_research"
+    ],
+    "mentions": 47,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://www-cdn.anthropic.com/8b8380204f74670be75e81c820ca8dda846ab289.pdf",
+     "url": "https://www-cdn.anthropic.com/8b8380204f74670be75e81c820ca8dda846ab289.pdf",
+     "title": "Anthropic Claude Mythos Preview system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "developer-private"
+    }
+   ],
+   "public_or_private": "developer-private",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed tasks and monitor"
+   },
+   "decision": "Delay the autonomous deployment and add stronger oversight vs deploy on schedule.",
+   "theta": "theta = 1: the model completes covert side tasks in realistic system-administration work without triggering the monitor.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "this does not transfer to the more diverse and realistic Minimal-LinuxBench, where the selective prompts actually reduce stealth success rate conditional on attempting",
+     "source": "anthropic-claude-mythos-5-other-2 (anthropic, None)",
+     "url": "https://www.anthropic.com/aug-2026-risk-report",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "developer-private, no primary source",
+    "may fail to upper-bound covert capability"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary",
+    "construct"
+   ],
+   "score": {
+    "presence": 3.75,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1,
+     "construct": -1
+    },
+    "total": 5.75
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 37,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "World Class Bio (WCB)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Rubric-graded free-response accuracy on 96 questions of rare expert-level biology knowledge.",
+   "corpus": {
+    "name_queried": "World Class Bio",
+    "query": [
+     "\\bWorld[\\- ]Class Bio\\b",
+     "\\bWCB\\b"
+    ],
+    "documents": 7,
+    "publishers_n": 2,
+    "publishers": [
+     "openai",
+     "securebio"
+    ],
+    "mentions": 27,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "title": "SecureBio pre-release assessment of GPT-5.5 (2026-04-23)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "held out; no standalone paper"
+    }
+   ],
+   "public_or_private": "private (held out by SecureBio)",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed question set"
+   },
+   "decision": "Delay the release and add biology misuse safeguards vs release on schedule.",
+   "theta": "theta = 1: the model answers rare expert-level biology questions at or above the expert baseline.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "WCB comprises 96 questions spanning a broad range of advanced biological domains, including experimental design, cross-species inference, and reasoning about specialized biological mechanisms.",
+     "source": "securebio-gpt-5-5-independent-eval (securebio, 2026-04-23)",
+     "url": "https://securebio.substack.com/p/securebios-pre-release-assessment",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "private; no standalone paper; two publishers"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 2.58,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 5.58
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 38,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "Apollo Research in-context scheming suite",
+   "pilot": false,
+   "domain": "loss_of_control",
+   "measures": "Whether a model covertly pursues an in-context goal against its developer (oversight subversion, self-exfiltration, goal guarding, covert ranking, instrumental alignment faking, sandbagging).",
+   "corpus": {
+    "primary": {
+     "name_queried": "In-context scheming (Apollo)",
+     "query": [
+      "\\b[Ii]n-?[Cc]ontext [Ss]cheming\\b",
+      "\\b[Ss]cheming [Ee]val"
+     ],
+     "documents": 4,
+     "publishers_n": 2,
+     "publishers": [
+      "meta",
+      "openai"
+     ],
+     "mentions": 6,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    },
+    "evaluator_org": {
+     "name_queried": "Apollo",
+     "query": [
+      "\\bApollo\\b"
+     ],
+     "documents": 17,
+     "publishers_n": 9,
+     "publishers": [
+      "anthropic",
+      "apollo_research",
+      "google_deepmind",
+      "meta",
+      "metr",
+      "openai",
+      "redwood_research",
+      "thinking_machines",
+      "transluce"
+     ],
+     "mentions": 110,
+     "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+    }
+   },
+   "primary": [
+    {
+     "kind": "arxiv",
+     "id": "2412.04984",
+     "url": "https://arxiv.org/abs/2412.04984",
+     "title": "Frontier Models are Capable of In-context Scheming",
+     "published": "2024-12-06",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "paper public; details withheld to protect the evaluations"
+    }
+   ],
+   "public_or_private": "paper public, tasks private",
+   "single_instrument": {
+    "yes": false,
+    "partly": true,
+    "why": "six scenario evaluations run as a battery; details withheld"
+   },
+   "decision": "Delay the agentic deployment and add oversight vs deploy on schedule.",
+   "theta": "theta = 1: the model takes covert actions against developer intent when an in-context goal conflicts with it, at a material rate.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "We cannot share sufficient details for other researchers to fully replicate our methodology without risking that these evaluations become ineffective.",
+     "source": "2412.04984",
+     "url": "https://arxiv.org/abs/2412.04984",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    },
+    {
+     "quote": "situational awareness information is provided very explicitly",
+     "source": "2412.04984",
+     "url": "https://arxiv.org/abs/2412.04984",
+     "fetched": "2026-10-01",
+     "kind": "primary"
+    }
+   ],
+   "problems": [
+    "details withheld, battery not single instrument",
+    "unrealistic, explicit situational cues",
+    "the organisation (17 docs, 9 publishers) is cited far more than the named suite"
+   ],
+   "source": 2,
+   "hazard": 1,
+   "instrument": 1,
+   "penalties": [
+    "construct"
+   ],
+   "score": {
+    "presence": 2.33,
+    "source": 2,
+    "hazard": 1,
+    "instrument": 1,
+    "penalties": {
+     "construct": -1
+    },
+    "total": 5.33
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 39,
+   "borderline": false,
+   "borderline_reason": ""
+  },
+  {
+   "name": "TroubleshootingBench (OpenAI)",
+   "pilot": false,
+   "domain": "cbrn",
+   "measures": "Short-answer accuracy at identifying and correcting errors in non-public expert-written wet-lab protocols.",
+   "corpus": {
+    "name_queried": "TroubleshootingBench",
+    "query": [
+     "\\bTroubleshootingBench\\b"
+    ],
+    "documents": 10,
+    "publishers_n": 1,
+    "publishers": [
+     "openai"
+    ],
+    "mentions": 47,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   },
+   "primary": [
+    {
+     "kind": "url",
+     "id": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "url": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "title": "OpenAI GPT-5.3-Codex system card (corpus)",
+     "fetched": "2026-10-01",
+     "note": "",
+     "availability": "developer-private"
+    }
+   ],
+   "public_or_private": "developer-private",
+   "single_instrument": {
+    "yes": true,
+    "why": "fixed question set"
+   },
+   "decision": "Delay the release and add biology misuse safeguards vs release on schedule.",
+   "theta": "theta = 1: the model corrects realistic protocol errors that rely on tacit procedural knowledge at expert level.",
+   "cost": [],
+   "validity": [
+    {
+     "quote": "TroubleshootingBench focuses on tacit, hands-on knowledge and uncontaminated procedures that are not available online.",
+     "source": "openai-gpt-5-3-codex-system-card (openai, 2026-02-05)",
+     "url": "https://deploymentsafety.openai.com/gpt-5-3-codex/gpt-5-3-codex.pdf",
+     "fetched": "2026-10-01",
+     "kind": "system_card_corpus"
+    }
+   ],
+   "problems": [
+    "developer-private, single publisher"
+   ],
+   "source": 1,
+   "hazard": 2,
+   "instrument": 2,
+   "penalties": [
+    "private",
+    "no_primary"
+   ],
+   "score": {
+    "presence": 1.83,
+    "source": 1,
+    "hazard": 2,
+    "instrument": 2,
+    "penalties": {
+     "private": -1,
+     "no_primary": -1
+    },
+    "total": 4.83
+   },
+   "hard_criteria": {
+    "instrument_ge_1": true,
+    "source_ge_1": true,
+    "hazard_ge_1": true,
+    "presence_2pubs_or_10docs": true
+   },
+   "passes_floor": false,
+   "include": false,
+   "rank": 40,
+   "borderline": false,
+   "borderline_reason": ""
+  }
+ ],
+ "excluded": [
+  {
+   "name": "Reward hacking",
+   "category": "behaviour",
+   "documents": 39,
+   "publishers_n": 11,
+   "reason": "a behaviour measured by lab-specific LLM transcript graders on coding and computer-use tasks; the one public instrument, ImpossibleBench (arXiv 2510.20270), is named by one publisher in one document",
+   "corpus": {
+    "query": [
+     "\\b[Rr]eward[- ]hacking\\b"
+    ],
+    "documents": 39,
+    "publishers_n": 11,
+    "publishers": [
+     "anthropic",
+     "apollo_research",
+     "cursor",
+     "inclusion_ai",
+     "meta",
+     "metr",
+     "openai",
+     "redwood_research",
+     "saferai",
+     "transluce",
+     "xai"
+    ],
+    "mentions": 338,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Sandbagging",
+   "category": "behaviour",
+   "documents": 29,
+   "publishers_n": 8,
+   "reason": "a behaviour probed by instructing underperformance on existing capability sets (WMDP, lab repos); no shared instrument; appears in the WMDP entry as a validity threat (arXiv 2406.07358 is a study)",
+   "corpus": {
+    "query": [
+     "\\b[Ss]andbag"
+    ],
+    "documents": 29,
+    "publishers_n": 8,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "metr",
+     "openai",
+     "redwood_research",
+     "saferai",
+     "transluce",
+     "uk_aisi"
+    ],
+    "mentions": 402,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Sycophancy",
+   "category": "behaviour",
+   "documents": 29,
+   "publishers_n": 9,
+   "reason": "each lab builds its own adversarial set; SycophancyEval (arXiv 2310.13548, public) is named by one publisher in one document; covered as a Petri and Bloom dimension",
+   "corpus": {
+    "query": [
+     "\\b[Ss]ycophan"
+    ],
+    "documents": 29,
+    "publishers_n": 9,
+    "publishers": [
+     "anthropic",
+     "cursor",
+     "meta",
+     "metr",
+     "saferai",
+     "thinking_machines",
+     "transluce",
+     "uk_aisi",
+     "xai"
+    ],
+    "mentions": 303,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Alignment faking",
+   "category": "behaviour",
+   "documents": 14,
+   "publishers_n": 4,
+   "reason": "a study of a training-situation behaviour (arXiv 2412.14093); system cards report it inside broader behaviour assessments, not as a fixed instrument",
+   "corpus": {
+    "query": [
+     "[Aa]lignment[- ]?[Ff]ak"
+    ],
+    "documents": 14,
+    "publishers_n": 4,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "metr",
+     "rand"
+    ],
+    "mentions": 56,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Evaluation awareness",
+   "category": "validity threat",
+   "documents": 35,
+   "publishers_n": 10,
+   "reason": "a property that degrades other evaluations (arXiv 2505.23836), not a hazard instrument; recorded as a construct penalty where documented",
+   "corpus": {
+    "query": [
+     "\\b[Ee]val(uation)?[- ]awareness\\b"
+    ],
+    "documents": 35,
+    "publishers_n": 10,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "metr",
+     "openai",
+     "rand",
+     "redwood_research",
+     "saferai",
+     "thinking_machines",
+     "transluce",
+     "uk_aisi"
+    ],
+    "mentions": 598,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Automated behavioral audit",
+   "category": "process",
+   "documents": 19,
+   "publishers_n": 4,
+   "reason": "a Petri-based audit process with human review; Petri is the instrument candidate",
+   "corpus": {
+    "query": [
+     "\\b[Aa]utomated behavioral audit"
+    ],
+    "documents": 19,
+    "publishers_n": 4,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "redwood_research",
+     "saferai"
+    ],
+    "mentions": 318,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Bio uplift trials (Anthropic creative-biology and catastrophic-scenario trials; RAND red-team study)",
+   "category": "human-subject trial",
+   "documents": 13,
+   "publishers_n": 2,
+   "reason": "controlled trials with human teams; a programme, not a build-once run-once instrument; kept as validity comparators for VCT",
+   "corpus": {
+    "query": [
+     "\\b[Uu]plift trials?\\b"
+    ],
+    "documents": 13,
+    "publishers_n": 2,
+    "publishers": [
+     "anthropic",
+     "rand"
+    ],
+    "mentions": 68,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "METR",
+   "category": "organisation",
+   "documents": 37,
+   "publishers_n": 9,
+   "reason": "third-party evaluator; its time-horizon and HCAST/RE-Bench suites measure autonomy capability (arXiv 2503.14499, 2503.17354, 2411.15114)",
+   "corpus": {
+    "query": [
+     "\\bMETR\\b"
+    ],
+    "documents": 37,
+    "publishers_n": 9,
+    "publishers": [
+     "anthropic",
+     "metr",
+     "openai",
+     "rand",
+     "redwood_research",
+     "saferai",
+     "thinking_machines",
+     "transluce",
+     "uk_aisi"
+    ],
+    "mentions": 339,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Apollo Research",
+   "category": "organisation",
+   "documents": 17,
+   "publishers_n": 9,
+   "reason": "third-party evaluator; its named in-context scheming suite is a ranked candidate (details withheld)",
+   "corpus": {
+    "query": [
+     "\\bApollo\\b"
+    ],
+    "documents": 17,
+    "publishers_n": 9,
+    "publishers": [
+     "anthropic",
+     "apollo_research",
+     "google_deepmind",
+     "meta",
+     "metr",
+     "openai",
+     "redwood_research",
+     "thinking_machines",
+     "transluce"
+    ],
+    "mentions": 110,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Gray Swan Arena",
+   "category": "platform",
+   "documents": 3,
+   "publishers_n": 1,
+   "reason": "a red-teaming platform; the ART evaluation derived from it is a ranked candidate",
+   "corpus": {
+    "query": [
+     "\\bGray ?Swan Arena\\b"
+    ],
+    "documents": 3,
+    "publishers_n": 1,
+    "publishers": [
+     "anthropic"
+    ],
+    "mentions": 3,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "SWE-bench, Terminal-Bench, Humanity's Last Exam, GPQA, MMLU, AIME, OSWorld, GDPval, MMMU, ARC-AGI, FrontierMath, DeepSWE, ProgramBench, CharXiv, OfficeQA, ScreenSpot, SimpleQA, MathArena, Epoch Capabilities Index",
+   "category": "capability evaluation",
+   "documents": null,
+   "publishers_n": null,
+   "reason": "general capability evaluations labelled 'capability' in research/system_card_evals.md; not hazard measures"
+  },
+  {
+   "name": "HealthBench and HealthBench Professional",
+   "category": "capability evaluation",
+   "documents": 18,
+   "publishers_n": 4,
+   "reason": "medical conversation quality graded by rubric (arXiv 2505.08775); harm-adjacent but a quality measure, not a hazard property",
+   "corpus": {
+    "query": [
+     "\\bHealthBench\\b"
+    ],
+    "documents": 18,
+    "publishers_n": 4,
+    "publishers": [
+     "anthropic",
+     "meta",
+     "openai",
+     "xai"
+    ],
+    "mentions": 328,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "HCAST, RE-Bench, MLE-bench, PaperBench, Vending-Bench, BixBench, BioMysteryBench, ReproBAIT",
+   "category": "capability evaluation",
+   "documents": null,
+   "publishers_n": null,
+   "reason": "autonomy, research or science capability measures with no checkable hazardous property"
+  },
+  {
+   "name": "XSTest and OR-Bench (over-refusal)",
+   "category": "not a hazard",
+   "documents": 4,
+   "publishers_n": 3,
+   "reason": "measure false alarms (refusing benign prompts), the K side of the decision, not a hazardous property; XSTest named in one document, OR-Bench in three (arXiv 2308.01263, 2405.20947)",
+   "corpus": {
+    "query": [
+     "(?i)\\bxstest\\b",
+     "\\bOR-Bench\\b"
+    ],
+    "documents": 4,
+    "publishers_n": 3,
+    "publishers": [
+     "meta",
+     "nvidia",
+     "transluce"
+    ],
+    "mentions": 12,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "SORRY-Bench, AILuminate, Do-Not-Answer, ToxiGen, RealToxicityPrompts, WildJailbreak, SafetyBench, AIR-Bench, TruthfulQA, MakeMePay, MakeMeSay, 3CB, AgentCyberRange, picoCTF",
+   "category": "zero or near-zero corpus presence",
+   "documents": null,
+   "publishers_n": null,
+   "reason": "public evaluations named in 0-2 corpus documents by at most one publisher; not what frontier developers report (AgentCyberRange, arXiv 2606.14295, is the one open multi-host range and is named by nobody)"
+  },
+  {
+   "name": "JailbreakBench",
+   "category": "presence fails",
+   "documents": 2,
+   "publishers_n": 1,
+   "reason": "public with 90.7% judge agreement (arXiv 2404.01318) but named by one publisher in two documents; same construct as StrongREJECT and HarmBench",
+   "corpus": {
+    "query": [
+     "\\bJailbreakBench\\b"
+    ],
+    "documents": 2,
+    "publishers_n": 1,
+    "publishers": [
+     "anthropic"
+    ],
+    "mentions": 7,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "Firefox 147 exploitation (Anthropic with Mozilla)",
+   "category": "presence fails",
+   "documents": 9,
+   "publishers_n": 1,
+   "reason": "single publisher, nine documents; developer-private; covered by ExploitBench",
+   "corpus": {
+    "query": [
+     "\\bFirefox 147\\b"
+    ],
+    "documents": 9,
+    "publishers_n": 1,
+    "publishers": [
+     "anthropic"
+    ],
+    "mentions": 47,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  },
+  {
+   "name": "HackerBench (xAI), FrontierCyber (Irregular), Secret-password (Anthropic), CyberSecEval, LinuxArena, BashArena, SycophancyEval, ImpossibleBench, AuditBench",
+   "category": "low presence, private or covered",
+   "documents": null,
+   "publishers_n": null,
+   "reason": "named by at most two publishers; either no primary source (HackerBench, FrontierCyber, secret-password) or covered by a ranked candidate (LinuxArena and BashArena are ControlArena settings, arXiv 2604.15384 and 2512.15688)"
+  },
+  {
+   "name": "CTF (generic), HackTheBox, InterCode-CTF, NYU CTF",
+   "category": "construct name",
+   "documents": 35,
+   "publishers_n": 12,
+   "reason": "a task format named by 12 publishers; Cybench is the shared instrument, the rest are lab-curated or saturated collections",
+   "corpus": {
+    "query": [
+     "\\bCTFs?\\b"
+    ],
+    "documents": 35,
+    "publishers_n": 12,
+    "publishers": [
+     "anthropic",
+     "cursor",
+     "epoch_ai",
+     "meta",
+     "metr",
+     "openai",
+     "palisade_research",
+     "rand",
+     "saferai",
+     "uk_aisi",
+     "us_caisi",
+     "xai"
+    ],
+    "mentions": 326,
+    "note": "system-card corpus docs.sqlite, 187 documents with safety_evals=1 from 22 publishers (DB last_checked 2026-10-01), regex query over normalised text (whitespace collapsed, end-of-line hyphenation joined, as in research/mine_system_cards.py), run 2026-10-01"
+   }
+  }
+ ]
+}

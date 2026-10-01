@@ -1,0 +1,1101 @@
+% research/bib/elicitation.bib
+% References for research/elicitation_lit.md. Every entry was fetched on 2026-10-01 (05:53-06:10 UTC):
+% arXiv metadata from https://export.arxiv.org/api/query (full author lists; lists longer than 12 are cut to ten and "others");
+% DOI records from https://doi.org (application/x-bibtex) and https://api.crossref.org; PubMed abstracts via E-utilities where noted.
+% The version field records the arXiv version whose text was read for the numbers in the note.
+% Six keys duplicate entries in research/refs.bib (rottger2023xstest, cui2024orbench, li2024wmdp, xie2024sorrybench) or
+% research/bib/ensemble.bib (halawi2024approaching, karger2024forecastbench): load one file or dedupe before compiling.
+% Entries without a DOI or arXiv id (gouk2024automated and the six developer system cards) say so in their note.
+
+@misc{capstick2024autoelicit,
+  title = {{AutoElicit: Using Large Language Models for Expert Prior Elicitation in Predictive Modelling}},
+  author = {Alexander Capstick and Rahul G. Krishnan and Payam Barnaghi},
+  year = {2024},
+  month = {11},
+  eprint = {2411.17284},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2411.17284v5},
+  url = {https://arxiv.org/abs/2411.17284},
+  note = {GPT-3.5-turbo, GPT-4-turbo, DeepSeek-R1-32B; mean and sd per coefficient over 100 rephrased prompts; order-of-magnitude lower test MSE than N(0,1) prior after 5 examples on the synthetic task; UTI model reaches target accuracy over six months of labelling earlier; Bayes factors favour elicited priors over in-context learning on all tasks. Fetched 2026-10-01.}
+}
+
+@misc{selby2025hadenough,
+  title = {{Had enough of experts? Quantitative knowledge retrieval from large language models}},
+  author = {David Selby and Kai Spriestersbach and Yuichiro Iwashita and Mohammad Saad and Dennis Bappert and Archana Warrier and Sumantrak Mukherjee and Koichi Kise and Sebastian Vollmer},
+  year = {2025},
+  month = {03},
+  journal = {Stat},
+  volume = {14},
+  number = {2},
+  pages = {e70054},
+  eprint = {2402.07770},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.IR},
+  version = {2402.07770v2},
+  doi = {10.1002/sta4.70054},
+  url = {https://arxiv.org/abs/2402.07770},
+  note = {Eight LLMs return Stan-style priors; Cohen d priors 0.2-0.25 (GPT-4 about 0.5); GPT more informative than Llama; weather priors conflict with data (ESS to 0); k-NN and random forest beat LLM imputation. Journal version issued 2025-03-17 (Crossref); arXiv 2402.07770 first posted 2024-02-12. Fetched 2026-10-01.}
+}
+
+@misc{requeima2024llmprocesses,
+  title = {{LLM Processes: Numerical Predictive Distributions Conditioned on Natural Language}},
+  author = {James Requeima and John Bronskill and Dami Choi and Richard E. Turner and David Duvenaud},
+  year = {2024},
+  month = {05},
+  booktitle = {Advances in Neural Information Processing Systems 38 (NeurIPS 2024)},
+  eprint = {2405.12856},
+  archivePrefix = {arXiv},
+  primaryClass = {stat.ML},
+  version = {2405.12856v5},
+  url = {https://arxiv.org/abs/2405.12856},
+  note = {Numerical predictive distributions by sampling or digit-level softmax; no rescaling, terminal token per number, separator "_,_\n" best; six open models; text conditioning changes predictions. Fetched 2026-10-01.}
+}
+
+@misc{choi2022lmpriors,
+  title = {{LMPriors: Pre-Trained Language Models as Task-Specific Priors}},
+  author = {Kristy Choi and Chris Cundy and Sanjari Srivastava and Stefano Ermon},
+  year = {2022},
+  month = {10},
+  eprint = {2210.12530},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2210.12530v1},
+  url = {https://arxiv.org/abs/2210.12530},
+  note = {Pre-trained LM as a task-specific prior for feature selection, causal inference and safe RL from variable names and descriptions; precursor; no numbers in the abstract. Fetched 2026-10-01.}
+}
+
+@misc{zhu2024eliciting,
+  title = {{Eliciting the Priors of Large Language Models using Iterated In-Context Learning}},
+  author = {Jian-Qiao Zhu and Thomas L. Griffiths},
+  year = {2024},
+  month = {06},
+  eprint = {2406.01860},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2406.01860v1},
+  url = {https://arxiv.org/abs/2406.01860},
+  note = {Iterated in-context learning samples GPT-4 priors over causal strength, proportions and everyday quantities; qualitatively aligned with human priors; applied to AI timelines. Fetched 2026-10-01.}
+}
+
+@misc{arai2025patients,
+  title = {{How many patients could we save with LLM priors?}},
+  author = {Shota Arai and David Selby and Andrew Vargo and Sebastian Vollmer},
+  year = {2025},
+  month = {09},
+  eprint = {2509.04250},
+  archivePrefix = {arXiv},
+  primaryClass = {stat.ME},
+  version = {2509.04250v2},
+  url = {https://arxiv.org/abs/2509.04250},
+  note = {Llama 3.3 70B and MedGemma 27B give exponential-prior rates in JSON for a hierarchical adverse-event model (trial NCT00617669, 468 patients); LLM priors with 80 percent of data (LPD -4.093) beat meta-analytic prior with 100 percent (-4.103), about 66 fewer patients; best LPD -3.842 vs -3.963. Fetched 2026-10-01.}
+}
+
+@misc{evans2025glioblastoma,
+  title = {{Large Language Model-Derived Priors Can Improve Bayesian Survival Analyses: A Glioblastoma Application}},
+  author = {Richard Evans and Max Felland and Susanna Evans and Lindsey Sloan},
+  year = {2025},
+  month = {11},
+  eprint = {2511.01778},
+  archivePrefix = {arXiv},
+  primaryClass = {stat.AP},
+  version = {2511.01778v1},
+  url = {https://arxiv.org/abs/2511.01778},
+  note = {Three chatbots propose priors for a glioblastoma survival model, reviewed by a clinician with sensitivity analysis; symposium paper, qualitative. Fetched 2026-10-01.}
+}
+
+@misc{nafar2025extracting,
+  title = {{Extracting Probabilistic Knowledge from Large Language Models for Bayesian Network Parameterization}},
+  author = {Aliakbar Nafar and Kristen Brent Venable and Zijun Cui and Parisa Kordjamshidi},
+  year = {2025},
+  month = {05},
+  journal = {Transactions on Machine Learning Research},
+  eprint = {2505.15918},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2505.15918v3},
+  url = {https://arxiv.org/abs/2505.15918},
+  note = {80 Bayesian networks; eight LLMs; SepState (one probability at a time, reasoning first) and FullDist both beat uniform (p<0.01 GPT-4o); token-probability baselines worse than random; LLM priors with minimal data beat MLE with 30 samples; Claude 3.5 Sonnet overconfident on high-entropy tables. Fetched 2026-10-01.}
+}
+
+@misc{huang2025llmprior,
+  title = {{LLM-Prior: A Framework for Knowledge-Driven Prior Elicitation and Aggregation}},
+  author = {Yongchao Huang},
+  year = {2025},
+  month = {08},
+  eprint = {2508.03766},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2508.03766v1},
+  url = {https://arxiv.org/abs/2508.03766},
+  note = {Framework mapping context to Gaussian-mixture priors via an LLM; logarithmic opinion pooling across agents; no numbers in the abstract. Fetched 2026-10-01.}
+}
+
+@misc{renda2025openestimate,
+  title = {{OpenEstimate: Evaluating LLMs on Reasoning Under Uncertainty with Real-World Data}},
+  author = {Alana Renda and Jillian Ross and Michael Cafarella and Jacob Andreas},
+  year = {2025},
+  month = {10},
+  eprint = {2510.15096},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2510.15096v2},
+  url = {https://arxiv.org/abs/2510.15096},
+  note = {178 real-world statistics (Glassdoor 43, Pitchbook 61, NHANES 74); six models; LLM priors often inaccurate and overconfident, most no better than five true samples; systematic over-estimation; elicitation protocol, temperature, prompt and reasoning effort have no consequential effect. Fetched 2026-10-01.}
+}
+
+@misc{hobor2026bayesian,
+  title = {{Bayesian Elicitation with LLMs: Model Size Helps, Extra "Reasoning" Doesn't Always}},
+  author = {Luka Hobor and Mario Brcic and Mihael Kovac and Kristijan Poje},
+  year = {2026},
+  month = {04},
+  eprint = {2604.01896},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2604.01896v1},
+  url = {https://arxiv.org/abs/2604.01896},
+  note = {400 population-statistic questions; point plus 95 percent interval; 11 models; coverage 9-44 percent; Opus 4.5 MdAPE 23.6 percent vs Haiku 4.5 89.9; no pooled effect of reasoning effort (rho -0.014, p 0.24); invalid-response rates 0 to 88.8 percent; conformal expansion 2-5x; web search degrades two of three strong models (median AE +140 and +77 percent). Fetched 2026-10-01.}
+}
+
+@misc{lorenz2026scalabledelphi,
+  title = {{Scalable Delphi: Large Language Models for Structured Risk Estimation}},
+  author = {Tobias Lorenz and Mario Fritz},
+  year = {2026},
+  month = {02},
+  eprint = {2602.08889},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2602.08889v1},
+  url = {https://arxiv.org/abs/2602.08889},
+  note = {Five LLM personas, two Delphi rounds, GPT-5.1 and Claude Opus 4.1; Pearson r 0.87-0.95 with observed agent success on BountyBench, Cybench, CyberGym; GPT-5.1 within 5.0 pp MAD of a human panel (human panels 16.6 pp apart); evidence in prompt moves r from about 0 to above 0.85; personas shift aggregates 1.9-3.0 pp. Fetched 2026-10-01.}
+}
+
+@misc{piskorz2026eliciting,
+  title = {{Eliciting Numerical Predictive Distributions of LLMs Without Autoregression}},
+  author = {Julianna Piskorz and Katarzyna Kobalczyk and Mihaela van der Schaar},
+  year = {2026},
+  month = {03},
+  booktitle = {International Conference on Learning Representations (ICLR 2026)},
+  eprint = {2603.02913},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2603.02913v1},
+  url = {https://arxiv.org/abs/2603.02913},
+  note = {Linear probes on hidden states recover mean, median and quantiles of the numeric predictive distribution without autoregressive sampling. Fetched 2026-10-01.}
+}
+
+@article{riegler2025using,
+  title = {{Using large language models to suggest informative prior distributions in Bayesian regression analysis}},
+  author = {Riegler, Michael A. and Hellton, Kristoffer H. and Thambawita, Vajira and Hammer, Hugo L.},
+  year = {2025},
+  month = {09},
+  journal = {Scientific Reports},
+  volume = {15},
+  number = {1},
+  doi = {10.1038/s41598-025-18425-9},
+  url = {https://doi.org/10.1038/s41598-025-18425-9},
+  note = {Claude Opus, Gemini 2.5 Pro, ChatGPT 4o-mini give Gaussian priors with reflection for heart disease (303) and concrete strength (1,030); all effect directions correct; moderately informative priors often too confident (Claude-moderate average KL 1.07); weak priors from ChatGPT and Gemini default to mean 0; Claude and Gemini beat ChatGPT. Abstract from Crossref, full text from nature.com. Fetched 2026-10-01.}
+}
+
+@inproceedings{gouk2024automated,
+  title = {{Automated Prior Elicitation from Large Language Models for Bayesian Logistic Regression}},
+  author = {Gouk, Henry and Gao, Boyan},
+  year = {2024},
+  month = {09},
+  booktitle = {Third International Conference on Automated Machine Learning (AutoML 2024), Paris},
+  url = {https://openreview.net/forum?id=euLzlnU7gz},
+  note = {LLM generates synthetic feature vectors and labels them in context; label distribution forms the prior; more than 10 percent absolute accuracy gain in the severely data-scarce regime in some situations. No DOI or arXiv id exists; metadata from the University of Edinburgh research explorer (OpenReview PDF behind a browser check). Fetched 2026-10-01.}
+}
+
+@misc{kalyan2021fermi,
+  title = {{How Much Coffee Was Consumed During EMNLP 2019? Fermi Problems: A New Reasoning Challenge for AI}},
+  author = {Ashwin Kalyan and Abhinav Kumar and Arjun Chandrasekaran and Ashish Sabharwal and Peter Clark},
+  year = {2021},
+  month = {10},
+  eprint = {2110.14207},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2110.14207v2},
+  url = {https://arxiv.org/abs/2110.14207},
+  note = {RealFP 928 problems (558 test), SynthFP 10,000; fp score = max(0, 1 - |log10(A'/A)|/3); fine-tuned T5 0.36 / 0.21 / 0.21 with perfect, distractor and no facts; constant baseline 0.22, regression 0.32. Fetched 2026-10-01.}
+}
+
+@misc{liu2025fermi,
+  title = {{LLM for Complex Reasoning Task: An Exploratory Study in Fermi Problems}},
+  author = {Zishuo Liu and Carlos Rabat Villarreal and Mostafa Rahgouy and Amit Das and Zheng Zhang and Chang Ren and Dongji Feng},
+  year = {2025},
+  month = {04},
+  eprint = {2504.02671},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2504.02671v1},
+  url = {https://arxiv.org/abs/2504.02671},
+  note = {GPT-3.5 Turbo, GPT-4 Turbo, Llama 3 70B on 556 RealFP questions; fp scores 0.398-0.418, 0.466-0.500, 0.439-0.460 across TELeR prompt levels 0/2/4; all below 0.5. Fetched 2026-10-01.}
+}
+
+@misc{epstein2025fermieval,
+  title = {{LLMs are Overconfident: Evaluating Confidence Interval Calibration with FermiEval}},
+  author = {Elliot L. Epstein and John Winnicki and Thanawat Sornwanee and Rajat Dwaraknath},
+  year = {2025},
+  month = {10},
+  eprint = {2510.26995},
+  archivePrefix = {arXiv},
+  primaryClass = {stat.ME},
+  version = {2510.26995v1},
+  url = {https://arxiv.org/abs/2510.26995},
+  note = {500 train and 500 test Science Olympiad Fermi questions with integer-exponent answers; nominal 99 percent intervals cover 65 percent on average; GPT-4o-mini observed coverage 0.63/0.59/0.64 at nominal 90/95/99, raised to 0.85/0.89/0.90 by log-probability elicitation; conformal adjustment reaches 99 percent with Winkler score down 54 percent. Fetched 2026-10-01.}
+}
+
+@misc{wu2025cequest,
+  title = {{CEQuest: Benchmarking Large Language Models for Construction Estimation}},
+  author = {Yanzhao Wu and Lufan Wang and Rui Liu},
+  year = {2025},
+  month = {08},
+  eprint = {2508.16081},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2508.16081v1},
+  url = {https://arxiv.org/abs/2508.16081},
+  note = {164 construction-estimating questions; accuracy GPT-4.1 75.37, Llama 3.3 70B 65.37, Phi4 64.02, LLaVA 34B 62.56, Gemma 3 4B 61.83 percent; failure modes: format deviation and lack of domain rounding conventions. Fetched 2026-10-01.}
+}
+
+@misc{tawosi2023searchbased,
+  title = {{Search-based Optimisation of LLM Learning Shots for Story Point Estimation}},
+  author = {Vali Tawosi and Salwa Alamir and Xiaomo Liu},
+  year = {2023},
+  month = {12},
+  booktitle = {Search-Based Software Engineering (SSBSE 2023), LNCS 14415},
+  pages = {123--129},
+  eprint = {2403.08430},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.SE},
+  version = {2403.08430v1},
+  doi = {10.1007/978-3-031-48796-5_9},
+  url = {https://arxiv.org/abs/2403.08430},
+  note = {Search-based selection of few-shot examples improves LLM story-point MAE by 59.34 percent on average over zero-shot on three datasets. Proceedings chapter issued 2023-12-04 (Crossref); arXiv 2403.08430 posted 2024-03-13. Fetched 2026-10-01.}
+}
+
+@article{calikli2025impact,
+  title = {{Impact of Request Formats on Effort Estimation: Are LLMs Different Than Humans?}},
+  author = {{\c{C}}al{\i}kl{\i}, G{\"u}l and Alhamed, Mohammed},
+  year = {2025},
+  month = {07},
+  journal = {Proceedings of the ACM on Software Engineering},
+  volume = {2},
+  number = {FSE},
+  pages = {FSE051},
+  doi = {10.1145/3715771},
+  url = {https://doi.org/10.1145/3715771},
+  note = {GPT-4, Gemini 1.5 Pro, Llama 3.1; 880 prompts from 704 user stories; asking "how much can be completed in Y work hours" lowers effort estimates in every model (Cliff delta 1.0; GPT-4 median 2,000 vs 120 work hours in study 1), read as anchoring on Y. PDF from eprints.gla.ac.uk. Fetched 2026-10-01.}
+}
+
+@article{villarrubia2026llm,
+  title = {{Large language models for agile effort estimation: a post-mortem study incorporating developer experience and optimism}},
+  author = {Villarrubia, Carlos and Villarrubia-Martin, Enrique Adrian and Vara, Juan Manuel and Granada, David},
+  year = {2026},
+  month = {06},
+  journal = {Requirements Engineering},
+  volume = {31},
+  number = {1},
+  doi = {10.1007/s00766-026-00463-y},
+  url = {https://doi.org/10.1007/s00766-026-00463-y},
+  note = {10 LLMs and 42 developers T-shirt-size 12 user stories against post-mortem effort; similar accuracy; large models preserve the expected ordering by experience and optimism; small models inconsistent. Full text via link.springer.com after the cookie redirect. Fetched 2026-10-01.}
+}
+
+@article{tversky1974judgment,
+  title = {{Judgment under Uncertainty: Heuristics and Biases}},
+  author = {Tversky, Amos and Kahneman, Daniel},
+  year = {1974},
+  month = {09},
+  journal = {Science},
+  volume = {185},
+  number = {4157},
+  pages = {1124--1131},
+  doi = {10.1126/science.185.4157.1124},
+  url = {https://doi.org/10.1126/science.185.4157.1124},
+  note = {Origin of anchoring and adjustment. Metadata from doi.org. Fetched 2026-10-01.}
+}
+
+@article{jacowitz1995measures,
+  title = {{Measures of Anchoring in Estimation Tasks}},
+  author = {Jacowitz, Karen E. and Kahneman, Daniel},
+  year = {1995},
+  month = {11},
+  journal = {Personality and Social Psychology Bulletin},
+  volume = {21},
+  number = {11},
+  pages = {1161--1166},
+  doi = {10.1177/01461672952111004},
+  url = {https://doi.org/10.1177/01461672952111004},
+  note = {Defines the anchoring index; the 15 estimation questions replicated by Jones and Steinhardt 2022. Metadata from doi.org and Crossref. Fetched 2026-10-01.}
+}
+
+@misc{jones2022capturing,
+  title = {{Capturing Failures of Large Language Models via Human Cognitive Biases}},
+  author = {Erik Jones and Jacob Steinhardt},
+  year = {2022},
+  month = {02},
+  booktitle = {Advances in Neural Information Processing Systems 35 (NeurIPS 2022)},
+  eprint = {2202.12299},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2202.12299v2},
+  url = {https://arxiv.org/abs/2202.12299},
+  note = {Codex writes anchor-function lines in 32-61 percent (for var in) and 26-44 percent (print(var)) of HumanEval solutions; GPT-3 davinci-001 on 14 Jacowitz-Kahneman questions moves toward a prepended bound in 28.6 percent (anchor 20 percent off) and 42.9 percent (50 percent off) of cases, gibberish 50.0 and 32.1 percent, equals the anchor in 67 percent of moves. Numbers from the PDF (Table 3, Section 3.3.2). Fetched 2026-10-01.}
+}
+
+@misc{lou2024anchoring,
+  title = {{Anchoring Bias in Large Language Models: An Experimental Study}},
+  author = {Jiaxu Lou and Yifan Sun},
+  year = {2024},
+  month = {12},
+  eprint = {2412.06593},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2412.06593v2},
+  url = {https://arxiv.org/abs/2412.06593},
+  note = {62 numeric questions with low and high anchors; GPT-4, GPT-4o, GPT-3.5 Turbo, 30 runs at temperature 0.8; GPT-4 anchoring index about 0.45 (0.61 in the compared human study); 11 exceptions in 162 comparisons, 9 in GPT-3.5; Chain-of-Thought, Thoughts of Principles, Ignore Anchor Hints and Reflection do not remove the bias; bracketing anchors partially effective. Fetched 2026-10-01.}
+}
+
+@misc{huang2025understanding,
+  title = {{Understanding the Anchoring Effect of LLM with Synthetic Data: Existence, Mechanism, and Potential Mitigations}},
+  author = {Yiming Huang and Biquan Bie and Zuqiu Na and Weilin Ruan and Songxin Lei and Yutao Yue and Xinlei He},
+  year = {2025},
+  month = {05},
+  booktitle = {HCAIR workshop, ICLR 2026},
+  eprint = {2505.15392},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2505.15392v2},
+  url = {https://arxiv.org/abs/2505.15392},
+  note = {SynAnchors: 60 semantic and 40 numerical anchoring questions; 12 models; 22 percent (Qwen3-235B) to 60.5 percent (Qwen2.5-0.5B) of questions anchored, GPT-4o 27.3, DeepSeek-R1 25; mitigations alleviate at most about 10 percent; effect located in early layers. Fetched 2026-10-01.}
+}
+
+@misc{echterhoff2024cognitive,
+  title = {{Cognitive Bias in Decision-Making with LLMs}},
+  author = {Jessica Echterhoff and Yao Liu and Abeer Alessa and Julian McAuley and Zexue He},
+  year = {2024},
+  month = {02},
+  eprint = {2403.00811},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2403.00811v3},
+  url = {https://arxiv.org/abs/2403.00811},
+  note = {BiasBuster: 13,465 prompts; sequential anchoring in admissions decisions; self-help debiasing changes 5.2 percent (GPT-3.5) and 17.5 percent (GPT-4) of decisions; works only for high-capacity models. Fetched 2026-10-01.}
+}
+
+@misc{kapetanovic2026anchoring,
+  title = {{Anchoring Bias in LLM-as-a-Judge Systems: Prior Scores Compromise Evaluation Independence}},
+  author = {Ante Kapetanovic and Kemal Altwlkany and Andro Mercep and Tomislav Duricic and Emanuel Lacic},
+  year = {2026},
+  month = {08},
+  booktitle = {CIKM 2026},
+  eprint = {2608.25869},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2608.25869v1},
+  url = {https://arxiv.org/abs/2608.25869},
+  note = {Prior scores shown as metadata anchor LLM-judge ratings: |Cohen d| up to 0.71, significant in 7 of 8 models; blocks 48 percent of error corrections and flips 10.18 percent of correct judgments; Chain-of-Thought ineffective; disregard warnings partial. Fetched 2026-10-01.}
+}
+
+@misc{takenami2025cognitive,
+  title = {{How Does Cognitive Bias Affect Large Language Models? A Case Study on the Anchoring Effect in Price Negotiation Simulations}},
+  author = {Yoshiki Takenami and Yin Jou Huang and Yugo Murawaki and Chenhui Chu},
+  year = {2025},
+  month = {08},
+  booktitle = {Findings of EMNLP 2025},
+  eprint = {2508.21137},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2508.21137v2},
+  url = {https://arxiv.org/abs/2508.21137},
+  note = {Opening prices anchor simulated negotiations; reasoning models less prone; no correlation with persona personality traits. Fetched 2026-10-01.}
+}
+
+@misc{valenciaclavijo2025anchors,
+  title = {{Anchors in the Machine: Behavioral and Attributional Evidence of Anchoring Bias in LLMs}},
+  author = {Felipe Valencia-Clavijo},
+  year = {2025},
+  month = {11},
+  eprint = {2511.05766},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2511.05766v1},
+  url = {https://arxiv.org/abs/2511.05766},
+  note = {Log-probability analysis in six small open models: anchors shift entire output distributions; Shapley attributions vary with prompt design. Fetched 2026-10-01.}
+}
+
+@misc{wei2022chain,
+  title = {{Chain-of-Thought Prompting Elicits Reasoning in Large Language Models}},
+  author = {Jason Wei and Xuezhi Wang and Dale Schuurmans and Maarten Bosma and Brian Ichter and Fei Xia and Ed Chi and Quoc Le and Denny Zhou},
+  year = {2022},
+  month = {01},
+  eprint = {2201.11903},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2201.11903v6},
+  url = {https://arxiv.org/abs/2201.11903},
+  note = {Chain-of-thought exemplars; a 540B model with eight exemplars reaches state of the art on GSM8K; gains emerge with scale on arithmetic, commonsense and symbolic tasks. Fetched 2026-10-01.}
+}
+
+@misc{wang2022selfconsistency,
+  title = {{Self-Consistency Improves Chain of Thought Reasoning in Language Models}},
+  author = {Xuezhi Wang and Jason Wei and Dale Schuurmans and Quoc Le and Ed Chi and Sharan Narang and Aakanksha Chowdhery and Denny Zhou},
+  year = {2022},
+  month = {03},
+  eprint = {2203.11171},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2203.11171v4},
+  url = {https://arxiv.org/abs/2203.11171},
+  note = {Sampling 40 reasoning paths and majority-voting adds 17.9 points on GSM8K (PaLM-540B 56.5 to 74.4), 11.0 SVAMP, 12.2 AQuA, 6.4 StrategyQA, 3.9 ARC-challenge; gains flatten beyond 20 paths; temperature 0.5-0.7; prompt ensembles weaker (18.6 vs 27.7, LaMDA-137B GSM8K). Fetched 2026-10-01.}
+}
+
+@misc{sprague2024cot,
+  title = {{To CoT or not to CoT? Chain-of-thought helps mainly on math and symbolic reasoning}},
+  author = {Zayne Sprague and Fangcong Yin and Juan Diego Rodriguez and Dongwei Jiang and Manya Wadhwa and Prasann Singhal and Xinyu Zhao and Xi Ye and Kyle Mahowald and Greg Durrett},
+  year = {2024},
+  month = {09},
+  eprint = {2409.12183},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2409.12183v3},
+  url = {https://arxiv.org/abs/2409.12183},
+  note = {Meta-analysis of 110 papers (1,218 comparisons, 264 datasets) plus 14 models on 20 datasets: CoT gains 14.2 points on symbolic, 12.3 math, 6.9 logical; other categories 56.8 vs 56.1; 95 percent of the MMLU gain comes from questions containing an equals sign. Fetched 2026-10-01.}
+}
+
+@misc{liu2024mindyourstep,
+  title = {{Mind Your Step (by Step): Chain-of-Thought can Reduce Performance on Tasks where Thinking Makes Humans Worse}},
+  author = {Ryan Liu and Jiayi Geng and Addison J. Wu and Ilia Sucholutsky and Tania Lombrozo and Thomas L. Griffiths},
+  year = {2024},
+  month = {10},
+  eprint = {2410.21333},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2410.21333v4},
+  url = {https://arxiv.org/abs/2410.21333},
+  note = {CoT lowers accuracy by up to 36.3 points absolute (o1-preview vs GPT-4o) on tasks where deliberation hurts humans; mixed effects elsewhere. Fetched 2026-10-01.}
+}
+
+@misc{turpin2023unfaithful,
+  title = {{Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting}},
+  author = {Miles Turpin and Julian Michael and Ethan Perez and Samuel R. Bowman},
+  year = {2023},
+  month = {05},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS 2023)},
+  eprint = {2305.04388},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2305.04388v2},
+  url = {https://arxiv.org/abs/2305.04388},
+  note = {CoT explanations systematically misrepresent the cause of the answer; a biasing feature in few-shot examples drops accuracy by as much as 36 percent on 13 BIG-Bench Hard tasks (GPT-3.5, Claude 1.0) while the reasoning never mentions it. Fetched 2026-10-01.}
+}
+
+@misc{tian2023justask,
+  title = {{Just Ask for Calibration: Strategies for Eliciting Calibrated Confidence Scores from Language Models Fine-Tuned with Human Feedback}},
+  author = {Katherine Tian and Eric Mitchell and Allan Zhou and Archit Sharma and Rafael Rafailov and Huaxiu Yao and Chelsea Finn and Christopher D. Manning},
+  year = {2023},
+  month = {05},
+  eprint = {2305.14975},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2305.14975v2},
+  url = {https://arxiv.org/abs/2305.14975},
+  note = {Verbalised confidence better calibrated than token probabilities (ECE GPT-3.5 0.140 to 0.054; GPT-4 0.078 to 0.041; Claude-2 0.089 to 0.072; Llama-2-70B-Chat 0.151 to 0.069); chain-of-thought does not improve verbalised calibration; four guesses with probabilities cut ECE on SciQ from 0.234 to 0.065. Fetched 2026-10-01.}
+}
+
+@misc{xiong2023can,
+  title = {{Can LLMs Express Their Uncertainty? An Empirical Evaluation of Confidence Elicitation in LLMs}},
+  author = {Miao Xiong and Zhiyuan Hu and Xinyang Lu and Yifei Li and Jie Fu and Junxian He and Bryan Hooi},
+  year = {2023},
+  month = {06},
+  eprint = {2306.13063},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2306.13063v2},
+  url = {https://arxiv.org/abs/2306.13063},
+  note = {Verbalised confidences cluster at 80-100 in steps of 5; GPT-3.5 vanilla ECE 37.7, AUROC 55.1; CoT about 22/60, self-probing 20/61, multi-step 17/59, top-k 14/65; consistency over 5 samples cuts ECE 25.0 to 18.7 and lifts AUROC 56.4 to 73.0; GPT-4 vanilla ECE 18.0, AUROC 62.7. Fetched 2026-10-01.}
+}
+
+@book{ohagan2006uncertain,
+  title = {{Uncertain Judgements: Eliciting Experts' Probabilities}},
+  author = {O'Hagan, Anthony and Buck, Caitlin E. and Daneshkhah, Alireza and Eiser, J. Richard and Garthwaite, Paul H. and Jenkinson, David J. and Oakley, Jeremy E. and Rakow, Tim},
+  year = {2006},
+  month = {07},
+  publisher = {Wiley},
+  isbn = {9780470033319},
+  doi = {10.1002/0470033312},
+  url = {https://doi.org/10.1002/0470033312},
+  note = {The standard monograph on quantile-based elicitation, the psychology of judgement and multivariate elicitation; DOI verified at doi.org; the Wiley page refused automated fetches, so content statements are taken from the authors' JASA review (garthwaite2005statistical). Fetched 2026-10-01.}
+}
+
+@article{garthwaite2005statistical,
+  title = {{Statistical Methods for Eliciting Probability Distributions}},
+  author = {Garthwaite, Paul H. and Kadane, Joseph B. and O'Hagan, Anthony},
+  year = {2005},
+  month = {06},
+  journal = {Journal of the American Statistical Association},
+  volume = {100},
+  number = {470},
+  pages = {680--701},
+  doi = {10.1198/016214505000000105},
+  url = {https://doi.org/10.1198/016214505000000105},
+  note = {Fixed-interval vs variable-interval methods; bisection into median and quartiles; 23 of 28 sets of 50 percent intervals covered less than 50 percent, never above 57; tertiles less overconfident than quartiles; independence reduces multivariate elicitation to univariate; restructure dependent quantities (X and Z=Y/X). Text from the CMU technical report PDF (tr808). Fetched 2026-10-01.}
+}
+
+@incollection{gosling2018shelf,
+  title = {{SHELF: The Sheffield Elicitation Framework}},
+  author = {Gosling, John Paul},
+  year = {2018},
+  booktitle = {Elicitation: The Science and Art of Structuring Judgement},
+  editor = {Dias, Luis C. and Morton, Alec and Quigley, John},
+  publisher = {Springer},
+  pages = {61--93},
+  doi = {10.1007/978-3-319-65052-4_4},
+  url = {https://doi.org/10.1007/978-3-319-65052-4_4},
+  note = {Five to ten experts practicable; quartile method (the EFSA Sheffield method) starts with bounds to counter anchoring and overconfidence, then median, then quartiles by bisection; range-frequency compromise; structuring several quantities into independent ones; Dirichlet and copula extensions elicit elements separately. doi.org record dated 2017 (online), book 2018. Text from the chapter PDF mirrored at downloads.regulations.gov. Fetched 2026-10-01.}
+}
+
+@article{ohagan2019expert,
+  title = {{Expert Knowledge Elicitation: Subjective but Scientific}},
+  author = {O'Hagan, Anthony},
+  year = {2019},
+  month = {03},
+  journal = {The American Statistician},
+  volume = {73},
+  number = {sup1},
+  pages = {69--81},
+  doi = {10.1080/00031305.2018.1518265},
+  url = {https://doi.org/10.1080/00031305.2018.1518265},
+  note = {Describes the three EFSA 2014 protocols (Sheffield, Cooke, probabilistic Delphi) and IDEA; aim for four to eight experts; taxi-journey exercise: 95 percent bound first gives 93 then 126 minutes, plausible bound first gives 84 then 67, the first answer anchoring the second. PDF mirrored at downloads.regulations.gov. Fetched 2026-10-01.}
+}
+
+@article{cooke2008tudelft,
+  title = {{TU Delft expert judgment data base}},
+  author = {Cooke, Roger M. and Goossens, Louis L. H. J.},
+  year = {2008},
+  month = {05},
+  journal = {Reliability Engineering \& System Safety},
+  volume = {93},
+  number = {5},
+  pages = {657--674},
+  doi = {10.1016/j.ress.2007.03.005},
+  url = {https://doi.org/10.1016/j.ress.2007.03.005},
+  note = {The classical-model study database; cited for the 5/50/95 percentile format and performance weighting. Metadata from doi.org; numbers taken from colson2018expert. Fetched 2026-10-01.}
+}
+
+@article{colson2018expert,
+  title = {{Expert Elicitation: Using the Classical Model to Validate Experts' Judgments}},
+  author = {Colson, Abigail R. and Cooke, Roger M.},
+  year = {2018},
+  month = {01},
+  journal = {Review of Environmental Economics and Policy},
+  volume = {12},
+  number = {1},
+  pages = {113--132},
+  doi = {10.1093/reep/rex022},
+  url = {https://doi.org/10.1093/reep/rex022},
+  note = {Experts state 5th, 50th and 95th percentiles per item; 33 post-2006 studies, 322 experts, 7-17 calibration questions (most 10), 4-21 experts; only 87 of 322 experts have statistical accuracy above 0.05, more than half below 0.005; background measure uniform or log-uniform with 10 percent overshoot; averaging quantiles has substantial performance costs. PDF from strathprints.strath.ac.uk. Fetched 2026-10-01.}
+}
+
+@article{efsa2014guidance,
+  title = {{Guidance on Expert Knowledge Elicitation in Food and Feed Safety Risk Assessment}},
+  author = {{European Food Safety Authority}},
+  year = {2014},
+  journal = {EFSA Journal},
+  volume = {12},
+  number = {6},
+  pages = {3734},
+  doi = {10.2903/j.efsa.2014.3734},
+  url = {https://doi.org/10.2903/j.efsa.2014.3734},
+  note = {Three protocols (Sheffield, Cooke, Delphi) and the quartile judgments. DOI and abstract verified at doi.org; the Wiley host returned HTTP 403 and a browser challenge to all fetches on 2026-10-01, so protocol statements are taken from ohagan2019expert and gosling2018shelf. Fetched 2026-10-01.}
+}
+
+@article{morgan2014use,
+  title = {{Use (and abuse) of expert elicitation in support of decision making for public policy}},
+  author = {Morgan, M. Granger},
+  year = {2014},
+  month = {05},
+  journal = {Proceedings of the National Academy of Sciences},
+  volume = {111},
+  number = {20},
+  pages = {7176--7184},
+  doi = {10.1073/pnas.1319946111},
+  url = {https://doi.org/10.1073/pnas.1319946111},
+  note = {Ask extremes before best values; strong evidence of overconfidence (none of 21 studies met the 2 percent surprise rate); decompose into component pieces; do not combine experts with different models; the word likely spans four orders of magnitude; five or six experts when they share a model; interviews of hours to a day. Full text via PMC4034232. Fetched 2026-10-01.}
+}
+
+@article{hemming2018practical,
+  title = {{A practical guide to structured expert elicitation using the IDEA protocol}},
+  author = {Hemming, Victoria and Burgman, Mark A. and Hanea, Anca M. and McBride, Marissa F. and Wintle, Bonnie C.},
+  year = {2018},
+  journal = {Methods in Ecology and Evolution},
+  volume = {9},
+  number = {1},
+  pages = {169--180},
+  doi = {10.1111/2041-210X.12857},
+  url = {https://doi.org/10.1111/2041-210X.12857},
+  note = {IDEA protocol: four-step elicitation (lowest, highest, best, confidence) and a two-round modified Delphi; remote elicitation on a modest budget. Abstract from Crossref; doi.org record dated 2017 (online). Fetched 2026-10-01.}
+}
+
+@article{hemming2018eliciting,
+  title = {{Eliciting improved quantitative judgements using the IDEA protocol: A case study in natural resource management}},
+  author = {Hemming, Victoria and Walshe, Terry V. and Hanea, Anca M. and Fidler, Fiona and Burgman, Mark A.},
+  year = {2018},
+  month = {06},
+  journal = {PLOS ONE},
+  volume = {13},
+  number = {6},
+  pages = {e0198468},
+  doi = {10.1371/journal.pone.0198468},
+  url = {https://doi.org/10.1371/journal.pone.0198468},
+  note = {76 then 58 participants, 14 questions; intervals standardised to 80 percent by linear extrapolation; group calibration 0.692 to 0.77 between rounds; 36 of 44 revisers improved; log10-ratio accuracy scoring symmetric in orders of magnitude. Fetched 2026-10-01.}
+}
+
+@article{werner2017expert,
+  title = {{Expert judgement for dependence in probabilistic modelling: A systematic literature review and future research directions}},
+  author = {Werner, Christoph and Bedford, Tim and Cooke, Roger M. and Hanea, Anca M. and Morales-N{\'a}poles, Oswaldo},
+  year = {2017},
+  month = {05},
+  journal = {European Journal of Operational Research},
+  volume = {258},
+  number = {3},
+  pages = {801--819},
+  doi = {10.1016/j.ejor.2016.10.018},
+  url = {https://doi.org/10.1016/j.ejor.2016.10.018},
+  note = {Systematic review of dependence elicitation: extensive guidance exists for single variables, very little for higher dimensions; correlations, conditional probabilities and concordance probabilities weighed against assessment burden. PDF from strathprints.strath.ac.uk. Fetched 2026-10-01.}
+}
+
+@article{kynn2008heuristics,
+  title = {{The `Heuristics and Biases' Bias in Expert Elicitation}},
+  author = {Kynn, Mary},
+  year = {2008},
+  journal = {Journal of the Royal Statistical Society Series A: Statistics in Society},
+  volume = {171},
+  number = {1},
+  pages = {239--264},
+  doi = {10.1111/j.1467-985X.2007.00499.x},
+  url = {https://doi.org/10.1111/j.1467-985X.2007.00499.x},
+  note = {Argues that the elicitation literature over-relies on the 1970s heuristics-and-biases results and ignores later work on frequency formats and framing. Abstract from Crossref; doi.org record dated 2007 (online). Fetched 2026-10-01.}
+}
+
+@article{soll2004overconfidence,
+  title = {{Overconfidence in interval estimates}},
+  author = {Soll, Jack B. and Klayman, Joshua},
+  year = {2004},
+  month = {03},
+  journal = {Journal of Experimental Psychology: Learning, Memory, and Cognition},
+  volume = {30},
+  number = {2},
+  pages = {299--314},
+  doi = {10.1037/0278-7393.30.2.299},
+  url = {https://doi.org/10.1037/0278-7393.30.2.299},
+  note = {X percent intervals contain the truth much less than X percent of the time; intervals sometimes only 40 percent as wide as needed; the degree of overconfidence depends strongly on how intervals are elicited. Abstract from PubMed 14979805. Fetched 2026-10-01.}
+}
+
+@article{speirsbridge2010reducing,
+  title = {{Reducing Overconfidence in the Interval Judgments of Experts}},
+  author = {Speirs-Bridge, Andrew and Fidler, Fiona and McBride, Marissa and Flander, Louisa and Cumming, Geoff and Burgman, Mark},
+  year = {2010},
+  month = {03},
+  journal = {Risk Analysis},
+  volume = {30},
+  number = {3},
+  pages = {512--523},
+  doi = {10.1111/j.1539-6924.2009.01337.x},
+  url = {https://doi.org/10.1111/j.1539-6924.2009.01337.x},
+  note = {3-point (lower, upper, best at assigned confidence) vs 4-step (realistic lower, upper, best, then self-rated confidence, rescaled); three expert studies (n 21, 24, 34); meta-analytic overconfidence 11.9 percent [3.5, 20.3], hit rate 68.1 percent for 80 percent intervals; 4-step better, Cohen d 0.61 [0.04, 1.18]. Abstract from PubMed 20030766. Fetched 2026-10-01.}
+}
+
+@article{teigen2005when,
+  title = {{When 90\% confidence intervals are 50\% certain: on the credibility of credible intervals}},
+  author = {Teigen, Karl Halvor and J{\o}rgensen, Magne},
+  year = {2005},
+  month = {03},
+  journal = {Applied Cognitive Psychology},
+  volume = {19},
+  number = {4},
+  pages = {455--475},
+  doi = {10.1002/acp.1085},
+  url = {https://doi.org/10.1002/acp.1085},
+  note = {90 percent intervals carry about 50 percent subjective confidence and lower hit rates; interval width stable across instructions; exclusion questions (improbable values, separate more-than and less-than) widen intervals. Abstract from Crossref. Fetched 2026-10-01.}
+}
+
+@article{haran2010simple,
+  title = {{A simple remedy for overprecision in judgment}},
+  author = {Haran, Uriel and Moore, Don A. and Morewedge, Carey K.},
+  year = {2010},
+  month = {12},
+  journal = {Judgment and Decision Making},
+  volume = {5},
+  number = {7},
+  pages = {467--476},
+  doi = {10.1017/S1930297500001637},
+  url = {https://doi.org/10.1017/S1930297500001637},
+  note = {90 percent intervals and 5th/95th fractiles both hit 73.79 percent; SPIES (probabilities over bins) 88.35 percent; experiment 2: 73.91 vs 29.17 percent. Full text via PMC5386407. Fetched 2026-10-01.}
+}
+
+@article{mandel2020effect,
+  title = {{Effect of confidence interval construction on judgment accuracy}},
+  author = {Mandel, David R. and Collins, Robert N. and Risko, Evan F. and Fugelsang, Jonathan A.},
+  year = {2020},
+  month = {09},
+  journal = {Judgment and Decision Making},
+  volume = {15},
+  number = {5},
+  pages = {783--797},
+  doi = {10.1017/S1930297500007920},
+  url = {https://doi.org/10.1017/S1930297500007920},
+  note = {Calibrated 80 percent intervals hit 0.65, 0.67 and 0.62 in three experiments (N 550); interval-before-estimate not significant in 8 of 9 tests; summarises Soll and Klayman 2004 (90 percent intervals overprecise, 70 percent well calibrated). Fetched 2026-10-01.}
+}
+
+@misc{levy2024language,
+  title = {{Language Models Encode Numbers Using Digit Representations in Base 10}},
+  author = {Amit Arnold Levy and Mor Geva},
+  year = {2024},
+  month = {10},
+  booktitle = {NAACL 2025},
+  eprint = {2410.11781},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2410.11781v2},
+  url = {https://arxiv.org/abs/2410.11781},
+  note = {LLMs represent numbers with per-digit circular base-10 representations; errors distribute across digits rather than around the numeric value. Fetched 2026-10-01.}
+}
+
+@misc{singh2024tokenization,
+  title = {{Tokenization counts: the impact of tokenization on arithmetic in frontier LLMs}},
+  author = {Aaditya K. Singh and DJ Strouse},
+  year = {2024},
+  month = {02},
+  eprint = {2402.14903},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2402.14903v1},
+  url = {https://arxiv.org/abs/2402.14903},
+  note = {GPT-3.5/GPT-4 tokenise 1-3 digits per token left to right; comma grouping enforces right-to-left tokenisation and raises addition accuracy (GPT-3.5 1-shot 68.5 to 95.6 percent; 8-shot 75.6 to 97.8); left-to-right drops to 8.25 percent when the answer is longer than the addends; larger models partly override. Fetched 2026-10-01.}
+}
+
+@misc{yuchi2026llmsknow,
+  title = {{LLMs Know More About Numbers than They Can Say}},
+  author = {Fengting Yuchi and Li Du and Jason Eisner},
+  year = {2026},
+  month = {02},
+  eprint = {2602.07812},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2602.07812v2},
+  url = {https://arxiv.org/abs/2602.07812},
+  note = {Mixed-notation magnitude comparisons (5.7 x 10^2 vs 580): best 7-8B open model 70 percent, worst at chance; GPT-4.1 94.19, GPT-4.1-mini 92.12 percent; linear probes decode log-magnitude across notations with R^2 above 0.998 (2.3 percent median relative error synthetic, 19.06 on arXiv text). Fetched 2026-10-01.}
+}
+
+@misc{ni2026numeracy,
+  title = {{Numeracy in Large Language Models: Fundamental Limitations and Paths to Improvement}},
+  author = {Aoxin Ni},
+  year = {2026},
+  month = {08},
+  eprint = {2608.13129},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2608.13129v1},
+  url = {https://arxiv.org/abs/2608.13129},
+  note = {Review: frontier models unreliable on magnitude comparison, large-integer arithmetic, fractions and scientific notation; proposes a representational vs procedural grounding framework. Fetched 2026-10-01.}
+}
+
+@misc{rottger2023xstest,
+  title = {{XSTest: A Test Suite for Identifying Exaggerated Safety Behaviours in Large Language Models}},
+  author = {Paul Röttger and Hannah Rose Kirk and Bertie Vidgen and Giuseppe Attanasio and Federico Bianchi and Dirk Hovy},
+  year = {2023},
+  month = {08},
+  eprint = {2308.01263},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2308.01263v3},
+  url = {https://arxiv.org/abs/2308.01263},
+  note = {250 safe prompts in ten types and 200 unsafe contrasts, hand-labelled (kappa 0.89-0.97); full refusal on safe prompts Llama-2-70b-chat 38.0 percent (+21.6 partial), 14.0 without system prompt, GPT-4 6.4 (+2.0), Mistral-7B 0.8 unmoderated; Llama-2 refuses 96 percent of safe-context and 40 percent of definition prompts, GPT-4 0 and 4; attributed to lexical overfitting. Same key as research/refs.bib. Fetched 2026-10-01.}
+}
+
+@misc{cui2024orbench,
+  title = {{OR-Bench: An Over-Refusal Benchmark for Large Language Models}},
+  author = {Justin Cui and Wei-Lin Chiang and Ion Stoica and Cho-Jui Hsieh},
+  year = {2024},
+  month = {05},
+  booktitle = {International Conference on Machine Learning (ICML 2025)},
+  eprint = {2405.20947},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2405.20947v5},
+  url = {https://arxiv.org/abs/2405.20947},
+  note = {80,000 benign seemingly-toxic prompts, hard subset about 1,000, 600 toxic; 32 models; Hard-1K rejection: Claude 3 Opus 91.0, Sonnet 94.4, Haiku 96.2, Claude 3.5 Sonnet 43.8, GPT-4o 6.7, GPT-4-turbo 12.7, GPT-3.5 12.7, Gemini 1.5 Pro 88.0, Flash 84.2, Llama-3-70b 37.7, Llama-3.1-70B 3.0, Mistral Large 9.7, Qwen-1.5-72b 46.9 percent; Spearman 0.89 between safe and toxic rejection. Same key as research/refs.bib. Fetched 2026-10-01.}
+}
+
+@misc{brahman2024artofsayingno,
+  title = {{The Art of Saying No: Contextual Noncompliance in Language Models}},
+  author = {Faeze Brahman and Sachin Kumar and Vidhisha Balachandran and Pradeep Dasigi and Valentina Pyatkin and Abhilasha Ravichander and Sarah Wiegreffe and Nouha Dziri and Khyathi Chandu and Jack Hessel and others},
+  year = {2024},
+  month = {07},
+  booktitle = {NeurIPS 2024 Datasets and Benchmarks},
+  eprint = {2407.12043},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2407.12043v2},
+  url = {https://arxiv.org/abs/2407.12043},
+  note = {CoCoNot: taxonomy of contextual noncompliance (incomplete, unsupported, indeterminate, humanising, unsafe); 1,000 prompts; GPT-4 incorrectly complies with about 30 percent in understudied categories. Fetched 2026-10-01.}
+}
+
+@misc{xie2024sorrybench,
+  title = {{SORRY-Bench: Systematically Evaluating Large Language Model Safety Refusal}},
+  author = {Tinghao Xie and Xiangyu Qi and Yi Zeng and Yangsibo Huang and Udari Madhushani Sehwag and Kaixuan Huang and Luxi He and Boyi Wei and Dacheng Li and Ying Sheng and others},
+  year = {2024},
+  month = {06},
+  booktitle = {International Conference on Learning Representations (ICLR 2025)},
+  eprint = {2406.14598},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2406.14598v2},
+  url = {https://arxiv.org/abs/2406.14598},
+  note = {440 unsafe instructions in 44 categories with 20 linguistic mutations; 50+ models; 7,000+ human labels; fine-tuned 7B judges match GPT-4-scale judges. Same key as research/refs.bib. Fetched 2026-10-01.}
+}
+
+@misc{bhatt2024cyberseceval2,
+  title = {{CyberSecEval 2: A Wide-Ranging Cybersecurity Evaluation Suite for Large Language Models}},
+  author = {Manish Bhatt and Sahana Chennabasappa and Yue Li and Cyrus Nikolaidis and Daniel Song and Shengye Wan and Faizan Ahmad and Cornelius Aschermann and Yaohui Chen and Dhaval Kapil and others},
+  year = {2024},
+  month = {04},
+  eprint = {2404.13161},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CR},
+  version = {2404.13161v1},
+  url = {https://arxiv.org/abs/2404.13161},
+  note = {Defines the false refusal rate (FRR) on borderline benign cyber prompts; several models below 15 percent, codellama-70B 70 percent; compliance with attack-assistance prompts averaged 52 percent (v1) and 28 percent (v2). Numbers from the PDF, Section 5.1.2. Fetched 2026-10-01.}
+}
+
+@misc{wan2024cyberseceval3,
+  title = {{CYBERSECEVAL 3: Advancing the Evaluation of Cybersecurity Risks and Capabilities in Large Language Models}},
+  author = {Shengye Wan and Cyrus Nikolaidis and Daniel Song and David Molnar and James Crnkovich and Jayson Grace and Manish Bhatt and Sahana Chennabasappa and Spencer Whitman and Stephanie Ding and others},
+  year = {2024},
+  month = {08},
+  eprint = {2408.01605},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CR},
+  version = {2408.01605v2},
+  url = {https://arxiv.org/abs/2408.01605},
+  note = {Llama Guard 3 as a filter raises FRR on the borderline set to 2 percent (output filter) and 10 percent (input and output filter), cutting violation rates 50.4-53.9 percent. Numbers from the PDF. Fetched 2026-10-01.}
+}
+
+@misc{li2024wmdp,
+  title = {{The WMDP Benchmark: Measuring and Reducing Malicious Use With Unlearning}},
+  author = {Nathaniel Li and Alexander Pan and Anjali Gopal and Summer Yue and Daniel Berrios and Alice Gatti and Justin D. Li and Ann-Kathrin Dombrowski and Shashwat Goel and Long Phan and others},
+  year = {2024},
+  month = {03},
+  eprint = {2403.03218},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2403.03218v7},
+  url = {https://arxiv.org/abs/2403.03218},
+  note = {3,668 four-choice questions as a proxy for hazardous bio, cyber and chemical knowledge; appendix shows a base model refusing direct WMDP-Bio and WMDP-Cyber prompts, jailbroken by 50 GCG steps; no refusal rates tabulated. Same key as research/refs.bib. Fetched 2026-10-01.}
+}
+
+@misc{song2026cwm,
+  title = {{Code World Model Preparedness Report}},
+  author = {Daniel Song and Peter Ney and Cristina Menghini and Faizan Ahmad and Aidan Boyd and Nathaniel Li and Ziwen Han and Jean-Christophe Testud and Saisuke Okabayashi and Maeve Ryan and others},
+  year = {2026},
+  month = {05},
+  eprint = {2605.00932},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.SE},
+  version = {2605.00932v2},
+  url = {https://arxiv.org/abs/2605.00932},
+  note = {Code World Model preparedness report (Meta): refusal rates on non-tool MCQ evaluations 0 percent for CWM, Llama 4 Maverick and Qwen3-Coder on WMDP-Bio/Chem (CWM 0.12 percent on WMDP-Cyber) and on LAB-Bench, VCT, MBCT, HPCT, BioLP-Bench; gpt-oss-120b 0.45 cyber, 0.63 bio, 1.72 chem, 3.75 and 3.29 percent on Meta bio-knowledge sets (Table 17). Numbers from the PDF. Fetched 2026-10-01.}
+}
+
+@misc{wintermute2026biosecbench,
+  title = {{BioSecBench-Refusal: A paired metric for performance and alignment in agentic biosecurity risk assessment}},
+  author = {Edwin H. Wintermute and Harmon Bhasin and Christina M. Agapakis and Dianzhuo Wang and Evan Seeyave and Arjun Banerjee and Daniel Fulop and Matthew C. Watson and Adam J. Meyer and Sandrine Boissel and others},
+  year = {2026},
+  month = {07},
+  eprint = {2607.05462},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CR},
+  version = {2607.05462v2},
+  url = {https://arxiv.org/abs/2607.05462},
+  note = {61 routine and 46 red-team agentic biology tasks; 16 model-harness configurations; refusal 7-74 percent on routine and 1-62 percent on red-team tasks, Opus most stringent; API-layer refusals dominate (GPT-5.5 40 percent of routine tasks at the API layer vs 4 percent after agentic reasoning). Fetched 2026-10-01.}
+}
+
+@misc{marshall2026biotier,
+  title = {{BioTIER: A Refusal Benchmark for Targeted Biological Risk Mitigation}},
+  author = {Eleanor M. Marshall and Pedro Medeiros and Peter Peneder and Nelly Mak and Jacob Kaffey and Faith Rovenolt and Mac Walker and Seth Donoughe and Jasper Götting},
+  year = {2026},
+  month = {07},
+  eprint = {2607.14479},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CY},
+  version = {2607.14479v1},
+  url = {https://arxiv.org/abs/2607.14479},
+  note = {SecureBio: 542 prompts in three tiers (catastrophe avoidance, biomedical dual-use, related biology); 52 models from 10 developers; most models above 98 percent compliance on benign related-biology prompts; outliers Claude Sonnet 4.6 (76.3) and Opus 4.7 (78.7); hazardous-tier refusal compliance Sonnet 4.6 96.4 percent, DeepSeek-V3.1 5.6. Fetched 2026-10-01.}
+}
+
+@misc{quan2026blindspot,
+  title = {{A Blind Spot in Alignment: Quantifying Biosecurity Risks in Large Language Models}},
+  author = {Shu Quan and Tianfang Hao and Sitong Fang and He Geng and Jiayi Zhou and Boyuan Chen and Kaile Wang and Donghai Hong and Juntao Dai and Yaodong Yang and Jiaming Ji},
+  year = {2026},
+  month = {08},
+  eprint = {2608.02684},
+  archivePrefix = {arXiv},
+  primaryClass = {q-bio.QM},
+  version = {2608.02684v2},
+  url = {https://arxiv.org/abs/2608.02684},
+  note = {SPIKE-Bench: 631 toxin-design prompts, 32 LLMs; most comply; functional-harm rate 50.7 percent; refusal rate fails to predict functional risk. Fetched 2026-10-01.}
+}
+
+@misc{anthropic2024claude3,
+  title = {{The Claude 3 Model Family: Opus, Sonnet, Haiku}},
+  author = {{Anthropic}},
+  year = {2024},
+  month = {03},
+  howpublished = {System card, PDF},
+  url = {https://www-cdn.anthropic.com/de8ba9b01c9ab7cbabf5c33b80b7bbc618857627/Model_Card_Claude_3.pdf},
+  note = {XSTest incorrect refusals fell from 35.1 percent (Claude 2.1) to 9 percent (Claude 3 Opus); graded by a few-shot model grader and string matching. No DOI or arXiv id exists for this document. Fetched 2026-10-01.}
+}
+
+@misc{anthropic2024claude35addendum,
+  title = {{Claude 3.5 Sonnet Model Card Addendum}},
+  author = {{Anthropic}},
+  year = {2024},
+  month = {06},
+  howpublished = {System card, PDF},
+  url = {https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf},
+  note = {Table 4: incorrect refusals on WildChat non-toxic 11.0 (3.5 Sonnet), 11.9 (3 Opus), 8.8 (3 Sonnet), 6.6 (3 Haiku) percent; on XSTest 1.7, 8.3, 36.6, 33.1 percent; correct refusals on WildChat toxic 96.4, 92.0, 93.6, 90.0. No DOI or arXiv id exists for this document. Fetched 2026-10-01.}
+}
+
+@misc{anthropic2025claude37,
+  title = {{Claude 3.7 Sonnet System Card}},
+  author = {{Anthropic}},
+  year = {2025},
+  month = {02},
+  howpublished = {System card, PDF},
+  url = {https://www-cdn.anthropic.com/9ff93dfa8f445c932415d335c88852ef47f1201e.pdf},
+  note = {Replaces labelled benign/harmful sets with an appropriate-harmlessness grader: helpful answer, policy violation, appropriate refusal, unnecessary refusal (a refusal where a reference model gave a compliant policy-conformant answer). No DOI or arXiv id exists for this document. Fetched 2026-10-01.}
+}
+
+@misc{anthropic2026opus55,
+  title = {{System Card: Claude Opus 5.5}},
+  author = {{Anthropic}},
+  year = {2026},
+  month = {09},
+  howpublished = {System card, PDF},
+  url = {https://www-cdn.anthropic.com/fc1b44717c85dc068bc6ba5024219938094694bd/Claude%20Opus%205.5%20System%20Card.pdf},
+  note = {Table 4.1.2.A: single-turn over-refusal on benign prompts across 16 policy areas and seven languages: Opus 5.5 0.03 percent (API, no system prompt) and 0.38 (claude.ai); Fable 5.1 0 and 0.34; Opus 5 0.12 and 0.49; Sonnet 5 0.59 and 1.54; residual refusals mainly in the explosives domain. Document dated 2026-09-22 in the system-card corpus. No DOI or arXiv id exists for this document. Fetched 2026-10-01.}
+}
+
+@misc{openai2024o1,
+  title = {{OpenAI o1 System Card}},
+  author = {{OpenAI}},
+  year = {2024},
+  month = {12},
+  howpublished = {System card, PDF},
+  url = {https://cdn.openai.com/o1-system-card-20241205.pdf},
+  note = {Table 1: not_overrefuse on the standard refusal evaluation GPT-4o 0.91, o1 0.93, o1-preview 0.93, o1-mini 0.90; on XSTest 0.924, 0.94, 0.976, 0.948; Table 2 multimodal not_overrefuse GPT-4o 0.48 vs o1 0.96. No DOI or arXiv id exists for this document. Fetched 2026-10-01.}
+}
+
+@misc{openai2026astra,
+  title = {{GPT-6 Astra System Card}},
+  author = {{OpenAI}},
+  year = {2026},
+  month = {09},
+  howpublished = {System card, PDF},
+  url = {https://deploymentsafety.openai.com/gpt-6-astra/gpt-6-astra.pdf},
+  note = {Table 19, biology model refusal evaluation: benign not-overrefuse 0.917 (gpt-5.5-thinking), 0.989 (gpt-5.6-sol), 0.978 (GPT-6 Astra); the card reports a slight regression in over-refusals relative to GPT-5.6 Sol. Document dated 2026-09-03 in the system-card corpus. No DOI or arXiv id exists for this document. Fetched 2026-10-01.}
+}
+
+@misc{halawi2024approaching,
+  title = {{Approaching Human-Level Forecasting with Language Models}},
+  author = {Danny Halawi and Fred Zhang and Chen Yueh-Han and Jacob Steinhardt},
+  year = {2024},
+  month = {02},
+  eprint = {2402.18563},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2402.18563v1},
+  url = {https://arxiv.org/abs/2402.18563},
+  note = {914 test questions; retrieval plus reasoning plus fine-tuning Brier 0.179 vs crowd 0.149; GPT-4-1106-Preview without retrieval 0.208; no fine-tuning 0.186; neither 0.206; with at least five relevant articles 0.175 (crowd 0.142); beats the crowd 0.240 vs 0.247 on a 22 percent selected subset; averaged with the crowd 0.146. Same key as research/bib/ensemble.bib. Fetched 2026-10-01.}
+}
+
+@misc{karger2024forecastbench,
+  title = {{ForecastBench: A Dynamic Benchmark of AI Forecasting Capabilities}},
+  author = {Ezra Karger and Houtan Bastani and Chen Yueh-Han and Zachary Jacobs and Danny Halawi and Fred Zhang and Philip E. Tetlock},
+  year = {2024},
+  month = {09},
+  eprint = {2409.19839},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2409.19839v5},
+  url = {https://arxiv.org/abs/2409.19839},
+  note = {1,000 questions, 200 for humans; superforecasters Brier 0.096 [0.076, 0.116], public 0.121, best LLM (Claude 3.5 Sonnet, scratchpad with freeze values) 0.122, the same with retrieved news 0.127, without crowd forecasts 0.136; superforecasters beat the top LLM at p<0.001. Same key as research/bib/ensemble.bib. Fetched 2026-10-01.}
+}
+
+@misc{schoenegger2024aiaugmented,
+  title = {{AI-Augmented Predictions: LLM Assistants Improve Human Forecasting Accuracy}},
+  author = {Philipp Schoenegger and Peter S. Park and Ezra Karger and Sean Trott and Philip E. Tetlock},
+  year = {2024},
+  month = {02},
+  eprint = {2402.07862},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CY},
+  version = {2402.07862v2},
+  url = {https://arxiv.org/abs/2402.07862},
+  note = {991 participants; a frontier LLM assistant raised human forecasting accuracy by 24-28 percent over a weaker-model control; a deliberately biased assistant also helped. Fetched 2026-10-01.}
+}
+
+@misc{atil2024nondeterminism,
+  title = {{Non-Determinism of "Deterministic" LLM Settings}},
+  author = {Berk Atil and Sarp Aykent and Alexa Chittams and Lisheng Fu and Rebecca J. Passonneau and Evan Radcliffe and Guru Rajan Rajagopal and Adam Sloan and Tomasz Tudrej and Ferhan Ture and others},
+  year = {2024},
+  month = {08},
+  eprint = {2408.04667},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2408.04667v5},
+  url = {https://arxiv.org/abs/2408.04667},
+  note = {Temperature 0, fixed seed, 10 runs, five models, eight MMLU/BBH tasks: accuracy varies up to 15 points across runs, best-to-worst gap up to 70; GPT-4o college mathematics 88.0, 69.0, 44.0 in one setting; attributed to batching, chunked prefill and prefix caching. Fetched 2026-10-01.}
+}
+
+@misc{amani2026characterizing,
+  title = {{Characterizing Web Search by Conversational LLM Agents: From Search Decisions and Strategies to Results and Responses}},
+  author = {Mahsa Amani and Seungeon Lee and Abhisek Dash and Asmaa El Fraihi and Yunah Jang and Elisabeth Kirsten and Qinyuan Wu and Krishna P. Gummadi and Manish Gupta and Abhilasha Ravichander and Muhammad Bilal Zafar and Soumi Das},
+  year = {2026},
+  month = {09},
+  eprint = {2609.19244},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2609.19244v1},
+  url = {https://arxiv.org/abs/2609.19244},
+  note = {On identical prompts web search is invoked by GPT-5.3-chat for 14 percent, Claude Sonnet 4.6 83, Grok 4.3 76.6, DeepSeek-v4-flash 58.4 percent; 14-53 percent of claims rest on searched but uncited URLs; prompts without search score higher on quality measures. Fetched 2026-10-01.}
+}
+
+@misc{wang2024multiple,
+  title = {{Evaluating LLMs with Multiple Problems at once}},
+  author = {Zhengxiang Wang and Jordan Kodner and Owen Rambow},
+  year = {2024},
+  month = {06},
+  eprint = {2406.10786},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  version = {2406.10786v3},
+  url = {https://arxiv.org/abs/2406.10786},
+  note = {13 models, 18 benchmarks, 53,100 multi-problem prompts; classification accuracy 75.5 single vs 72.3 batched (3.2 points); mixed-source reasoning batches 13.5 points below expectation in 81.7 percent of cases; no serial-position effect; 30.7-82.0 percent cost savings. Fetched 2026-10-01.}
+}
+
+@misc{cheng2023batch,
+  title = {{Batch Prompting: Efficient Inference with Large Language Model APIs}},
+  author = {Zhoujun Cheng and Jungo Kasai and Tao Yu},
+  year = {2023},
+  month = {01},
+  booktitle = {EMNLP 2023 Industry Track},
+  eprint = {2301.08721},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2301.08721v2},
+  url = {https://arxiv.org/abs/2301.08721},
+  note = {Batch prompting cuts token and time cost up to 5x with six samples per batch while maintaining or improving performance on ten datasets; performance depends on batch size and task complexity. Fetched 2026-10-01.}
+}

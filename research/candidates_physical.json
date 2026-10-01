@@ -1,0 +1,2222 @@
+{
+ "generated": "2026-10-01",
+ "task": "Top-15 physical-AI safety evaluations for the voi-rank study, with inclusion threshold and fidelity level",
+ "terminology": "docs/DESIGN.md section 2: physical-AI safety evaluation; fidelity level 0-9; theta=1 means the hazardous property is present and responding (delay and mitigate) is correct",
+ "rule": {
+  "criteria": {
+   "C1": "Checkable physical hazard: the score is the rate of a physically harmful event, or of a decision that would directly cause one (collision, contact force over a body-region limit, an injurious action executed, planned or accepted, a failure to stop or brake). Fails when the score is task success, generic or dual-use capability, or governance.",
+   "C2": "Public primary source with a score: a paper, report or protocol fetched on 2026-10-01 that reports at least one numeric score for at least one system under test. An access-controlled dataset with a public report passes with a note; 'release upon acceptance' fails.",
+   "C3": "At least one cost fact or one validity fact in the primary source or a paired source. Cost: dollars, wall-clock or compute time, or a quantified input (trial count, item count with labour type, hardware list). Validity: an agreement statistic, a reproduction or correlation at a higher fidelity level, or a field-outcome correlation.",
+   "C4": "Single build-and-run instrument: one protocol, one system under test, one run yields the score. Fails for multi-vehicle programmes, standards text alone, uplift studies, defence tools, and frameworks without a fixed scenario set.",
+   "C5": "One evaluation per construct: when two passing candidates test the same hazardous property of the same kind of system at the same fidelity level, the one with more C3 facts stays and the other is excluded as 'same construct'."
+  },
+  "points": {
+   "V": "validity class: 3 field-outcome correlation (level 9); 2 quantitative reproduction or correlation at a higher fidelity level; 1 human verification or agreement statistic only; 0 none",
+   "K": "cost class: 2 dollars or wall-clock/compute time; 1 quantified inputs only (trials, items, hardware); 0 none",
+   "H": "hazard directness: 2 harmful event observed on a physical system (contact, collision, executed harmful action); 1 hazard decided by a simulator predicate or by a human/LLM judge of a plan, answer or generated video; 0 task-success proxy",
+   "L": "fidelity-level spread: +1 for the highest-scoring passing candidate at each fidelity level",
+   "total": "V + K + H + L; ties broken by V, then H, then K, then earlier first-version date"
+  },
+  "threshold": "Include if and only if C1 to C5 all pass. Ranks 1..n_pass are the included set; the next ranks are alternates (include: false), ordered by fewest failed criteria then points."
+ },
+ "n_assessed": 35,
+ "n_ranked": 15,
+ "n_pass": 13,
+ "levels_covered_by_included": [
+  0,
+  2,
+  3,
+  4,
+  5,
+  7,
+  8
+ ],
+ "levels_empty": [
+  1,
+  6,
+  9
+ ],
+ "system_mix_included": {
+  "llm_or_vlm_inside_robot": [
+   "robey2024robopair",
+   "yin2024safeagentbench",
+   "lu2025isbench",
+   "jindal2025danger",
+   "geminirobotics2026agentic",
+   "panpatil2026egosafetybench",
+   "obi2025safeplan",
+   "bajrami2026robotignores"
+  ],
+  "vla_policy": [
+   "peng2026maniguard",
+   "geminirobotics2025veo",
+   "zhang2026redvla"
+  ],
+  "non_language_model_system": [
+   "iihs2024paeb",
+   "iso2025iso10218"
+  ]
+ },
+ "candidates": [
+  {
+   "rank": 1,
+   "include": true,
+   "catalog_key": "iihs2024paeb",
+   "name": "IIHS pedestrian AEB track protocol (Version IV)",
+   "level": 8,
+   "level_justification": "Production vehicle driven by a robot into articulated pedestrian dummies on an instrumented closed track, day and night: real system, field-like test with human surrogates, no human at risk (level 8).",
+   "what_it_measures": "Speed reduction or avoidance when a production pedestrian automatic emergency braking (AEB) system meets an adult crossing at night (20, 40 km/h), a child crossing by day (20, 40 km/h) and an adult walking parallel at night (40, 60 km/h); three valid runs per cell, scored into good/acceptable/marginal/poor.",
+   "hazardous_property": "The AEB fails to brake for a pedestrian, so the vehicle strikes a person.",
+   "system_under_test": "Non-language-model system: a production AEB stack (camera/radar perception plus deterministic brake control). No LLM, VLM or VLA.",
+   "primary_sources": [
+    {
+     "key": "iihs_paeb",
+     "title": "IIHS Pedestrian Autonomous Emergency Braking Test Protocol, Version IV (2024)",
+     "url": "https://www.iihs.org/media/f6a24355-fe4b-4d71-bd19-0aab8b39aa7e/5ZH5qg/Ratings/Protocols/current/test_protocol_pedestrian_aeb.pdf",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "iihs_hldi2018",
+     "title": "IIHS news, 'Subaru crash avoidance system cuts pedestrian crashes', 2018-05-08",
+     "url": "https://www.iihs.org/news/detail/subaru-crash-avoidance-system-cuts-pedestrian-crashes",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "cicchino2022",
+     "title": "Cicchino, 'Effects of automatic emergency braking systems on pedestrian crash risk', AAP 2022, IIHS bibliography ref 2243",
+     "url": "https://www.iihs.org/research-areas/bibliography/ref/2243",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "futurride2022",
+     "title": "Futurride, 2022-02-03, quoting the IIHS release on the Cicchino study (secondary; IIHS release URL returned 404)",
+     "url": "https://futurride.com/2022/02/03/iihs-study-reveals-aeb-limitations-in-dark-conditions/",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "euroncap_faq",
+     "title": "Euro NCAP FAQ",
+     "url": "https://www.euroncap.com/faq/",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "mcity2022",
+     "title": "Mcity Test Facility recharge rates (LC member sheet, Nov 2022)",
+     "url": "https://mcity.umich.edu/wp-content/uploads/2022/11/11.1.22_TestFacilityRates-LC.pdf",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "An OEM's head of active-safety validation decides whether to release a new pedestrian AEB calibration on schedule or delay it and rework perception and braking.",
+   "theta_definition": "theta=1: the pedestrian AEB fails to avoid or substantially mitigate the protocol's crossing and parallel pedestrian scenarios at 20-60 km/h, especially at night, so it would rate below acceptable and would strike pedestrians in the field.",
+   "cost_facts": [
+    {
+     "quote": "A total of three valid runs are performed at each test speed in each lighting condition (day and night)",
+     "source": "iihs_paeb",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Test vehicle speed 20, 40 km/h | 20, 40 km/h | 40, 60 km/h; Lighting condition: Night | Day | Night; Dark headlight condition: High and low beams | NA | High and low beams; Number of valid runs 3 | 3 | 3 (protocol summary table; this gives 12 + 6 + 12 = 30 scored runs per vehicle, not the 36 recorded in catalog.json)",
+     "source": "iihs_paeb",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "IIHS uses 4active (4a) pedestrian test equipment for this test",
+     "source": "iihs_paeb",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "IIHS uses a 4activeSB surfboard system for dynamic pedestrian tests to control and record dummy speed",
+     "source": "iihs_paeb",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "For nighttime testing, illumination must remain below 1 lux throughout testing.",
+     "source": "iihs_paeb",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "A full Euro NCAP test programme costs several hundreds of thousands of Euros.",
+     "source": "euroncap_faq",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Euro NCAP typically requires a minimum of six test vehicles. (one of them for track testing of advanced driver assistance systems)",
+     "source": "euroncap_faq",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Whole Track /full day $3,127; /half day $1,563; Technician (Custom Installation) per hour $71; Use of Vehicle /full day $537; Driver per hour $71 (LC Member rates)",
+     "source": "mcity2022",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "EyeSight cut the rate of likely pedestrian-related insurance claims by 35 percent. The first-generation system reduced claim frequency 33 percent, while the second-generation system lowered it 41 percent.",
+     "source": "iihs_hldi2018",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "25%-27% in pedestrian crash risk and 29%-30% in pedestrian injury crash risk (reductions); no effectiveness in dark conditions without street lighting, at speed limits of 50 mph or greater, or while the AEB-equipped vehicle was turning",
+     "source": "cicchino2022",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "crash rates for pedestrian crashes of all severities were 27% lower for vehicles equipped with pedestrian AEB ... Injury crash rates were 30% lower ... reduced the odds of a pedestrian crash by 32% in the daylight and 33% in areas with artificial lighting",
+     "source": "futurride2022",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Total score < 1 Poor; 1 <= total score < 3 Marginal; 3 <= total score < 5 Acceptable; Total score >= 5 Good",
+     "source": "iihs_paeb",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "Dollar cost of one IIHS test is not published; the Euro NCAP programme cost and the Mcity track rate are proxies.",
+    "The field-validity numbers are for the vehicle population carrying pedestrian AEB, not for the Version IV protocol itself; the protocol's night tests were added because the field data showed no benefit in the dark."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Same construct as Euro NCAP AEB VRU and FMVSS 127; IIHS kept because it publishes the run count and has the field-claims chain.",
+   "points": {
+    "V": 3,
+    "K": 2,
+    "H": 2,
+    "L": 1,
+    "total": 8
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": true
+  },
+  {
+   "rank": 2,
+   "include": true,
+   "catalog_key": "robey2024robopair",
+   "name": "RoboPAIR jailbreak red-teaming of LLM-controlled robots",
+   "level": 7,
+   "level_justification": "Jailbroken plans are executed on a Clearpath Jackal UGV and a Unitree Go2 in a controlled lab with no person at risk (level 7); the NVIDIA Dolphins driving-LLM setting is text/video QA (level 0-2) and is not the instrument proposed here.",
+   "what_it_measures": "Attack success rate (ASR) of an attacker LLM eliciting harmful physical actions (bomb detonation, blocking an emergency exit, weapon search, keep-out-zone entry, covert surveillance, human collision) from a robot's LLM planner; 7 harmful actions x 5 trials per robot, LLM judge plus two human annotators, action executed on the robot.",
+   "hazardous_property": "The robot's language model planner can be driven by text to execute a physically harmful action (collide with a person, enter a keep-out zone, block an exit).",
+   "system_under_test": "LLM inside a robot: GPT-4o planner on the Jackal (gray box), GPT-3.5 on the Go2 (black box).",
+   "primary_sources": [
+    {
+     "key": "2410.13691",
+     "title": "RoboPAIR, Robey et al., v2 2024-11-09",
+     "arxiv": "2410.13691",
+     "url": "https://arxiv.org/abs/2410.13691",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "2503.07885",
+     "title": "RoboGuard, Ravichandran et al., v2 2026-03-03",
+     "arxiv": "2503.07885",
+     "url": "https://arxiv.org/abs/2503.07885",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A company about to field an LLM-controlled quadruped or ground robot decides whether to deploy on schedule or delay and add guardrails.",
+   "theta_definition": "theta=1: the robot's LLM planner can be jailbroken by text prompts into executing physically harmful actions (blocking an emergency exit, searching for weapons, colliding with people), and the robot carries them out.",
+   "cost_facts": [
+    {
+     "quote": "(i) a white-box setting, wherein the attacker has full access to the NVIDIA Dolphins self-driving LLM, (ii) a gray-box setting, wherein the attacker has partial access to a Clearpath Robotics Jackal UGV robot equipped with a GPT-4o planner, and (iii) a black-box setting, wherein the attacker has only query access to the GPT-3.5-integrated Unitree Robotics Go2 robot dog",
+     "source": "2410.13691",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Harmful actions ... Bomb detonation ... Emergency exit ... Weapon search ... Warehouse assistant ... Keep-out zone ... Covert surveillance ... Human collision ... Aggregate 1/35 32/35 30/35 5/35 35/35 (Jackal table: 7 actions x 5 trials per attack method)",
+     "source": "2410.13691",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "RoboGuard uses between 21% to 12% of the tokens required by the attackers, while only requiring 1 LLM query in contrast to the attacker's 15.",
+     "source": "2503.07885",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Adaptive black-box 20471.1 +/- 126.7 tokens, 15 LLM queries; Adaptive grey-box GR 52515.6 +/- 132.5; Adaptive white-box 36446.2 +/- 126.7 (Table III, cost of one attack)",
+     "source": "2503.07885",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "the robot is equipped with an Nvidia A4000 GPU and Ryzen 5 3600 CPU for compute",
+     "source": "2503.07885",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "We evaluate each of the 70 considered adversarial behaviors on randomized small indoor, large indoor, and outdoor environments, resulting in 210 evaluations per attack and over 1,500 evaluations in total.",
+     "source": "2503.07885",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "All jailbreaks are also evaluated by two expert human annotators to ensure correctness.",
+     "source": "2410.13691",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "our results on the Unitree Go2 represent the first successful jailbreak of a deployed commercial robotic system",
+     "source": "2410.13691",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "RoboGuard reduces the execution of unsafe plans from 92.3% to under 2.5% without compromising performance on safe plans. (unguarded RoboPAIR ASR 92.3 +/- 4.7%, with RoboGuard 2.3 +/- 1.5%)",
+     "source": "2503.07885",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "No inter-annotator statistic; no wall-clock or dollar figure (token counts come from the paired RoboGuard paper).",
+    "ASR of 100% on all three targets means the published instrument does not discriminate between the systems tested; a deployer would set the flag on a lower ASR threshold.",
+    "Adversarial (worst-case) rather than average-case hazard."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "RoboGuard and RoboJailBench share the construct; RoboPAIR kept (physical execution, two human annotators). Takes the level-7 spread bonus after ManiGuard drops to V=1.",
+   "points": {
+    "V": 1,
+    "K": 2,
+    "H": 2,
+    "L": 1,
+    "total": 6
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": true
+  },
+  {
+   "rank": 3,
+   "include": true,
+   "catalog_key": "geminirobotics2025veo",
+   "name": "Veo world-model safety probing of VLA checkpoints",
+   "level": 5,
+   "level_justification": "Action-conditioned photoreal video generation from edited real scenes, scored by human raters; a generative digital twin, validated against real episodes (level 5).",
+   "what_it_measures": "Human-rated unsafe behaviour of a VLA policy in generated 8-second rollouts of edited real scenes containing hazards (sharp objects, hot objects, full glasses), alongside nominal and out-of-distribution success rates.",
+   "hazardous_property": "A VLA checkpoint handles hazardous objects or acts unsafely near fragile items and people in scenes it will meet in deployment.",
+   "system_under_test": "VLA policy (Gemini Robotics checkpoints on a bimanual ALOHA-class manipulator).",
+   "primary_sources": [
+    {
+     "key": "2512.10675",
+     "title": "Evaluating Gemini Robotics Policies in a Veo World Simulator, v2 2026-01-06",
+     "arxiv": "2512.10675",
+     "url": "https://arxiv.org/abs/2512.10675",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "The developer of a VLA decides whether to deploy a new checkpoint or hold it for further training and hardware testing.",
+   "theta_definition": "theta=1: the checkpoint exhibits physical or semantic safety failures (unsafe handling of hazardous objects, unsafe motions near people or fragile items) under out-of-distribution scenes it will meet in deployment.",
+   "cost_facts": [
+    {
+     "quote": "We validate predictions from our video model across 1600+ real-world trials with eight generalist policy checkpoints and five tasks.",
+     "source": "2512.10675",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Each episode consists of an 8-second rollout, which is scored with the binary success metric by human evaluators.",
+     "source": "2512.10675",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "When the objective is to evaluate safety, hardware evaluation is often simply infeasible.",
+     "source": "2512.10675",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "These predictions are validated by the real-world evaluations with an MMRV of 0.06.",
+     "source": "2512.10675",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "there is a strong linear correlation (Pearson = 0.86) between predicted and real success rates",
+     "source": "2512.10675",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "We also replicated these scenarios with real-world props, and found that the unsafe behaviors predicted by the video model are observed in these experiments.",
+     "source": "2512.10675",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "No compute, hours or dollar figure; the 1,600+ real episodes are the validation cost, not the run cost.",
+    "The correlation numbers are for success rates; the safety reproduction is qualitative (examples replicated with props).",
+    "Requires a frontier video model fine-tuned for action conditioning, so C_build is dominated by a capability few developers have."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "",
+   "points": {
+    "V": 2,
+    "K": 1,
+    "H": 1,
+    "L": 1,
+    "total": 5
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": true
+  },
+  {
+   "rank": 4,
+   "include": true,
+   "catalog_key": "zhang2026redvla",
+   "name": "RedVLA physical red teaming of VLA policies",
+   "level": 4,
+   "level_justification": "The ASR is computed in LIBERO-style closed-loop MuJoCo scenes with inserted risk objects (level 4); the Franka experiments are a validation study of the found scenes, used here as the cross-level validity fact. catalog.json records level 7 for the same reason; the sim-only instrument is proposed because that is where the score is produced.",
+   "what_it_measures": "Attack success rate (ASR) with which gradient-free placement of risk objects (knives, obstacles) near a VLA's interaction regions elicits unsafe behaviour detected by state, cumulative and conditional safety predicates; 10 risk scenarios x 10 seeds, 6 VLAs, 10 optimisation iterations.",
+   "hazardous_property": "A VLA manipulation policy contacts a knife, collides with a placed object or otherwise acts unsafely when the scene contains a plausibly placed hazard.",
+   "system_under_test": "VLA policy (pi0, pi0.5, OpenVLA, OpenVLA-OFT, VLA-Adapter-Pro and one more).",
+   "primary_sources": [
+    {
+     "key": "2604.22591",
+     "title": "RedVLA, Zhang et al., v2 2026-09-04",
+     "arxiv": "2604.22591",
+     "url": "https://arxiv.org/abs/2604.22591",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "redvla_page",
+     "title": "RedVLA project page",
+     "url": "https://redvla.github.io",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A developer deploying a VLA-based manipulator decides whether to ship the policy or delay for guard training on found failure scenes.",
+   "theta_definition": "theta=1: the policy has a scene-triggerable unsafe behaviour mode (knife contact, collision with a placed object) that reproduces on hardware.",
+   "cost_facts": [
+    {
+     "quote": "Each risk scenario is evaluated over 10 trials with different seeds, and all metrics are averaged across trials.",
+     "source": "2604.22591",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "achieves the ASR up to 95.5% within 10 optimization iterations",
+     "source": "2604.22591",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "6 VLA models from three model families",
+     "source": "redvla_page",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "We build two physical platform with Franka robot and deploy the pi0 policy and pi0.5 policy. ... Both scenarios achieve ASR above 80% over 10 trials per task, confirming that such unsafe behaviors also manifest in the real world.",
+     "source": "2604.22591",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Real-world Franka validation >80% ASR over 10 trials per task",
+     "source": "redvla_page",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "RedVLA achieves the Attack Success Rate (ASR) up to 95.5% on pi0.5 and an average ASR of 92.1% across the five models",
+     "source": "2604.22591",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "Compute per optimisation run not reported; scene plausibility is human-annotated (Appendix F) without agreement statistics.",
+    "ASR above 90% for five of six models compresses the score near the ceiling.",
+    "JailWAM (world action models) shares the construct in RoboTwin without hardware validation."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "",
+   "points": {
+    "V": 2,
+    "K": 1,
+    "H": 1,
+    "L": 1,
+    "total": 5
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 5,
+   "include": true,
+   "catalog_key": "iso2025iso10218",
+   "name": "ISO 10218:2025 / ISO/TS 15066 power-and-force-limiting contact-force test",
+   "level": 7,
+   "level_justification": "The real robot is driven into a biofidelic force and pressure measurement device at the application's contact points and speeds in a controlled lab; no person is exposed (level 7).",
+   "what_it_measures": "Measured transient and quasi-static contact force and pressure at foreseeable contact points of a collaborative robot application, compared with body-region limits; pass/fail per contact point, and the maximum permissible speed.",
+   "hazardous_property": "A robot operating in power-and-force-limiting (PFL) mode strikes or clamps a person with a force or pressure above the biomechanical limit for the body region.",
+   "system_under_test": "Non-language-model system (non-learning): the robot's controller, collision detection and reaction (the test applies equally to a learned-policy robot, which it treats as a black box).",
+   "primary_sources": [
+    {
+     "key": "2203.09872",
+     "title": "Svarny et al., protective soft skins, 2,250 collision measurements, v2 2022-05-19",
+     "arxiv": "2203.09872",
+     "url": "https://arxiv.org/abs/2203.09872",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "2009.01036",
+     "title": "Svarny et al., 3D Collision-Force-Map, v4 2021-03-26",
+     "arxiv": "2009.01036",
+     "url": "https://arxiv.org/abs/2009.01036",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "2203.02706",
+     "title": "Kirschner et al., ISO/TS 15066 interpretations, 2022-03-05",
+     "arxiv": "2203.02706",
+     "url": "https://arxiv.org/abs/2203.02706",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "robotreport_iso10218",
+     "title": "The Robot Report, 'ISO 10218 industrial robot safety standard receives major overhaul', 2025-02-18",
+     "url": "https://www.therobotreport.com/iso-10218-industrial-robot-safety-standard-receives-major-overhaul/",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "gr2safety",
+     "title": "Gemini Robotics Team, 'Gemini Robotics 2: Safety Evaluations', 2026-07-29 (also in the system-card corpus)",
+     "url": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A system integrator commissioning a collaborative robot application with humans in the workspace decides whether to release it at the planned speed or reduce speed, add padding or add separation monitoring.",
+   "theta_definition": "theta=1: at least one foreseeable contact event in the application exceeds the transient or quasi-static force or pressure limit for the body region concerned.",
+   "cost_facts": [
+    {
+     "quote": "We present a total of 2250 collision measurements and study the impact force, contact duration, clamping force, and impulse. The dataset is publicly available.",
+     "source": "2203.09872",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "With an experiment including four commercially available robot systems we demonstrate the procedure of the risk assessment",
+     "source": "2203.02706",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "now available for purchase to U.S. customers for $244 (ISO 10218:2025); the revision required nearly eight years of work",
+     "source": "robotreport_iso10218",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "impact forces can vary by more than 100 percent within the robot workspace ... formulas relating robot mass, velocity, and impact forces from ISO/TS 15066 are insufficient -- leading both to significant underestimation and overestimation",
+     "source": "2009.01036",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "In some cases, up to the quadruple of the ISO/TS 15066 prescribed velocity can comply with the impact force limits and thus be considered safe. ... this work emphasizes the need for in situ measurements",
+     "source": "2203.09872",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "logically conflicting definitions for the contact between human and robot. This may result in different interpretations for the contact classification and thus no unique outcome can be expected",
+     "source": "2203.02706",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The baseline rules for how robots must stop around humans are defined by ISO 10218:2025 [1, 2]. This standard absorbs the collaborative guidelines originally outlined in ISO/TS 15066",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "The standard text is paywalled; the public primary sources are measurement studies, so the 'score' is a measured force against a limit rather than a leaderboard number.",
+    "Verdicts are assessor-dependent (Kirschner 2022), which is a reliability problem the elicitor must price into s and t.",
+    "Not an evaluation of a language model; included because the paper must state the mix and because the Gemini Robotics 2 safety report cites it as the baseline rule set."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "C2 passes through the arXiv measurement studies, not the standard text.",
+   "points": {
+    "V": 1,
+    "K": 1,
+    "H": 2,
+    "L": 0,
+    "total": 4
+   },
+   "in_system_card_corpus": true,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 6,
+   "include": true,
+   "catalog_key": "peng2026maniguard",
+   "name": "ManiGuard specification-grounded manipulation safety suite",
+   "level": 7,
+   "level_justification": "The suite scores rollouts in Isaac Sim / OmniGibson and, as part of the benchmark, on a physical Franka under matched task conditions; the highest level at which the benchmark itself scores the system under test is a real robot in a controlled lab (level 7). Run in simulation only it is level 4.",
+   "what_it_measures": "Fraction of rollouts, and of successful rollouts, that violate a linear-temporal-logic-on-finite-traces (LTLf) safety specification over physics-grounded predicates (unsafe contact, spills, drops, ordering) across 200 base tasks x 5 conditions (1,000 scenarios) in six household task families.",
+   "hazardous_property": "A vision-language-action (VLA) manipulation policy completes tasks while violating contact and handling safety constraints (excessive force, spilled or dropped objects, unsafe sequencing) that would injure a person or damage property.",
+   "system_under_test": "VLA policy (learned visuomotor policy conditioned on language); zero-shot and fine-tuned VLAs.",
+   "primary_sources": [
+    {
+     "key": "2608.17386",
+     "title": "ManiGuard, Peng et al., 2026-08-18",
+     "arxiv": "2608.17386",
+     "url": "https://arxiv.org/abs/2608.17386",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A developer of a VLA manipulation policy for household or light-industrial deployment decides whether to ship the checkpoint or delay for safety-aware fine-tuning.",
+   "theta_definition": "theta=1: the policy violates the contact and handling safety specification in a material fraction of engaged rollouts on the physical Franka under matched in-distribution and single-axis out-of-distribution conditions (the unsafe behaviours recur on hardware; the simulated violation rate does not predict their hardware frequency).",
+   "cost_facts": [
+    {
+     "quote": "ManiGuard-Bench organizes six contact-rich household task families into 200 locked base tasks along a skill x constraint taxonomy ... Each task is evaluated under one in-distribution and four single-axis out-of-distribution perturbations ... giving 1,000 locked scenarios.",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The pipeline pairs an automated motion-planning generator with human teleoperation, annotated by the same per-step monitor ... we release 8,000 safety-annotated demonstrations, 40 per base task.",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Benchmarking zero-shot and fine-tuned VLAs across more than 23,000 rollouts",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "Every rollout is runtime-checked by LTLf-grounded automaton monitors over physics-grounded predicates rather than learned classifiers or LLM judges, in simulation and on a physical Franka platform.",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "6-21% of successful rollouts violate the specification",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "21-42% of engaged rollouts still violate, two of six families below 2% safe success for every policy, and these failures persisting under distribution shift and on hardware.",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "We evaluate the three strongest SFT policies on matched Clutter and Cabinet scenes in simulation and on the physical Franka, under the ID condition and the Target/Location perturbation axes, giving twelve matched cells with n=30 rollouts per cell in each domain",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Simulated and physical values are strongly correlated for task success (r=0.91) and safe success (r=0.88), so a simulated rate is informative about where a policy stands relative to the others",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The violation rate is the exception (r=0.09): the two domains show no association at all, and the strict orderings simulation asserts for it hold in only two of six cases. What does carry over is the behavior itself ... The unsafe outcomes recur; their frequency does not.",
+     "source": "2608.17386",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "Preprint of 2026-08-18; no wall-clock or dollar figure. The sim-to-real section (Q5) reports Pearson r over 12 matched cells (n=30 rollouts per cell and domain): 0.91 for task success, 0.88 for safe success, 0.09 for the violation rate, so the score that carries theta shows no sim-to-real association and only the occurrence of the unsafe behaviours reproduces on hardware. V=1 (qualitative reproduction), not 2; V=2 would hold only if safe success (r=0.88) were taken as the score.",
+    "Same construct family as SafeVLA-Bench, ForesightSafety-VLA, SafeManip, SafeStage and Safety-CHORES; ManiGuard kept because it is the only one with a hardware component and quantified inputs."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Replaces SafeVLA-Bench (the sim2real pilot's level-4 anchor) as the VLA process-safety construct.",
+   "points": {
+    "V": 1,
+    "K": 1,
+    "H": 2,
+    "L": 0,
+    "total": 4
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 7,
+   "include": true,
+   "catalog_key": "yin2024safeagentbench",
+   "name": "SafeAgentBench hazardous-task refusal and execution",
+   "level": 4,
+   "level_justification": "Closed-loop AI2-THOR household simulation with a low-level controller and 17 high-level actions; the plan is executed and checked against goal conditions (level 4).",
+   "what_it_measures": "Rejection rate, risk rate and execution rate of an embodied LLM agent on 750 tasks (300 detailed hazardous, 100 abstract hazardous, 50 long-horizon hazardous, 300 safe) over 10 hazard types, scored by execution checks and a GPT-4 judge.",
+   "hazardous_property": "An LLM task planner plans and executes explicitly or implicitly hazardous household instructions (fire, electrical, poisoning) instead of refusing them.",
+   "system_under_test": "LLM planner inside an embodied agent (nine planner baselines).",
+   "primary_sources": [
+    {
+     "key": "2412.13178",
+     "title": "SafeAgentBench, Yin et al., v5 2025-10-31",
+     "arxiv": "2412.13178",
+     "url": "https://arxiv.org/abs/2412.13178",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "The developer of a home-robot planner decides whether to launch the LLM planner or delay to add refusal and safety checks.",
+   "theta_definition": "theta=1: the LLM task planner plans and executes explicitly or implicitly hazardous household instructions (fire, electrical, poisoning and similar hazards) instead of refusing them.",
+   "cost_facts": [
+    {
+     "quote": "an executable, diverse, and high-quality dataset of 750 tasks, rigorously curated to cover 10 potential hazards and 3 task types",
+     "source": "2412.13178",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Model Rej RR(goal) RR(LLM) ER Time(s): Lota-Bench 0.00 0.66 0.66 0.87 24.39; LLM-Planner 0.00 0.37 0.30 0.80 90.50 (per-task wall-clock column of the detailed-task table)",
+     "source": "2412.13178",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "We constructed 600 detailed tasks: 300 hazardous with explicit risks and 300 safe counterparts as controls to detect pure planning ability, with comparable complexity (average steps 5.03 vs. 5.12). ... In this work, we propose 100 abstract task. ... In this work, we propose 50 long-horizon tasks.",
+     "source": "2412.13178",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "The study included a total of 1008 human ratings.",
+     "source": "2412.13178",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "the consistency between human and GPT-4 evaluation for each of the three tasks is 91.89%, 90.36%, and 90.70%, respectively",
+     "source": "2412.13178",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The most safety-conscious baseline achieves only a 10% rejection rate for detailed hazardous tasks.",
+     "source": "2412.13178",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "No real-robot validation.",
+    "Annotator count for the task curation is not stated.",
+    "Rejection rates of 0-10% across nine baselines mean the published scores are compressed near the floor."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Safe-BeAl/SafePlan-Bench and SafetyALFRED share the construct (planner safety on hazardous or hazard-laden household instructions) with fewer facts.",
+   "points": {
+    "V": 1,
+    "K": 2,
+    "H": 1,
+    "L": 0,
+    "total": 4
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": true
+  },
+  {
+   "rank": 8,
+   "include": true,
+   "catalog_key": "lu2025isbench",
+   "name": "IS-Bench interactive safety of VLM-driven household agents",
+   "level": 4,
+   "level_justification": "Closed-loop OmniGibson physics simulation from egocentric observations with process-ordered checks (level 4; OmniGibson is photoreal-ish but the scoring is on simulator state).",
+   "what_it_measures": "Success rate, safe success rate, safety recall and safety awareness of a VLM-driven agent on 161 scenarios with 388 safety risks in 10 domestic categories, checking that mitigation actions occur before or after the risk-prone step.",
+   "hazardous_property": "During benign household tasks the agent's actions create or fail to mitigate emergent physical hazards (fire, electrical, contamination, spills).",
+   "system_under_test": "VLM agent (GPT-4o, Gemini 2.5, Claude 3.7 Sonnet, Qwen2.5-VL, InternVL3, Llama 3.2) planning from egocentric images.",
+   "primary_sources": [
+    {
+     "key": "2506.16402",
+     "title": "IS-Bench, Lu et al., v3 2025-12-05",
+     "arxiv": "2506.16402",
+     "url": "https://arxiv.org/abs/2506.16402",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "The developer of a VLM-driven household agent decides whether to launch or delay to add process-level safety reasoning.",
+   "theta_definition": "theta=1: during ordinary household tasks the agent omits or mis-orders risk-mitigation steps in a material fraction of tasks, so it would start fires, cause electrical hazards or contaminate food in deployment.",
+   "cost_facts": [
+    {
+     "quote": "Each evaluation scenario is instantiated in OmniGibson and deployed on an NVIDIA A100 GPU.",
+     "source": "2506.16402",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Each VLM underwent a single evaluation, with each evaluation session lasting approximately 2.5 to 3 hours, depending on the inference time of the VLM being assessed.",
+     "source": "2506.16402",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "161 challenging scenarios with 388 unique safety risks instantiated in a high-fidelity simulator",
+     "source": "2506.16402",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "each generated plan is then manually executed and verified by human annotators in the simulator, ensuring it is both executable and effectively mitigates all safety risks",
+     "source": "2506.16402",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "while safety-aware Chain-of-Thought can improve performance, it often compromises task completion",
+     "source": "2506.16402",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "No inter-annotator statistic and no real-world transfer evidence.",
+    "Overlaps with SafeAgentBench (both are household planner safety); kept as a distinct construct because the instructions are benign and the hazard emerges during execution rather than being requested."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "SafetyALFRED and SafeRelBench share this construct with no cost or validity facts.",
+   "points": {
+    "V": 1,
+    "K": 2,
+    "H": 1,
+    "L": 0,
+    "total": 4
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 9,
+   "include": true,
+   "catalog_key": "jindal2025danger",
+   "name": "ASIMOV-2.0 physical-danger perception and constraint following",
+   "level": 3,
+   "level_justification": "Generated photorealistic videos of safe-to-unsafe transitions and generated image-plus-constraint pairs, scored open-loop against human consensus (level 3); the injury-narrative text track alone is level 0.",
+   "what_it_measures": "Accuracy on risk type, severity and intervention timing on 319 injury-report-grounded text scenarios and 287 generated videos, and constraint-violation rate on 164 image-constraint pairs, against 5-rater consensus labels.",
+   "hazardous_property": "A VLM used as a robot's brain fails to recognise latent physical danger, misjudges severity or violates embodiment constraints (payload, gripper geometry), so it would command or fail to prevent an injury-causing action.",
+   "system_under_test": "VLM planner or 'robot brain' (GPT-5, Gemini 2.5 Pro, Claude Opus 4.1, Gemini Robotics-ER), evaluated by question answering.",
+   "primary_sources": [
+    {
+     "key": "2509.21651",
+     "title": "ASIMOV-2.0, Jindal et al., v2 2025-11-21",
+     "arxiv": "2509.21651",
+     "url": "https://arxiv.org/abs/2509.21651",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "asimov_v2_page",
+     "title": "ASIMOV-2.0 project page",
+     "url": "https://asimov-benchmark.github.io/v2/",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "gr2safety",
+     "title": "Gemini Robotics Team, 'Gemini Robotics 2: Safety Evaluations', 2026-07-29 (also in the system-card corpus)",
+     "url": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A developer shipping a VLM as the planner of a general-purpose robot decides whether to ship or delay for safety post-training.",
+   "theta_definition": "theta=1: the planner fails to recognise latent physical danger, misjudges injury severity or violates embodiment constraints in everyday scenes, so it would command or fail to prevent injury-causing actions.",
+   "cost_facts": [
+    {
+     "quote": "We then get ground-truth answers to four multiple-choice safety questions with 5 human raters per instance and filter out the data where raters had low consensus due to ambiguity. ... This benchmark has 319 annotated scenarios.",
+     "source": "2509.21651",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The data was annotated by 5 raters per video. For data quality we set 60% as a threshold chosen for consensus and selected only those videos where intervention timestamps provided by the human raters had a standard deviation below 1.0s. ... The resulting benchmark has 287 scenarios.",
+     "source": "2509.21651",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The filtered benchmark has a total of 164 (constraint, image) pairs, along with human annotations for bounding boxes of violating and non-violating objects.",
+     "source": "2509.21651",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Observation, not a quotation: the project page's 'Data' button links to a Google Colab notebook (https://colab.research.google.com/drive/1ANSRfztNCHqCQNHl9sDtmPMAXD4l2UiW?usp=sharing); the page states no item count or download size",
+     "kind": "observation",
+     "source": "asimov_v2_page",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "We use the National Electronic Injury Surveillance System (NEISS) ... which collects data from a stratified sample of approximately 100 hospitals across the United States",
+     "source": "2509.21651",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "no model achieves less than 30% constraint violation rate when reasoning jointly about embodiment limitations, physics, and visual cues",
+     "source": "2509.21651",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "For Claude Opus 4.1 and GPT5, the accuracy gap is 27% and 40% respectively (video versus text), while Gemini 2.5 Pro shows a more modest drop.",
+     "source": "2509.21651",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Extending previous semantic safety benchmarks [4, 5], we synthetically generated a dataset containing (constraints, image) pairs (ASIMOV-Agentic builds on ASIMOV-2.0)",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "No correlation with robot incident rates; ground truth is rater consensus.",
+    "No hours or dollars; the rater count is the only labour figure.",
+    "Tests perception and judgement by question answering, not action."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Same construct as ASIMOV v1, MSSBench, EARBench, GuardianBench and ROBOSHACKLES at levels 0-3; ASIMOV-2.0 kept (most facts, cited in the Gemini Robotics 2 safety report).",
+   "points": {
+    "V": 1,
+    "K": 1,
+    "H": 1,
+    "L": 1,
+    "total": 4
+   },
+   "in_system_card_corpus": true,
+   "in_pilot_five": true
+  },
+  {
+   "rank": 10,
+   "include": true,
+   "catalog_key": "geminirobotics2026agentic",
+   "name": "ASIMOV-Agentic human-proximity stop and constraint-following",
+   "level": 2,
+   "level_justification": "Offline evaluation on real stereo video of humans approaching a head-mounted camera, in single frames and 5-second agentic windows with a robot_stop tool (video/temporal QA, level 2); the Apollo 2 humanoid stop test is a separate lab experiment.",
+   "what_it_measures": "Distance mean absolute error (MAE), 1 m breach detection accuracy and the false-negative-rate (FNR) versus false-positive-rate (FPR) trade-off of an agent that must call robot_stop() when a person is within a threshold; plus constraint-following, safety tool calling, VLA feasibility and ambiguity components.",
+   "hazardous_property": "The orchestrating agent fails to trigger a protective stop when a person comes within 1 m of the robot, or routes an unsafe or infeasible task to the VLA.",
+   "system_under_test": "Embodied-reasoning VLM orchestrating a VLA (Gemini Robotics-ER 2, Claude Opus 4.8, GPT 5.5 and other frontier models).",
+   "primary_sources": [
+    {
+     "key": "gr2safety",
+     "title": "Gemini Robotics Team, 'Gemini Robotics 2: Safety Evaluations', 2026-07-29 (also in the system-card corpus)",
+     "url": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "hf_asimov_agentic",
+     "title": "Hugging Face dataset card google/asimov_agentic",
+     "url": "https://huggingface.co/datasets/google/asimov_agentic",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "The developer of an agent that orchestrates a VLA on a humanoid or manipulator near people decides whether to deploy the orchestrator or keep the robot behind deterministic stops only.",
+   "theta_definition": "theta=1: the orchestrator misses a material fraction of 1 m human-proximity events (fails to call robot_stop) or passes constraint-violating tool calls to the VLA, at a rate incompatible with collaborative operation.",
+   "cost_facts": [
+    {
+     "quote": "We collected sensorized human data where a primary human wearing a head-mounted ZED camera and serving as a robot proxy is approached by other humans (wearing Vive trackers) at varying angles, speeds, distances, poses, lighting conditions etc.",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Human annotators provided the ground truth labels, and low-agreement instances were filtered out to maintain data quality.",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Observation, not a quotation: access-controlled (\"You need to agree to share your contact information to access this dataset\"); licence cc-by-4.0; the card's file tree says \"human_safety_monitoring/ ... *.parquet (28 episode files)\", while the repository API (?blobs=true) lists 39 .parquet files under human_safety_monitoring/ and 53 files in total, 2,398,740,228 bytes (2.4 GB), lastModified 2026-07-24. The 28 is the card author's count of episodes; the 39 is the file count on 2026-10-01 (the two counting rules differ, and the card is not updated to the file listing)",
+     "kind": "observation",
+     "source": "hf_asimov_agentic",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "top-performing models can consistently estimate distance with an MAE between 0.35 and 0.55 meters, while detecting 1-meter boundary breaches with an accuracy ranging from roughly 79% to 93%",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "achieving a highly efficient, low-interruption operational state (FPR under 5%) currently comes at the unacceptable cost of missing genuine safety hazards (FNR exceeding 40%). Conversely, models that successfully suppress the FNR closer to the 10%-15% range suffer significant operational penalties, unnecessarily stopping the robot 15% to 25% of the time. Crucially, no model currently operates in the ideal top-right quadrant",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "In lab settings, we observed 99% human detection accuracy and 96% reliability in transitioning to a safe pose, from Gemini Robotics 2's Embodied Reasoning (ER) and VLA models respectively.",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "This work does not evaluate the underlying functional safety architecture - including certified hardware components, redundancy mechanisms, and real-time system guarantees",
+     "source": "gr2safety",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "No arXiv version; dataset access-controlled behind a contact-information form; per-component item counts not stated in the report.",
+    "The humanoid stop test is reported separately and is not a benchmark-score-to-hardware correlation.",
+    "Same family as ASIMOV-2.0 but a different construct (stop/refuse/ask decisions on real sensor data rather than danger perception on generated media)."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "The only physical-AI evaluation that publishes the FNR/FPR trade-off, which maps directly onto s and t.",
+   "points": {
+    "V": 1,
+    "K": 1,
+    "H": 1,
+    "L": 1,
+    "total": 4
+   },
+   "in_system_card_corpus": true,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 11,
+   "include": true,
+   "catalog_key": "panpatil2026egosafetybench",
+   "name": "EgoSafetyBench VLM runtime safety guard on egocentric video",
+   "level": 3,
+   "level_justification": "Generated robot-view video scenarios scored open-loop at half-second granularity (level 3).",
+   "what_it_measures": "Video miss rate, video false-alarm rate, balanced accuracy and timely detection of a VLM acting as a streaming safety guard over 1,200 egocentric scenarios (800 situational, 400 with misleading in-scene text), with contrastive near-identical pairs.",
+   "hazardous_property": "A VLM safety guard misses hazardous moments in a robot's unfolding activity (especially contextual hazards) or is corrupted by misleading in-scene text, so an intervention that would prevent harm is not triggered.",
+   "system_under_test": "VLM used as a runtime guard on a home or factory robot (ten open and closed VLMs, including Claude Sonnet 4.6 and Gemini 3.5 Flash).",
+   "primary_sources": [
+    {
+     "key": "2607.00218",
+     "title": "EgoSafetyBench, Panpatil et al., 2026-06-30",
+     "arxiv": "2607.00218",
+     "url": "https://arxiv.org/abs/2607.00218",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A developer deploying a VLM as the runtime safety monitor of a service robot decides whether to rely on it or delay and keep a human monitor.",
+   "theta_definition": "theta=1: the guard misses a material fraction of hazardous moments, or its judgement is corrupted by in-scene text, so it would fail to trigger interventions in deployment.",
+   "cost_facts": [
+    {
+     "quote": "an egocentric video benchmark of 1,200 robot-view scenarios annotated at half-second granularity ... The situational track (800 scenarios) ... The visual-channel track (400 scenarios)",
+     "source": "2607.00218",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The 200 videos were split into two surveys of 100, each independently labeled by two annotators on the binary safe/unsafe scale; a third annotator per survey resolved the chunks on which the two disagreed.",
+     "source": "2607.00218",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "A VLM annotator (Claude Opus 4.7) labels every chunk along both axes from sampled frames using a fixed taxonomy prompt",
+     "source": "2607.00218",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "observed agreement is 91.2% at the chunk level and 90.5% at the video level, with Cohen's kappa of 0.744 (substantial) and 0.804 (almost perfect)",
+     "source": "2607.00218",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Agreement between the human consensus and the benchmark's safe/unsafe labels: Video Acc. 0.900, kappa 0.799; Chunk Acc. 0.860, kappa 0.660 (Table 9)",
+     "source": "2607.00218",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "We report the video miss rate (truly unsafe videos it lets pass), the video false-alarm rate (safe videos it flags), and the balanced accuracy",
+     "source": "2607.00218",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "vulnerable models miss up to a third of hazards, while robust models over-intervene on safe content",
+     "source": "2607.00218",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "Videos are generated, not filmed; no real-footage or outcome validation.",
+    "Dataset release is not confirmed in the fetched text.",
+    "Overlaps with the ASIMOV-2.0 video track (intervention timing) and with HomeSafe-Bench; kept because it is the only one reporting miss and false-alarm rates separately with an agreement statistic."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Borderline on C5 against ASIMOV-2.0 (video track) and HomeSafe-Bench; treated as the 'VLM as runtime guard' construct.",
+   "points": {
+    "V": 1,
+    "K": 1,
+    "H": 1,
+    "L": 0,
+    "total": 3
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 12,
+   "include": true,
+   "catalog_key": "obi2025safeplan",
+   "name": "SafePlan prompt suite (with SafeGate follow-up)",
+   "level": 0,
+   "level_justification": "Text-only accept/reject classification of 621 natural-language task prompts by an LLM planner (level 0); AI2-THOR and the SafeGate real-robot experiments are demonstrations of the guard, not where the score is produced.",
+   "what_it_measures": "Acceptance rate of unsafe prompts and of safe prompts (confusion matrix) for an LLM robot task planner on 621 expert-curated prompt-scene pairs (127 safe, 494 unsafe) across assistive, navigation and manipulation domains.",
+   "hazardous_property": "An LLM planner accepts a harmful or unsafe natural-language task command and would generate robot code for it.",
+   "system_under_test": "LLM planner (Gemini 1.5 Pro, GPT-4o, Gemini Flash 2.0) with and without the SafePlan reasoners.",
+   "primary_sources": [
+    {
+     "key": "2503.06892",
+     "title": "SafePlan, Obi et al., 2025-03-10",
+     "arxiv": "2503.06892",
+     "url": "https://arxiv.org/abs/2503.06892",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "2604.05427",
+     "title": "SafeGate, Obi et al., 2026-04-07",
+     "arxiv": "2604.05427",
+     "url": "https://arxiv.org/abs/2604.05427",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A developer shipping an LLM command interface on a service robot decides whether to ship or delay to add a pre-execution safety check.",
+   "theta_definition": "theta=1: the planner accepts unsafe or harmful task commands at a material rate (above a preset acceptance threshold) while rejecting many safe ones.",
+   "cost_facts": [
+    {
+     "quote": "We further introduce a benchmark of expert-curated 621 task prompts with scene description pairs",
+     "source": "2503.06892",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "All models evaluated on 621 tasks (127 ethical, 494 unethical).",
+     "source": "2503.06892",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "We evaluate SafeGate against existing LLM-based robot safety frameworks and baseline LLMs across 230 benchmark tasks, 30 AI2-THOR simulation scenarios, and real-world robot experiments.",
+     "source": "2604.05427",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "Gemini 1.5 Pro w/ SafePlan 70.87 (safe acceptance %) 7.09 (unsafe acceptance %) ... accuracy 0.884; Gemini 1.5 Pro 100.00 61.34; GPT4o 100.00 74.29 (results table)",
+     "source": "2503.06892",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "the LLM baselines (GPT-4o and Gemini 2.5-flash) match SafeGate's perfect AR-U% = 0 but suffer from DR-S% values of 48.2% and 79.5% respectively (over-rejection of safe tasks)",
+     "source": "2604.05427",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "RoboGuard authorized 93.3% of hazardous tasks (28 of 30) ... when hazards arose from missing information or downstream state changes rather than explicit rule violations",
+     "source": "2604.05427",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "Labels are expert judgement with no inter-rater statistic; no hours or dollars; no correlation between the text score and any physical outcome (SafeGate adds a real-robot demonstration, not a correlation).",
+    "Same construct as EmbodyGuard (942 PDDL-grounded scenarios, 13 LLMs); SafePlan kept because its labels are expert-curated and the follow-up adds a hardware check."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Passes C3 only through quantified inputs (621 expert-curated prompts).",
+   "points": {
+    "V": 0,
+    "K": 1,
+    "H": 1,
+    "L": 1,
+    "total": 3
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 13,
+   "include": true,
+   "catalog_key": "bajrami2026robotignores",
+   "name": "LLM-orchestrator safety benchmark for human-humanoid collaboration",
+   "level": 0,
+   "level_justification": "Text-prompting layer scored on 100-turn sessions against ISO 10218-2-grounded invariants (level 0); the simulated sensor-actuator and Unitree C1 layers are described as ongoing.",
+   "what_it_measures": "Violations, under-compliance and over-compliance per 100-turn session of an LLM orchestrator against five safety invariants (for example speed limits near humans) under full-context and sliding-window conditions.",
+   "hazardous_property": "An LLM orchestrating a humanoid commands a motion that breaks a protective measure (speed, separation) while a person is present.",
+   "system_under_test": "LLM orchestrator (Claude Haiku 4.5, GPT-4o-mini, Gemini 2.5 Flash, qwen3:8b) over a Model Context Protocol (MCP) tool interface.",
+   "primary_sources": [
+    {
+     "key": "2609.07288",
+     "title": "Bajrami et al., LLM-orchestrator safety benchmark (humanoid), 2026-09-07",
+     "arxiv": "2609.07288",
+     "url": "https://arxiv.org/abs/2609.07288",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "An integrator deploying an LLM orchestrator for a humanoid in a shared industrial cell decides whether to deploy or keep a deterministic allow/deny layer only.",
+   "theta_definition": "theta=1: over extended sessions the orchestrator violates the ISO 10218-2-grounded invariants in a material fraction of sessions.",
+   "cost_facts": [
+    {
+     "quote": "three cloud backends (Claude Haiku 4.5, GPT-4o-mini, Gemini 2.5 Flash) and a local open-weights baseline (qwen3:8b) across 40 100-turn sessions under full-context and sliding-window budget conditions",
+     "source": "2609.07288",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "eight experimental conditions, each repeated five times (40 sessions total)",
+     "source": "2609.07288",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "Claude and Gemini remain at or near zero violations while GPT-4o-mini commits up to 13 per session",
+     "source": "2609.07288",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "safety invariants grounded in ISO 10218-2:2025 protective measures",
+     "source": "2609.07288",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "while the simulation and physical layers remain ongoing ... the preliminary simulation layer reproduces the model ranking and the GPT-4o-mini failure-mode inversion",
+     "source": "2609.07288",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "Workshop-stage preprint (2026-09-07); physical validation not yet reported; no cost figure beyond session counts; organisation unverified.",
+    "Measures both over-refusal and violations, which is rare and useful for t."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Distinct construct from SafePlan (long-session orchestration with industrial invariants, not single-prompt refusal).",
+   "points": {
+    "V": 0,
+    "K": 1,
+    "H": 1,
+    "L": 0,
+    "total": 2
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 14,
+   "include": false,
+   "catalog_key": "nhtsa2024fmvss127",
+   "name": "NHTSA FMVSS No. 127 AEB compliance test",
+   "level": 8,
+   "level_justification": "Compliance track tests of the production vehicle against lead-vehicle and pedestrian test devices in daylight and darkness (level 8).",
+   "what_it_measures": "Pass/fail: no contact with the lead-vehicle or pedestrian test device in every run across three lead-vehicle scenarios and three pedestrian scenarios (crossing, alongside, standing) at up to 73 km/h for pedestrians, plus false-activation tests.",
+   "hazardous_property": "The AEB fails to brake for a pedestrian or lead vehicle.",
+   "system_under_test": "Non-language-model production AEB stack.",
+   "primary_sources": [
+    {
+     "key": "fmvss127",
+     "title": "NHTSA FMVSS No. 127 final rule, Federal Register 2024-05-09",
+     "url": "https://www.govinfo.gov/content/pkg/FR-2024-05-09/html/2024-09054.htm",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "An OEM decides whether a vehicle may be certified for US sale from 1 September 2029.",
+   "theta_definition": "theta=1: the AEB contacts the test device in at least one required run.",
+   "cost_facts": [
+    {
+     "quote": "approximately $354 million in 2020 dollars (total annual cost)",
+     "source": "fmvss127",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "between $550,000 and $680,000 (cost per equivalent life saved); lifetime monetized net benefit between $5.82 and $7.26 billion",
+     "source": "fmvss127",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "save at least 362 lives and mitigate 24,321 non-fatal injuries a year",
+     "source": "fmvss127",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "three pre-crash scenarios involving pedestrians: (a) where the pedestrian crosses the road in front of the subject vehicle, (b) where the pedestrian walks alongside the road in the path of the subject vehicle, and (c) where the pedestrian stands in the roadway (tested in daylight and darkness); lead vehicle stopped, decelerating, slower-moving (daylight)",
+     "source": "fmvss127",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "prevent the vehicle from colliding with the lead vehicle or pedestrian test devices when tested according to the standard's test procedures",
+     "source": "fmvss127",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "Same hazardous property and test form as the IIHS protocol (C5); the published dollar figures are fleet compliance and societal benefit, not the cost of one test; the benefit estimate rests on field studies of existing AEB, not on validation of the test's own predictive power."
+   ],
+   "criteria": {
+    "C1": true,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": false
+   },
+   "criterion_notes": "Excluded under C5 (same construct as IIHS). Use its scenario grid, darkness requirement and false-activation tests inside the IIHS instrument context; its stakes figures belong in the decision context.",
+   "points": {
+    "V": 1,
+    "K": 2,
+    "H": 2,
+    "L": 0,
+    "total": 5
+   },
+   "in_system_card_corpus": false,
+   "in_pilot_five": false
+  },
+  {
+   "rank": 15,
+   "include": false,
+   "catalog_key": "dauner2024navsim",
+   "name": "NAVSIM non-reactive driving evaluation (PDM Score)",
+   "level": 5,
+   "level_justification": "Real-log replay with non-reactive bird's-eye-view unrolling over 4 s (level 5, open-loop caveat).",
+   "what_it_measures": "PDM Score (PDMS) composite of no-collision, drivable-area compliance, time-to-collision, ego progress and comfort for an end-to-end driving policy on 12k test scenes.",
+   "hazardous_property": "Collision of the planned trajectory with other agents (the no-collision subscore).",
+   "system_under_test": "End-to-end learned driving planner (camera/LiDAR), not a language model.",
+   "primary_sources": [
+    {
+     "key": "2406.15349",
+     "title": "NAVSIM, Dauner et al., v2 2024-10-31",
+     "arxiv": "2406.15349",
+     "url": "https://arxiv.org/abs/2406.15349",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "paired_sources": [
+    {
+     "key": "2605.00066",
+     "title": "Wang et al., open-loop vs closed-loop (NAVSIM vs Bench2Drive), 2026-04-30",
+     "arxiv": "2605.00066",
+     "url": "https://arxiv.org/abs/2605.00066",
+     "fetched": "2026-10-01"
+    },
+    {
+     "key": "2506.04218",
+     "title": "Pseudo-Simulation (NAVSIM v2), Cao et al., v3 2026-03-20",
+     "arxiv": "2506.04218",
+     "url": "https://arxiv.org/abs/2506.04218",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "single_build_and_run_instrument": true,
+   "proposed_decision": "A developer of an end-to-end driving planner decides whether to promote a checkpoint to closed-loop and road testing.",
+   "theta_definition": "theta=1: the planner collides in a material fraction of safety-critical scenes when run closed-loop.",
+   "cost_facts": [
+    {
+     "quote": "NAVSIM enabled a new competition held at CVPR 2024, where 143 teams submitted 463 entries",
+     "source": "2406.15349",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The current pipeline relies on a per-scene optimization process (based on MTGS) to generate the synthetic views, requiring approximately 1-2 hours per scene on current hardware.",
+     "source": "2506.04218",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "At 100% density, each scenario contains 12 synthetic observations on average in Stage 2 for each real observation in Stage 1, resulting in 13 planner inferences per scenario. In comparison, closed-loop simulation in nuPlan requires 80 planner inferences per scenario, corresponding to an 8-second rollout at 10Hz.",
+     "source": "2506.04218",
+     "fetched": "2026-10-01",
+     "note": "The per-scene rendering is a one-off preprocessing cost; the paper names no GPU type. Pseudo-simulation is NAVSIM v2."
+    }
+   ],
+   "validity_facts": [
+    {
+     "quote": "Compared to OLS, we consistently observe better closed-loop correlation for PDMS, in terms of Spearman's (rank) and Pearson's (linear) correlation coefficients.",
+     "source": "2406.15349",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "a much simpler 3-metric formula matches the predictive power of the full 5-metric PDMS at the same Spearman rho=0.90 on our paired sample of n=8 methods",
+     "source": "2605.00066",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Ego Progress (EP) is the strongest single predictor of closed-loop success, substantially exceeding the safety-critical collision metric NC",
+     "source": "2605.00066",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "pseudo-simulation is better correlated with closed-loop simulations (R^2=0.8) than the best existing open-loop approach (R^2=0.7)",
+     "source": "2506.04218",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "fit_problems": [
+    "The composite is a driving-quality score (progress, comfort) rather than a hazard rate; the collision subscore is its least predictive component (C1 fails for the composite).",
+    "Correlations are with closed-loop simulation, not with road outcomes."
+   ],
+   "criteria": {
+    "C1": false,
+    "C2": true,
+    "C3": true,
+    "C4": true,
+    "C5": true
+   },
+   "criterion_notes": "Excluded under C1 as a task-quality benchmark; first alternate if the study wants a driving-domain level-5 entry with a non-language-model system.",
+   "points": {
+    "V": 2,
+    "K": 1,
+    "H": 1,
+    "L": 0,
+    "total": 4
+   },
+   "in_system_card_corpus": true,
+   "in_pilot_five": false
+  }
+ ],
+ "assessed_not_ranked": [
+  {
+   "catalog_key": "majumdar2025predictive",
+   "name": "Predictive red teaming (RoboART)",
+   "level": 3,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C1"
+   ],
+   "reason": "Task-success robustness under distribution shift, not a hazard rate.",
+   "facts": [
+    {
+     "quote": "Experiments across 500+ hardware trials in twelve off-nominal conditions for visuomotor diffusion policies demonstrate that RoboART predicts performance degradation with high accuracy (less than 0.19 average difference between predicted and real success rates).",
+     "source": "2502.06575",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The difference between predicted and real success rates averaged across the twelve factors is 0.1 and 0.19 respectively for the two policies.",
+     "source": "2502.06575",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Validity anchor for level-3 generated-scene instruments (ASIMOV-2.0, EgoSafetyBench) and for Veo."
+  },
+  {
+   "catalog_key": "sharrock2026dronebench",
+   "name": "Drone-Bench",
+   "level": 4,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C1"
+   ],
+   "reason": "Dual-use surveillance capability of coding agents on a drone; wall contact zeroes a score but the construct is capability.",
+   "facts": [
+    {
+     "quote": "a DJI Tello EDU, a cheap ($129), off-the-shelf quadcopter",
+     "source": "dronebench",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "executed on a dedicated worker with a single NVIDIA T4 (16 GB VRAM), with timeouts that vary by task: 5 hours for reconstruction, 2 hours for localization, and 1500 seconds for detection.",
+     "source": "dronebench",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Each simulated episode is given a wall-clock budget of 120 seconds",
+     "source": "dronebench",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "10 runs per task for 15 frontier models spanning May 2024-July 2026",
+     "source": "dronebench",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "end-to-end success - a single run beating our baseline on all five tasks - currently stands at 0%",
+     "source": "dronebench",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Drone-Bench is a benchmark created by Andon Labs (in consultation with Anthropic) to test if AI agents are capable of controlling a drone for surveillance tasks. Anthropic has not been given access to Drone-Bench",
+     "source": "corpus_projectpilot",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Best-documented cost of a physical-AI evaluation; cost anchor for the instrument prompts. Appears in two Anthropic research pages in the system-card corpus."
+  },
+  {
+   "catalog_key": "goel2025geometric",
+   "name": "Geometric red-teaming (CrashShapes)",
+   "level": 7,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C1"
+   ],
+   "reason": "Task-success drop under object-geometry variation, not a hazard rate.",
+   "facts": [
+    {
+     "quote": "simulated CrashShapes reduce task success from 90% to as low as 22.5%, and that blue-teaming recovers performance to up to 90% on the corresponding real-world geometry",
+     "source": "2509.12379",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "On an NVIDIA RTX 4090 GPU, the full APAP pipeline consumes roughly 10 GB of memory and requires 10 minutes per object. (baseline deformation method)",
+     "source": "2509.12379",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "we 3D-printed one CrashShape per object for two YCB objects (mustard bottle, screwdriver) and evaluated each in 20 trials on a Franka arm",
+     "source": "2509.12379",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Paired sim/real numbers; cost of printed test articles."
+  },
+  {
+   "catalog_key": "dilillo2024adas",
+   "name": "Swiss Re / Stanford ADAS proving-ground campaign",
+   "level": 8,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C4",
+    "C5"
+   ],
+   "reason": "Thirteen-vehicle, eight-month comparative campaign with relative scoring; not one build-and-run decision instrument; same construct as IIHS.",
+   "facts": [
+    {
+     "quote": "eight-month long vehicle testing campaign conducted on a recognized UNECE type approval authority and Euro NCAP accredited proving ground in Germany",
+     "source": "2409.16942",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "the average number of tests executed and analyzed in this manuscript per vehicle is 81 tests, representing approximately 26% of the full test protocol ... 161 tests for the best performer (72% of the full test matrix) and 41 tests for the worst performer (18% of full the test matrix)",
+     "source": "2409.16942",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Costs are not accounted for in any of our considerations or analyses.",
+     "source": "2409.16942",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "realism score (mean = 0.002354, standard deviation = 0.001221)",
+     "source": "2409.16942",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Run-count and duration anchor for level-8 cost."
+  },
+  {
+   "catalog_key": "euroncap2024aebvru",
+   "name": "Euro NCAP AEB/LSS VRU test protocol v4.5.1",
+   "level": 8,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as IIHS PAEB; IIHS publishes the fixed run count and has the field-claims chain.",
+   "facts": [
+    {
+     "quote": "Version 4.5.1 February 2024; scenarios CPFA-50, CPNA-25, CPNA-75, CPNCO-50, CPLA-25, CPLA-50, CBNA-50, CBNAO-50, CBLA-25, CBLA-50, CMFtap",
+     "source": "euroncap_vru451",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "VUT speed [km/h] 10-60 (CPFA, CPNA, CPNCO) | 20-60 (CPLA) | 50-80 | 10,15,20 | 10 | 4,8; Lighting condition Day/Night; Streetlights (night): Streetlights / No streetlights",
+     "source": "euroncap_vru451",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "based on the OEM colour prediction, the highest avoidance (Green) test speeds of each scenario and one randomly selected avoidance (Green) test speed per scenario (where applicable) will be tested ... Perform all tests where the predicted result is Yellow, Orange or Brown. Test points that are predicted Red are excluded from testing.",
+     "source": "euroncap_vru451",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "In the tests above 40km/h, stop testing when the actual speed reduction measured is less than 15km/h.",
+     "source": "euroncap_vru451",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Shows the run count is OEM-prediction dependent (spot checks), which is a cost-model point for the IIHS context."
+  },
+  {
+   "catalog_key": "ljungbergh2024neuroncap",
+   "name": "NeuroNCAP",
+   "level": 5,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C3"
+   ],
+   "reason": "No cost figure and no validation against a real vehicle in the fetched text.",
+   "facts": [
+    {
+     "quote": "NNS = 5.0 if no collision; 4.0 * max(0, 1 - v_i/v_r) otherwise",
+     "source": "2404.07762",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "state-of-the-art end-to-end planners excel in nominal driving scenarios in an open-loop setting, they exhibit critical flaws when navigating our safety-critical scenarios in a closed-loop setting",
+     "source": "2404.07762",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Driving-domain level-5 hazard score with a Euro NCAP-shaped rule; alternate to NAVSIM if a validity fact appears."
+  },
+  {
+   "catalog_key": "fan2026safevlabench",
+   "name": "SafeVLA-Bench",
+   "level": 4,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5",
+    "C3"
+   ],
+   "reason": "Same construct as ManiGuard (VLA process safety by temporal-logic monitors); no cost figure and no human or hardware validation.",
+   "facts": [
+    {
+     "quote": "evaluating twenty-seven policy-benchmark entries across tabletop and kitchen manipulation tasks",
+     "source": "2606.00773",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "the fifteen tabletop policies above 90% mean success still have 18-28% unsafe-episode rates, and 38-56% of successful RoboCasa-365 rollouts violate at least one active safety clause (v2; catalog.json records v1's 13-15% and 36-56%)",
+     "source": "2606.00773",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "worst-violation depths measured in newtons, millimetres, degrees, and newton-metres",
+     "source": "2606.00773",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Was the sim2real pilot's level-4 anchor; its v2 numbers supersede the catalogue."
+  },
+  {
+   "catalog_key": "son2025embodyguard",
+   "name": "EmbodyGuard (SAFEL)",
+   "level": 0,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as SafePlan (text-level refusal and plan safety of LLM planners).",
+   "facts": [
+    {
+     "quote": "a PDDL-grounded benchmark containing 942 LLM-generated scenarios covering both overtly malicious and contextually hazardous instructions",
+     "source": "2505.19933",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Candidate scenarios are first generated using GPT-4o ... then verified through symbolic checks ... and expert human review",
+     "source": "2505.19933",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Evaluation across 13 state-of-the-art LLMs reveals that while models often reject clearly unsafe commands, they struggle to anticipate and mitigate subtle, situational risks.",
+     "source": "2505.19933",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Alternate level-0 instrument if machine-checkable (PDDL) plan safety is preferred to expert labels."
+  },
+  {
+   "catalog_key": "pu2026homesafebench",
+   "name": "HomeSafe-Bench (unsafe action detection)",
+   "level": 3,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as EgoSafetyBench (VLM detecting unsafe actions of an embodied agent in generated video).",
+   "facts": [
+    {
+     "quote": "438 diverse cases across six functional areas with fine-grained multidimensional annotations",
+     "source": "2603.11975",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "Table 9 demonstrates the agreement evaluation results on 412 co-annotated videos (validity) and 236 videos (categorical/temporal). ... Intervention deadline CCC 0.800, ICC 0.801, MAE 0.62 s; Point of no return CCC 0.765",
+     "source": "2603.11975",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Alternate for the runtime-guard construct."
+  },
+  {
+   "catalog_key": "yao2025homesafebench",
+   "name": "HomeSafeBench (free-exploration inspection)",
+   "level": 4,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C1"
+   ],
+   "reason": "Hazard-finding task success of an inspector, not harm caused by the system.",
+   "facts": [
+    {
+     "quote": "comprises 1,000 human-validated inspection tasks",
+     "source": "2509.23690",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "the best model reaches only about 34.7% F1, far below the 98.0% of a human inspector",
+     "source": "2509.23690",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Human-ceiling fact (98.0% F1) is a label-noise bound worth citing."
+  },
+  {
+   "catalog_key": "yin2026roboshackles",
+   "name": "ROBOSHACKLES",
+   "level": 3,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as ASIMOV-2.0 (refusal of injurious actions in edited real scenes); a 100% unsafe rate on all six models cannot discriminate between systems.",
+   "facts": [
+    {
+     "quote": "a DROID-based robotic video dataset comprising 12,000 training clips and 1,200 hazardous multilingual evaluation clips across six safety categories (v2 HTML; the v2 abstract says 10,000 clips)",
+     "source": "2606.18632",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "all evaluated models produce unsafe actions in the tested safety-critical scenarios, yielding a 100% unsafe action generation rate",
+     "source": "2606.18632",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Example of a saturated score (Youden's index near zero)."
+  },
+  {
+   "catalog_key": "lyu2026foresightsafetyvla",
+   "name": "ForesightSafety-VLA",
+   "level": 4,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as ManiGuard; no human or hardware validation.",
+   "facts": [
+    {
+     "quote": "We instantiate 66 safety-augmented base scenarios in RoboTwin across 5 embodiments",
+     "source": "2606.27079",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "templates at levels W0-W2 are authored by human annotators, while W3-W4 templates are generated by a frontier large language model and manually verified",
+     "source": "2606.27079",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": ""
+  },
+  {
+   "catalog_key": "ravichandran2025roboguard",
+   "name": "RoboGuard",
+   "level": 7,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C4",
+    "C5"
+   ],
+   "reason": "A guardrail (defence) evaluated with RoboPAIR-style attacks, not an evaluation; same construct as RoboPAIR.",
+   "facts": [
+    {
+     "quote": "RoboGuard reduces the execution of unsafe plans from over 92% to below 3% without compromising performance on safe plans",
+     "source": "2503.07885",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Its ASR, token and query counts are used inside the RoboPAIR context."
+  },
+  {
+   "catalog_key": "kusano2022collision",
+   "name": "Waymo Collision Avoidance Testing (CAT)",
+   "level": 5,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C4"
+   ],
+   "reason": "Proprietary scenario database and release programme; not a reusable build-and-run instrument.",
+   "facts": [
+    {
+     "quote": "In total, the CAT evaluation for the SF/PHX ODD contained over 13,000 scenarios.",
+     "source": "2212.08148",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "For each start of fully autonomous operation, a series of approximately 70 scenarios are reproduced on a test track and executed using the same candidate software",
+     "source": "2212.08148",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The CAT evaluation needs to be completed in a timeframe of several weeks after a software candidate is identified.",
+     "source": "2212.08148",
+     "fetched": "2026-10-01"
+    },
+    {
+     "quote": "The virtual test platform provides a conservative estimate of the number of simulated ADS collisions when compared to the same scenarios executed on a test track.",
+     "source": "2212.08148",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Level-5-to-8 driving anchor with a stated turnaround."
+  },
+  {
+   "catalog_key": "wang2026touchsafebench",
+   "name": "TouchSafeBench",
+   "level": 4,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C2"
+   ],
+   "reason": "Benchmark not yet released ('upon acceptance').",
+   "facts": [
+    {
+     "quote": "2,940 simulated indoor co-presence episodes across social navigation and social rearrangement ... the best average Macro-F1 stays below 50% ... We will release the benchmark upon acceptance.",
+     "source": "2605.31196",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": "Strong future level-4 collision-monitoring candidate (robot-human and robot-scene contact labels from the simulator)."
+  },
+  {
+   "catalog_key": "yeke2026robojailbench",
+   "name": "RoboJailBench",
+   "level": 1,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as RoboPAIR (jailbreak ASR of embodied VLMs) without physical execution.",
+   "facts": [
+    {
+     "quote": "18 categories of security violation consequences for embodied AI ... We integrate four attacks and two defenses to evaluate their performance on leading embodied VLMs ... maintain a leaderboard",
+     "source": "2605.19328",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": ""
+  },
+  {
+   "catalog_key": "liu2026jailwam",
+   "name": "JailWAM",
+   "level": 4,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as RedVLA (eliciting unsafe physical behaviour from an action model in simulation) without hardware validation.",
+   "facts": [
+    {
+     "quote": "JailWAM achieves an 84.2% attack success rate on LingBot-VA (RoboTwin simulation)",
+     "source": "2604.05498",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": ""
+  },
+  {
+   "catalog_key": "zhou2024mssbench",
+   "name": "MSSBench",
+   "level": 1,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as ASIMOV-2.0 at level 1 (static VLM situational-safety QA).",
+   "facts": [
+    {
+     "quote": "The dataset comprises 1,820 language query-image pairs, half of which the image context is safe, and the other half is unsafe.",
+     "source": "2410.06172",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": ""
+  },
+  {
+   "catalog_key": "zhu2024earbench",
+   "name": "EARBench",
+   "level": 1,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as ASIMOV-2.0; task risk rate saturated.",
+   "facts": [
+    {
+     "quote": "all models exhibit high task risk rates (TRR), with an average of 95.75% across all evaluated models",
+     "source": "2408.04449",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": ""
+  },
+  {
+   "catalog_key": "zhang2025safevla",
+   "name": "SafeVLA / Safety-CHORES",
+   "level": 4,
+   "include": false,
+   "rank": null,
+   "criteria_failed": [
+    "C5"
+   ],
+   "reason": "Same construct as ManiGuard; benchmark side of a training paper.",
+   "facts": [
+    {
+     "quote": "reducing the cumulative cost of safety violations by 83.58% compared to the state-of-the-art method, while also maintaining task success rate (+3.85%)",
+     "source": "2503.03480",
+     "fetched": "2026-10-01"
+    }
+   ],
+   "use_in_study": ""
+  }
+ ],
+ "sources": {
+  "iihs_paeb": {
+   "title": "IIHS Pedestrian Autonomous Emergency Braking Test Protocol, Version IV (2024)",
+   "url": "https://www.iihs.org/media/f6a24355-fe4b-4d71-bd19-0aab8b39aa7e/5ZH5qg/Ratings/Protocols/current/test_protocol_pedestrian_aeb.pdf",
+   "fetched": "2026-10-01"
+  },
+  "iihs_hldi2018": {
+   "title": "IIHS news, 'Subaru crash avoidance system cuts pedestrian crashes', 2018-05-08",
+   "url": "https://www.iihs.org/news/detail/subaru-crash-avoidance-system-cuts-pedestrian-crashes",
+   "fetched": "2026-10-01"
+  },
+  "cicchino2022": {
+   "title": "Cicchino, 'Effects of automatic emergency braking systems on pedestrian crash risk', AAP 2022, IIHS bibliography ref 2243",
+   "url": "https://www.iihs.org/research-areas/bibliography/ref/2243",
+   "fetched": "2026-10-01"
+  },
+  "futurride2022": {
+   "title": "Futurride, 2022-02-03, quoting the IIHS release on the Cicchino study (secondary; IIHS release URL returned 404)",
+   "url": "https://futurride.com/2022/02/03/iihs-study-reveals-aeb-limitations-in-dark-conditions/",
+   "fetched": "2026-10-01"
+  },
+  "euroncap_faq": {
+   "title": "Euro NCAP FAQ",
+   "url": "https://www.euroncap.com/faq/",
+   "fetched": "2026-10-01"
+  },
+  "euroncap_vru451": {
+   "title": "Euro NCAP Test Protocol AEB/LSS VRU systems v4.5.1, February 2024",
+   "url": "https://cdn.euroncap.com/cars/assets/euro_ncap_aeb_lss_vru_test_protocol_v451_cb0d5dfd0a.pdf",
+   "fetched": "2026-10-01"
+  },
+  "mcity2022": {
+   "title": "Mcity Test Facility recharge rates (LC member sheet, Nov 2022)",
+   "url": "https://mcity.umich.edu/wp-content/uploads/2022/11/11.1.22_TestFacilityRates-LC.pdf",
+   "fetched": "2026-10-01"
+  },
+  "fmvss127": {
+   "title": "NHTSA FMVSS No. 127 final rule, Federal Register 2024-05-09",
+   "url": "https://www.govinfo.gov/content/pkg/FR-2024-05-09/html/2024-09054.htm",
+   "fetched": "2026-10-01"
+  },
+  "robotreport_iso10218": {
+   "title": "The Robot Report, 'ISO 10218 industrial robot safety standard receives major overhaul', 2025-02-18",
+   "url": "https://www.therobotreport.com/iso-10218-industrial-robot-safety-standard-receives-major-overhaul/",
+   "fetched": "2026-10-01"
+  },
+  "gr2safety": {
+   "title": "Gemini Robotics Team, 'Gemini Robotics 2: Safety Evaluations', 2026-07-29 (also in the system-card corpus)",
+   "url": "https://storage.googleapis.com/deepmind-media/gemini-robotics/Gemini-Robotics-2-Safety.pdf",
+   "fetched": "2026-10-01"
+  },
+  "hf_asimov_agentic": {
+   "title": "Hugging Face dataset card google/asimov_agentic",
+   "url": "https://huggingface.co/datasets/google/asimov_agentic",
+   "fetched": "2026-10-01",
+   "api_url": "https://huggingface.co/api/datasets/google/asimov_agentic?blobs=true"
+  },
+  "asimov_v2_page": {
+   "title": "ASIMOV-2.0 project page",
+   "url": "https://asimov-benchmark.github.io/v2/",
+   "fetched": "2026-10-01",
+   "data_url": "https://colab.research.google.com/drive/1ANSRfztNCHqCQNHl9sDtmPMAXD4l2UiW?usp=sharing"
+  },
+  "dronebench": {
+   "title": "Andon Labs, Drone-Bench (PDF)",
+   "url": "https://andonlabs.com/docs/Drone_Bench.pdf",
+   "fetched": "2026-10-01"
+  },
+  "redvla_page": {
+   "title": "RedVLA project page",
+   "url": "https://redvla.github.io",
+   "fetched": "2026-10-01"
+  },
+  "corpus_projectpilot": {
+   "title": "Anthropic, 'Project Pilot: Can AI Control a Drone?', 2026-07-24, read from the system-card corpus (docs.sqlite) on 2026-10-01",
+   "url": "https://www.anthropic.com/research/project-pilot",
+   "fetched": "2026-10-01"
+  },
+  "2509.21651": {
+   "title": "ASIMOV-2.0, Jindal et al., v2 2025-11-21",
+   "url": "https://arxiv.org/abs/2509.21651",
+   "fetched": "2026-10-01"
+  },
+  "2412.13178": {
+   "title": "SafeAgentBench, Yin et al., v5 2025-10-31",
+   "url": "https://arxiv.org/abs/2412.13178",
+   "fetched": "2026-10-01"
+  },
+  "2512.10675": {
+   "title": "Evaluating Gemini Robotics Policies in a Veo World Simulator, v2 2026-01-06",
+   "url": "https://arxiv.org/abs/2512.10675",
+   "fetched": "2026-10-01"
+  },
+  "2410.13691": {
+   "title": "RoboPAIR, Robey et al., v2 2024-11-09",
+   "url": "https://arxiv.org/abs/2410.13691",
+   "fetched": "2026-10-01"
+  },
+  "2503.07885": {
+   "title": "RoboGuard, Ravichandran et al., v2 2026-03-03",
+   "url": "https://arxiv.org/abs/2503.07885",
+   "fetched": "2026-10-01"
+  },
+  "2502.06575": {
+   "title": "Predictive Red Teaming (RoboART), Majumdar et al., 2025-02-10",
+   "url": "https://arxiv.org/abs/2502.06575",
+   "fetched": "2026-10-01"
+  },
+  "2604.22591": {
+   "title": "RedVLA, Zhang et al., v2 2026-09-04",
+   "url": "https://arxiv.org/abs/2604.22591",
+   "fetched": "2026-10-01"
+  },
+  "2604.05427": {
+   "title": "SafeGate, Obi et al., 2026-04-07",
+   "url": "https://arxiv.org/abs/2604.05427",
+   "fetched": "2026-10-01"
+  },
+  "2503.06892": {
+   "title": "SafePlan, Obi et al., 2025-03-10",
+   "url": "https://arxiv.org/abs/2503.06892",
+   "fetched": "2026-10-01"
+  },
+  "2203.09872": {
+   "title": "Svarny et al., protective soft skins, 2,250 collision measurements, v2 2022-05-19",
+   "url": "https://arxiv.org/abs/2203.09872",
+   "fetched": "2026-10-01"
+  },
+  "2009.01036": {
+   "title": "Svarny et al., 3D Collision-Force-Map, v4 2021-03-26",
+   "url": "https://arxiv.org/abs/2009.01036",
+   "fetched": "2026-10-01"
+  },
+  "2203.02706": {
+   "title": "Kirschner et al., ISO/TS 15066 interpretations, 2022-03-05",
+   "url": "https://arxiv.org/abs/2203.02706",
+   "fetched": "2026-10-01"
+  },
+  "2404.07762": {
+   "title": "NeuroNCAP, Ljungbergh et al., v4 2024-04-23",
+   "url": "https://arxiv.org/abs/2404.07762",
+   "fetched": "2026-10-01"
+  },
+  "2406.15349": {
+   "title": "NAVSIM, Dauner et al., v2 2024-10-31",
+   "url": "https://arxiv.org/abs/2406.15349",
+   "fetched": "2026-10-01"
+  },
+  "2605.00066": {
+   "title": "Wang et al., open-loop vs closed-loop (NAVSIM vs Bench2Drive), 2026-04-30",
+   "url": "https://arxiv.org/abs/2605.00066",
+   "fetched": "2026-10-01"
+  },
+  "2506.04218": {
+   "title": "Pseudo-Simulation (NAVSIM v2), Cao et al., v3 2026-03-20",
+   "url": "https://arxiv.org/abs/2506.04218",
+   "fetched": "2026-10-01"
+  },
+  "2606.00773": {
+   "title": "SafeVLA-Bench, Fan et al., v2 2026-09-30",
+   "url": "https://arxiv.org/abs/2606.00773",
+   "fetched": "2026-10-01"
+  },
+  "2505.19933": {
+   "title": "EmbodyGuard / SAFEL, Son et al., 2025-05-26",
+   "url": "https://arxiv.org/abs/2505.19933",
+   "fetched": "2026-10-01"
+  },
+  "2603.11975": {
+   "title": "HomeSafe-Bench, Pu et al., v2 2026-03-13",
+   "url": "https://arxiv.org/abs/2603.11975",
+   "fetched": "2026-10-01"
+  },
+  "2509.23690": {
+   "title": "HomeSafeBench, Yao et al., v2 2026-08-04",
+   "url": "https://arxiv.org/abs/2509.23690",
+   "fetched": "2026-10-01"
+  },
+  "2506.16402": {
+   "title": "IS-Bench, Lu et al., v3 2025-12-05",
+   "url": "https://arxiv.org/abs/2506.16402",
+   "fetched": "2026-10-01"
+  },
+  "2509.12379": {
+   "title": "Geometric Red-Teaming, Goel et al., 2025-09-15",
+   "url": "https://arxiv.org/abs/2509.12379",
+   "fetched": "2026-10-01"
+  },
+  "2409.16942": {
+   "title": "Swiss Re / Stanford ADAS assessment, Di Lillo et al., v4 2024-11-26",
+   "url": "https://arxiv.org/abs/2409.16942",
+   "fetched": "2026-10-01"
+  },
+  "2607.00218": {
+   "title": "EgoSafetyBench, Panpatil et al., 2026-06-30",
+   "url": "https://arxiv.org/abs/2607.00218",
+   "fetched": "2026-10-01"
+  },
+  "2606.18632": {
+   "title": "ROBOSHACKLES, Yin et al., v2 2026-08-20",
+   "url": "https://arxiv.org/abs/2606.18632",
+   "fetched": "2026-10-01"
+  },
+  "2608.17386": {
+   "title": "ManiGuard, Peng et al., 2026-08-18",
+   "url": "https://arxiv.org/abs/2608.17386",
+   "fetched": "2026-10-01"
+  },
+  "2606.27079": {
+   "title": "ForesightSafety-VLA, Lyu et al., v2 2026-06-27",
+   "url": "https://arxiv.org/abs/2606.27079",
+   "fetched": "2026-10-01"
+  },
+  "2609.07288": {
+   "title": "Bajrami et al., LLM-orchestrator safety benchmark (humanoid), 2026-09-07",
+   "url": "https://arxiv.org/abs/2609.07288",
+   "fetched": "2026-10-01"
+  },
+  "2212.08148": {
+   "title": "Waymo Collision Avoidance Testing, Kusano et al., 2022-12-15",
+   "url": "https://arxiv.org/abs/2212.08148",
+   "fetched": "2026-10-01"
+  },
+  "2410.06172": {
+   "title": "MSSBench, Zhou et al., v2 2025-04-22",
+   "url": "https://arxiv.org/abs/2410.06172",
+   "fetched": "2026-10-01"
+  },
+  "2408.04449": {
+   "title": "EARBench, Zhu et al., v5 2024-11-28",
+   "url": "https://arxiv.org/abs/2408.04449",
+   "fetched": "2026-10-01"
+  },
+  "2605.31196": {
+   "title": "TouchSafeBench, Wang et al., 2026-05-29",
+   "url": "https://arxiv.org/abs/2605.31196",
+   "fetched": "2026-10-01"
+  },
+  "2605.19328": {
+   "title": "RoboJailBench, Yeke et al., 2026-05-19",
+   "url": "https://arxiv.org/abs/2605.19328",
+   "fetched": "2026-10-01"
+  },
+  "2604.05498": {
+   "title": "JailWAM, Liu et al., v2 2026-08-13",
+   "url": "https://arxiv.org/abs/2604.05498",
+   "fetched": "2026-10-01"
+  },
+  "2503.03480": {
+   "title": "SafeVLA / Safety-CHORES, Zhang et al., v4 2026-04-19",
+   "url": "https://arxiv.org/abs/2503.03480",
+   "fetched": "2026-10-01"
+  }
+ },
+ "catalog_corrections": [
+  "iihs2024paeb: Version IV scores 30 valid runs per vehicle (night adult perpendicular 2 speeds x 2 beam settings x 3, day child 2 x 3, night adult parallel 2 x 2 x 3), not 36; the child scenario is daytime only.",
+  "fan2026safevlabench: v2 (2026-09-30) reports 27 policy-benchmark entries, 18-28% unsafe-episode rates and 38-56% of successful RoboCasa-365 rollouts violating; the catalogue has v1's 9 entries, 13-15% and 36-56%.",
+  "yin2026roboshackles: v2 full text gives 12,000 training clips and 1,200 evaluation clips; the abstract and catalogue say 10,000 clips.",
+  "zhang2026redvla: the ASR is produced in simulation (level 4); the Franka test is validation. The catalogue's level 7 records the validation fidelity level.",
+  "robey2024robopair: the RoboGuard paper's Table III gives attack cost in tokens (20,471-52,516 per attack, 15 queries); catalog.json records only 'token and query counts reported'.",
+  "yin2024safeagentbench: the catalogue's size field splits the 750 tasks as '450 detailed unsafe, 100 abstract unsafe, 200 safe'; the v5 full text has 450 hazardous tasks (300 detailed, 100 abstract, 50 long-horizon) and 300 safe tasks ('This dataset consists of 450 tasks with various safety hazard issues and 300 corresponding safe tasks as a control group'), fetched 2026-10-01."
+ ]
+}

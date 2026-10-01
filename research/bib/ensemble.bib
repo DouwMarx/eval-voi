@@ -1,0 +1,232 @@
+% research/bib/ensemble.bib
+% References for research/ensemble.md. arXiv metadata fetched from https://export.arxiv.org/api/query on 2026-09-30T19:13Z
+% and re-fetched 2026-10-01T05:53:55Z; every quoted number re-checked against the HTML full text at
+% https://arxiv.org/html/<id><version> on 2026-10-01T05:54:42Z. DOI records fetched from https://doi.org and
+% https://api.crossref.org on 2026-09-30 and re-fetched from https://api.crossref.org/works/<doi> on 2026-10-01T05:52:53Z.
+% Version fields record the arXiv version whose HTML full text was read for the quoted numbers.
+
+@misc{schoenegger2024wisdom,
+  title = {{Wisdom of the Silicon Crowd: LLM Ensemble Prediction Capabilities Rival Human Crowd Accuracy}},
+  author = {Philipp Schoenegger and Indre Tuminauskaite and Peter S. Park and Philip E. Tetlock},
+  year = {2024},
+  month = {02},
+  eprint = {2402.19379},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CY},
+  version = {2402.19379v6},
+  url = {https://arxiv.org/abs/2402.19379},
+  note = {Twelve-LLM crowd, 31 questions, 925 humans: LLM crowd Brier 0.20 (SD 0.12) vs human crowd 0.19 (SD 0.19), t(60)=0.19, p=0.850; vs 0.25 benchmark t(30)=-2.35, p=0.026. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{halawi2024approaching,
+  title = {{Approaching Human-Level Forecasting with Language Models}},
+  author = {Danny Halawi and Fred Zhang and Chen Yueh-Han and Jacob Steinhardt},
+  year = {2024},
+  month = {02},
+  eprint = {2402.18563},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2402.18563v1},
+  url = {https://arxiv.org/abs/2402.18563},
+  note = {Retrieval-augmented forecasting system, Brier 0.179 vs crowd 0.149; best base model GPT-4-1106-Preview 0.208; trimmed mean of base models 0.208. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{verga2024replacing,
+  title = {{Replacing Judges with Juries: Evaluating LLM Generations with a Panel of Diverse Models}},
+  author = {Pat Verga and Sebastian Hofstatter and Sophia Althammer and Yixuan Su and Aleksandra Piktus and Arkady Arkhangorodsky and Minjie Xu and Naomi White and Patrick Lewis},
+  year = {2024},
+  month = {04},
+  eprint = {2404.18796},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2404.18796v2},
+  url = {https://arxiv.org/abs/2404.18796},
+  note = {Panel of Command R, Haiku, GPT-3.5 beats GPT-4 judge on Cohen kappa with humans at USD 1.25/4.25 vs 10/30 per M tokens (seven to eight times cheaper). Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{li2025rethinking,
+  title = {{Rethinking Mixture-of-Agents: Is Mixing Different Large Language Models Beneficial?}},
+  author = {Wenzhe Li and Yong Lin and Mengzhou Xia and Chi Jin},
+  year = {2025},
+  month = {02},
+  eprint = {2502.00674},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2502.00674v1},
+  url = {https://arxiv.org/abs/2502.00674},
+  note = {Self-MoA (one best model repeated) beats Mixed-MoA by 6.6 points on AlpacaEval 2.0 and 3.8 percent on MMLU/CRUX/MATH; mixing helps only when member quality is similar. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{kim2025correlated,
+  title = {{Correlated Errors in Large Language Models}},
+  author = {Elliot Kim and Avi Garg and Kenny Peng and Nikhil Garg},
+  year = {2025},
+  month = {06},
+  eprint = {2506.07962},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2506.07962v1},
+  url = {https://arxiv.org/abs/2506.07962},
+  note = {349 + 71 + 20 LLMs; on Helm pairs agree 60 percent of the time when both err (chance 1/3); same provider, architecture, size and higher accuracy raise correlation. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{goel2025great,
+  title = {{Great Models Think Alike and this Undermines AI Oversight}},
+  author = {Shashwat Goel and Joschka Struber and Ilze Amanda Auzina and Karuna K Chandra and Ponnurangam Kumaraguru and Douwe Kiela and Ameya Prabhu and Matthias Bethge and Jonas Geiping},
+  year = {2025},
+  month = {02},
+  eprint = {2502.04313},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2502.04313v2},
+  url = {https://arxiv.org/abs/2502.04313},
+  note = {CAPA similarity metric; judge scores correlate with similarity (mean Pearson r 0.84); frontier-model mistakes become more similar as capability rises. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{li2024more,
+  title = {{More Agents Is All You Need}},
+  author = {Junyou Li and Qin Zhang and Yangbin Yu and Qiang Fu and Deheng Ye},
+  year = {2024},
+  month = {02},
+  eprint = {2402.05120},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2402.05120v2},
+  url = {https://arxiv.org/abs/2402.05120},
+  note = {Sampling-and-voting: Llama2-13B with 15 agents reaches 59 percent GSM8K vs Llama2-70B 54 percent; gains grow with task difficulty. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{brown2024monkeys,
+  title = {{Large Language Monkeys: Scaling Inference Compute with Repeated Sampling}},
+  author = {Bradley Brown and Jordan Juravsky and Ryan Ehrlich and Ronald Clark and Quoc V. Le and Christopher Ré and Azalia Mirhoseini},
+  year = {2024},
+  month = {07},
+  eprint = {2407.21787},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2407.21787v3},
+  url = {https://arxiv.org/abs/2407.21787},
+  note = {Coverage scales log-linearly with samples; SWE-bench Lite 15.9 to 56 percent with 250 samples; without a verifier, majority voting plateaus. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{wang2022selfconsistency,
+  title = {{Self-Consistency Improves Chain of Thought Reasoning in Language Models}},
+  author = {Xuezhi Wang and Jason Wei and Dale Schuurmans and Quoc Le and Ed Chi and Sharan Narang and Aakanksha Chowdhery and Denny Zhou},
+  year = {2022},
+  month = {03},
+  eprint = {2203.11171},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2203.11171v4},
+  url = {https://arxiv.org/abs/2203.11171},
+  note = {Self-consistency decoding: GSM8K +17.9, SVAMP +11.0, AQuA +12.2, StrategyQA +6.4, ARC-challenge +3.9 points. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{wang2024moa,
+  title = {{Mixture-of-Agents Enhances Large Language Model Capabilities}},
+  author = {Junlin Wang and Jue Wang and Ben Athiwaratkun and Ce Zhang and James Zou},
+  year = {2024},
+  month = {06},
+  eprint = {2406.04692},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2406.04692v1},
+  url = {https://arxiv.org/abs/2406.04692},
+  note = {Six open models from five developers in layers reach 65.1 percent AlpacaEval 2.0 vs 57.5 for GPT-4 Omni; collaborativeness phenomenon. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{karger2024forecastbench,
+  title = {{ForecastBench: A Dynamic Benchmark of AI Forecasting Capabilities}},
+  author = {Ezra Karger and Houtan Bastani and Chen Yueh-Han and Zachary Jacobs and Danny Halawi and Fred Zhang and Philip E. Tetlock},
+  year = {2024},
+  month = {09},
+  eprint = {2409.19839},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2409.19839v5},
+  url = {https://arxiv.org/abs/2409.19839},
+  note = {Superforecasters Brier 0.096, public 0.121, top LLM on the 200-item subset (Claude 3.5 Sonnet) 0.122, with access to crowd freeze values; three-model LLM ensemble baseline. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{zhou2024shared,
+  title = {{Shared Imagination: LLMs Hallucinate Alike}},
+  author = {Yilun Zhou and Caiming Xiong and Silvio Savarese and Chien-Sheng Wu},
+  year = {2024},
+  month = {07},
+  eprint = {2407.16604},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  version = {2407.16604v1},
+  url = {https://arxiv.org/abs/2407.16604},
+  note = {13 LLMs, four families answer each other invented questions at 54 percent (chance 25); same-family pairs agree most. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{chen2024more,
+  title = {{Are More LLM Calls All You Need? Towards Scaling Laws of Compound Inference Systems}},
+  author = {Lingjiao Chen and Jared Quincy Davis and Boris Hanin and Peter Bailis and Ion Stoica and Matei Zaharia and James Zou},
+  year = {2024},
+  month = {03},
+  eprint = {2403.02419},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.LG},
+  version = {2403.02419v2},
+  url = {https://arxiv.org/abs/2403.02419},
+  note = {Vote and Filter-Vote performance is non-monotone in the number of LM calls: more calls help easy queries and hurt hard ones. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@misc{schoenegger2023llm,
+  title = {{Large Language Model Prediction Capabilities: Evidence from a Real-World Forecasting Tournament}},
+  author = {Philipp Schoenegger and Peter S. Park},
+  year = {2023},
+  month = {10},
+  eprint = {2310.13014},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CY},
+  version = {2310.13014v1},
+  url = {https://arxiv.org/abs/2310.13014},
+  note = {GPT-4 alone in a Metaculus tournament: Brier 0.20 vs median human crowd 0.07; not better than the 0.25 no-information baseline. Fetched 2026-09-30, re-verified 2026-10-01.}
+}
+
+@article{clemen1985limits,
+  title = {{Limits for the Precision and Value of Information from Dependent Sources}},
+  author = {Clemen, Robert T. and Winkler, Robert L.},
+  journal = {Operations Research},
+  volume = {33},
+  number = {2},
+  pages = {427--442},
+  year = {1985},
+  month = {04},
+  publisher = {Institute for Operations Research and the Management Sciences (INFORMS)},
+  doi = {10.1287/opre.33.2.427},
+  url = {https://doi.org/10.1287/opre.33.2.427},
+  note = {Positive dependence among information sources reduces the precision and value of information; the limiting value with many dependent sources can be far below EVPI. Abstract via Crossref, fetched 2026-09-30, re-fetched 2026-10-01.}
+}
+
+@article{hong2004groups,
+  title = {{Groups of diverse problem solvers can outperform groups of high-ability problem solvers}},
+  author = {Hong, Lu and Page, Scott E.},
+  journal = {Proceedings of the National Academy of Sciences},
+  volume = {101},
+  number = {46},
+  pages = {16385--16389},
+  year = {2004},
+  month = {11},
+  publisher = {National Academy of Sciences},
+  doi = {10.1073/pnas.0403723101},
+  url = {https://doi.org/10.1073/pnas.0403723101},
+  note = {A randomly selected team of problem solvers outperforms the team of best performers when the pool is large, because the best performers become similar. Abstract via Crossref and Europe PMC (PMC528939), fetched 2026-09-30, re-fetched 2026-10-01.}
+}
+
+@article{clemen1989combining,
+  title = {{Combining forecasts: A review and annotated bibliography}},
+  author = {Clemen, Robert T.},
+  journal = {International Journal of Forecasting},
+  volume = {5},
+  number = {4},
+  pages = {559--583},
+  year = {1989},
+  publisher = {Elsevier BV},
+  doi = {10.1016/0169-2070(89)90012-5},
+  url = {https://doi.org/10.1016/0169-2070(89)90012-5},
+  note = {Standard review of forecast combination. Bibliographic record via Crossref (no abstract served), fetched 2026-09-30, re-fetched 2026-10-01; cited for the title only.}
+}
