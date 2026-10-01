@@ -11,7 +11,7 @@ from pathlib import Path
 
 from voi_rank import db
 
-DEFAULT_STUDY = "studies/business"
+DEFAULT_STUDY = "studies/safety-evals"
 
 
 @dataclass(frozen=True)

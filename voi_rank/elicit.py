@@ -611,6 +611,12 @@ def plan_jobs(con, study: Study, protocol_id: int, scenarios: str | None, k_over
     return members, plan_staged_jobs(con, study, prot, stages, members, selector, k_override, stage)
 
 
+def group_sort_key(value: str) -> tuple:
+    """Numeric group values (scenario ids under group_key 'self') in numeric
+    order, other values after them alphabetically."""
+    return (not value.isdigit(), int(value) if value.isdigit() else 0, value)
+
+
 def dry_run(prot, members, jobs, k_override: int | None = None, stage: str | None = None):
     """Render prompts and list pending slots per stage and member (over
     groups for the decision stage, scenarios for the instrument stage) and
@@ -631,7 +637,7 @@ def dry_run(prot, members, jobs, k_override: int | None = None, stage: str | Non
         for m in members:
             pending = [j for j in sjobs if db.member_label(j["member"]) == db.member_label(m)]
             if grouped:
-                units = sorted({j["group"] for j in pending})
+                units = sorted({j["group"] for j in pending}, key=group_sort_key)
                 where = f"{len(units)} groups" + (f" ({', '.join(units)})" if units else "")
             else:
                 sids = sorted({j["scenario_id"] for j in pending})
