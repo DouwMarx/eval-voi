@@ -1,0 +1,250 @@
+"""The analysis (voi_rank.analysis): the group statistics on hand-built
+cases, then the whole output set on a synthetic two-group study elicited
+by a fake provider (figures, tables that compile, macros that parse, the
+replay check and the developer-perspective ablation)."""
+
+from __future__ import annotations
+
+import re
+import subprocess
+
+import numpy as np
+import pytest
+import yaml
+from scipy import stats
+
+from tests.test_staged import HAIKU, SONNET, StagedFake, build, protocol
+from voi_rank import db, elicit, mc
+from voi_rank.analysis import __main__ as cli
+from voi_rank.analysis import macros, summary
+from voi_rank.analysis.summary import (
+    LLM,
+    PHYS,
+    mann_whitney_p,
+    pairwise_share,
+    percentile_among,
+    percentile_curve,
+    ranks_desc,
+)
+
+# --- hand-built cases ---------------------------------------------------------------
+
+
+def test_pairwise_share_is_one_when_every_physical_beats_every_llm():
+    phys, llm = np.array([5.0, 6.0, 9.0]), np.array([0.0, 1.0, 2.0, 4.9])
+    assert pairwise_share(phys, llm) == 1.0
+    assert pairwise_share(llm, phys) == 0.0
+    draws_p = np.tile(phys[:, None], (1, 4)) + np.arange(4)
+    draws_l = np.tile(llm[:, None], (1, 4))
+    assert np.all(pairwise_share(draws_p, draws_l) == 1.0)
+    # ties count half: identical groups give one half
+    assert pairwise_share(np.zeros(3), np.zeros(5)) == 0.5
+
+
+def test_pairwise_share_equals_mann_whitney_u_and_the_p_value_is_scipys():
+    rng = np.random.default_rng(0)
+    a = np.round(rng.lognormal(0, 1, 7), 1)
+    b = np.concatenate([np.zeros(3), np.round(rng.lognormal(0, 1, 9), 1)])
+    res = stats.mannwhitneyu(a, b, alternative="two-sided", method="exact")
+    assert pairwise_share(a, b) == pytest.approx(res.statistic / (len(a) * len(b)))
+    assert mann_whitney_p(a, b) == pytest.approx(res.pvalue)
+    assert mann_whitney_p([], b) is None
+
+
+def test_percentile_curve_is_monotone_non_increasing_in_q():
+    rng = np.random.default_rng(1)
+    a = np.where(rng.random((6, 300)) < 0.3, 0.0, rng.lognormal(0, 2, (6, 300)))
+    b = np.where(rng.random((11, 300)) < 0.4, 0.0, rng.lognormal(0, 2, (11, 300)))
+    curve = percentile_curve(a, b)
+    assert curve.shape == (101, 300)
+    assert np.all(np.diff(curve, axis=0) <= 1e-12)
+    central = percentile_curve(a[:, 0], b[:, 0])
+    assert np.all(np.diff(central) <= 1e-12) and np.allclose(central, curve[:, 0])
+    # all above every LLM value: the curve is 1 everywhere
+    assert np.all(percentile_curve(np.full(3, 10.0), np.arange(5.0)) == 1.0)
+
+
+def test_percentile_among_counts_ties_half():
+    pct = percentile_among(np.array([0.0, 3.0, 10.0]), np.array([0.0, 1.0, 2.0, 3.0]))
+    assert pct.tolist() == [12.5, 87.5, 100.0]
+
+
+def test_rank_intervals_of_a_dominant_scenario():
+    rng = np.random.default_rng(2)
+    eta = rng.lognormal(0, 1, (5, 1000))
+    eta[2] = 1e6 * (1 + rng.random(1000))
+    eta[4] = 0.0
+    eta[3] = 0.0
+    ranks = ranks_desc(eta, axis=0)
+    q = np.quantile(ranks, summary.QS, axis=1).T
+    assert q[2].tolist() == [1.0, 1.0, 1.0]
+    assert np.all(ranks[3] == 4.5) and np.all(ranks[4] == 4.5)   # tied zeros share 4 and 5
+
+
+def test_macro_formats():
+    assert macros.pct(0.534) == r"53\%" and macros.pct(0.0123) == r"1.2\%" and macros.pct(1.0) == r"100\%"
+    assert macros.usd(12345) == r"\$12k" and macros.usd(1.234e6) == r"\$1.2M" and macros.usd(850) == r"\$850"
+    assert macros.usd(123456) == r"\$123k" and macros.usd(999_999) == r"\$1M"
+    assert macros.num(0.0456) == "0.046" and macros.num(1.5e7) == r"\ensuremath{1.5\times10^{7}}"
+    assert macros.num(np.inf) == r"\ensuremath{\infty}" and macros.num(None) == "--"
+    assert macros.camel("asimov2") == "AsimovTwo" and macros.camel("C_build") == "CBuild"
+
+
+# --- the synthetic study ---------------------------------------------------------------
+
+def two_group_scenarios() -> list[dict]:
+    out = []
+    for i in range(4):
+        out.append({"title": f"Physical evaluation {i}", "agent": "Robotics lead",
+                    "decision": f"Ship robot {i}",
+                    "theta_definition": f"theta=1: robot {i} injures", "instrument": f"Track test {i}",
+                    "decision_context": f"Robot facts {i}.", "instrument_context": f"Test facts {i}.",
+                    "group": "physical AI", "key": f"robo_{i}",
+                    "attributes": {"level": [1, 3, 5, 8][i], "risk_domain": "physical"}})
+    for i in range(5):
+        out.append({"title": f"LLM evaluation {i}", "agent": "Release lead", "decision": f"Release model {i}",
+                    "theta_definition": f"theta=1: model {i} uplifts", "instrument": f"Benchmark {i}",
+                    "decision_context": f"Model facts {i}.", "instrument_context": f"Benchmark facts {i}.",
+                    "group": "frontier model" if i == 0 else "LLM",   # the drafts' older label
+                    "attributes": {"level": None, "risk_domain": "cbrn" if i % 2 else "cyber",
+                                   "eval_family": f"Bench{i} (lab)"}})
+    return out
+
+
+DRAWS = 3000
+
+
+@pytest.fixture
+def elicited(tmp_path, monkeypatch):
+    study = build(tmp_path, two_group_scenarios())
+    fake = StagedFake()
+    monkeypatch.setattr(elicit, "get_provider", lambda name: fake)
+    elicit.main(["--study", str(study.root), "--protocol", "pS", "--k", "1", "--yes"])
+    dev = protocol("pD", "self")
+    dev["template_vars"]["perspective"] = "developer"
+    (study.protocols_dir / "pD.yaml").write_text(yaml.safe_dump(dev))
+    elicit.main(["--study", str(study.root), "--protocol", "pD", "--k", "1", "--yes", "--stage", "decision",
+                 "--members", HAIKU])
+    con = study.connect()
+    run_id = mc.run_mc(con, "pS", seed=7, n_draws=DRAWS, quiet=True)
+    con.close()
+    return study, run_id
+
+
+def test_summary_matches_the_run_and_the_central_estimate(elicited):
+    study, run_id = elicited
+    con = study.connect_copy()
+    s = summary.load(con, "pS")
+    assert s.run["id"] == run_id and s.run["verified"] and s.draws["eta"].shape == (9, DRAWS)
+    assert [sc.group for sc in s.scenarios] == [PHYS] * 4 + [LLM] * 5
+    assert s.member_labels == [HAIKU, SONNET]
+    pid = db.protocol_by_name(con, "pS")["id"]
+    for i, sc in enumerate(s.scenarios):
+        want = mc.central_estimate(con, pid, sc.id)
+        assert s.central["eta"][i] == pytest.approx(want["eta"])
+        assert s.central["n_star"][i] == pytest.approx(want["n_star"])
+        stored = con.execute("SELECT q50 FROM results WHERE run_id=? AND scenario_id=? AND metric='eta'",
+                             (run_id, sc.id)).fetchone()[0]
+        assert float(np.median(s.draws["eta"][i])) == pytest.approx(stored)
+    g = s.out["groups"]["eta"]
+    phys, llm = s.ids_in(PHYS), s.ids_in(LLM)
+    assert g["A_central"] == pytest.approx(pairwise_share(s.central["eta"][phys], s.central["eta"][llm]))
+    assert g["mw_p"] == pytest.approx(stats.mannwhitneyu(s.central["eta"][phys], s.central["eta"][llm],
+                                                         method="exact").pvalue)
+    assert g["A_q"][0] <= g["A_q"][1] <= g["A_q"][2]
+    lo, med, hi = s.out["curve_q"].T
+    assert np.all(lo <= med) and np.all(med <= hi) and np.all(np.diff(med) <= 1e-12)
+    assert s.out["pct_draws"].shape == (4, DRAWS)
+    assert len(s.out["level_ids"]) == 4 and s.out["level_rho_J"] is not None
+    assert set(s.out["mean_abs_rho"]) == set(db.PARAM_NAMES)
+    h = {r["member"]: r for r in s.health}
+    assert h[HAIKU]["attempts"] == 18 and h[HAIKU]["valid"] == 18 and h[HAIKU]["usd"] == pytest.approx(0.18)
+    # subsampled draws are the first N of the verified full set
+    sub = summary.load(con, "pS", draws=500)
+    assert np.array_equal(sub.draws["eta"], s.draws["eta"][:, :500])
+
+
+def test_replay_mismatch_is_refused_and_invalid_rows_are_counted(elicited):
+    study, _ = elicited
+    con = study.connect()
+    pid = db.protocol_by_name(con, "pS")["id"]
+    for err in ("refusal: I can't help", "json: result parse failed", "fit: x", "http: status 500"):
+        db.insert_elicitation(con, 1, pid, "claude_cli", "sonnet", 9, "h", "{}", False, err, "instrument")
+    con.commit()
+    h = {r["member"]: r for r in summary.load(con, "pS").health}[SONNET]
+    assert (h["refusal"], h["json"], h["other"], h["http"], h["attempts"]) == (1, 1, 1, 1, 22)
+    eid = con.execute("SELECT id FROM elicitations WHERE protocol_id=? AND valid=1 AND stage='instrument'"
+                      " ORDER BY id LIMIT 1", (pid,)).fetchone()[0]
+    con.execute("UPDATE elicitations SET valid=0, error='other: test' WHERE id=?", (eid,))
+    con.commit()
+    with pytest.raises(RuntimeError, match="replay mismatch"):
+        summary.load(con, "pS")
+
+
+def _compile(tmp_path, body: str, name: str):
+    doc = tmp_path / f"{name}.tex"
+    doc.write_text("\\documentclass{article}\n\\usepackage{booktabs}\n\\begin{document}\n"
+                   + body + "\n\\end{document}\n")
+    res = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", doc.name],
+                         cwd=tmp_path, capture_output=True, text=True, timeout=120)
+    assert res.returncode == 0, res.stdout[-2000:]
+
+
+def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys):
+    study, _ = elicited
+    cli.main(["--study", str(study.root), "--protocol", "pS", "--draws", "2000"])
+    out = study.generated_dir
+    names = {p.name for p in out.iterdir()}
+    want = {"fig_headline.pdf", "fig_indifference.pdf", "fig_percentile_violins.pdf",
+            "fig_rank_intervals.pdf", "fig_breakeven.pdf", "fig_params.pdf", "fig_sensitivity.pdf",
+            "fig_level.pdf", "fig_members.pdf",
+            "tab_scenarios.tex", "tab_headline.tex", "tab_health.tex", "macros.tex", "summary.json"}
+    assert want <= names
+    for name in want:
+        if name.endswith(".pdf"):
+            assert (out / name).read_bytes()[:5] == b"%PDF-"
+    lines = (out / "macros.tex").read_text().splitlines()
+    cmds = [line for line in lines if not line.startswith("%")]
+    pat = re.compile(r"^\\newcommand\{\\voi([A-Za-z]+)\}\{(.*)\}$")
+    parsed = [pat.match(c) for c in cmds]
+    assert all(parsed), [c for c, m in zip(cmds, parsed, strict=True) if not m]
+    names_ = [m.group(1) for m in parsed]
+    assert len(names_) == len(set(names_))
+    assert {"EtaACentral", "EtaMWp", "CurveMedFifty", "PctRoboZeroCentral", "USD",
+            "InvalidRefusal"} <= set(names_)
+    body = ("\\input{macros.tex}\n" + "\n".join(f"\\voi{n}\\par" for n in names_)
+            + "\n" + "\n".join(f"\\input{{{t}}}" for t in ("tab_scenarios", "tab_headline", "tab_health")))
+    for f in ("macros.tex", "tab_scenarios.tex", "tab_headline.tex", "tab_health.tex"):
+        (tmp_path / f).write_text((out / f).read_text())
+    _compile(tmp_path, body, "check")
+    # the run is deterministic: a second run writes byte-identical outputs
+    before = {n: (out / n).read_bytes() for n in want}
+    cli.main(["--study", str(study.root), "--protocol", "pS", "--draws", "2000"])
+    assert all((out / n).read_bytes() == before[n] for n in want)
+
+
+def test_developer_ablation_is_tagged_and_takes_p_b_k_from_the_other_protocol(elicited):
+    study, _ = elicited
+    cli.main(["--study", str(study.root), "--protocol", "pS", "--decision-from", "pD", "--tag", "dev",
+              "--draws", "1000"])
+    text = (study.generated_dir / "dev" / "macros.tex").read_text()
+    assert "\\newcommand{\\voidevEtaACentral}" in text and "\\newcommand{\\voiEta" not in text
+    con = study.connect_copy()
+    s = summary.load(con, "pS", decision_from="pD")
+    head = summary.load(con, "pS")
+    pD = db.protocol_by_name(con, "pD")["id"]
+    assert not s.run["verified"]
+    assert s.pooled["p"][0] == pytest.approx(float(np.median(db.elicited_p50s(con, pD, 1, "p"))))
+    assert np.array_equal(s.pooled["s"], head.pooled["s"])
+    assert not np.array_equal(s.pooled["p"], head.pooled["p"])
+    assert {r["member"] for r in s.health} == {HAIKU, SONNET}
+    with pytest.raises(SystemExit, match="letters only"):
+        cli.main(["--study", str(study.root), "--protocol", "pS", "--tag", "dev2"])
+
+
+def test_optional_ablation_without_data_is_skipped(elicited, capsys):
+    study, _ = elicited
+    cli.main(["--study", str(study.root), "--protocol", "pS", "--decision-from", "p999", "--optional",
+              "--tag", "dev"])
+    assert "skipped" in capsys.readouterr().out
+    assert not (study.generated_dir / "dev").exists()
