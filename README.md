@@ -102,8 +102,14 @@ eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
    prompt) runs as `--decision-from p002 --tag dev`: p, B, K from p002, the
    other five parameters from the headline run, written to
    `report/generated/dev/` with macros `\voidev...`; regen skips it while
-   p002 has no valid decision elicitations. The report
-   (`studies/safety-evals/report/`) does not exist yet.
+   p002 has no valid decision elicitations.
+6. `scripts/build_paper.sh studies/safety-evals` builds the paper
+   (`report/main.pdf`) from `report/generated/` (run step 5 first) and fails
+   on an undefined citation or reference or a body over 4 pages;
+   `scripts/build_paper.sh studies/safety-evals/report/extended` builds the
+   extended report (no page limit). Before LaTeX, `report/build_refs.py`
+   rewrites `report/refs.bib` from the cited keys and fails on a key without a
+   DOI, arXiv id or URL. The PDFs are build products and are not committed.
 
 ## Protocols
 

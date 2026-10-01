@@ -125,6 +125,7 @@ def test_macro_formats():
     assert macros.pct(0.534) == r"53\%" and macros.pct(0.0123) == r"1.2\%" and macros.pct(1.0) == r"100\%"
     assert macros.usd(12345) == r"\$12k" and macros.usd(1.234e6) == r"\$1.2M" and macros.usd(850) == r"\$850"
     assert macros.usd(123456) == r"\$123k" and macros.usd(999_999) == r"\$1M"
+    assert macros.num(1026) == "1000" and macros.num(283) == "280"
     assert macros.num(0.0456) == "0.046" and macros.num(1.5e7) == r"\ensuremath{1.5\times10^{7}}"
     assert macros.num(np.inf) == r"\ensuremath{\infty}" and macros.num(None) == "--"
     assert macros.camel("asimov2") == "AsimovTwo" and macros.camel("C_build") == "CBuild"

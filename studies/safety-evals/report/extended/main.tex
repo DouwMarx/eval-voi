@@ -69,7 +69,7 @@ Every figure below is written by the same analysis run as the paper's Figure~\re
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.62\linewidth]{fig_indifference.pdf}
-  \caption{The maximum EVSI $\EVSImax$, the value of one run to a developer on the fence (prior equal to the threshold), against cost $C$. It is smooth in every input, so no evaluation sits on the zero row.}
+  \caption{The maximum EVSI $\EVSImax$, the value of one run to a developer whose prior equals the threshold, against cost $C$. It is smooth in every input, so no evaluation sits on the zero row.}
   \label{fig:indifference}
 \end{figure}
 \candidate{it removes the threshold from the comparison. A reader who doubts the elicited prior and stakes can still compare the evaluations' discriminating power per dollar, and no evaluation is hidden on a zero row.}
@@ -80,7 +80,7 @@ Every figure below is written by the same analysis run as the paper's Figure~\re
   \caption{Per physical-AI evaluation, the distribution over Monte Carlo draws of its percentile among the LLM evaluations by $\eta$ (0: below every LLM evaluation, 100: above every one). Bar: median over draws; diamond: central estimate.}
   \label{fig:violins}
 \end{figure}
-\candidate{it answers the per-evaluation version of the headline question ("which LLM evaluation is this one as good as?") and shows its uncertainty at a glance.}
+\candidate{it answers the per-evaluation version of the headline question ("which LLM evaluation is this one as good as?") and shows its uncertainty in one row per evaluation.}
 
 \begin{figure}[!htbp]
   \centering
@@ -181,7 +181,7 @@ Removing the build cost does not lift the physical-AI evaluations, consistent wi
 
 \emph{Sensitivity.} Averaged over evaluations, the absolute Spearman correlation of each parameter's draws with $\eta$ is \voiRhoP{} for $p$, \voiRhoS{} for $s$, \voiRhoT{} for $t$, \voiRhoB{} for $B$, \voiRhoK{} for $K$, \voiRhoCBuild{} for $C_\mathrm{build}$, \voiRhoCRun{} for $C_\mathrm{run}$ and \voiRhoN{} for $n$ ($n$ does not enter $\eta$; its row checks that the draws are independent).
 
-\emph{Planned ablations, not yet run.} Numeric anchors in the prompts (the template has an optional block, empty in the headline); the context mode (curated facts only, facts plus source abstracts, facts plus full source text); drawing whole elicitations instead of independent parameters, which keeps each member's story coherent; and the number of evaluations per group.
+\emph{Planned ablations, not yet run.} Numeric anchors in the prompts (the template has an optional block, empty in the headline); the context mode (curated facts only, facts plus source abstracts, facts plus full source text); drawing whole elicitations instead of independent parameters, which keeps each member's parameters together; and the number of evaluations per group.
 
 %===============================================================================
 \FloatBarrier
@@ -189,6 +189,8 @@ Removing the build cost does not lift the physical-AI evaluations, consistent wi
 \label{sec:elicitation}
 
 \emph{Prompts.} Each evaluation gets two prompts, rendered from the two templates below. The decision prompt fills in the agent, the decision, the definition of $\theta$ and the decision facts; it never describes the evaluation. The instrument prompt fills in the evaluation's title, agent, decision, definition of $\theta$, the instrument and the instrument facts; it never states $p$, $B$ or $K$. The two are separate calls because a single prompt lets the instrument text move the elicited prior. The perspective (society or developer) is a template variable set by the protocol. The facts are sentences taken from the cited sources, each traceable to a cached copy of its source text.
+
+\emph{Where the facts come from.} The decision and instrument facts were written and checked by language-model agents, not by hand (research/scenarios\_draft/PROVENANCE.md in the repository, with every prompt verbatim). The model was Claude Fable 5.1, run as Claude Code subagents that could fetch web pages and read the repository, before any elicitation existed. One agent ranked the candidate evaluations by the stated inclusion rules, a second verified every citation and number in the ranking, and a third fixed what it found. For each evaluation, one agent fetched the primary sources, cached their full text and wrote a cited decision paragraph and a cited instrument paragraph of 120 to 250 words each. A separate agent checked every sentence against the cached text and the separation rule (no instrument facts in the decision paragraph, no stakes in the instrument paragraph), and a third fixed what it found. A final agent checked all 39 evaluations together for consistency. A script then removes the citation markers and writes the scenarios the prompts render. This guarantees that every sentence an elicitor reads traces to a cached source and was checked by a second agent. It does not guarantee a neutral selection: an agent chose which facts to include within the word limit. For that reason the final ensemble (Section~\ref{sec:final}) has no Anthropic model: Anthropic develops the curating model, and three of the LLM evaluations (Petri, Bloom and the agentic misalignment scenarios) are Anthropic's own, so an Anthropic member would let one developer's models both select the facts and price that developer's own evaluations.
 
 \emph{Order and format.} Per parameter, the member writes a short reasoning paragraph, then the 5th and 95th percentiles as exclusion questions ("a value you would be surprised to see the true value fall below or above"), then the median. Extremes first is standard practice against anchoring on the best guess~\citep{ohagan2006uncertain}. Numbers are plain decimals; the parser also reads scientific notation.
 
@@ -337,7 +339,7 @@ Each objection is stated as a reviewer would put it, followed by our answer.
 \section{What the pilots found}
 \label{sec:pilots}
 
-Two pilot studies preceded this one, with fewer evaluations and members from a single developer. The first priced ten LLM and five physical-AI evaluations. Its ranking by maximum EVSI per dollar was stable across members, but mostly because the members agreed on the stakes of the decisions; whether a single result could change the decision varied between members. With five physical-AI evaluations it could not place the groups. The second priced evaluations of increasing fidelity for two fixed decisions. A single prompt let the instrument description move the elicited prior; separate decision and instrument prompts removed that effect. Its maximum EVSI per dollar fell with fidelity level on both decisions. This study adopts both lessons: separate prompts, more evaluations per group, members from several developers, and fidelity as one discussion point.
+Two pilot studies preceded this one, with fewer evaluations and members from a single developer. The first priced ten LLM and five physical-AI evaluations. Its ranking by maximum EVSI per dollar was stable across members, but mostly because the members agreed on the stakes of the decisions; whether a single result could change the decision varied between members. With five physical-AI evaluations it could not place the groups. The second priced evaluations of increasing fidelity for two fixed decisions. A single prompt let the instrument description move the elicited prior; separate decision and instrument prompts removed that effect. Its maximum EVSI per dollar fell with fidelity level on both decisions. This study adopts both lessons: separate prompts, more evaluations per group, members from several developers in the final run, and fidelity as one discussion point.
 
 %===============================================================================
 \FloatBarrier

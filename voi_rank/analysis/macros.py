@@ -60,12 +60,10 @@ def missing(v) -> bool:
 
 def sig(v: float, digits: int = 2) -> str:
     """v rounded to `digits` significant figures, printed without exponent
-    (integer digits are kept: 123 stays 123)."""
+    (1026 prints as 1000: the inputs are elicited, so more digits are noise)."""
     if v == 0:
         return "0"
     r = float(f"{v:.{digits}g}")
-    if abs(r) >= 10 ** digits:
-        r = round(v)
     text = np.format_float_positional(r, trim="-")
     return text
 
