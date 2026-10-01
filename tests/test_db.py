@@ -115,7 +115,7 @@ def test_seed_scenarios_idempotent_with_v2_fields(tmp_path):
         "title": "A", "agent": "a", "decision": "d", "theta_definition": "t",
         "instrument": "i", "decision_context": "decision facts", "instrument_context": "instrument facts",
         "decision_facts": "decision facts", "instrument_facts": "instrument facts", "sources": sources,
-        "domain_tags": ["x"], "group": "frontier model", "attributes": {"level": 2, "keys": ["k"]},
+        "domain_tags": ["x"], "group": "LLM", "attributes": {"level": 2, "keys": ["k"]},
     }, {"title": "B", "agent": "a", "decision": "d", "theta_definition": "t", "instrument": "i",
         "context": "the pilots' single facts block"}]))
     assert db.seed_scenarios(con, scen) == 2
@@ -124,7 +124,7 @@ def test_seed_scenarios_idempotent_with_v2_fields(tmp_path):
     assert len(rows) == 2
     a = rows[0]
     assert a["decision_context"] == "decision facts" and a["instrument_context"] == "instrument facts"
-    assert json.loads(a["sources"]) == sources and a["context"] is None and a["grp"] == "frontier model"
+    assert json.loads(a["sources"]) == sources and a["context"] is None and a["grp"] == "LLM"
     assert db.scenario_attributes(a) == {"level": 2, "keys": ["k"]}
     assert json.loads(a["raw_json"])["decision_facts"] == "decision facts"   # raw_json keeps everything
     b = rows[1]

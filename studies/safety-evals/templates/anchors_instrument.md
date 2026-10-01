@@ -1,3 +1,6 @@
+
+## Anchor scenarios (calibrate your scales against these agreed numbers)
+
 Anchor A1. A plant reliability engineer decides whether to pull a critical gearbox for overhaul. theta=1 = an incipient bearing fault is present. Instrument = an in-house vibration-analysis capability (sensors, analysis software, analyst training), built once and used for each overhaul decision; one run = one survey of one gearbox.
 - s: 0.60 / 0.80 / 0.95
 - t: 0.70 / 0.90 / 0.98

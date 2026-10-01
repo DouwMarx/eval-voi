@@ -1,4 +1,4 @@
-name: p001
+name: p002
 stages:
   - name: decision
     template_path: templates/decision.md       # renders $agent $decision $theta_definition $decision_context
@@ -8,7 +8,7 @@ stages:
     template_path: templates/instrument.md     # renders the scenario and $context (instrument_context)
     params: [s, t, C_build, C_run, n]
 template_vars:
-  perspective: society
+  perspective: developer
   # no worked numeric anchors in the headline (research/elicitation_lit.md implication 2).
   # templates/anchors_*.md are kept for an anchors ablation; the C_build, C_run and n
   # triples in templates/anchors_instrument.md are stylised placeholders, not sourced.
@@ -23,10 +23,9 @@ members:
     model: sonnet
     k_repeats: 2
 notes: >
-  Headline iteration protocol (DESIGN sections 3 and 4) on the 39 scenarios
-  built from research/scenarios_draft/ by scripts/build_scenarios.py: the
-  eight-parameter model elicited in two independent prompts per scenario,
-  B and K from the society perspective, no numeric anchors, curated context
-  (the facts fields without their citation markers), extremes-first
-  percentiles and plain decimal numbers. Members and k are the iteration
-  pair; the final run uses OpenRouter members with a dedicated key.
+  Developer-perspective ablation of p001: identical except that B and K are
+  valued from the developer perspective (the developer's own financial
+  exposure: liability, recall, reputation, lost revenue, delay). Run it with
+  --stage decision only; the analysis takes the instrument parameters
+  (s, t, C_build, C_run, n) from p001, whose instrument prompt does not
+  depend on the perspective.

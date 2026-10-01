@@ -23,11 +23,12 @@ lab notebook.
 ```
 voi_rank/              model, fit, mc, db, study, elicit, validate, sensitivity, dotenv,
                        providers/{claude_cli, openrouter}
-studies/safety-evals/  scenarios.json, protocols/, templates/, SCENARIOS_TODO.md (voi.db and report/ later)
-research/              literature catalogue, refs.bib, system-card mining
+studies/safety-evals/  scenarios.json, protocols/, templates/ (voi.db and report/ later)
+research/              literature catalogue, refs.bib, system-card mining, scenarios_draft/ (the 39
+                       fact-checked scenario drafts), sources/ (cached source texts)
 archive/               business/ (the external chapter reads its voi.db) and pilots/ (frozen at tag
                        pilot-2026-09-30; read-only, not re-runnable by the current code)
-scripts/               build_paper.sh, check_pages.py
+scripts/               build_scenarios.py, build_paper.sh, check_pages.py
 docs/                  DESIGN.md, QUESTIONS.md
 ```
 
@@ -38,11 +39,14 @@ response, fit, run and result). `--study` defaults to `studies/safety-evals`.
 
 `scenarios.json` is a list of objects (DESIGN section 5): `title, agent,
 decision, theta_definition, instrument` (required), `group` ("physical AI" |
-"frontier model"), `attributes` {risk_domain, level, eval_family, ...},
-`sources` (list of {key, kind, ref, role}), `decision_facts`,
-`instrument_facts`, `decision_context` (rendered by the decision prompt),
-`instrument_context` (rendered as `$context` by the instrument prompt),
-`domain_tags`. The whole entry is stored as `raw_json`.
+"LLM"), `attributes` {risk_domain, level, eval_family, ...},
+`sources` (list of {key, kind, ref, role, title, fetched}), `decision_facts`,
+`instrument_facts` (curated sentences with [key] citations), `decision_context`
+(rendered by the decision prompt), `instrument_context` (rendered as `$context`
+by the instrument prompt). The whole entry is stored as `raw_json`. The file is
+generated: `uv run python scripts/build_scenarios.py` rebuilds it from
+`research/scenarios_draft/*.json` (the context fields are the facts without
+their citation markers); edit the drafts, not the file.
 
 ## The model (DESIGN section 3)
 
@@ -63,9 +67,7 @@ eta_run = EVSI/C_run, net_n = n EVSI - C_build - n C_run, eta_n = n EVSI /
    member, the cost estimate (from the members' stored attempt costs,
    `unknown` without history) and the first rendered prompt of each stage;
    nothing is called or written, not even `voi.db`. It warns when a planned
-   prompt would render an empty scenario field (p001's decision prompt
-   renders `decision_context`, empty until `decision_facts` are written:
-   `SCENARIOS_TODO.md`). `--stage
+   prompt would render an empty scenario field. `--stage
    decision|instrument` plans one stage, `--k N` overrides every member's
    repeats, `--members a:b,c:d` restricts the members, `--scenarios
    all|seed|1,2,3` the scenarios.
@@ -105,7 +107,7 @@ stages:
     params: [s, t, C_build, C_run, n]
 template_vars:                          # substituted into both templates
   perspective: society                  # society | developer
-  anchors_decision: '@file:templates/anchors_decision.md'   # '@file:' inlines a study file
+  anchors_decision: '@file:templates/anchors_decision.md'   # '@file:' inlines a study file; '' = none (p001)
   anchors_instrument: '@file:templates/anchors_instrument.md'
   context_mode: curated
 members:

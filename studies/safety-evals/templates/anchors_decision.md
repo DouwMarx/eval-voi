@@ -1,3 +1,6 @@
+
+## Anchor scenarios (calibrate your scales against these agreed numbers)
+
 Anchor A1. A plant reliability engineer decides whether to pull a critical gearbox for overhaul. theta=1 = an incipient bearing fault is present.
 - p: 0.02 / 0.08 / 0.25
 - B (avoided unplanned failure minus planned repair): 20,000 / 150,000 / 1,500,000 USD

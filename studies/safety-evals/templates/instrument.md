@@ -13,11 +13,7 @@ The five parameters you elicit:
 - n: the number of distinct release decisions the built evaluation will inform over its useful life (model releases, product versions, calibrations), counting the one at hand; at least 1.
 
 USD amounts are totals for this evaluation, not market sizes or annual budgets.
-
-## Anchor scenarios (calibrate your scales against these agreed numbers)
-
 $anchors_instrument
-
 ## Scenario to elicit
 
 - Title: $title
@@ -35,8 +31,13 @@ Use these facts. Your reasoning and your numbers must not contradict them; where
 ## Instructions
 
 For each of the five parameters, in the order s, t, C_build, C_run, n:
-1. First write a short paragraph of reasoning (2-4 sentences): what drives this quantity for THIS evaluation, referencing the background facts, base rates or typical magnitudes where you can.
-2. Then commit to three percentiles p5, p50, p95. Read them as: p50 is your median estimate; you would be genuinely surprised if the true value fell outside [p5, p95]. They must be strictly increasing: p5 < p50 < p95. s and t are probabilities in (0, 1); C_build and C_run are USD amounts and n a count, written as plain numbers or in scientific notation (2.5e5).
+1. First write a short paragraph of reasoning (2-4 sentences): what drives this quantity for THIS evaluation, referencing the background facts, base rates or typical magnitudes where you can. For C_build, C_run and n, say which power of ten the amount falls in and why.
+2. Then commit to three percentiles, extremes first:
+   - p5: a value you would be surprised to see the true value fall below.
+   - p95: a value you would be surprised to see the true value fall above.
+   - p50: your median, the value the true value is equally likely to fall above or below.
+   The range from p5 to p95 is a 90% interval only if you would be wrong about it one time in ten; make it that wide. The three must be strictly increasing: p5 < p50 < p95.
+3. Write every number as a plain decimal number, digits only (0.03, 0.85, 1500000): no thousands separators, units or currency signs. s and t are probabilities strictly between 0 and 1; C_build and C_run are USD amounts; n is a count.
 
 Remember for s, t: they describe THIS evaluation's ability to flag the state defined above, given that the state is what it is; a free substitute for the evaluation does not belong here (it is accounted for separately). The median s must exceed 1 minus the median t (the evaluation must be informative).
 Remember for C_build: build from scratch, before the first run. For C_run: one run against one system, the marginal cost of a repeat. For n: distinct release decisions over the evaluation's life, median at least 1.
@@ -47,10 +48,10 @@ Output strict JSON only. No markdown fences, no prose outside the JSON. Exactly 
 
 {
   "parameters": {
-    "s": {"reasoning": "...", "p5": 0.0, "p50": 0.0, "p95": 0.0},
-    "t": {"reasoning": "...", "p5": 0.0, "p50": 0.0, "p95": 0.0},
-    "C_build": {"reasoning": "...", "p5": 0.0, "p50": 0.0, "p95": 0.0},
-    "C_run": {"reasoning": "...", "p5": 0.0, "p50": 0.0, "p95": 0.0},
-    "n": {"reasoning": "...", "p5": 0.0, "p50": 0.0, "p95": 0.0}
+    "s": {"reasoning": "...", "p5": 0.0, "p95": 0.0, "p50": 0.0},
+    "t": {"reasoning": "...", "p5": 0.0, "p95": 0.0, "p50": 0.0},
+    "C_build": {"reasoning": "...", "p5": 0.0, "p95": 0.0, "p50": 0.0},
+    "C_run": {"reasoning": "...", "p5": 0.0, "p95": 0.0, "p50": 0.0},
+    "n": {"reasoning": "...", "p5": 0.0, "p95": 0.0, "p50": 0.0}
   }
 }

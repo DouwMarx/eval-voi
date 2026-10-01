@@ -1,12 +1,16 @@
-"""The committed study studies/safety-evals: the scenario file follows the
-DESIGN section 5 schema, the templates respect the two prompts' separation
-(DESIGN section 4), and the documented dry run plans both stages and renders
-the first prompt of each without a provider call or a voi.db."""
+"""The committed study studies/safety-evals: the scenario file is the build of
+the 39 fact-checked drafts and follows the DESIGN section 5 schema, the
+templates respect the two prompts' separation (DESIGN section 4), the
+protocols are the headline (p001) and the developer-perspective ablation
+(p002), and the documented dry run plans both stages and renders the first
+prompt of each without a provider call or a voi.db."""
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
+import string
 from pathlib import Path
 
 import pytest
@@ -18,9 +22,29 @@ from voi_rank.fit import DECISION_PARAMS, INSTRUMENT_PARAMS
 
 ROOT = Path(__file__).resolve().parent.parent
 STUDY = ROOT / "studies" / "safety-evals"
+DRAFTS = ROOT / "research" / "scenarios_draft"
 SCENARIO_KEYS = {"title", "agent", "decision", "theta_definition", "instrument", "group", "attributes",
-                 "sources", "decision_facts", "instrument_facts", "decision_context", "instrument_context",
-                 "domain_tags"}
+                 "sources", "decision_facts", "instrument_facts", "decision_context", "instrument_context"}
+# words of the decision-level stakes that the instrument prompt must never carry
+STAKES = re.compile(r"\bB\b|\bK\b|\bprior\b|perspective|society|welfare|liability|financial exposure",
+                    re.IGNORECASE)
+BANNED_DEC = re.compile(r"\b(?:instrument|evaluation|benchmark|cost)s?\b", re.IGNORECASE)
+
+_spec = importlib.util.spec_from_file_location("build_scenarios", ROOT / "scripts" / "build_scenarios.py")
+build_scenarios = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(build_scenarios)
+
+
+def scenarios() -> list[dict]:
+    return json.loads((STUDY / "scenarios.json").read_text())
+
+
+def protocol(name: str) -> dict:
+    return yaml.safe_load((STUDY / "protocols" / f"{name}.yaml").read_text())
+
+
+def template(name: str) -> string.Template:
+    return string.Template((STUDY / "templates" / name).read_text())
 
 
 def test_default_study_is_safety_evals():
@@ -29,39 +53,44 @@ def test_default_study_is_safety_evals():
     assert not (STUDY / "voi.db").exists()   # no database is committed
 
 
+def test_scenarios_json_is_the_build_of_the_drafts():
+    assert (STUDY / "scenarios.json").read_text() == build_scenarios.render()
+
+
 def test_scenarios_follow_the_design_schema():
-    scen = json.loads((STUDY / "scenarios.json").read_text())
-    pilot = json.loads((ROOT / "archive/pilots/ai-safety-evals/scenarios.json").read_text())
-    assert len(scen) == 15 and [s["title"] for s in scen] == [s["title"] for s in pilot]
-    assert len({s["title"] for s in scen}) == 15
-    for sc, old in zip(scen, pilot, strict=True):
-        assert set(sc) == SCENARIO_KEYS, sc["title"]
-        assert sc["group"] in ("frontier model", "physical AI") and "context" not in sc
-        assert sc["attributes"] == old["attributes"]   # kept whole (risk_domain, level, eval_family, keys)
-        assert {"risk_domain", "level", "eval_family"} <= set(sc["attributes"])
-        assert sc["instrument_facts"] == old["context"] and sc["instrument_facts"]
-        assert sc["decision_facts"] == "" and sc["decision_context"] == sc["decision_facts"]
-        assert sc["instrument_context"] == sc["instrument_facts"]
-        keys = [s["key"] for s in sc["sources"]]
-        old_attrs = old["attributes"]
-        assert keys == old_attrs.get("catalog_keys", []) + old_attrs.get("system_card_snippet_keys", [])
-        for src in sc["sources"]:
-            assert set(src) == {"key", "kind", "ref", "role"} and src["role"] == "both"
-            assert src["kind"] in ("catalog", "system_card") and src["ref"]
-            if src["kind"] == "catalog":
-                assert src["ref"].startswith("https://")
-            else:
-                assert src["ref"] == f"research/system_card_snippets.json#{src['key']}"
-    groups = {s["group"] for s in scen}
-    assert groups == {"frontier model", "physical AI"}
-    assert sum(s["group"] == "physical AI" for s in scen) == 5
-    assert all(s["attributes"]["level"] is not None for s in scen if s["group"] == "physical AI")
-    # every source key resolves in the research corpus
-    catalog = {c["key"] for c in json.loads((ROOT / "research/catalog.json").read_text())}
-    snippets = set(json.loads((ROOT / "research/system_card_snippets.json").read_text()))
+    scen = scenarios()
+    drafts = {d["instrument"]: d for d in (json.loads(p.read_text()) for p in DRAFTS.glob("*.json"))}
+    assert len(scen) == len(drafts) == 39 and len({s["title"] for s in scen}) == 39
+    groups = [s["group"] for s in scen]
+    assert groups == ["LLM"] * 26 + ["physical AI"] * 13   # LLM first, then physical AI
+    for g in ("LLM", "physical AI"):
+        ranks = [s["attributes"]["candidate_rank"] for s in scen if s["group"] == g]
+        assert ranks == sorted(ranks) and len(set(ranks)) == len(ranks)
     for sc in scen:
+        draft = drafts[sc["instrument"]]
+        assert set(sc) == SCENARIO_KEYS, sc["title"]
+        for key in ("agent", "decision", "theta_definition", "attributes", "sources", "decision_facts",
+                    "instrument_facts"):
+            assert sc[key] == draft[key], (sc["title"], key)   # verbatim, citations included
+        assert {"risk_domain", "level", "eval_family"} <= set(sc["attributes"])
+        level = sc["attributes"]["level"]
+        if sc["group"] == "physical AI":
+            assert isinstance(level, int) and 0 <= level <= 9
+            assert sc["attributes"]["risk_domain"] == "physical_harm"
+        else:
+            assert level is None
+        assert not re.search(r"frontier.model", sc["title"] + json.dumps(sc["attributes"]), re.IGNORECASE)
+        keys = [s["key"] for s in sc["sources"]]
         for src in sc["sources"]:
-            assert src["key"] in (catalog if src["kind"] == "catalog" else snippets), src
+            assert src["kind"] in ("arxiv", "url", "pdf", "system_card") and src["ref"]
+            assert src["role"] in ("decision", "instrument", "both")
+            assert (ROOT / "research" / "sources" / f"{src['key']}.json").is_file(), src["key"]
+        for kind in ("decision", "instrument"):
+            facts, ctx = f"{kind}_facts", f"{kind}_context"
+            cited = re.findall(r"\[([^\]]+)\]", sc[facts])
+            assert cited and set(cited) <= set(keys), (sc["title"], facts)
+            assert "[" not in sc[ctx] and "]" not in sc[ctx]
+            assert sc[ctx] == re.sub(r"\s*\[[^\]]+\]", "", sc[facts]) and sc[ctx]
 
 
 def test_templates_keep_the_two_prompts_apart():
@@ -70,47 +99,97 @@ def test_templates_keep_the_two_prompts_apart():
     instrument = (templates / "instrument.md").read_text()
     anchors_dec = (templates / "anchors_decision.md").read_text()
     anchors_ins = (templates / "anchors_instrument.md").read_text()
-    banned_dec = re.compile(r"\b(?:instrument|evaluation|benchmark|cost)s?\b", re.IGNORECASE)
     for text in (decision, anchors_dec):
-        assert banned_dec.findall(text) == []
+        assert BANNED_DEC.findall(text) == []
         assert re.search(r"\$title\b|\$context\b|\$instrument\b", text) is None
     assert "$decision_context" in decision and "$agent" in decision and "$anchors_decision" in decision
     assert "$perspective" in decision and "$context_mode" in decision
-    banned_ins = re.compile(r"\bB\b|\bK\b|\bprior\b", re.IGNORECASE)
     for text in (instrument, anchors_ins):
-        assert banned_ins.findall(text) == []
+        assert re.findall(r"\bB\b|\bK\b|\bprior\b", text, re.IGNORECASE) == []
+    assert STAKES.search(instrument) is None and "$perspective" not in instrument
     for field in ("$title", "$agent", "$decision", "$theta_definition", "$instrument", "$context",
                   "$anchors_instrument"):
         assert field in instrument
     assert "$decision_context" not in instrument
-    # no unit field in either output contract; the stage's parameters, and only those, are listed
+    # both perspectives defined in the decision prompt
+    assert "- society: the harm avoided and the welfare forgone" in decision
+    assert "- developer: only the developer's own financial exposure: liability, recall, reputation," \
+           " lost revenue and delay" in decision
     for text, names in ((decision, DECISION_PARAMS), (instrument, INSTRUMENT_PARAMS)):
         assert '"unit"' not in text
+        # extremes first (elicitation_lit.md implication 6), plain decimals (implication 5)
+        steps = text.split("## Instructions")[1]
+        assert steps.index("- p5: a value you would be surprised to see the true value fall below") \
+            < steps.index("- p95: a value you would be surprised to see the true value fall above") \
+            < steps.index("- p50: your median")
+        assert steps.index("reasoning") < steps.index("- p5:")   # reasoning before numbers
+        assert "plain decimal number" in steps and "scientific" not in text
+        # the stage's parameters, and only those, in p5, p95, p50 order
         contract = text.split("## Output")[1]
-        assert [m for m in re.findall(r'"(\w+)": \{"reasoning"', contract)] == names
-    # both anchors appear in both halves, with every parameter of the half
+        assert re.findall(r'"(\w+)": \{"reasoning"', contract) == names
+        assert contract.count('"p5": 0.0, "p95": 0.0, "p50": 0.0') == len(names)
+    # the anchor files (an ablation) carry their own heading and both anchors with every parameter
     for text, names in ((anchors_dec, DECISION_PARAMS), (anchors_ins, INSTRUMENT_PARAMS)):
+        assert text.startswith("\n## Anchor scenarios")
         assert "Anchor A1." in text and "Anchor A2." in text
         for name in names:
             assert text.count(f"- {name}") == 2 or text.count(f"- {name} (") == 2, name
 
 
-def test_protocol_p001_is_two_stages_with_self_grouping_and_template_vars():
-    cfg = yaml.safe_load((STUDY / "protocols/p001.yaml").read_text())
+@pytest.mark.parametrize("anchors", [False, True])
+def test_templates_render_cleanly_with_and_without_anchors(anchors):
+    sc = scenarios()[0]
+    tv = {"perspective": "society", "context_mode": "curated",
+          "anchors_decision": (STUDY / "templates/anchors_decision.md").read_text() if anchors else "",
+          "anchors_instrument": (STUDY / "templates/anchors_instrument.md").read_text() if anchors else ""}
+    dec = elicit.render_decision_prompt(template("decision.md"), sc,
+                                        {k: v for k, v in tv.items() if k != "anchors_instrument"})
+    ins = elicit.render_prompt(template("instrument.md"), sc,
+                               {k: v for k, v in tv.items() if k != "anchors_decision"})
+    for text, nxt in ((dec, "## Decision to elicit"), (ins, "## Scenario to elicit")):
+        assert ("## Anchor scenarios" in text) is anchors and ("Anchor A1." in text) is anchors
+        assert "\n\n\n" not in text and "$" not in text
+        assert re.search(r"[a-z]\.\n\n" + nxt, text)   # a sentence, one blank line, the next heading
+
+
+def test_every_rendered_prompt_keeps_the_two_prompts_apart():
+    cfg = protocol("p001")
+    tv = db.normalize_template_vars(cfg, STUDY)
+    assert tv["anchors_decision"] == "" and tv["anchors_instrument"] == ""
+    dec_t, ins_t = template("decision.md"), template("instrument.md")
+    for sc in scenarios():
+        dec = elicit.render_decision_prompt(dec_t, sc, tv)
+        ins = elicit.render_prompt(ins_t, sc, tv)
+        assert sc["instrument"] not in dec and sc["instrument_context"] not in dec and sc["title"] not in dec
+        assert sc["decision_context"] in dec and "from the society perspective" in dec
+        assert sc["instrument_context"] in ins and sc["decision_context"] not in ins
+        assert "[" not in dec and "[" not in ins   # no citation markers reach either prompt
+        # the instrument prompt carries no stakes words outside the scenario's own text
+        own = ins
+        for field in ("title", "agent", "decision", "theta_definition", "instrument", "instrument_context"):
+            own = own.replace(sc[field], "")
+        assert STAKES.search(own) is None, (sc["title"], STAKES.findall(own))
+        assert BANNED_DEC.search(dec.split("## Decision to elicit")[0]) is None
+
+
+def test_protocols_p001_headline_and_p002_developer_ablation():
+    cfg = protocol("p001")
     assert cfg["name"] == "p001"
     dec, ins = cfg["stages"]
     assert (dec["name"], dec["params"], dec["group_key"]) == ("decision", DECISION_PARAMS, "self")
     assert (ins["name"], ins["params"]) == ("instrument", INSTRUMENT_PARAMS) and "group_key" not in ins
-    assert cfg["template_vars"] == {"perspective": "society",
-                                    "anchors_decision": "@file:templates/anchors_decision.md",
-                                    "anchors_instrument": "@file:templates/anchors_instrument.md",
-                                    "context_mode": "curated"}
-    assert cfg["members"] == [{"provider": "claude_cli", "model": "haiku", "k_repeats": 3},
-                              {"provider": "claude_cli", "model": "sonnet", "k_repeats": 3}]
-    stages = db.normalize_stages(cfg, STUDY)
-    tv = db.normalize_template_vars(cfg, STUDY)
-    assert tv["anchors_decision"] == (STUDY / "templates/anchors_decision.md").read_text()
-    assert [s["name"] for s in stages] == ["decision", "instrument"]
+    assert cfg["template_vars"] == {"perspective": "society", "anchors_decision": "",
+                                    "anchors_instrument": "", "context_mode": "curated"}
+    assert cfg["members"] == [{"provider": "claude_cli", "model": "haiku", "k_repeats": 2},
+                              {"provider": "claude_cli", "model": "sonnet", "k_repeats": 2}]
+    assert [s["name"] for s in db.normalize_stages(cfg, STUDY)] == ["decision", "instrument"]
+    p2 = protocol("p002")
+    assert p2["name"] == "p002" and p2["template_vars"]["perspective"] == "developer"
+    assert "--stage decision" in p2["notes"]
+    strip = lambda c: {k: v for k, v in c.items() if k not in ("name", "notes")}   # noqa: E731
+    p1_rest, p2_rest = strip(cfg), strip(p2)
+    p1_rest["template_vars"] = {**cfg["template_vars"], "perspective": "developer"}
+    assert p1_rest == p2_rest   # identical except the name and the perspective
 
 
 def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys):
@@ -124,44 +203,35 @@ def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys):
     assert "stage decision (template templates/decision.md, params p, B, K, group_key self):" in out
     assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run, n):" in out
     for member in ("claude_cli:haiku", "claude_cli:sonnet"):
-        groups = ", ".join(str(i) for i in range(1, 16))
-        assert f"member {member} (k=3): 45 pending slots over 15 groups ({groups})" in out
-        assert f"member {member} (k=3): 45 pending slots over 15 scenarios (ids 1..15)" in out
-    assert "180 slots would be elicited; no provider was called." in out
-    assert "plan: protocol p001, 180 pending slots" in out
-    for member in ("claude_cli:haiku", "claude_cli:sonnet"):
-        assert f"{member}: 90 slots (decision 45, instrument 45), estimated cost unknown" in out
+        groups = ", ".join(str(i) for i in range(1, 40))
+        assert f"member {member} (k=2): 78 pending slots over 39 groups ({groups})" in out
+        assert f"member {member} (k=2): 78 pending slots over 39 scenarios (ids 1..39)" in out
+        assert f"{member}: 156 slots (decision 78, instrument 78), estimated cost unknown" in out
+    assert "312 slots would be elicited; no provider was called." in out
+    assert "plan: protocol p001, 312 pending slots" in out
     assert "estimated total: $0.00 + unknown" in out
-    scen = json.loads((STUDY / "scenarios.json").read_text())
+    assert "warning" not in out   # every rendered field is filled
+    sc = scenarios()[0]
     dec, ins = out.split("first pending prompt of stage decision")[1].split(
         "first pending prompt of stage instrument")
     assert "(group '1', representative scenario 1," in dec and "(scenario 1," in ins
-    assert scen[0]["agent"] in dec and scen[0]["decision"] in dec and scen[0]["theta_definition"] in dec
-    assert "from the society perspective" in dec and "Anchor A1." in dec and "context mode: curated" in dec
-    assert scen[0]["instrument"] not in dec and scen[0]["title"] not in dec
-    assert scen[0]["instrument_facts"][:60] not in dec
-    assert re.search(r"\b(?:instrument|evaluation|benchmark|cost)s?\b", dec.split("## Decision to elicit")[0],
-                     re.IGNORECASE) is None   # the rendered template text, before the scenario's own words
-    assert scen[0]["title"] in ins and scen[0]["instrument"] in ins
-    assert scen[0]["instrument_facts"][:60] in ins
-    assert "Anchor A1." in ins and "C_build" in ins and "$context" not in ins
-    assert re.search(r"\bB\b|\bK\b|\bprior\b", ins.split("## Scenario to elicit")[0], re.IGNORECASE) is None
-    # the second stage of the same scenario shares nothing elicited: no decision-level number appears
+    assert sc["agent"] in dec and sc["decision"] in dec and sc["decision_context"] in dec
+    assert "from the society perspective" in dec and "Anchor" not in dec and "context mode: curated" in dec
+    assert sc["instrument"] not in dec and sc["title"] not in dec
+    assert sc["title"] in ins and sc["instrument"] in ins and sc["instrument_context"] in ins
+    assert "Anchor" not in ins and "C_build" in ins and "$context" not in ins
     assert '"p":' in dec and '"p":' not in ins and '"n":' in ins and '"n":' not in dec
-    # decision_facts are not written yet (SCENARIOS_TODO.md), so the decision prompt would carry an
-    # empty facts block: the dry run says so and the paid run of p001 is refused before any provider
-    # call or write (--stage instrument renders only filled fields)
-    assert ("  warning: stage decision: the template renders $decision_context, which is empty for 15 planned"
-            " scenario(s) [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; the paid run of this stage is"
-            " refused until the field is filled in scenarios.json") in out
-    assert "renders $context" not in out
-    with pytest.raises(SystemExit, match=r"renders \$decision_context, which is empty for 15 planned.*\n"
-                                         r"fill the field in scenarios.json first"):
-        elicit.main(["--study", "studies/safety-evals", "--protocol", "p001", "--yes"])
+
+
+def test_dry_run_p002_decision_stage_only(capsys):
+    elicit.main(["--study", "studies/safety-evals", "--protocol", "p002", "--stage", "decision", "--dry-run"])
+    out = capsys.readouterr().out
+    assert "plan: protocol p002, 156 pending slots" in out and "not planned (--stage decision)" in out
+    assert "from the developer perspective" in out
     assert not list(STUDY.glob("voi.db*"))
 
 
-def test_dry_run_from_the_shell_entry_point(tmp_path):
+def test_dry_run_from_the_shell_entry_point():
     """The README's command, as a user runs it (a subprocess, the repo root
     as cwd), creates no database."""
     import subprocess
@@ -170,7 +240,7 @@ def test_dry_run_from_the_shell_entry_point(tmp_path):
                            "--protocol", "p001", "--dry-run"], cwd=ROOT, capture_output=True, text=True,
                           timeout=120)
     assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
-    assert "180 slots would be elicited; no provider was called." in proc.stdout
+    assert "312 slots would be elicited; no provider was called." in proc.stdout
     assert not list(STUDY.glob("voi.db*"))
 
 
