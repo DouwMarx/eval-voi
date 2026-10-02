@@ -1,56 +1,59 @@
 # Which drafts in research/scenarios_draft/ enter scenarios.json
 # (scripts/build_scenarios.py). Every draft key must appear exactly once.
-# Review and criteria: research/scenarios_draft/QUALITY_REVIEW.md (2026-10-01).
+# Rule, scores and ranking: research/scenarios_draft/SELECTION.md (2026-10-02).
+# LLM score = presence + 2 x hazard checkability - capability-benchmark penalty
+# - construct penalty (only where the score does not measure the hazard).
+# Physical-AI score = validity class V + hazard directness H + level spread L.
 # A cut scenario keeps its rows in voi.db; seeding marks it retired and the
 # Monte Carlo and the analysis leave it out.
 
 # LLM: cyber
-cybergym: {include: true, reason: "public instrument, programmatic score, most-named LLM evaluation (34 documents, 11 publishers)"}
-exploitgym: {include: true, reason: "public exploit-development instrument with programmatic score; best documented of the known-vulnerability exploitation construct"}
-cvebench: {include: true, reason: "public, programmatic grader, published run cost; second exploitation instrument on a different target class (web applications)"}
-cybench: {include: true, reason: "public CTF suite run by US AISI and several labs; saturated at the frontier, which the elicited specificity can carry"}
-cyber_range: {include: true, reason: "end-to-end network intrusion with a public primary paper and published run cost; the only range-scale cyber instrument"}
-exploitbench: {include: false, reason: "duplicates ExploitGym's construct (N-day exploit development to code execution on browser engines)"}
-binary_exploitation: {include: false, reason: "developer-private; no standalone primary source beyond system-card sentences"}
-cyscenariobench: {include: false, reason: "third-party private, no primary source, score within 0.1 of the floor; duplicates the cyber range construct"}
+cybergym: {include: true, reason: "LLM rank 1, score 14.0: 34 documents, 11 publishers; programmatic score"}
+cyber_range: {include: true, reason: "LLM rank 3, score 14.0: 24 documents, 8 publishers; programmatic flag checks"}
+exploitgym: {include: true, reason: "LLM rank 4, score 13.92: 23 documents, 8 publishers; programmatic score"}
+exploitbench: {include: true, reason: "LLM rank 5, score 13.0: 26 documents, 7 publishers; programmatic score; second known-vulnerability exploitation evaluation"}
+cybench: {include: true, reason: "LLM rank 6, score 12.33: 16 documents, 7 publishers; programmatic flag checks"}
+binary_exploitation: {include: true, reason: "LLM rank 8, score 11.25: 15 documents, 6 publishers; programmatic score; unknown-vulnerability discovery, a construct of its own"}
+cvebench: {include: false, reason: "LLM rank 9, score 11.17, but the third known-vulnerability exploitation evaluation after ExploitGym and ExploitBench; passed over for domain coverage"}
+cyscenariobench: {include: true, reason: "LLM rank 15, score 9.08: 13 documents, 4 publishers; programmatic end-state check; second end-to-end intrusion evaluation"}
 
 # LLM: CBRN
-vct: {include: true, reason: "expert-baselined virology troubleshooting test with a public paper; best documented CBRN knowledge test"}
-wmdp: {include: true, reason: "public hazardous-knowledge proxy with published build cost; second CBRN knowledge test, for an open-weights decision"}
-abcbench: {include: true, reason: "agentic bio tasks with algorithmic checks and a paid PhD baseline; the only agentic CBRN instrument"}
-hpct: {include: false, reason: "private, no standalone primary paper, same builder and construct as VCT"}
-labbench_bio: {include: false, reason: "duplicates VCT's wet-lab protocol-troubleshooting construct with a PhD baseline; general research capability with an indirect hazard link"}
-biotier: {include: false, reason: "published July 2026, prompts on request, near the score floor; refusal construct overlaps StrongREJECT and FORTRESS"}
+vct: {include: true, reason: "LLM rank 2, score 14.0: 35 documents, 8 publishers; expert-baselined"}
+labbench_bio: {include: true, reason: "LLM rank 7, score 12.0: 30 documents, 7 publishers; PhD-baselined; capability-benchmark penalty applied"}
+wmdp: {include: true, reason: "LLM rank 12, score 10.17: 14 documents, 6 publishers; programmatic score; construct penalty for shortcuts on over 30% of WMDP-Bio"}
+hpct: {include: false, reason: "LLM rank 17, score 8.0, but the third expert-baselined biology knowledge test after VCT and LAB-Bench; passed over for domain coverage"}
+abcbench: {include: true, reason: "LLM rank 19, score 7.83: 10 documents, 4 publishers; algorithmic checks; construct penalty for refusals on two of three tasks"}
+biotier: {include: false, reason: "LLM rank 24, score 5.83: below the 20 chosen (10 documents, 3 publishers; jury-graded with partial validation)"}
 
 # LLM: loss of control
-shade_arena: {include: true, reason: "fixed task pairs, fixed monitor and threshold; best documented covert-sabotage instrument"}
-agentic_misalignment: {include: true, reason: "fixed public scenario set, MIT code, reproduced by an independent port; the self-preservation construct"}
-bloom: {include: false, reason: "an evaluation generator, not a fixed instrument; seeded from and duplicates Agentic Misalignment"}
-controlarena: {include: false, reason: "a framework of control settings, not one fixed instrument; duplicates SHADE-Arena's construct"}
+shade_arena: {include: true, reason: "LLM rank 11, score 10.67: 20 documents, 5 publishers; programmatic side-task check with a fixed monitor"}
+controlarena: {include: true, reason: "LLM rank 16, score 8.42: 5 documents, 4 publishers; programmatic side-task scorers; second covert side-task evaluation"}
+bloom: {include: true, reason: "LLM rank 18, score 7.92: 11 documents, 4 publishers; judge with Spearman 0.86 against human scores"}
+agentic_misalignment: {include: true, reason: "LLM rank 20, score 7.0: 12 documents, 5 publishers; classifier plus string checks; construct penalty for evaluation awareness (55.1% vs 6.5%)"}
 
 # LLM: harmful manipulation
-mask: {include: true, reason: "public honesty-under-pressure set with a held-out split; LLM judge at 86.4% agreement with human labels"}
-petri: {include: false, reason: "an auditing tool (auditor agent over generated scenarios), not one fixed instrument"}
-deceptionbench: {include: false, reason: "entered by the domain floor below the score floor; evaluation awareness reported"}
+mask: {include: true, reason: "LLM rank 13, score 9.58: 19 documents, 5 publishers; judge at 86.4% agreement with human labels"}
+petri: {include: true, reason: "LLM rank 14, score 9.25: 15 documents, 6 publishers; judge validated by self-consistency only"}
+deceptionbench: {include: false, reason: "LLM rank 26, score 5.25: below the 20 chosen (3 documents, 2 publishers)"}
 
 # LLM: societal harm
-strongreject: {include: true, reason: "public prompts, fixed jailbreak battery and validated judge; best documented jailbreak-robustness instrument"}
-fortress: {include: true, reason: "human-written adversarial national-security prompts with rubrics and benign counterparts; second refusal instrument, distinct attack source"}
-agentharm: {include: true, reason: "public agentic misuse tasks with benign counterparts; the only agentic misuse instrument"}
-bbq: {include: true, reason: "public templated set, programmatic bias score, annotator agreement reported; the only bias instrument"}
-harmbench: {include: false, reason: "duplicates StrongREJECT (automated jailbreak attacks scored by a classifier judge); fewer citing documents"}
+strongreject: {include: true, reason: "LLM rank 10, score 11.0: 12 documents, 7 publishers; judge at 0.90 correlation with human judgments"}
+fortress: {include: true, reason: "LLM rank 21, score 6.5: 6 documents, 3 publishers; grader majority at 89.05% agreement with human labels"}
+agentharm: {include: true, reason: "LLM rank 22, score 6.25: 3 documents, 2 publishers; hand-written programmatic grading"}
+bbq: {include: false, reason: "LLM rank 23, score 5.92: below the 20 chosen (one publisher, 11 documents)"}
+harmbench: {include: false, reason: "LLM rank 25, score 5.33: below the 20 chosen (4 documents, 2 publishers)"}
 
-# physical AI
-iihs_paeb: {include: true, reason: "level 8; public protocol with a field-claims validity chain"}
-iso10218_pfl: {include: true, reason: "level 7; standard-based contact-force test on a non-learning system, public measurement studies"}
-robopair: {include: true, reason: "level 7; fixed action set and iteration budget, harmful actions executed on two real robots, human-checked, public paper"}
-veo_worldmodel: {include: true, reason: "level 5; public paper, success predictions correlate with 1600+ real trials (Pearson 0.88); safety check qualitative and the evaluator is developer-internal; the only level-5 instrument"}
-redvla: {include: true, reason: "level 4; MIT-licensed code, fixed predicates and iteration budget; attacks reproduced on two physical Franka arms"}
-safeagentbench: {include: true, reason: "level 4; public tasks executed in a simulator, 91% human-judge agreement over 1008 ratings"}
-asimov2: {include: true, reason: "level 3; public paper and sets grounded in injury narratives, five human raters per item, rerun by a developer on a released model"}
-asimov_agentic: {include: false, reason: "developer tech report of 2026-07-29, access-restricted dataset, no agreement statistic, lab stop test not compared with the offline scores"}
-maniguard: {include: false, reason: "preprint of 2026-08-18; its sim-to-real check gives r = 0.09 for the violation rate that carries theta"}
-isbench: {include: false, reason: "same system type, fidelity level and harm class as SafeAgentBench (household planner in a simulator), without its human-judge agreement figure"}
-egosafetybench: {include: false, reason: "preprint of July 2026, generated videos labelled by an LLM (kappa 0.66-0.80 against humans); duplicates ASIMOV-2.0's danger-perception construct at level 3"}
-safeplan: {include: false, reason: "level 0 text classification with no reported validity (no annotator count or agreement statistic)"}
-humanoid_orchestrator: {include: false, reason: "preprint of September 2026, code not released, lowest-scoring physical candidate (2 points)"}
+# physical AI (V validity, H hazard directness, L best at its level)
+iihs_paeb: {include: true, reason: "physical rank 1, score 6 (V3 H2 L1); level 8; non-learning production AEB stack"}
+robopair: {include: true, reason: "physical rank 4, score 4 (V1 H2 L1); level 7; LLM planner inside a robot, harmful actions executed on hardware"}
+veo_worldmodel: {include: true, reason: "physical rank 2, score 4 (V2 H1 L1); level 5; VLA policy evaluated in a video world model"}
+redvla: {include: true, reason: "physical rank 3, score 4 (V2 H1 L1); level 4; VLA policy in simulation, attacks reproduced on hardware"}
+iso10218_pfl: {include: true, reason: "physical rank 5, score 3 (V1 H2); level 7; non-learning collaborative robot, contact force measured"}
+maniguard: {include: true, reason: "physical rank 6, score 3 (V1 H2); level 7; VLA manipulation policy, violations scored on hardware"}
+asimov2: {include: true, reason: "physical rank 7, score 3 (V1 H1 L1); level 3; VLM planner judging danger in images and video"}
+asimov_agentic: {include: true, reason: "physical rank 8, score 3 (V1 H1 L1); level 2; embodied-reasoning VLM orchestrating a VLA on recorded sensor data"}
+safeplan: {include: true, reason: "physical rank 12, score 2 (V0 H1 L1); level 0; LLM planner on text commands; chosen for fidelity spread: the best candidate at level 0, which no other chosen evaluation covers"}
+safeagentbench: {include: false, reason: "physical rank 9, score 2 (V1 H1); level 4 is covered by RedVLA; below the 8 with score 3 or more"}
+isbench: {include: false, reason: "physical rank 10, score 2 (V1 H1); level 4 is covered by RedVLA; below the 8 with score 3 or more"}
+egosafetybench: {include: false, reason: "physical rank 11, score 2 (V1 H1); level 3 is covered by ASIMOV-2.0; below the 8 with score 3 or more"}
+humanoid_orchestrator: {include: false, reason: "physical rank 13, score 1 (V0 H1); level 0 already covered by SafePlan"}

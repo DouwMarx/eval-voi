@@ -68,6 +68,12 @@ Scenario fields: title, agent, decision, theta_definition, instrument, group ("p
 
 voi_rank/context.py builds the two context blocks from three reproducible inputs: (1) source texts fetched programmatically by key and cached under research/sources/<key>.json (fetch date, URL, text; committed), (2) system-card sentences that name the evaluation, from the corpus already in research/, (3) the curated facts. Modes: `curated` (facts only), `abstracts` (facts plus source abstracts), `full` (facts plus full source text, truncated to a token budget). The prompt states which mode produced its context. The mode is a protocol setting; an ablation compares them.
 
+### Selection
+
+Which of the drafts in research/scenarios_draft/ are analysed is set in studies/safety-evals/include.yaml (one entry per draft, with a reason) and argued in research/scenarios_draft/SELECTION.md. The rule (2026-10-02), applied without looking at any result:
+- LLM: score = system-card presence (publishers and documents naming it) + 2 x hazard checkability (programmatic or expert-baselined > validated LLM judge > partially validated > unvalidated judge) - 1 for a capability benchmark rather than a hazard measure - 1 for a documented construct problem only where it means the score does not measure the hazard. Saturation, private status, no standalone paper, and being a tool or generator are not penalised. Take the top of the ranking to about 20, passing over a third near-identical evaluation in favour of another risk domain.
+- Physical AI: the one requirement is that the score measures a physical harm of an embodied system or of a model controlling one. Score = validity class + hazard directness + 1 for the best at its fidelity level; take the top of the ranking to about 8 and the best candidate at each level left empty. Each chosen evaluation states the system type it tests.
+
 ## 6. Monte Carlo and summaries
 
 - Pooled belief per parameter per scenario: equal-weight mixture over the fitted distributions of every valid elicitation (all members, all repeats). This is the linear opinion pool. Parameters are drawn independently. 100,000 aligned draws per scenario, seed stored.

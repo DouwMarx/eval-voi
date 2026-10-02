@@ -2,7 +2,7 @@
 research/scenarios_draft/*.json (DESIGN section 5), keeping only the drafts
 that studies/safety-evals/include.yaml marks `include: true`. The include
 list must name every draft exactly once, each with a bool and a reason
-(research/scenarios_draft/QUALITY_REVIEW.md).
+(research/scenarios_draft/SELECTION.md).
 
 The facts fields are copied verbatim with their [key] citations; the two
 context fields (what the prompts render, context mode `curated`) are the same

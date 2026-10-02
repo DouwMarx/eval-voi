@@ -47,7 +47,7 @@ by the instrument prompt). The whole entry is stored as `raw_json`. The file is
 generated: `uv run python scripts/build_scenarios.py` rebuilds it from
 `research/scenarios_draft/*.json`, keeping the drafts that
 `studies/safety-evals/include.yaml` marks `include: true` (every draft listed
-once, with a reason; review in `research/scenarios_draft/QUALITY_REVIEW.md`).
+once, with a reason; rule and ranking in `research/scenarios_draft/SELECTION.md`).
 The context fields are the facts without their citation markers; edit the
 drafts or the include list, not the file.
 
