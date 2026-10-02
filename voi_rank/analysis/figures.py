@@ -1,7 +1,7 @@
 """The report figures (DESIGN section 7), PDF, drawn at the CoRL text width
 (5.5 in) with no text smaller than 6.5 pt (6 pt for the row labels of the
-paper's combined row figure) and no titles (captions live in the tex). Two groups: physical AI (vermillion triangles) and LLM (blue
-circles), Okabe-Ito colours, the marker shape a second encoding; the
+paper's combined row figure) and no titles (captions live in the tex). Two
+groups: physical AI (vermillion triangles) and LLM (blue circles), Okabe-Ito colours, the marker shape a second encoding; the
 per-evaluation row figures colour by risk domain instead and set the
 physical-AI rows apart with an ink outline and bold labels. The method
 diagram is TikZ in the tex, not here.
@@ -36,7 +36,7 @@ from voi_rank.analysis.summary import (  # noqa: E402
     ROC_FPR,
     Summary,
     log_param,
-    member_display,
+    member_name,
     order,
     order_by_median_rank,
 )
@@ -248,8 +248,8 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str, show_zero: bool =
     if not show_zero:
         keep = ~zero
         if not keep.any():
-            ax.text(0.5, 0.5, "every prior already decisive:\nno evaluation with EVSI > 0", transform=ax.transAxes,
-                    ha="center", va="center", fontsize=MIN_FONT, color=MUTED)
+            ax.text(0.5, 0.5, "every prior already decisive:\nno evaluation with EVSI > 0",
+                    transform=ax.transAxes, ha="center", va="center", fontsize=MIN_FONT, color=MUTED)
             ax.set_xlabel("cost $C$ (USD)")
             ax.set_ylabel(ylabel)
             return
@@ -366,7 +366,7 @@ def curve_panel(ax, s: Summary) -> None:
     ax.legend(loc="upper right", frameon=False)
 
 
-HEADLINE_W = 0.55   # share of the text width the paper gives the headline figure
+HEADLINE_W = 0.5   # share of the text width the paper gives the headline figure
 
 
 def headline_panels(s: Summary, width: float, labels: bool):
@@ -406,7 +406,7 @@ def fig_curve(s: Summary, out: Path) -> Path | None:
 
 # --- distributions per evaluation ------------------------------------------------------
 
-LABEL_CHARS = 28   # row labels longer than this are cut at a word boundary with an ellipsis
+LABEL_CHARS = 30   # row labels longer than this are cut at a word boundary with an ellipsis
 
 
 def abbreviate(text: str, limit: int = LABEL_CHARS) -> str:
@@ -518,7 +518,7 @@ def fig_best_physical_rank(s: Summary, out: Path) -> Path | None:
             ns, curve, c = r["best_phys_ns"], r["best_phys_curve"], r["best_phys_central"]
             col, ls = styles[metric]
             ax.step(ns, curve, where="post", color=col, lw=1.4, ls=ls,
-                    label=f"by {METRIC_TEX[metric]} over draws (central best rank {c:g})")
+                    label=f"by {METRIC_TEX[metric]} over draws (best rank {c:g} at the median parameters)")
             for n in BEST_TOP:
                 if n <= len(ns) and metric == PRIMARY:
                     v = curve[n - 1]
@@ -557,7 +557,7 @@ def fig_roc(s: Summary, out: Path) -> Path | None:
             ax.plot(ROC_FPR, med, color=COLOR[PHYS], lw=1.1, label="median over draws")
             ax.plot(r["fpr"], r["tpr"], color=INK, lw=1.1, label="median parameters")
             ax.plot([0, 1], [0, 1], color=MUTED, lw=0.6, ls=":")
-            ax.text(0.04, 0.96, f"threshold on {name}\ncentral area $P_S$ = {pct_text(r['area'])}",
+            ax.text(0.04, 0.96, f"threshold on {name}\n$P_S$ at median parameters = {pct_text(r['area'])}",
                     transform=ax.transAxes, ha="left", va="top", fontsize=7, color=INK, linespacing=1.4)
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
@@ -627,7 +627,7 @@ def rank_rows(ax, s: Summary, metric: str, idx, pos) -> None:
     ax.set_xlim(0.5, len(s.scenarios) + 0.5)
 
 
-ROWS_H = 0.08   # inches per row in the paper's combined row figure
+ROWS_H = 0.078   # inches per row in the paper's combined row figure
 
 
 def fig_rows(s: Summary, out: Path) -> Path | None:
@@ -704,7 +704,7 @@ def decade_ticks(ax, max_ticks: int = 3) -> None:
 
 def fig_params(s: Summary, out: Path) -> Path | None:
     """One panel per parameter: every member's elicited medians per scenario
-    (colour = member) and the pooled median (black bar)."""
+    (colour = member) and the median across members (black bar)."""
     idx = order(s)
     pos = np.arange(len(idx))[::-1]
     labs = s.member_labels
@@ -735,8 +735,8 @@ def fig_params(s: Summary, out: Path) -> Path | None:
             axes[0].plot([0.0], [p], marker(g), color=color(g), ms=3, clip_on=False,
                          transform=offset_copy(axes[0].get_yaxis_transform(), fig, x=-6, units="points"))
         handles = [plt.Line2D([], [], marker="o", ls="", ms=3, color=MEMBER_COLORS[k % len(MEMBER_COLORS)],
-                              label=member_display(lab)) for k, lab in enumerate(labs)]
-        handles.append(plt.Line2D([], [], marker="|", ls="", ms=5, color=INK, label="pooled median"))
+                              label=member_name(lab)) for k, lab in enumerate(labs)]
+        handles.append(plt.Line2D([], [], marker="|", ls="", ms=5, color=INK, label="median across members"))
         handles += group_handles({sc.group for sc in s.scenarios})
         fig.legend(handles=handles, loc="outside upper center", ncol=min(len(handles), 5), frameon=False)
         fig.supxlabel("elicited median per valid elicitation (USD for $B$, $K$, $C_\\mathrm{b}$,"
@@ -831,7 +831,7 @@ def fig_level(s: Summary, out: Path) -> Path | None:
 
 
 def fig_members(s: Summary, out: Path) -> Path | None:
-    """Per parameter: member A's per-scenario pooled p50 (x) against member
+    """Per parameter: member A's per-scenario median p50 (x) against member
     B's (two members) or against the median of the other members (more)."""
     labs = s.member_labels
     if len(labs) < 2:
@@ -875,14 +875,14 @@ def fig_members(s: Summary, out: Path) -> Path | None:
                 ax.set_xlim(lo, hi)
                 ax.set_ylim(lo, hi)
             ax.set_title(PARAM_LABEL[name].replace(" (USD)", ""), fontsize=7)
-        xl = member_display(labs[0]) if len(labs) == 2 else "member"
-        yl = member_display(labs[1]) if len(labs) == 2 else "median of the other members"
-        fig.supxlabel(f"pooled median of {xl}", fontsize=7)
+        xl = member_name(labs[0]) if len(labs) == 2 else "member"
+        yl = member_name(labs[1]) if len(labs) == 2 else "median of the other members"
+        fig.supxlabel(f"median of {xl}", fontsize=7)
         fig.supylabel(yl, fontsize=7)
         handles = group_handles(set(groups))
         if len(labs) > 2:
             handles += [plt.Line2D([], [], marker="o", ls="", ms=4, mfc="white", mew=1.0,
-                                   mec=MEMBER_COLORS[k % len(MEMBER_COLORS)], label=member_display(lab))
+                                   mec=MEMBER_COLORS[k % len(MEMBER_COLORS)], label=member_name(lab))
                         for k, lab in enumerate(labs)]
         fig.legend(handles=handles, loc="outside upper center", ncol=min(len(handles), 4), frameon=False)
         return save(fig, out, "fig_members.pdf")

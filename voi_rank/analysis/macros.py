@@ -27,7 +27,7 @@ from voi_rank.analysis.summary import (
     PRIMARY,
     RANKED,
     Summary,
-    member_display,
+    member_name,
 )
 from voi_rank.fit import PARAM_NAMES
 
@@ -43,20 +43,7 @@ GROUP_WORD = {PHYS: "Physical", LLM: "LLM"}
 # display aliases: the code and the DB keep eta_ind (EtaInd); the documents say eta* (EtaStar)
 ALIASES = (("EtaInd", "EtaStar"),)
 METRIC_WORD = {"eta": "Eta", "eta_ind": "EtaInd", "eta_run": "EtaRun"}
-PARAM_TEX = {"C_build": r"$C_\mathrm{build}$", "C_run": r"$C_\mathrm{run}$"}   # else $<name>$
-
-
-# display names of the final ensemble's model ids (the documents' member list); an id not
-# listed prints as itself without the provider prefix
-MEMBER_NAMES = {"deepseek/deepseek-v4.1-flash": "DeepSeek V4.1 Flash", "z-ai/glm-5.3": "GLM 5.3",
-                "xiaomi/mimo-v2.6-flash": "MiMo v2.6 Flash", "openai/gpt-6-luna": "GPT-6 Luna",
-                "google/gemini-3.8-flash": "Gemini 3.8 Flash", "x-ai/grok-4.7": "Grok 4.7"}
-
-
-def member_name(label: str) -> str:
-    """'openrouter:openai/gpt-6-luna' -> 'GPT-6 Luna'; unknown ids print as member_display does."""
-    model = member_display(label)
-    return MEMBER_NAMES.get(model, model)
+PARAM_TEX = {"C_build": r"$C_\mathrm{b}$", "C_run": r"$C_\mathrm{r}$"}   # else $<name>$ (the documents' notation)
 
 
 def param_tex(name: str) -> str:
@@ -301,7 +288,14 @@ def collect(s: Summary) -> dict[str, str]:
         m[f"Dom{key}MedEta"] = num(d["med_eta"])
         m[f"Dom{key}MedStakes"] = usd(d["med_stakes"])
         m[f"Dom{key}ZeroShare"] = pct(d["zero_share"])
-    m["DomainOrder"] = esc(", ".join(d["label"] for d in o["domains"]))
+    # ties on the median rank are joined with "and" and marked "(tied)"
+    groups: list[list[str]] = []
+    for d in o["domains"]:
+        if groups and o["domains"][sum(len(g) for g in groups) - 1]["med_rank_central"] == d["med_rank_central"]:
+            groups[-1].append(d["label"])
+        else:
+            groups.append([d["label"]])
+    m["DomainOrder"] = esc(", ".join(g[0] if len(g) == 1 else " and ".join(g) + " (tied)" for g in groups))
     m["NDomains"] = str(len(o["domains"]))
     rho, rho_ind = o["mean_abs_rho"], o["mean_abs_rho_ind"]
     for name in PARAM_NAMES:

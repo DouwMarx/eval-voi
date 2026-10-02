@@ -42,6 +42,11 @@ from voi_rank.fit import DECISION_PARAMS, FAMILY_BY_PARAM, PARAM_NAMES
 from voi_rank.sensitivity import spearman
 
 PHYS, LLM = "physical AI", "LLM"
+# display names of the final ensemble's model ids; an id not listed prints as itself without the
+# provider prefix (member_name)
+MEMBER_NAMES = {"deepseek/deepseek-v4.1-flash": "DeepSeek V4.1 Flash", "z-ai/glm-5.3": "GLM 5.3",
+                "xiaomi/mimo-v2.6-flash": "MiMo v2.6 Flash", "openai/gpt-6-luna": "GPT-6 Luna",
+                "google/gemini-3.8-flash": "Gemini 3.8 Flash", "x-ai/grok-4.7": "Grok 4.7"}
 GROUPS = (PHYS, LLM)
 GROUP_ALIASES = {"frontier model": LLM}
 ERROR_CLASSES = ("json", "schema", "constraint", "fit", "refusal", "truncated", "cli", "http", "api",
@@ -235,6 +240,12 @@ def member_display(label: str) -> str:
     provider prefix ('claude_cli:haiku' -> 'haiku'). summary.json keeps the
     full label."""
     return label.split(":", 1)[-1]
+
+
+def member_name(label: str) -> str:
+    """'openrouter:openai/gpt-6-luna' -> 'GPT-6 Luna'; unknown ids print as member_display does."""
+    model = member_display(label)
+    return MEMBER_NAMES.get(model, model)
 
 
 def error_class(error: str | None, raw: str | None = None) -> str:

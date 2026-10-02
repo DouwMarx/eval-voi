@@ -30,7 +30,7 @@
   frame=single, framerule=0.3pt, xleftmargin=2pt, xrightmargin=2pt}
 
 % "left out of the paper because ...": one line under each figure that is not in the paper
-\newcommand{\why}[1]{\par\smallskip\noindent\emph{Not in the paper because} #1\par}
+\newcommand{\why}[1]{\FloatBarrier\par\smallskip\noindent\emph{Not in the paper because} #1\par}
 
 \title{Are physical-AI safety evaluations worth the money? Extended report}
 
@@ -106,7 +106,7 @@ Every figure below is written by the same analysis run as the paper's figures. E
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=\linewidth]{fig_percentile_violins.pdf}
-  \caption{Per physical-AI evaluation, the distribution over draws of its percentile among the LLM evaluations by $\eta$ (0: below every LLM evaluation, 100: above every one). Tick: median over draws; diamond: every parameter at its median. The percentile can only take \voiNLLM{} distinct values plus the ties, so the waves in the violins are that discreteness smoothed by the kernel, not structure in the elicitations.}
+  \caption{Per physical-AI evaluation, the distribution over draws of its percentile among the LLM evaluations by $\eta$ (0: below every LLM evaluation, 100: above every one). Tick: median over draws; diamond: every parameter at its median. The percentile can only take one more distinct value than there are LLM evaluations, plus the ties, so the waves in the violins are that discreteness smoothed by the kernel, not structure in the elicitations.}
   \label{fig:violins}
 \end{figure}
 \why{it answers the per-evaluation question ("which LLM evaluation is this one as good as?") but the discrete percentiles make it look like more than it is.}
@@ -165,9 +165,9 @@ Every figure below is written by the same analysis run as the paper's figures. E
 
 \emph{No curated facts.}
 \label{sec:noctx}
-The headline prompts show each member two paragraphs of sourced facts. The no-context ablation (protocol \texttt{final\_noctx}) renders the same prompts to the same members with no facts and no facts heading: the decision prompt names only the agent, the decision and $\theta$; the instrument prompt only the evaluation's title, agent, decision, $\theta$ and instrument.
+The main run's prompts show each member two paragraphs of sourced facts. The no-context ablation (protocol \texttt{final\_noctx}) renders the same prompts to the same members with no facts and no facts heading: the decision prompt names only the agent, the decision and $\theta$; the instrument prompt only the evaluation's title, agent, decision, $\theta$ and instrument.
 \ifnoctx
-Without facts, a random physical-AI evaluation beats a random LLM evaluation by $\etast$ with probability \voinoctxEtaStarPSQMed{} over the draws (90\% interval \voinoctxEtaStarPSQLo{} to \voinoctxEtaStarPSQHi; exact Mann-Whitney $p=\voinoctxEtaStarMWp$), against \voiEtaStarPSQMed{} with facts; by $\eta$, \voinoctxEtaPSQMed{} against \voiEtaPSQMed. The median stakes ratio is \voinoctxStakesRatio{} against \voiStakesRatio; the share of evaluations whose prior is already decisive is \voinoctxZeroSharePhysical{} (physical AI) and \voinoctxZeroShareLLM{} (LLM) against \voiZeroSharePhysical{} and \voiZeroShareLLM; the best physical-AI evaluation ranks \voinoctxEtaStarBestPhysicalRankCentral{} against \voiEtaStarBestPhysicalRankCentral. Of \voinoctxAttempts{} answers, \voinoctxValidShare{} were valid. % CHECK-DATA
+Without facts, a random physical-AI evaluation beats a random LLM evaluation by $\etast$ with probability \voinoctxEtaStarPSQMed{} over the draws (90\% interval \voinoctxEtaStarPSQLo{} to \voinoctxEtaStarPSQHi; exact Mann-Whitney $p=\voinoctxEtaStarMWp$), against \voiEtaStarPSQMed{} with facts (the same quantiles: $\PS$ on a draw takes one of a few hundred values, so coarse agreement is expected); by $\eta$, \voinoctxEtaPSQMed{} against \voiEtaPSQMed. The median stakes ratio is \voinoctxStakesRatio{} against \voiStakesRatio; the share of evaluations whose prior is already decisive is \voinoctxZeroSharePhysical{} (physical AI) and \voinoctxZeroShareLLM{} (LLM) against \voiZeroSharePhysical{} and \voiZeroShareLLM; the best physical-AI evaluation ranks \voinoctxEtaStarBestPhysicalRankCentral{} against \voiEtaStarBestPhysicalRankCentral. Of \voinoctxAttempts{} answers, \voinoctxValidShare{} were valid. % CHECK-DATA
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=\linewidth]{noctx/fig_headline.pdf}
@@ -187,7 +187,7 @@ This ablation has no stored run yet; this paragraph fills in when it has.
 \section{Elicitation details}
 \label{sec:elicitation}
 
-\emph{Prompts.} Each evaluation gets two prompts, rendered from the two templates below. The decision prompt fills in the agent, the decision, the definition of $\theta$ and the decision facts; it never describes the evaluation. The instrument prompt fills in the evaluation's title, agent, decision, definition of $\theta$, the instrument and the instrument facts; it never states $p$, $B$ or $K$. The two are separate calls because in the pilots a single prompt that described the evaluation shifted the elicited prior $p$ towards the evaluation's own framing. The facts are sentences taken from the cited sources, each traceable to a cached copy of its source text.
+\emph{Prompts.} Each evaluation has two prompts, rendered from the two templates below. The decision prompt fills in the agent, the decision, the definition of $\theta$ and the decision facts; it never describes the evaluation. The instrument prompt fills in the evaluation's title, agent, decision, definition of $\theta$, the instrument and the instrument facts; it never states $p$, $B$ or $K$. The two are separate calls because in the pilots a single prompt that described the evaluation shifted the elicited prior $p$ towards the evaluation's own framing. The facts are sentences taken from the cited sources, each traceable to a cached copy of its source text.
 
 \emph{Where the facts come from.} The decision and instrument facts were written and checked by language-model agents, not by hand (research/scenarios\_draft/PROVENANCE.md in the repository, with every prompt verbatim). The model was Claude Fable 5.1, run as Claude Code subagents that could fetch web pages and read the repository, before any elicitation existed. For each evaluation, one agent fetched the primary sources, cached their full text and wrote a cited decision paragraph and a cited instrument paragraph of 120 to 250 words each. A separate agent checked every sentence against the cached text and the separation rule (no instrument facts in the decision paragraph, no stakes in the instrument paragraph), and a third fixed what it found. A script then removes the citation markers and writes the scenarios the prompts render. This guarantees that every sentence an elicitor reads traces to a cached source and was checked by a second agent. It does not guarantee a neutral selection: an agent chose which facts to include within the word limit, which is why the ensemble has no Anthropic model (Section~\ref{sec:final}) and why the no-context ablation exists (Section~\ref{sec:noctx}).
 
@@ -195,13 +195,13 @@ This ablation has no stored run yet; this paragraph fills in when it has.
 
 \emph{Validation.} An answer is valid when it is strict JSON with exactly the parameters of its prompt, each with $p_5<p_{50}<p_{95}$; probabilities lie in $(0,1)$; USD amounts are positive; the median $s$ exceeds one minus the median $t$ (the evaluation is informative); and the prior's median lies in $[0.001,0.999]$. A failed attempt is retried once. Failures are classed as unparseable JSON, wrong schema, a violated constraint, a failed fit, a refusal (no JSON and the text declines, or a content filter), a truncated answer, or a transport error.
 
-\emph{Fitting and pooling.} Each answer's three percentiles are fitted by least squares on the quantiles: a Beta distribution for $p$, $s$ and $t$, a lognormal for $B$, $K$, $\Cb$ and $\Cr$. Two parameters fitted to three quantiles leave a residual, stored as a quality flag. The combined belief per parameter is the equal-weight mixture of the fitted distributions over every valid answer: on each draw one member is chosen at random and its distribution sampled (the linear opinion pool~\citep{stone1961opinionpool,clemen1999combining}). A single distribution fitted to all members' quantiles would be forced to one mode and one width; the mixture keeps disagreement visible. The seven parameters are drawn independently, and each member's component independently per evaluation, so a member's systematic view is not carried through a draw; this narrows the intervals in a direction we cannot sign.
+\emph{Fitting and combining.} Each answer's three percentiles are fitted by least squares on the quantiles: a Beta distribution for $p$, $s$ and $t$, a lognormal for $B$, $K$, $\Cb$ and $\Cr$. Two parameters fitted to three quantiles leave a residual, stored as a fit-quality value. The combined belief per parameter is the equal-weight mixture of the fitted distributions over every valid answer: on each draw one member is chosen at random and its distribution sampled (the linear opinion pool~\citep{stone1961opinionpool,clemen1999combining}). A single distribution fitted to all members' quantiles would be forced to one mode and one width; the mixture keeps disagreement visible. The seven parameters are drawn independently, and each member's component independently per evaluation, so a member's systematic view is not carried through a draw; this narrows the intervals in a direction we cannot sign.
 
 \emph{Members and health.} Table~\ref{tab:health} gives attempts, the valid share, the failures by class and the cost per member. Of \voiAttempts{} answers, \voiValid{} (\voiValidShare) were valid, \voiInvalidRefusal{} were refused, \voiInvalidJson{} were unparseable and \voiInvalidConstraint{} violated a constraint; the run cost \voiUSD. Both refusals were Gemini's content filter on the ABC-Bench decision prompt (the two attempts of one slot), so that evaluation's decision parameters rest on five members; every other slot was filled. % CHECK-DATA
 
 \begin{table}[!htbp]
   \centering
-  \caption{Elicitation health per member: attempts, share valid after the one retry, failures by class, cost in USD.}
+  \caption{Elicitation health per member: attempts, share valid after the one retry, failures by class (unparseable JSON, wrong schema, violated constraint, failed fit, refusal, truncated answer, and the transport errors cli, http, api, provider and other), cost in USD.}
   \label{tab:health}
   \resizebox{\linewidth}{!}{\input{../generated/tab_health.tex}}
 \end{table}

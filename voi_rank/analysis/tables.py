@@ -7,7 +7,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from voi_rank.analysis.macros import esc, num, pct, rank, usd
-from voi_rank.analysis.summary import ERROR_CLASSES, PHYS, PRIMARY, TOP_K, Summary, member_display, order
+from voi_rank.analysis.summary import (
+    DOMAIN_LABEL,
+    ERROR_CLASSES,
+    PHYS,
+    PRIMARY,
+    TOP_K,
+    Summary,
+    member_display,
+    order,
+)
 
 SMALL_OPEN = r"\begingroup\footnotesize\setlength{\tabcolsep}{3pt}"
 SMALL_CLOSE = r"\endgroup"
@@ -28,7 +37,7 @@ def scenarios_table(s: Summary) -> str:
     rows = []
     for sc in sorted(s.scenarios, key=lambda x: x.id):
         where = (f"level {sc.level:g}" if sc.group == PHYS and sc.level is not None
-                 else esc((sc.domain or "--").replace("_", " ")))
+                 else esc(DOMAIN_LABEL.get(sc.domain or "", (sc.domain or "--").replace("_", " "))))
         rows.append([str(sc.id), esc(sc.short), esc(sc.group or "--"), where])
     return tabular("rlll", ["id", "evaluation", "group", "domain or level"], rows)
 

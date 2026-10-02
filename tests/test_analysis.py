@@ -490,7 +490,7 @@ def test_new_macros_match_their_definitions(elicited):
             assert m[f"Rho{word}{place}Param"] == macros.param_tex(n)
             assert m[f"Rho{word}{place}Value"] == macros.num(mean_abs[n])
     assert m["RhoTopParam"] in {macros.param_tex(n) for n in db.PARAM_NAMES}
-    assert macros.param_tex("C_build") == r"$C_\mathrm{build}$" and macros.param_tex("K") == "$K$"
+    assert macros.param_tex("C_build") == r"$C_\mathrm{b}$" and macros.param_tex("K") == "$K$"
     # zeros: the ids whose central EVSI is 0, per group, and the break-even run count n*
     for w, g in (("Physical", PHYS), ("LLM", LLM)):
         idx = s.ids_in(g)
