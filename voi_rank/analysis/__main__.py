@@ -8,10 +8,10 @@ Usage: uv run python -m voi_rank.analysis --study studies/safety-evals --protoco
 --members selects the latest run of the protocol that pooled exactly that
 subset. --draws keeps the first N of the run's draws after verification.
 --decision-from takes p, B, K from another protocol's decision stage
-(summary module docstring); with --optional a protocol that is not
-registered or has no valid decision elicitations is skipped with a
-message instead of an error (scripts/regen.sh uses it for ablations that
-may not exist yet).
+(summary module docstring). --optional skips with a message instead of an
+error when the analysed protocol has no stored run, or when --decision-from
+names a protocol that is not registered or has no valid decision
+elicitations (scripts/regen.sh uses it for ablations that may not exist yet).
 """
 
 from __future__ import annotations
@@ -28,6 +28,12 @@ def output_dir(study: Study, tag: str | None):
     out = study.generated_dir / tag if tag else study.generated_dir
     out.mkdir(parents=True, exist_ok=True)
     return out
+
+
+def has_run(con, name: str) -> bool:
+    row = con.execute("SELECT id FROM protocols WHERE name=?", (name,)).fetchone()
+    return row is not None and con.execute("SELECT COUNT(*) FROM runs WHERE protocol_id=?",
+                                           (row["id"],)).fetchone()[0] > 0
 
 
 def has_decision_rows(con, name: str) -> bool:
@@ -62,11 +68,15 @@ def main(argv=None):
     ap.add_argument("--draws", type=int, default=None, help="keep the first N draws (default: all)")
     ap.add_argument("--decision-from", default=None, help="protocol whose decision stage supplies p, B, K")
     ap.add_argument("--optional", action="store_true",
-                    help="skip quietly when --decision-from has no valid decision elicitations")
+                    help="skip quietly when the protocol has no stored run (or --decision-from has no"
+                         " valid decision elicitations)")
     args = ap.parse_args(argv)
     if args.tag and not re.fullmatch(r"[A-Za-z]+", args.tag):
         raise SystemExit(f"--tag {args.tag!r}: letters only (it becomes part of LaTeX macro names)")
     study = Study.resolve(args.study)
+    if args.optional and not has_run(study.connect_copy(), args.protocol):
+        print(f"skipped: protocol {args.protocol} has no stored Monte Carlo run in {study.db}")
+        return
     if (args.decision_from and args.optional
             and not has_decision_rows(study.connect_copy(), args.decision_from)):
         print(f"skipped: protocol {args.decision_from} has no valid decision elicitations in {study.db}")

@@ -6,9 +6,8 @@ stages:
     group_key: self                            # every scenario is its own decision
   - name: instrument
     template_path: templates/instrument.md     # renders the scenario and $context (instrument_context)
-    params: [s, t, C_build, C_run, n]
+    params: [s, t, C_build, C_run]
 template_vars:
-  perspective: society
   anchors_decision: ''
   anchors_instrument: ''
   context_mode: curated
@@ -24,11 +23,13 @@ template_vars:
 # with response_format and over 99.7% uptime), Azure for GPT-6 Luna (same
 # price as OpenAI's), Google Vertex for Gemini (same price as AI Studio;
 # Vertex lists no temperature parameter, so none is sent).
-# reasoning_effort low for the two members that reason longest at their
-# default (DeepSeek 5k-8k, GLM 8k-16k reasoning tokens in the 2026-10-01
-# smoke test), medium otherwise; MiMo lists no reasoning_effort parameter,
-# but its DeepInfra endpoint accepts reasoning.effort under
-# require_parameters (probe, 2026-10-01). est_output_tokens (cost estimate
+# reasoning_effort medium for every member (one setting, so no member is
+# handicapped or favoured; the 2026-10-01 smoke test ran DeepSeek and GLM
+# at low because they reason longest at their default, which only mattered
+# for cost); MiMo lists no reasoning_effort parameter, but its DeepInfra
+# endpoint accepts reasoning.effort under require_parameters (probe,
+# 2026-10-01). DeepSeek's and GLM's est_output_tokens are raised to their
+# default-effort smoke-test means (5k-8k and 8k-16k reasoning tokens). est_output_tokens (cost estimate
 # only): the mean completion tokens (answer plus reasoning) per valid call
 # of the member in the smoke test of this protocol, rounded up
 # (research/smoke_final_protocol.json, 4 calls each).
@@ -36,14 +37,14 @@ members:
   - provider: openrouter
     model: deepseek/deepseek-v4.1-flash
     k_repeats: 1
-    est_output_tokens: 3500
-    reasoning_effort: low
+    est_output_tokens: 8000
+    reasoning_effort: medium
     provider_order: [deepinfra/fp8]
   - provider: openrouter
     model: z-ai/glm-5.3
     k_repeats: 1
-    est_output_tokens: 1000
-    reasoning_effort: low
+    est_output_tokens: 12000
+    reasoning_effort: medium
     provider_order: [z-ai/fp8]
   - provider: openrouter
     model: xiaomi/mimo-v2.6-flash
@@ -72,13 +73,14 @@ members:
     provider_order: [xai]
 notes: >
   Final-run protocol (run only with --protocol final, with the dedicated key
-  in OPENROUTER_API_KEY). Stages and template variables mirror p001's
-  headline: society perspective, no anchors, curated context. Six members
+  in OPENROUTER_API_KEY). The seven-parameter model (p, B, K from the
+  decision prompt; s, t, C_build, C_run from the instrument prompt), B and K
+  valued for society, no anchors, curated context. Six members
   from six developers, three Chinese (DeepSeek, Z.ai, Xiaomi) and three US
   (OpenAI, Google, xAI); k=1 each, because between-member variance is at
   least the within-member repeat variance (HANDOVER section 2), so a call
   spent on a member is worth more than one spent on a repeat. No Anthropic
   member: two of the LLM evaluations are Anthropic's own (Agentic
   Misalignment, SHADE-Arena), and the pilots' main objection was
-  Claude agreeing with Claude; the iteration runs use claude_cli. Request
-  options per member: see the comment above members.
+  Claude agreeing with Claude; the iteration runs (archive/iteration-2026-09-30)
+  used claude_cli. Request options per member: see the comment above members.

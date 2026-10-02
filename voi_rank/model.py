@@ -1,9 +1,9 @@
 """The decision model (DESIGN section 3): closed-form EVSI and EVPI for the
-binary-state, binary-signal, binary-action release decision, the
-indifference value EVSI°, and the per-draw metrics the Monte Carlo stores.
-Vectorized over NumPy arrays.
+binary-state, binary-result, binary-action release decision, the maximum
+EVSI over the threshold (EVSI*), and the per-draw metrics the Monte Carlo
+stores. Vectorized over NumPy arrays.
 
-Convention: theta=1 is the state in which responding (a=1) is the correct
+Convention: theta=1 is the state in which mitigating (a=1) is the correct
 action. Utilities are in the regret parameterization with u(theta, a=0) = 0,
 u(1,1) = B, u(0,1) = -K. Stakes Lambda = B + K, threshold pi* = K / Lambda,
 V(pi) = Lambda [pi - pi*]^+.
@@ -11,8 +11,7 @@ V(pi) = Lambda [pi - pi*]^+.
 
 import numpy as np
 
-METRIC_NAMES = ["EVSI", "EVPI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run", "net_n", "eta_n",
-                "n_star", "pays"]
+METRIC_NAMES = ["EVSI", "EVPI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run", "n_star"]
 
 
 def value_of_acting(pi, B, K):
@@ -51,28 +50,29 @@ def voi(p, s, t, B, K):
 
 
 def voi_indifference(p, s, t, B, K):
-    """EVSI° = Lambda p (1 - p) (s + t - 1), Lambda = B + K: the maximum of
+    """EVSI* = Lambda p (1 - p) (s + t - 1), Lambda = B + K: the maximum of
     EVSI over the threshold pi* = K / (B + K) at fixed stakes, reached when
-    the developer is exactly undecided (pi* = p). Stakes times the Bernoulli
-    variance of the state times Youden's index J = s + t - 1: smooth in every
-    input and positive whenever the evaluation is informative, so it ranks
-    evaluations whether or not the result can change the decision. An
-    inverted evaluation (s + t < 1, which the elicitation rejects but a
-    mixture draw can produce) is read the other way round, |s + t - 1|, as
-    voi does."""
+    the decision maker is exactly undecided (pi* = p). Stakes times the
+    Bernoulli variance of the state times Youden's index J = s + t - 1:
+    smooth in every input and positive whenever the evaluation is
+    informative, so it ranks evaluations whether or not the result can
+    change the decision. An inverted evaluation (s + t < 1, which the
+    elicitation rejects but a mixture draw can produce) is read the other
+    way round, |s + t - 1|, as voi does. The code keeps the historical key
+    EVSI_ind; the documents write EVSI*."""
     p, s, t, B, K = (np.asarray(v, dtype=float) for v in (p, s, t, B, K))
     return (B + K) * p * (1.0 - p) * np.abs(s + t - 1.0)
 
 
 def metrics(draws: dict) -> dict:
-    """Per-draw metrics from the eight parameter draws (arrays of one shape),
-    keyed by METRIC_NAMES: EVSI, EVPI, EVSI_ind (EVSI°), C = C_build + C_run,
-    eta = EVSI/C, eta_ind = EVSI°/C, eta_run = EVSI/C_run, net_n = n EVSI -
-    C_build - n C_run, eta_n = n EVSI / (C_build + n C_run), n_star =
-    C_build / (EVSI - C_run) where EVSI > C_run else inf (the break-even
-    reuse count), pays = 1.0 where n >= n_star else 0.0."""
+    """Per-draw metrics from the seven parameter draws (arrays of one shape),
+    keyed by METRIC_NAMES: EVSI, EVPI, EVSI_ind (EVSI*), C = C_build + C_run,
+    eta = EVSI/C, eta_ind = EVSI*/C, eta_run = EVSI/C_run and n_star =
+    C_build / (EVSI - C_run) where EVSI > C_run else inf: the number of runs
+    after which the evaluation has paid for its build (the break-even run
+    count)."""
     p, s, t, B, K = (np.asarray(draws[k], dtype=float) for k in ("p", "s", "t", "B", "K"))
-    C_build, C_run, n = (np.asarray(draws[k], dtype=float) for k in ("C_build", "C_run", "n"))
+    C_build, C_run = (np.asarray(draws[k], dtype=float) for k in ("C_build", "C_run"))
     evsi, evpi = voi(p, s, t, B, K)
     evsi_ind = voi_indifference(p, s, t, B, K)
     C = C_build + C_run
@@ -86,8 +86,5 @@ def metrics(draws: dict) -> dict:
         "eta": evsi / C,
         "eta_ind": evsi_ind / C,
         "eta_run": evsi / C_run,
-        "net_n": n * evsi - C_build - n * C_run,
-        "eta_n": n * evsi / (C_build + n * C_run),
         "n_star": n_star,
-        "pays": np.where(n >= n_star, 1.0, 0.0),
     }

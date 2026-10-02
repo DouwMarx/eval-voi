@@ -537,8 +537,8 @@ def protocol_selector(row) -> str:
 #   stages:
 #     - {name: decision, template_path: templates/decision.md, params: [p, B, K], group_key: self}
 #     - {name: instrument, template_path: templates/instrument.md,
-#        params: [s, t, C_build, C_run, n]}
-#   template_vars: {perspective: society, anchors_decision: '@file:templates/anchors_decision.md'}
+#        params: [s, t, C_build, C_run]}
+#   template_vars: {context_mode: curated, anchors_decision: ''}
 # group_key 'self' makes every scenario its own group (the representative is
 # the scenario itself); 'group' or 'attributes.<key>' groups scenarios that
 # share one decision (and the same agent, decision, theta and

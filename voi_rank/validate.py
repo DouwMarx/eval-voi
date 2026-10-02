@@ -5,7 +5,7 @@ a stage's subset of PARAM_NAMES; PARAM_NAMES by default): a missing or an
 unexpected parameter is a schema error. Per parameter: three numeric
 percentiles (plain or scientific notation, as json.loads already reads
 them, or a numeric string) with p5 < p50 < p95; probabilities in (0, 1);
-USD amounts and n > 0; n >= 1 at p50. Across parameters: median s > 1 -
+USD amounts > 0. Across parameters: median s > 1 -
 median t (informativeness; needs both s and t), prior median in [0.001,
 0.999] (needs p). There is no unit field: the units are fixed by the
 template.
@@ -74,8 +74,6 @@ def validate_payload(obj, names: list[str] | None = None) -> tuple[dict | None, 
                 return None, f"constraint: {name}: probabilities must lie in (0,1)"
         elif p5 <= 0.0:
             return None, f"constraint: {name}: must be > 0"
-        if name == "n" and p50 < 1.0:
-            return None, "constraint: n: the median reuse count must be >= 1"
         clean[name] = {"p5": p5, "p50": p50, "p95": p95, "reasoning": str(d.get("reasoning", ""))}
     if "s" in clean and "t" in clean and clean["s"]["p50"] <= 1.0 - clean["t"]["p50"]:
         return None, "constraint: informativeness: median s <= 1 - median t"

@@ -109,26 +109,27 @@ def test_indifference_value_is_the_maximum_over_the_threshold():
 
 
 def test_metrics_derived_per_draw():
-    draws = {"p": np.array([0.3, 0.3, 0.01]), "s": np.array([0.9, 0.9, 0.9]), "t": np.array([0.9, 0.9, 0.9]),
-             "B": np.array([1e5, 1e5, 1e5]), "K": np.array([1e4, 1e4, 1e4]),
-             "C_build": np.array([5e3, 5e3, 5e3]), "C_run": np.array([1e3, 1e3, 1e3]),
-             "n": np.array([10.0, 1.0, 10.0])}
+    draws = {"p": np.array([0.3, 0.01]), "s": np.array([0.9, 0.9]), "t": np.array([0.9, 0.9]),
+             "B": np.array([1e5, 1e5]), "K": np.array([1e4, 1e4]),
+             "C_build": np.array([5e3, 5e3]), "C_run": np.array([1e3, 1e3])}
     m = model.metrics(draws)
     assert list(m) == model.METRIC_NAMES == ["EVSI", "EVPI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run",
-                                             "net_n", "eta_n", "n_star", "pays"]
+                                             "n_star"]
+    assert not {"net_n", "eta_n", "pays"} & set(m)   # the reuse-count metrics are gone with n
     evsi, evpi = model.voi(draws["p"], draws["s"], draws["t"], draws["B"], draws["K"])
     assert np.array_equal(m["EVSI"], evsi) and np.array_equal(m["EVPI"], evpi)
-    assert np.array_equal(m["C"], np.array([6e3, 6e3, 6e3]))
+    assert np.array_equal(m["C"], np.array([6e3, 6e3]))
     assert np.allclose(m["eta"], evsi / 6e3) and np.allclose(m["eta_run"], evsi / 1e3)
     assert np.allclose(m["eta_ind"], model.voi_indifference(draws["p"], 0.9, 0.9, 1e5, 1e4) / 6e3)
-    assert np.allclose(m["net_n"], draws["n"] * evsi - 5e3 - draws["n"] * 1e3)
-    assert np.allclose(m["eta_n"], draws["n"] * evsi / (5e3 + draws["n"] * 1e3))
     # draw 0: EVSI > C_run (p = 0.3 is inside the decision-changing region), n* = C_build / (EVSI - C_run)
     assert evsi[0] > 1e3 and m["n_star"][0] == pytest.approx(5e3 / (evsi[0] - 1e3))
-    assert m["pays"][0] == 1.0 and m["pays"][1] == 0.0   # 10 reuses pay, one does not
-    # draw 2: p = 0.01, the developer deploys regardless, EVSI = 0 <= C_run: n* infinite, never pays
-    assert evsi[2] == 0.0 and m["n_star"][2] == np.inf and m["pays"][2] == 0.0
-    assert np.all(np.isfinite(m["eta"])) and m["eta"][2] == 0.0
+    # draw 1: p = 0.01, the decision maker deploys regardless, EVSI = 0 <= C_run: n* infinite
+    assert evsi[1] == 0.0 and m["n_star"][1] == np.inf
+    assert np.all(np.isfinite(m["eta"])) and m["eta"][1] == 0.0
+    # EVSI just above C_run: n* is finite but huge; at C_run exactly it is inf (no division by zero)
+    edge = {k: v[:1] for k, v in draws.items()}
+    edge["C_run"] = np.array([evsi[0]])
+    assert model.metrics(edge)["n_star"][0] == np.inf
 
 
 # --- fit sanity -------------------------------------------------------------

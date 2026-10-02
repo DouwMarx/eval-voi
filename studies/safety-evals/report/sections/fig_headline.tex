@@ -1,8 +1,8 @@
 % Shared by main.tex and extended/main.tex. Lines marked % CHECK-DATA depend on the data.
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.97\linewidth]{fig_headline.pdf}
-  \caption{Physical-AI safety evaluations are worth less per dollar than LLM safety evaluations. Left: value of one run (EVSI) against the cost $C$ to build and run it once, per evaluation at the central estimate (labels are evaluation ids\ifextended, listed in Table~\ref{tab:scenarios}\fi). Dashed lines have constant efficiency $\eta=\EVSI/C$; up and to the left is better. Hollow markers on the bottom row are evaluations whose prior is already decisive ($\eta=0$). Right: the probability that a randomly chosen physical-AI evaluation has a higher $\eta$ than the $q$-th percentile LLM evaluation, ties counted as one half. At the central estimate no physical-AI evaluation reaches the median LLM evaluation (\voiCurveCentralFifty). Over draws the curve sits higher, because zero-valued evaluations tie. % CHECK-DATA
+  \ifextended\includegraphics[width=\linewidth]{fig_headline.pdf}\else\includegraphics[width=0.58\linewidth]{fig_headline_small.pdf}\fi
+  \caption{Value of one run against the cost $C$ to build and run it, every parameter at its median\ifextended{} (labels are evaluation ids, listed in Table~\ref{tab:scenarios})\else{} (Fig.~\ref{fig:rows} names the evaluations)\fi. (a) $\EVSIst$, the value to an undecided decision maker, for all \voiNScenarios{} evaluations. (b) EVSI at the elicited prior, for the \voiNChangesPhysical{} physical-AI and \voiNChangesLLM{} LLM evaluations whose result can change the decision; the other \voiNZeroPhysical{} and \voiNZeroLLM{} are worth zero because the prior is already decisive. Dashed lines: constant value per dollar; up and left is better. % CHECK-DATA
   }
   \label{fig:headline}
 \end{figure}

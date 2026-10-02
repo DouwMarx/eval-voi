@@ -4,6 +4,8 @@
 # LLM score = presence + 2 x hazard checkability - capability-benchmark penalty
 # - construct penalty (only where the score does not measure the hazard).
 # Physical-AI score = validity class V + hazard directness H + level spread L.
+# Floor (2026-10-02): at least 3 evaluations per LLM risk domain; the
+# highest-scoring remaining evaluation of a short domain is added.
 # A cut scenario keeps its rows in voi.db; seeding marks it retired and the
 # Monte Carlo and the analysis leave it out.
 
@@ -15,33 +17,33 @@ exploitbench: {include: true, reason: "LLM rank 5, score 13.0: 26 documents, 7 p
 cybench: {include: true, reason: "LLM rank 6, score 12.33: 16 documents, 7 publishers; programmatic flag checks"}
 binary_exploitation: {include: true, reason: "LLM rank 8, score 11.25: 15 documents, 6 publishers; programmatic score; unknown-vulnerability discovery, a construct of its own"}
 cvebench: {include: false, reason: "LLM rank 9, score 11.17, but the third known-vulnerability exploitation evaluation after ExploitGym and ExploitBench; passed over for domain coverage"}
-cyscenariobench: {include: true, reason: "LLM rank 15, score 9.08: 13 documents, 4 publishers; programmatic end-state check; second end-to-end intrusion evaluation"}
+cyscenariobench: {include: true, reason: "LLM rank 16, score 9.08: 13 documents, 4 publishers; programmatic end-state check; second end-to-end intrusion evaluation"}
 
 # LLM: CBRN
 vct: {include: true, reason: "LLM rank 2, score 14.0: 35 documents, 8 publishers; expert-baselined"}
 labbench_bio: {include: true, reason: "LLM rank 7, score 12.0: 30 documents, 7 publishers; PhD-baselined; capability-benchmark penalty applied"}
-wmdp: {include: true, reason: "LLM rank 12, score 10.17: 14 documents, 6 publishers; programmatic score; construct penalty for shortcuts on over 30% of WMDP-Bio"}
+wmdp: {include: true, reason: "LLM rank 13, score 10.17: 14 documents, 6 publishers; programmatic score; construct penalty for shortcuts on over 30% of WMDP-Bio"}
 hpct: {include: false, reason: "LLM rank 17, score 8.0, but the third expert-baselined biology knowledge test after VCT and LAB-Bench; passed over for domain coverage"}
 abcbench: {include: true, reason: "LLM rank 19, score 7.83: 10 documents, 4 publishers; algorithmic checks; construct penalty for refusals on two of three tasks"}
-biotier: {include: false, reason: "LLM rank 24, score 5.83: below the 20 chosen (10 documents, 3 publishers; jury-graded with partial validation)"}
+biotier: {include: false, reason: "LLM rank 24, score 5.83: below the 20 chosen by rank (10 documents, 3 publishers; jury-graded with partial validation)"}
 
 # LLM: loss of control
 shade_arena: {include: true, reason: "LLM rank 11, score 10.67: 20 documents, 5 publishers; programmatic side-task check with a fixed monitor"}
-controlarena: {include: true, reason: "LLM rank 16, score 8.42: 5 documents, 4 publishers; programmatic side-task scorers; second covert side-task evaluation"}
+controlarena: {include: true, reason: "LLM rank 12, score 10.5: 18 documents, 5 publishers counting its LinuxArena, Minimal-LinuxBench and BashArena settings (5 documents, 4 publishers under the ControlArena name); programmatic side-task scorers; second covert side-task evaluation; the draft's instrument is LinuxArena"}
 bloom: {include: true, reason: "LLM rank 18, score 7.92: 11 documents, 4 publishers; judge with Spearman 0.86 against human scores"}
 agentic_misalignment: {include: true, reason: "LLM rank 20, score 7.0: 12 documents, 5 publishers; classifier plus string checks; construct penalty for evaluation awareness (55.1% vs 6.5%)"}
 
 # LLM: harmful manipulation
-mask: {include: true, reason: "LLM rank 13, score 9.58: 19 documents, 5 publishers; judge at 86.4% agreement with human labels"}
-petri: {include: true, reason: "LLM rank 14, score 9.25: 15 documents, 6 publishers; judge validated by self-consistency only"}
-deceptionbench: {include: false, reason: "LLM rank 26, score 5.25: below the 20 chosen (3 documents, 2 publishers)"}
+mask: {include: true, reason: "LLM rank 14, score 9.58: 19 documents, 5 publishers; judge at 86.4% agreement with human labels"}
+petri: {include: true, reason: "LLM rank 15, score 9.25: 15 documents, 6 publishers; judge validated by self-consistency only"}
+deceptionbench: {include: true, reason: "LLM rank 26, score 5.25: 3 documents, 2 publishers; judge at 97.1% agreement with the human majority on 420 records; added by the floor of 3 per domain as the third harmful-manipulation evaluation (the best-scoring candidate with a checkable hazard result)"}
 
 # LLM: societal harm
 strongreject: {include: true, reason: "LLM rank 10, score 11.0: 12 documents, 7 publishers; judge at 0.90 correlation with human judgments"}
 fortress: {include: true, reason: "LLM rank 21, score 6.5: 6 documents, 3 publishers; grader majority at 89.05% agreement with human labels"}
 agentharm: {include: true, reason: "LLM rank 22, score 6.25: 3 documents, 2 publishers; hand-written programmatic grading"}
-bbq: {include: false, reason: "LLM rank 23, score 5.92: below the 20 chosen (one publisher, 11 documents)"}
-harmbench: {include: false, reason: "LLM rank 25, score 5.33: below the 20 chosen (4 documents, 2 publishers)"}
+bbq: {include: false, reason: "LLM rank 23, score 5.92: below the 20 chosen by rank (one publisher, 11 documents)"}
+harmbench: {include: false, reason: "LLM rank 25, score 5.33: below the 20 chosen by rank (4 documents, 2 publishers)"}
 
 # physical AI (V validity, H hazard directness, L best at its level)
 iihs_paeb: {include: true, reason: "physical rank 1, score 6 (V3 H2 L1); level 8; non-learning production AEB stack"}

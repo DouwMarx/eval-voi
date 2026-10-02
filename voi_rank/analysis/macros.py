@@ -24,6 +24,8 @@ from voi_rank.analysis.summary import (
     GROUPS,
     LLM,
     PHYS,
+    PRIMARY,
+    RANKED,
     Summary,
     member_display,
 )
@@ -38,8 +40,9 @@ TOPWORDS = {1: "One", 3: "Three", 5: "Five", 10: "Ten"}   # keys: summary.BEST_T
 LATEX_SPECIALS = {"&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_", "{": r"\{", "}": r"\}",
                   "~": r"\textasciitilde{}", "^": r"\textasciicircum{}", "\\": r"\textbackslash{}"}
 GROUP_WORD = {PHYS: "Physical", LLM: "LLM"}
-# display aliases: the code and the DB keep eta_ind (EtaInd); the documents say eta_max
-ALIASES = (("EtaInd", "EtaMax"),)
+# display aliases: the code and the DB keep eta_ind (EtaInd); the documents say eta* (EtaStar)
+ALIASES = (("EtaInd", "EtaStar"),)
+METRIC_WORD = {"eta": "Eta", "eta_ind": "EtaInd", "eta_run": "EtaRun"}
 PARAM_TEX = {"C_build": r"$C_\mathrm{build}$", "C_run": r"$C_\mathrm{run}$"}   # else $<name>$
 
 
@@ -161,11 +164,11 @@ def _ratio(a, b) -> float | None:
 def group_medians(s: Summary, m: dict) -> None:
     """Why the groups differ: per group, the median over evaluations of each
     pooled median (Med<Param><Group>), of the stakes B+K, of the stakes per
-    dollar (B+K)/C and of eta_ind; the LLM-to-physical ratios of the last two
+    dollar (B+K)/C and of eta*; the LLM-to-physical ratios of the last two
     (StakesPerCostRatio, EtaIndRatio: the factor by which physical-AI stakes
-    would have to grow to match, since EVSI and EVSI° scale with B+K at a fixed
+    would have to grow to match, since EVSI and EVSI* scale with B+K at a fixed
     threshold K/(B+K)); and the two regimes in which the central estimate's
-    result cannot change the decision (NRespondsRegardless: pi0 >= pi*,
+    result cannot change the decision (NMitigatesRegardless: pi0 >= pi*,
     NDeploysRegardless: pi1 <= pi*). MemberList: the members' model ids."""
     pl = s.pooled
     stakes = pl["B"] + pl["K"]
@@ -185,11 +188,15 @@ def group_medians(s: Summary, m: dict) -> None:
             v = _median(pl[name][idx])
             m[f"Med{camel(name)}{w}"] = usd(v) if name in ("B", "K", "C_build", "C_run") else num(v)
         m[f"MedStakes{w}"] = usd(_median(stakes[idx]))
+        m[f"MedC{w}"] = usd(_median(s.central["C"][idx]))
         m[f"MedStakesPerCost{w}"] = num(med[g]["spc"])
         m[f"MedEtaInd{w}"] = num(med[g]["ind"])
-        m[f"NRespondsRegardless{w}"] = str(int((zero[idx] & (pi0[idx] >= pistar[idx])).sum()))
-        m[f"NDeploysRegardless{w}"] = str(int((zero[idx] & (pi1[idx] <= pistar[idx])).sum()))
+        m[f"MedEVSIInd{w}"] = usd(_median(s.central["EVSI_ind"][idx]))
+        mitigates = zero[idx] & (pi0[idx] >= pistar[idx])
+        m[f"NMitigatesRegardless{w}"] = str(int(mitigates.sum()))
+        m[f"NDeploysRegardless{w}"] = str(int((zero[idx] & ~mitigates).sum()))   # the zeros partition
     m["StakesPerCostRatio"] = num(_ratio(med[LLM]["spc"], med[PHYS]["spc"]))
+    m["StakesRatio"] = num(_ratio(_median(stakes[s.ids_in(LLM)]), _median(stakes[s.ids_in(PHYS)])))
     m["EtaIndRatio"] = num(_ratio(med[LLM]["ind"], med[PHYS]["ind"]))
     m["MemberList"] = esc(", ".join(member_display(lab) for lab in s.member_labels))
 
@@ -207,25 +214,41 @@ def collect(s: Summary) -> dict[str, str]:
     m["NScenarios"] = str(o["n_scenarios"])
     for g in GROUPS:
         m[f"N{GROUP_WORD[g]}"] = str(o["n_group"][g])
-    for metric, word in (("eta", "Eta"), ("eta_ind", "EtaInd"), ("eta_run", "EtaRun")):
+    # the probability of superiority P_S per metric: <Word>PS (central), <Word>PSQLo/Med/Hi (over
+    # draws), <Word>MWp (exact Mann-Whitney p at the central estimate)
+    for metric, word in METRIC_WORD.items():
         g = o["groups"][metric]
-        m[f"{word}ACentral"] = pct(g["A_central"])
+        m[f"{word}PS"] = pct(g["A_central"])
         for q, v in zip(("Lo", "Med", "Hi"), g["A_q"], strict=True):
-            m[f"{word}AQ{q}"] = pct(v)
+            m[f"{word}PSQ{q}"] = pct(v)
         m[f"{word}MWp"] = num(g["mw_p"])
     ac = o["eta_A_changing"]
-    m["EtaAChanging"] = pct(ac["A"])
-    m["EtaAChangingN"] = str(ac["n_pairs"])
+    m["EtaPSChanging"] = pct(ac["A"])
+    m["EtaPSChangingN"] = str(ac["n_pairs"])
+    # rankings: per metric, the median rank interquartile range (all, per group), the best
+    # physical-AI evaluation's central rank and P(best physical-AI rank <= N) over draws
+    for metric in RANKED:
+        r, word = o["rank"][metric], METRIC_WORD[metric]
+        m[f"{word}RankIQRMedian"] = num(_median(r["iqr"]))
+        for g in GROUPS:
+            m[f"{word}RankIQRMedian{GROUP_WORD[g]}"] = num(_median(r["iqr"][s.ids_in(g)]))
+        if "best_phys_curve" in r:
+            curve = r["best_phys_curve"]
+            for n in BEST_TOP:   # P(rank <= N) is 1 once N reaches the number of evaluations
+                m[f"{word}PBestPhysicalTop{TOPWORDS[n]}"] = pct(curve[min(n, len(curve)) - 1])
+            m[f"{word}BestPhysicalRankCentral"] = rank(r["best_phys_central"])
+            best = min(s.ids_in(PHYS), key=lambda i: (r["central"][i], s.scenarios[i].id))
+            m[f"{word}BestPhysicalShort"] = esc(s.scenarios[best].short)
+            m[f"{word}BestPhysicalValue"] = num(s.central[metric][best])
+        top = min(range(len(s.scenarios)), key=lambda i: (r["central"][i], s.scenarios[i].id))
+        m[f"{word}TopShort"] = esc(s.scenarios[top].short)
+        m[f"{word}TopValue"] = num(s.central[metric][top])
     if "curve_q" in o:
         for q in CURVE_AT:
             i = int(np.searchsorted(CURVE_QS, q))
             m[f"CurveCentral{QWORDS[q]}"] = pct(o["curve_central"][i])
             for name, v in zip(("Lo", "Med", "Hi"), o["curve_q"][i], strict=True):
                 m[f"Curve{name}{QWORDS[q]}"] = pct(v)
-        for n in BEST_TOP:
-            if n <= len(o["best_phys_curve"]):
-                m[f"PBestPhysicalTop{TOPWORDS[n]}"] = pct(o["best_phys_curve"][n - 1])
-        m["BestPhysicalRankCentral"] = rank(o["best_phys_central"])
         pb = o["p_beats_median"]
         m["NPhysicalBeatMedian"] = str(int((pb > 0.5).sum()))
         m["PhysicalPctCentralMedian"] = sig(float(np.median(o["pct_central"])))
@@ -234,46 +257,73 @@ def collect(s: Summary) -> dict[str, str]:
             m[f"Pct{key}Central"] = sig(float(o["pct_central"][k]))
             m[f"Pct{key}Med"] = sig(float(o["pct_q"][k][1]))
             m[f"PBeatMedian{key}"] = pct(pb[k])
+    # zeros (the prior already decisive at the central estimate) and the break-even run count
+    # n* = C_build / (EVSI - C_run): per group, the median over evaluations of the median
+    # over finite draws, and the median over evaluations of the share of finite draws
     for g in GROUPS:
         idx = s.ids_in(g)
         w = GROUP_WORD[g]
         m[f"ChangesShare{w}"] = pct(o["changes_share"][g])
+        m[f"ZeroShare{w}"] = pct(None if o["changes_share"][g] is None else 1.0 - o["changes_share"][g])
         m[f"NChanges{w}"] = str(int((s.central["EVSI"][idx] > 0).sum()))
+        m[f"NZero{w}"] = str(len(o["zero_ids"][g]))
+        m[f"ZeroIds{w}"] = ", ".join(str(i) for i in o["zero_ids"][g]) or "none"
         ns = s.central["n_star"][idx]
         fin = ns[np.isfinite(ns)]
         m[f"NstarMedian{w}"] = num(float(np.median(fin)) if fin.size else None)
-        m[f"NPays{w}"] = str(int((o["p_pays"][idx] > 0.5).sum()))
-        m[f"PPaysMedian{w}"] = pct(float(np.median(o["p_pays"][idx])) if len(idx) else None)
+        m[f"NNstarFinite{w}"] = str(int(fin.size))
+        meds = [q[1] for q in o["nstar_q"][idx] if q[1] is not None]
+        m[f"NstarDrawMedian{w}"] = num(float(np.median(meds)) if meds else None)
+        m[f"PNstarFiniteMedian{w}"] = pct(float(np.median(o["p_nstar_finite"][idx])) if len(idx) else None)
         m[f"EtaMedian{w}"] = num(float(np.median(s.central["eta"][idx])) if len(idx) else None)
     group_medians(s, m)
-    iqr = o["rank_iqr"]
-    m["RankIQRMedian"] = num(_median(iqr))
-    for g in GROUPS:
-        m[f"RankIQRMedian{GROUP_WORD[g]}"] = num(_median(iqr[s.ids_in(g)]))
-    rho = o["mean_abs_rho"]
+    # risk domains, ordered by the median central rank under eta*: Dom<Camel>N, MedRank, MedEtaInd,
+    # MedEta, MedStakes, ZeroShare, plus DomainOrder (the labels in that order)
+    for d in o["domains"]:
+        key = camel(d["label"])
+        m[f"Dom{key}N"] = str(d["n"])
+        m[f"Dom{key}MedRank"] = rank(d["med_rank_central"])
+        m[f"Dom{key}MeanRankMed"] = rank(d["mean_rank_q"][1])
+        m[f"Dom{key}MedEtaInd"] = num(d["med_eta_ind"])
+        m[f"Dom{key}MedEta"] = num(d["med_eta"])
+        m[f"Dom{key}MedStakes"] = usd(d["med_stakes"])
+        m[f"Dom{key}ZeroShare"] = pct(d["zero_share"])
+    m["DomainOrder"] = esc(", ".join(d["label"] for d in o["domains"]))
+    m["NDomains"] = str(len(o["domains"]))
+    rho, rho_ind = o["mean_abs_rho"], o["mean_abs_rho_ind"]
     for name in PARAM_NAMES:
         m[f"Rho{camel(name)}"] = num(rho[name])
+        m[f"RhoInd{camel(name)}"] = num(rho_ind[name])
         m[f"MemberRho{camel(name)}"] = num(o["member_rho"][name])
-    ranked = sorted((v, k) for k, v in rho.items() if v is not None)
-    m["RhoTopParam"] = param_tex(ranked[-1][1]) if ranked else "--"
+    for word, r in (("", rho), ("Ind", rho_ind)):
+        ranked = sorted((v, k) for k, v in r.items() if v is not None)
+        for place, i in (("Top", -1), ("Second", -2), ("Low", 0)):
+            ok = len(ranked) > abs(i) - (1 if i < 0 else 0)
+            m[f"Rho{word}{place}Param"] = param_tex(ranked[i][1]) if ok else "--"
+            m[f"Rho{word}{place}Value"] = num(ranked[i][0]) if ok else "--"
     m["LevelRhoEta"] = num(o["level_rho_eta"])
     m["LevelRhoEtap"] = num(o["level_p_eta"])
-    m["LevelRhoEtaInd"] = num(o["level_rho_eta_ind"])   # alias LevelRhoEtaMax
+    m["LevelRhoEtaInd"] = num(o["level_rho_eta_ind"])   # alias LevelRhoEtaStar
     m["LevelRhoEtaIndp"] = num(o["level_p_eta_ind"])
     m["LevelRhoJ"] = num(o["level_rho_J"])
     m["LevelRhoC"] = num(o["level_rho_C"])
     m["LevelRhoJp"] = num(o["level_p_J"])
     m["LevelRhoCp"] = num(o["level_p_C"])
     m["NLevel"] = str(len(o["level_ids"]))
-    top = min(range(len(s.scenarios)), key=lambda i: (o["rank_central"][i], s.scenarios[i].id))
-    m["TopShort"] = esc(s.scenarios[top].short)
-    m["TopEta"] = num(s.central["eta"][top])
+    lev = o["level_ids"]
+    if len(lev):
+        levels = sorted({s.scenarios[i].level for i in lev})
+        m["LevelMin"] = f"{levels[0]:g}"
+        m["LevelMax"] = f"{levels[-1]:g}"
     for i, key in enumerate(keys):
         m[f"Eta{key}"] = num(s.central["eta"][i])
+        m[f"EtaInd{key}"] = num(s.central["eta_ind"][i])
+        m[f"Rank{key}"] = rank(o["rank"][PRIMARY]["central"][i])
         m[f"PChanges{key}"] = pct(o["p_changes"][i])
         m[f"Nstar{key}"] = num(s.central["n_star"][i])
     att = sum(h["attempts"] for h in s.health)
     m["Attempts"] = str(att)
+    m["Valid"] = str(sum(h["valid"] for h in s.health))
     m["ValidShare"] = pct(sum(h["valid"] for h in s.health) / att if att else None)
     m["USD"] = usd(sum(h["usd"] for h in s.health))
     for c in ERROR_CLASSES:

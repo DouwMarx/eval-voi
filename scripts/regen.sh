@@ -4,20 +4,18 @@
 # protocol; the Monte Carlo run is a separate step (README, run order 4).
 #
 #   headline        generated/            macros \voi...
-#   developer       generated/dev/        macros \voidev...  p, B, K from the decision stage
-#                                          of $DEV_PROTOCOL, the rest from the headline run;
-#                                          skipped while $DEV_PROTOCOL has no valid decision rows
+#   no-context      generated/noctx/      macros \voinoctx...  the latest run of $NOCTX_PROTOCOL;
+#                                          skipped while that protocol has no stored run
 #
 # Usage: scripts/regen.sh [study-dir]          (default studies/safety-evals)
-# Environment: PROTOCOL (default p001), DEV_PROTOCOL (default p002), DRAWS (default: every draw)
+# Environment: PROTOCOL (default final), NOCTX_PROTOCOL (default final_noctx), DRAWS (default: every draw)
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 study="${1:-studies/safety-evals}"
-protocol="${PROTOCOL:-p001}"
-dev="${DEV_PROTOCOL:-p002}"
+protocol="${PROTOCOL:-final}"
+noctx="${NOCTX_PROTOCOL:-final_noctx}"
 draws=()
 [ -n "${DRAWS:-}" ] && draws=(--draws "$DRAWS")
 
 uv run python -m voi_rank.analysis --study "$study" --protocol "$protocol" "${draws[@]}"
-uv run python -m voi_rank.analysis --study "$study" --protocol "$protocol" "${draws[@]}" \
-    --decision-from "$dev" --optional --tag dev
+uv run python -m voi_rank.analysis --study "$study" --protocol "$noctx" "${draws[@]}" --tag noctx --optional

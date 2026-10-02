@@ -1,4 +1,4 @@
-"""Payload validation (DESIGN section 4) for the eight parameters and the
+"""Payload validation (DESIGN section 4) for the seven parameters and the
 two stages' subsets."""
 
 import pytest
@@ -16,13 +16,13 @@ def good_params():
         "K": {"reasoning": "r", "p5": 2e3, "p50": 10e3, "p95": 60e3},
         "C_build": {"reasoning": "r", "p5": 5e3, "p50": 20e3, "p95": 100e3},
         "C_run": {"reasoning": "r", "p5": 300, "p50": 1000, "p95": 5000},
-        "n": {"reasoning": "r", "p5": 2, "p50": 10, "p95": 50},
     }
 
 
-def test_param_names_are_the_eight_parameters_in_stage_order():
-    assert PARAM_NAMES == ["p", "s", "t", "B", "K", "C_build", "C_run", "n"]
-    assert DECISION_PARAMS == ["p", "B", "K"] and INSTRUMENT_PARAMS == ["s", "t", "C_build", "C_run", "n"]
+def test_param_names_are_the_seven_parameters_in_stage_order():
+    assert PARAM_NAMES == ["p", "s", "t", "B", "K", "C_build", "C_run"]
+    assert DECISION_PARAMS == ["p", "B", "K"] and INSTRUMENT_PARAMS == ["s", "t", "C_build", "C_run"]
+    assert "n" not in PARAM_NAMES   # the reuse count is gone
     assert sorted(DECISION_PARAMS + INSTRUMENT_PARAMS) == sorted(PARAM_NAMES)
 
 
@@ -34,7 +34,7 @@ def test_valid_payload_round_trips_without_a_unit_field():
     fits, err = fit_all(clean)
     assert err is None and set(fits) == set(PARAM_NAMES)
     assert {fits[n].family for n in ("p", "s", "t")} == {"beta"}
-    assert {fits[n].family for n in ("B", "K", "C_build", "C_run", "n")} == {"lognormal"}
+    assert {fits[n].family for n in ("B", "K", "C_build", "C_run")} == {"lognormal"}
     # a unit key, as the pilots' templates asked for, is ignored
     prm = good_params()
     prm["B"]["unit"] = "USD"
@@ -52,9 +52,15 @@ def test_stage_subsets_are_exact():
     # an answer carrying the other stage's parameters, or the retired C, is a schema error
     assert validate_payload({"parameters": prm}, INSTRUMENT_PARAMS)[1] == (
         "schema: unexpected parameters ['p', 'B', 'K'] (this prompt asks for"
-        " ['s', 't', 'C_build', 'C_run', 'n'])")
+        " ['s', 't', 'C_build', 'C_run'])")
     assert validate_payload({"parameters": dec})[1] == \
-        "schema: missing parameters ['s', 't', 'C_build', 'C_run', 'n']"
+        "schema: missing parameters ['s', 't', 'C_build', 'C_run']"
+    # the retired reuse count n is unexpected in either stage and in the full set
+    with_n = {**ins, "n": {"reasoning": "r", "p5": 2, "p50": 10, "p95": 50}}
+    assert validate_payload({"parameters": with_n}, INSTRUMENT_PARAMS)[1].startswith(
+        "schema: unexpected parameters ['n']")
+    assert validate_payload({"parameters": {**prm, "n": with_n["n"]}})[1].startswith(
+        "schema: unexpected parameters ['n']")
     with_c = {**ins, "C": prm["C_run"]}
     assert validate_payload({"parameters": with_c}, INSTRUMENT_PARAMS)[1].startswith(
         "schema: unexpected parameters ['C']")
@@ -83,8 +89,8 @@ def test_missing_parameter_is_schema_error():
     assert clean is None and err.startswith("schema: missing parameters ['K']")
     assert validate_payload({"parameters": []})[1] == "schema: missing 'parameters' object"
     prm = good_params()
-    prm["n"] = 10
-    assert validate_payload({"parameters": prm})[1] == "schema: n is not an object"
+    prm["C_run"] = 10
+    assert validate_payload({"parameters": prm})[1] == "schema: C_run is not an object"
 
 
 def test_constraints():
@@ -104,9 +110,7 @@ def test_constraints():
     prm["C_build"]["p5"] = 0.0
     assert validate_payload({"parameters": prm})[1] == "constraint: C_build: must be > 0"
     prm = good_params()
-    prm["n"] = {"p5": 0.2, "p50": 0.8, "p95": 3.0}   # n > 0 but a median below one decision
-    assert validate_payload({"parameters": prm})[1] == "constraint: n: the median reuse count must be >= 1"
-    prm["n"] = {"p5": 0.5, "p50": 1.0, "p95": 3.0}   # p50 exactly 1 is allowed
+    prm["C_run"] = {"p5": 0.2, "p50": 0.8, "p95": 3.0}   # a positive amount below one dollar is fine
     assert validate_payload({"parameters": prm})[1] is None
     # informativeness only when both s and t are asked for; the prior check only with p
     bad = {k: good_params()[k] for k in INSTRUMENT_PARAMS}

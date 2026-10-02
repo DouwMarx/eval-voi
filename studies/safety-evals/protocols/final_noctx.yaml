@@ -1,4 +1,4 @@
-name: final_dev
+name: final_noctx
 stages:
   - name: decision
     template_path: templates/decision.md       # renders $agent $decision $theta_definition $decision_context
@@ -6,12 +6,11 @@ stages:
     group_key: self                            # every scenario is its own decision
   - name: instrument
     template_path: templates/instrument.md     # renders the scenario and $context (instrument_context)
-    params: [s, t, C_build, C_run, n]
+    params: [s, t, C_build, C_run]
 template_vars:
-  perspective: developer
   anchors_decision: ''
   anchors_instrument: ''
-  context_mode: curated
+  context_mode: none                       # no curated facts in either prompt (the heading goes too)
 # provider_order: one endpoint per member (tag from GET
 # /api/v1/models/<id>/endpoints, 2026-10-01), pinned with allow_fallbacks
 # false, so price and weights cannot change under the run. The first-party
@@ -24,11 +23,13 @@ template_vars:
 # with response_format and over 99.7% uptime), Azure for GPT-6 Luna (same
 # price as OpenAI's), Google Vertex for Gemini (same price as AI Studio;
 # Vertex lists no temperature parameter, so none is sent).
-# reasoning_effort low for the two members that reason longest at their
-# default (DeepSeek 5k-8k, GLM 8k-16k reasoning tokens in the 2026-10-01
-# smoke test), medium otherwise; MiMo lists no reasoning_effort parameter,
-# but its DeepInfra endpoint accepts reasoning.effort under
-# require_parameters (probe, 2026-10-01). est_output_tokens (cost estimate
+# reasoning_effort medium for every member (one setting, so no member is
+# handicapped or favoured; the 2026-10-01 smoke test ran DeepSeek and GLM
+# at low because they reason longest at their default, which only mattered
+# for cost); MiMo lists no reasoning_effort parameter, but its DeepInfra
+# endpoint accepts reasoning.effort under require_parameters (probe,
+# 2026-10-01). DeepSeek's and GLM's est_output_tokens are raised to their
+# default-effort smoke-test means (5k-8k and 8k-16k reasoning tokens). est_output_tokens (cost estimate
 # only): the mean completion tokens (answer plus reasoning) per valid call
 # of the member in the smoke test of this protocol, rounded up
 # (research/smoke_final_protocol.json, 4 calls each).
@@ -36,14 +37,14 @@ members:
   - provider: openrouter
     model: deepseek/deepseek-v4.1-flash
     k_repeats: 1
-    est_output_tokens: 3500
-    reasoning_effort: low
+    est_output_tokens: 8000
+    reasoning_effort: medium
     provider_order: [deepinfra/fp8]
   - provider: openrouter
     model: z-ai/glm-5.3
     k_repeats: 1
-    est_output_tokens: 1000
-    reasoning_effort: low
+    est_output_tokens: 12000
+    reasoning_effort: medium
     provider_order: [z-ai/fp8]
   - provider: openrouter
     model: xiaomi/mimo-v2.6-flash
@@ -71,8 +72,9 @@ members:
     reasoning_effort: medium
     provider_order: [xai]
 notes: >
-  Developer-perspective ablation of the final run's decision stage: final.yaml
-  with perspective developer (B and K as the developer's own financial
-  exposure), same members and request options. Run it with --protocol
-  final_dev --stage decision: the instrument template does not render the
-  perspective, so its instrument stage would only repeat final's prompts.
+  No-context ablation of final: identical members, request options and
+  templates, but context_mode none, so the decision prompt renders only
+  agent, decision and theta, and the instrument prompt only title, agent,
+  decision, theta and instrument; neither carries the LLM-curated facts or
+  their heading. It tests how far the results depend on the curated
+  contexts. Run with --protocol final_noctx; analyse with --tag noctx.

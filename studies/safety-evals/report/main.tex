@@ -11,6 +11,7 @@
 % study database alone. Sentences whose direction depends on the data carry % CHECK-DATA.
 \graphicspath{{generated/}}
 \input{generated/macros.tex}
+\IfFileExists{generated/noctx/macros.tex}{\input{generated/noctx/macros.tex}}{}
 \input{shared.tex}
 
 % corl_2026.sty enlarges "the first page" by two lines from inside \maketitle; with this
@@ -20,7 +21,7 @@
 \renewcommand{\@notice}{\@float{noticebox}[b]\footnotesize\@noticestring\end@float}
 \makeatother
 
-\title{Do physical-AI safety evaluations pay for themselves? Pricing them against LLM safety evaluations by value of information}
+\title{Are physical-AI safety evaluations worth the money? A value-of-information comparison with LLM safety evaluations}
 
 \author{
   Anonymous Author(s)\\
@@ -35,10 +36,10 @@
 
 \keywords{Safety evaluation, value of information, physical AI}
 
-\input{sections/fig_headline.tex}
-
 %===============================================================================
 \input{sections/intro.tex}
+
+\input{sections/fig_headline.tex}
 
 %===============================================================================
 \input{sections/method.tex}
@@ -46,10 +47,10 @@
 %===============================================================================
 \input{sections/results.tex}
 
+\input{sections/fig_rows.tex}
+
 %===============================================================================
 \input{sections/limitations.tex}
-
-\input{sections/disclosure.tex}
 
 \label{lastbodypage}
 \clearpage

@@ -3,7 +3,7 @@
 Pooled belief per parameter per scenario: the equal-weight mixture over the
 fitted distributions of every valid elicitation under the protocol (all
 members, all repeats; the linear opinion pool), so a member with more valid
-repeats carries more weight. The eight parameters are drawn independently
+repeats carries more weight. The seven parameters are drawn independently
 (stated assumption), aligned across scenarios by one seeded rng stream.
 
 --members provider:model,... pools only those members' valid fits (a subset
@@ -13,11 +13,10 @@ A subset naming every member is the ordinary all-member run.
 
 Stored per scenario (results rows, one per metric name):
 - q05/q25/q50/q75/q95 of every metric of model.METRIC_NAMES: EVSI, EVPI,
-  EVSI_ind (EVSI°), C, eta, eta_ind, eta_run, net_n, eta_n, n_star (inf where
-  EVSI <= C_run; the quantiles are over the finite draws, NULL when none is)
-  and pays;
-- the probabilities p_positive = P(EVSI > C), p_changes = P(EVSI > 0),
-  p_pays = P(n >= n_star) and p_top5 = P(rank <= 5 by eta, ties at zero
+  EVSI_ind (EVSI*), C, eta, eta_ind, eta_run and n_star (inf where
+  EVSI <= C_run; the quantiles are over the finite draws, NULL when none is);
+- the probabilities p_positive = P(EVSI > C), p_changes = P(EVSI > 0) and
+  p_top5 = P(rank <= 5 by eta, ties at zero
   never counting), each its own metric row with q50 holding the probability
   and the other columns NULL. This keeps one reader for everything a run
   stores (SELECT q50 ... WHERE metric=?); the archived results.p_positive
@@ -58,7 +57,7 @@ from voi_rank.sensitivity import rank_stability, spearman
 from voi_rank.study import Study, add_study_arg
 
 PRIMARY_METRIC = "eta"
-PROBABILITY_NAMES = ["p_positive", "p_changes", "p_pays", "p_top5"]
+PROBABILITY_NAMES = ["p_positive", "p_changes", "p_top5"]
 SUMMARY_QS = (0.05, 0.25, 0.50, 0.75, 0.95)
 RESULT_COLUMNS = ("q05", "q25", "q50", "q75", "q95")
 REPLAY_RTOL = 1e-9
@@ -92,10 +91,9 @@ def scenario_metrics(draws: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
 
 
 def probabilities(metrics: dict[str, np.ndarray]) -> dict[str, float]:
-    """P(EVSI > C), P(EVSI > 0) and P(n >= n*) over the draws of one scenario."""
+    """P(EVSI > C) and P(EVSI > 0) over the draws of one scenario."""
     return {"p_positive": float(np.mean(metrics["EVSI"] > metrics["C"])),
-            "p_changes": float(np.mean(metrics["EVSI"] > 0.0)),
-            "p_pays": float(np.mean(metrics["pays"]))}
+            "p_changes": float(np.mean(metrics["EVSI"] > 0.0))}
 
 
 def summarize(vec: np.ndarray) -> dict:

@@ -35,7 +35,6 @@ SEED = {
     "K": {"reasoning": "r", "p5": 2e3, "p50": 10e3, "p95": 60e3},
     "C_build": {"reasoning": "r", "p5": 5e3, "p50": 20e3, "p95": 100e3},
     "C_run": {"reasoning": "r", "p5": 300, "p50": 1000, "p95": 5000},
-    "n": {"reasoning": "r", "p5": 2, "p50": 10, "p95": 50},
 }
 HAIKU, OR_MEMBER = "claude_cli:haiku", "openrouter:fake/model"
 INSTRUMENT = ["--stage", "instrument"]
@@ -152,6 +151,7 @@ def test_mc_run_results_and_replay(study, monkeypatch):
     run_id = mc.run_mc(con, "p001", seed=1, n_draws=2000, quiet=True)
     metrics = {r[0] for r in con.execute("SELECT DISTINCT metric FROM results WHERE run_id=?", (run_id,))}
     assert metrics == set(mc.METRIC_NAMES) | set(mc.PROBABILITY_NAMES)
+    assert not {"net_n", "eta_n", "pays", "p_pays"} & metrics   # the reuse-count metrics are gone
     params = {r[0] for r in con.execute("SELECT DISTINCT param FROM sensitivities WHERE run_id=?", (run_id,))}
     assert params == set(db.PARAM_NAMES)
     # probabilities are rows with q50 holding the value; the archived p_positive column stays NULL
@@ -168,7 +168,6 @@ def test_mc_run_results_and_replay(study, monkeypatch):
         m = mc.scenario_metrics(draws)
         assert stored[(sid, "C")]["q50"] == pytest.approx(float(np.median(m["C"])))
         assert stored[(sid, "p_changes")]["q50"] == pytest.approx(float((m["EVSI"] > 0).mean()))
-        assert stored[(sid, "p_pays")]["q50"] == pytest.approx(float(m["pays"].mean()))
         assert stored[(sid, "eta")]["q05"] <= stored[(sid, "eta")]["q50"] <= stored[(sid, "eta")]["q95"]
         finite = m["n_star"][np.isfinite(m["n_star"])]
         assert stored[(sid, "n_star")]["q50"] == pytest.approx(float(np.median(finite)))
@@ -189,7 +188,7 @@ def test_dry_run_calls_nothing_and_writes_nothing(study, monkeypatch, capsys):
     assert "scenarios all, template_vars ['anchors_decision', 'anchors_instrument', 'perspective'])" in out
     assert "stage decision (template templates/decision.md, params p, B, K, group_key self):" in out
     assert f"member {HAIKU} (k=2): 16 pending slots over 8 groups (1, 2, 3, 4, 5, 6, 7, 8)" in out
-    assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run, n):" in out
+    assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run):" in out
     assert f"member {OR_MEMBER} (k=1): 8 pending slots over 8 scenarios (ids 1..8)" in out
     dec, ins = out.split("first pending prompt of stage decision")[1].split(
         "first pending prompt of stage instrument")

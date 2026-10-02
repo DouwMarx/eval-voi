@@ -23,7 +23,7 @@ from voi_rank.study import Study
 SEED = {
     "p": (0.02, 0.08, 0.25), "s": (0.60, 0.80, 0.95), "t": (0.70, 0.90, 0.98),
     "B": (20e3, 150e3, 1.5e6), "K": (2e3, 10e3, 60e3), "C_build": (5e3, 20e3, 100e3),
-    "C_run": (300.0, 1000.0, 5000.0), "n": (2.0, 10.0, 50.0),
+    "C_run": (300.0, 1000.0, 5000.0),
 }
 HAIKU, SONNET = "claude_cli:haiku", "claude_cli:sonnet"
 ARCHIVE_SIM2REAL = Path(__file__).resolve().parent.parent / "archive" / "pilots" / "sim2real"
@@ -54,14 +54,12 @@ class StagedFake:
         names = DECISION_PARAMS if "DECISION-level" in prompt else INSTRUMENT_PARAMS
         prm = {}
         for name in names:
-            f = float(np.exp(rng.normal(0.0, 0.3 if name in ("B", "K", "C_build", "C_run", "n") else 0.08)))
+            f = float(np.exp(rng.normal(0.0, 0.3 if name in ("B", "K", "C_build", "C_run") else 0.08)))
             q = [v * f for v in SEED[name]]
             if name in ("p", "s", "t"):
                 q = [float(np.clip(v, 0.005, 0.995)) for v in q]
                 if not q[0] < q[1] < q[2]:
                     q = list(SEED[name])
-            if name == "n":
-                q = [max(v, 1.0 + i * 0.5) for i, v in enumerate(q)]
             prm[name] = {"reasoning": f"{name} for {model}", "p5": q[0], "p50": q[1], "p95": q[2]}
         text = json.dumps({"parameters": prm})
         raw = json.dumps({"result": text, "total_cost_usd": self.cost})
@@ -144,7 +142,8 @@ def test_protocol_registers_stages_and_template_vars_and_is_immutable(tmp_path):
     assert prot["template_hash"] == db.sha256(db.stages_json(stages) + "\n" + db.template_vars_json(tv))
     assert prot["model_kind"] == "binary"
     assert db.group_stage(stages) == dec and db.scenario_stage(stages) == ins
-    assert db.stage_of_param(stages, "B") == dec and db.stage_of_param(stages, "n") == ins
+    assert db.stage_of_param(stages, "B") == dec and db.stage_of_param(stages, "C_run") == ins
+    assert db.stage_of_param(stages, "n") is None   # the retired reuse count belongs to no stage
     assert db.stage_of_param(None, "p") is None
     # the same file again: the same id
     assert db.get_or_create_protocol(con, study.protocol_path("pG"), study.root) == pid
@@ -172,7 +171,8 @@ def test_protocol_registers_stages_and_template_vars_and_is_immutable(tmp_path):
     (lambda c: c.update(template_path="templates/elicitor.md"), "not a template_path"),
     (lambda c: c.pop("stages"), "a protocol lists two stages"),
     (lambda c: c["stages"].pop(), "exactly two stages"),
-    (lambda c: c["stages"][1].update(params=["s", "t", "C_build", "C_run"]), "partition"),
+    (lambda c: c["stages"][1].update(params=["s", "t", "C_build"]), "partition"),
+    (lambda c: c["stages"][1].update(params=[*INSTRUMENT_PARAMS, "n"]), "subset of"),
     (lambda c: c["stages"][1].update(params=[*INSTRUMENT_PARAMS, "C"]), "subset of"),
     (lambda c: c["stages"][1].update(group_key="attributes.level"), "exactly one stage"),
     (lambda c: c["stages"][0].update(group_key="attrs.x"), "group_key must be"),
@@ -248,7 +248,7 @@ def test_grouped_decision_stage_end_to_end(tmp_path, monkeypatch, capsys):
     assert ("stage decision (template templates/decision.md, params p, B, K,"
             " group_key attributes.context_group):") in out
     assert f"member {HAIKU} (k=2): 4 pending slots over 2 groups ({AV}, {HOME})" in out
-    assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run, n):" in out
+    assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run):" in out
     assert f"member {SONNET} (k=2): 10 pending slots over 5 scenarios (ids 1..5)" in out
     assert f"first pending prompt of stage decision (group '{HOME}', representative scenario 1," in out
     assert "first pending prompt of stage instrument (scenario 1," in out
@@ -301,14 +301,14 @@ def test_grouped_decision_stage_end_to_end(tmp_path, monkeypatch, capsys):
         db.insert_elicitation(con, 1, pid, "claude_cli", "haiku", 0, "h", "{}", True, None, "decision")
     con.rollback()
     # assembly: p, B, K of every scenario of a group are the group's decision fits (same
-    # elicitation ids); s, t, C_build, C_run, n its own instrument fits
+    # elicitation ids); s, t, C_build, C_run its own instrument fits
     fits = mc.complete_fits(con, pid)
     assert sorted(fits) == [1, 2, 3, 4, 5]
     home = [1, 2, 3]
     dec_ids = {f["elicitation_id"] for f in fits[1]["p"]}
     assert len(dec_ids) == 2 and all({f["elicitation_id"] for f in fits[s]["B"]} == dec_ids for s in home)
     assert {f["elicitation_id"] for f in fits[4]["K"]}.isdisjoint(dec_ids)
-    assert all(len(fits[s]["n"]) == 2 for s in fits)
+    assert all(len(fits[s]["C_run"]) == 2 for s in fits)
     assert fits[1]["p"] == fits[3]["p"] and fits[1]["C_run"] != fits[3]["C_run"]
     assert db.elicited_p50s(con, pid, 3, "p") == db.elicited_p50s(con, pid, 1, "p")
     assert db.elicited_p50s(con, pid, 3, "s") != db.elicited_p50s(con, pid, 1, "s")
@@ -329,7 +329,7 @@ def test_grouped_decision_stage_end_to_end(tmp_path, monkeypatch, capsys):
     assert run["data_hash"] == mc.data_hash(fits)
     rows_hashed = {(f["elicitation_id"], n, f["fit_params"])
                    for s in fits for n, lst in fits[s].items() for f in lst}
-    assert len(rows_hashed) == 4 * 3 + 10 * 5
+    assert len(rows_hashed) == 4 * 3 + 10 * 4   # 4 decision rows x 3 params, 10 instrument rows x 4
     ids, eff = mc.replay_efficiency(con, run_id)
     assert ids == [1, 2, 3, 4, 5] and eff.shape == (5, 2000)
     # a member subset pools that member's decision and instrument rows

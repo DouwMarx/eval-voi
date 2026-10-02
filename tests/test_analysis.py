@@ -1,7 +1,9 @@
 """The analysis (voi_rank.analysis): the group statistics on hand-built
 cases, then the whole output set on a synthetic two-group study elicited
-by a fake provider (figures, tables that compile, macros that parse, the
-replay check and the developer-perspective ablation)."""
+by a fake provider (figures, tables that compile, macros that parse and
+match their definitions recomputed from the draws, the per-metric rankings
+by eta and eta*, the risk domains, the replay check and the
+developer-perspective ablation, kept in code for ablations)."""
 
 from __future__ import annotations
 
@@ -14,12 +16,14 @@ import yaml
 from scipy import stats
 
 from tests.test_staged import HAIKU, SONNET, StagedFake, build, protocol
-from voi_rank import db, elicit, mc
+from voi_rank import db, elicit, mc, model
 from voi_rank.analysis import __main__ as cli
-from voi_rank.analysis import macros, summary
+from voi_rank.analysis import figures, macros, summary, tables
 from voi_rank.analysis.summary import (
     LLM,
     PHYS,
+    PRIMARY,
+    RANKED,
     best_rank_curve,
     mann_whitney_p,
     pairwise_share,
@@ -141,7 +145,7 @@ def two_group_scenarios() -> list[dict]:
                     "theta_definition": f"theta=1: robot {i} injures", "instrument": f"Track test {i}",
                     "decision_context": f"Robot facts {i}.", "instrument_context": f"Test facts {i}.",
                     "group": "physical AI", "key": f"robo_{i}",
-                    "attributes": {"level": [1, 3, 5, 8][i], "risk_domain": "physical"}})
+                    "attributes": {"level": [1, 3, 5, 8][i], "risk_domain": "physical_harm"}})
     for i in range(5):
         out.append({"title": f"LLM evaluation {i}", "agent": "Release lead", "decision": f"Release model {i}",
                     "theta_definition": f"theta=1: model {i} uplifts", "instrument": f"Benchmark {i}",
@@ -197,7 +201,25 @@ def test_summary_matches_the_run_and_the_central_estimate(elicited):
     assert np.all(lo <= med) and np.all(med <= hi) and np.all(np.diff(med) <= 1e-12)
     assert s.out["pct_draws"].shape == (4, DRAWS)
     assert len(s.out["level_ids"]) == 4 and s.out["level_rho_J"] is not None
-    assert set(s.out["mean_abs_rho"]) == set(db.PARAM_NAMES)
+    assert set(s.out["mean_abs_rho"]) == set(s.out["mean_abs_rho_ind"]) == set(db.PARAM_NAMES)
+    assert s.sensitivity.shape == s.sensitivity_ind.shape == (9, len(db.PARAM_NAMES))
+    assert set(s.out["rank"]) == set(RANKED) == {"eta", "eta_ind"} and PRIMARY == "eta_ind"
+    for r in s.out["rank"].values():
+        assert set(r) == {"ranks", "central", "q", "iqr_q", "iqr", "p_le", "best_phys_ns", "best_phys_curve",
+                          "best_phys_central"}
+        assert r["ranks"].shape == (9, DRAWS) and r["q"].shape == (9, 3) and r["iqr_q"].shape == (9, 2)
+    assert not {"rank_central", "rank_q", "rank_iqr", "p_rank_le", "pays", "p_pays"} & set(s.out)
+    assert set(s.out["zero_ids"]) == {PHYS, LLM}
+    # the stored eta sensitivities are read back; those against eta* are recomputed from the run's draws
+    stored = {(r["scenario_id"], r["param"]): r["spearman"] for r in con.execute(
+        "SELECT * FROM sensitivities WHERE run_id=?", (run_id,))}
+    from voi_rank.sensitivity import spearman
+    for i, (sid, d) in enumerate(mc.iter_scenario_draws(mc.complete_fits(con, pid), s.run["seed"], DRAWS)):
+        assert sid == s.scenarios[i].id
+        met = model.metrics(d)
+        for j, name in enumerate(db.PARAM_NAMES):
+            assert s.sensitivity[i, j] == pytest.approx(stored[(sid, name)])
+            assert s.sensitivity_ind[i, j] == pytest.approx(spearman(d[name], met["eta_ind"]))
     h = {r["member"]: r for r in s.health}
     assert h[HAIKU]["attempts"] == 18 and h[HAIKU]["valid"] == 18 and h[HAIKU]["usd"] == pytest.approx(0.18)
     # subsampled draws are the first N of the verified full set
@@ -269,11 +291,17 @@ def test_a_scenario_cut_from_scenarios_json_leaves_new_runs_and_the_analysis(eli
 
 def _compile(tmp_path, body: str, name: str):
     doc = tmp_path / f"{name}.tex"
-    doc.write_text("\\documentclass{article}\n\\usepackage{booktabs}\n\\begin{document}\n"
-                   + body + "\n\\end{document}\n")
+    doc.write_text("\\documentclass{article}\n\\usepackage{booktabs}\n"
+                   "\\newcommand{\\EVSI}{\\mathrm{EVSI}}\n"   # as the report's shared.tex
+                   "\\begin{document}\n" + body + "\n\\end{document}\n")
     res = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", doc.name],
                          cwd=tmp_path, capture_output=True, text=True, timeout=120)
     assert res.returncode == 0, res.stdout[-2000:]
+
+
+OLD_MACROS = {"EtaACentral", "EtaAQLo", "EtaIndACentral", "PPaysPhysical", "PPaysLLM", "NPaysPhysical",
+              "MedNPhysical", "MedNLLM", "RankIQRMedian", "RankIQRMedianPhysical", "PBestPhysicalTopOne",
+              "BestPhysicalRankCentral", "TopShort", "TopEta", "EtaAChanging", "NRespondsRegardlessLLM"}
 
 
 def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys):
@@ -281,11 +309,17 @@ def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys
     cli.main(["--study", str(study.root), "--protocol", "pS", "--draws", "2000"])
     out = study.generated_dir
     names = {p.name for p in out.iterdir()}
-    want = {"fig_headline.pdf", "fig_indifference.pdf", "fig_percentile_violins.pdf",
-            "fig_rank_intervals.pdf", "fig_breakeven.pdf", "fig_params.pdf", "fig_sensitivity.pdf",
-            "fig_level.pdf", "fig_members.pdf", "fig_best_physical_rank.pdf", "fig_roc.pdf",
-            "tab_scenarios.tex", "tab_headline.tex", "tab_health.tex", "macros.tex", "summary.json"}
-    assert want <= names
+    want = ({f"{fn.__name__}.pdf" for fn in figures.FIGURES} | set(tables.TABLES)
+            | {"macros.tex", "summary.json"})
+    assert {f"{fn.__name__}.pdf" for fn in figures.FIGURES} == {
+        "fig_headline.pdf", "fig_headline_small.pdf", "fig_rows.pdf", "fig_curve.pdf",
+        "fig_percentile_violins.pdf", "fig_rank_star.pdf", "fig_rank_eta.pdf", "fig_best_physical_rank.pdf",
+        "fig_roc.pdf", "fig_breakeven.pdf", "fig_params.pdf", "fig_sensitivity.pdf",
+        "fig_sensitivity_eta.pdf", "fig_level.pdf", "fig_members.pdf"}
+    assert set(tables.TABLES) == {"tab_scenarios.tex", "tab_headline.tex", "tab_domains.tex",
+                                  "tab_provenance.tex", "tab_health.tex"}
+    assert want <= names   # every figure drawn (both groups, two levels, two members are present)
+    assert "skipped" not in capsys.readouterr().out
     for name in want:
         if name.endswith(".pdf"):
             assert (out / name).read_bytes()[:5] == b"%PDF-"
@@ -296,18 +330,38 @@ def test_cli_writes_every_output_and_the_tex_compiles(elicited, tmp_path, capsys
     assert all(parsed), [c for c, m in zip(cmds, parsed, strict=True) if not m]
     names_ = [m.group(1) for m in parsed]
     assert len(names_) == len(set(names_))
-    assert {"EtaACentral", "EtaMWp", "CurveMedFifty", "PctScRoboZeroCentral", "USD",
-            "InvalidRefusal", "PBestPhysicalTopOne", "PBestPhysicalTopFive", "BestPhysicalRankCentral",
-            "RankIQRMedian", "RankIQRMedianPhysical", "RankIQRMedianLLM", "EtaMaxACentral"} <= set(names_)
+    assert {"EtaPS", "EtaPSQMed", "EtaMWp", "EtaIndPS", "EtaStarPS", "EtaRunPS", "EtaRunMWp", "EtaPSChanging",
+            "CurveMedFifty", "PctScRoboZeroCentral", "USD", "InvalidRefusal", "Valid",
+            "EtaRankIQRMedian", "EtaStarRankIQRMedianPhysical", "EtaIndRankIQRMedianLLM",
+            "EtaPBestPhysicalTopOne", "EtaStarPBestPhysicalTopThree", "EtaStarPBestPhysicalTopFive",
+            "EtaStarBestPhysicalRankCentral", "EtaStarBestPhysicalShort", "EtaStarBestPhysicalValue",
+            "EtaTopShort", "EtaStarTopValue", "ZeroSharePhysical", "NZeroLLM", "ZeroIdsLLM",
+            "NstarMedianPhysical", "NNstarFiniteLLM", "NstarDrawMedianLLM", "PNstarFiniteMedianPhysical",
+            "MedCPhysical", "MedEVSIIndLLM", "StakesRatio",
+            "DomCyberN", "DomCBRNMedRank", "DomPhysicalAIMeanRankMed", "DomCyberMedEtaInd", "DomCyberMedEta",
+            "DomCBRNMedStakes", "DomPhysicalAIZeroShare", "DomainOrder", "NDomains",
+            "RhoP", "RhoIndCBuild", "RhoTopParam", "RhoIndTopValue", "RhoIndLowParam", "RhoSecondValue",
+            "LevelMin", "LevelMax", "LevelRhoEtaStar"} <= set(names_)
+    # the eight-parameter macros (reuse count n) and the unprefixed ranking macros are gone
+    assert not OLD_MACROS & set(names_)
+    assert not {n for n in names_ if "Pays" in n or n.startswith("MedN")}
     body = ("\\input{macros.tex}\n" + "\n".join(f"\\voi{n}\\par" for n in names_)
-            + "\n" + "\n".join(f"\\input{{{t}}}" for t in ("tab_scenarios", "tab_headline", "tab_health")))
-    for f in ("macros.tex", "tab_scenarios.tex", "tab_headline.tex", "tab_health.tex"):
+            + "\n" + "\n".join(f"\\input{{{t}}}" for t in sorted(tables.TABLES)))
+    for f in ("macros.tex", *tables.TABLES):
         (tmp_path / f).write_text((out / f).read_text())
     _compile(tmp_path, body, "check")
     # the run is deterministic: a second run writes byte-identical outputs
     before = {n: (out / n).read_bytes() for n in want}
     cli.main(["--study", str(study.root), "--protocol", "pS", "--draws", "2000"])
     assert all((out / n).read_bytes() == before[n] for n in want)
+    # summary.json carries the new numbers, per metric where ranked
+    import json
+    data = json.loads((out / "summary.json").read_text())
+    assert set(data["best_physical_rank"]) == set(data["roc"]) == set(RANKED)
+    assert set(data["zero_ids"]) == {PHYS, LLM} and set(data["mean_abs_rho_ind"]) == set(db.PARAM_NAMES)
+    assert [d["domain"] for d in data["domains"]] and all("ids" not in d for d in data["domains"])
+    assert {"rank_eta", "rank_eta_ind", "nstar_q", "p_nstar_finite"} <= set(data["scenarios"][0])
+    assert not {"pays", "p_pays"} & set(data["scenarios"][0])
 
 
 def test_group_medians_explain_the_comparison(elicited):
@@ -317,16 +371,26 @@ def test_group_medians_explain_the_comparison(elicited):
     study, _ = elicited
     s = summary.load(study.connect_copy(), "pS", draws=1000)
     m = macros.collect(s)
-    for w in ("Physical", "LLM"):
-        want_keys = {f"MedStakes{w}", f"MedStakesPerCost{w}", f"MedEtaInd{w}", f"MedCBuild{w}", f"MedP{w}"}
-        assert want_keys <= set(m)
-        idx = s.ids_in(PHYS if w == "Physical" else LLM)
-        zeros = int((~(s.central["EVSI"][idx] > 0)).sum())
-        assert int(m[f"NRespondsRegardless{w}"]) + int(m[f"NDeploysRegardless{w}"]) <= zeros
     stakes = s.pooled["B"] + s.pooled["K"]
     spc = stakes / s.central["C"]
-    want = float(np.median(spc[s.ids_in(LLM)]) / np.median(spc[s.ids_in(PHYS)]))
-    assert m["StakesPerCostRatio"] == macros.num(want)
+    for w, g in (("Physical", PHYS), ("LLM", LLM)):
+        want_keys = {f"MedStakes{w}", f"MedStakesPerCost{w}", f"MedEtaInd{w}", f"MedEtaStar{w}",
+                     f"MedCBuild{w}", f"MedP{w}", f"MedC{w}", f"MedEVSIInd{w}", f"NMitigatesRegardless{w}",
+                     f"NDeploysRegardless{w}"}
+        assert want_keys <= set(m) and f"NRespondsRegardless{w}" not in m and f"MedN{w}" not in m
+        idx = s.ids_in(g)
+        zeros = int((~(s.central["EVSI"][idx] > 0)).sum())
+        assert int(m[f"NMitigatesRegardless{w}"]) + int(m[f"NDeploysRegardless{w}"]) <= zeros
+        assert m[f"MedStakes{w}"] == macros.usd(float(np.median(stakes[idx])))
+        assert m[f"MedC{w}"] == macros.usd(float(np.median(s.central["C"][idx])))
+        assert m[f"MedEVSIInd{w}"] == macros.usd(float(np.median(s.central["EVSI_ind"][idx])))
+        assert m[f"MedEtaInd{w}"] == macros.num(float(np.median(s.central["eta_ind"][idx])))
+        assert m[f"MedCRun{w}"] == macros.usd(float(np.median(s.pooled["C_run"][idx])))
+    llm, phys = s.ids_in(LLM), s.ids_in(PHYS)
+    assert m["StakesPerCostRatio"] == macros.num(float(np.median(spc[llm]) / np.median(spc[phys])))
+    assert m["StakesRatio"] == macros.num(float(np.median(stakes[llm]) / np.median(stakes[phys])))
+    assert m["EtaIndRatio"] == macros.num(float(np.median(s.central["eta_ind"][llm])
+                                                / np.median(s.central["eta_ind"][phys])))
     assert m["MemberList"] == "haiku, sonnet"
 
 
@@ -335,7 +399,9 @@ def test_developer_ablation_is_tagged_and_takes_p_b_k_from_the_other_protocol(el
     cli.main(["--study", str(study.root), "--protocol", "pS", "--decision-from", "pD", "--tag", "dev",
               "--draws", "1000"])
     text = (study.generated_dir / "dev" / "macros.tex").read_text()
-    assert "\\newcommand{\\voidevEtaACentral}" in text and "\\newcommand{\\voiEta" not in text
+    assert "\\newcommand{\\voidevEtaPS}" in text and "\\newcommand{\\voidevEtaStarPS}" in text
+    assert "\\newcommand{\\voiEta" not in text and "decision stage from pD" in text.splitlines()[0]
+    assert (study.generated_dir / "dev" / "tab_headline.tex").exists()
     con = study.connect_copy()
     s = summary.load(con, "pS", decision_from="pD")
     head = summary.load(con, "pS")
@@ -360,8 +426,15 @@ def test_optional_ablation_without_data_is_skipped(elicited, capsys):
     study, _ = elicited
     cli.main(["--study", str(study.root), "--protocol", "pS", "--decision-from", "p999", "--optional",
               "--tag", "dev"])
-    assert "skipped" in capsys.readouterr().out
+    assert "skipped: protocol p999 has no valid decision elicitations" in capsys.readouterr().out
     assert not (study.generated_dir / "dev").exists()
+    # a protocol with elicitations but no stored run (pD: decision stage only) is skipped too
+    cli.main(["--study", str(study.root), "--protocol", "pD", "--optional", "--tag", "noctx"])
+    assert "skipped: protocol pD has no stored Monte Carlo run" in capsys.readouterr().out
+    assert not (study.generated_dir / "noctx").exists()
+    with pytest.raises(SystemExit, match="no runs in DB under protocol 'pD'"):
+        cli.main(["--study", str(study.root), "--protocol", "pD", "--tag", "noctx"])
+    assert not (study.generated_dir / "noctx").exists()
 
 
 def test_api_refusal_envelope_counts_as_refusal():
@@ -379,28 +452,154 @@ def test_truncated_answers_have_their_own_error_class():
 
 
 def test_new_macros_match_their_definitions(elicited):
-    """A among decision-changing evaluations, the fidelity-level correlations and a
-    LaTeX-safe top parameter."""
+    """P_S among decision-changing evaluations, the fidelity-level correlations,
+    the sensitivity rankings against eta and eta* and a LaTeX-safe top parameter."""
     study, _ = elicited
     s = summary.load(study.connect_copy(), "pS", draws=1000)
     m = macros.collect(s)
     ch = s.central["EVSI"] > 0
     phys, llm = s.ids_in(PHYS), s.ids_in(LLM)
     pc, lc = phys[ch[phys]], llm[ch[llm]]
-    assert m["EtaAChangingN"] == str(len(pc) * len(lc))
-    assert m["EtaAChanging"] == macros.pct(pairwise_share(s.central["eta"][pc], s.central["eta"][lc]))
+    assert m["EtaPSChangingN"] == str(len(pc) * len(lc))
+    assert m["EtaPSChanging"] == macros.pct(pairwise_share(s.central["eta"][pc], s.central["eta"][lc]))
+    for metric, word in (("eta", "Eta"), ("eta_ind", "EtaInd"), ("eta_run", "EtaRun")):
+        a = pairwise_share(s.central[metric][phys], s.central[metric][llm])
+        assert m[f"{word}PS"] == macros.pct(a)
+        assert m[f"{word}MWp"] == macros.num(mann_whitney_p(s.central[metric][phys], s.central[metric][llm]))
+        per_draw = pairwise_share(s.draws[metric][phys], s.draws[metric][llm])
+        assert [m[f"{word}PSQ{q}"] for q in ("Lo", "Med", "Hi")] == \
+            [macros.pct(v) for v in np.quantile(per_draw, summary.QS)]
     lev = s.out["level_ids"]
     levels = [s.scenarios[i].level for i in lev]
     J = s.pooled["s"] + s.pooled["t"] - 1
     assert m["LevelRhoJp"] == macros.num(stats.spearmanr(levels, J[lev]).pvalue)
     assert m["LevelRhoCp"] == macros.num(stats.spearmanr(levels, s.central["C"][lev]).pvalue)
-    # the fidelity question: level against the central eta and eta_max (alias EtaMax)
-    for key, metric in (("Eta", "eta"), ("EtaMax", "eta_ind")):
+    assert (m["LevelMin"], m["LevelMax"]) == ("1", "8")
+    # the fidelity question: level against the central eta and eta* (EtaInd, alias EtaStar)
+    for key, metric in (("Eta", "eta"), ("EtaInd", "eta_ind"), ("EtaStar", "eta_ind")):
         r = stats.spearmanr(levels, s.central[metric][lev])
         assert m[f"LevelRho{key}"] == macros.num(r.statistic)
         assert m[f"LevelRho{key}p"] == macros.num(r.pvalue)
+    # mean |rho| per parameter against eta (stored) and eta* (recomputed), ranked
+    for word, mat in (("", s.sensitivity), ("Ind", s.sensitivity_ind)):
+        mean_abs = {n: float(np.nanmean(np.abs(mat[:, j]))) for j, n in enumerate(db.PARAM_NAMES)}
+        for n in db.PARAM_NAMES:
+            assert m[f"Rho{word}{macros.camel(n)}"] == macros.num(mean_abs[n])
+        ranked = sorted(mean_abs, key=mean_abs.get)
+        for place, n in (("Top", ranked[-1]), ("Second", ranked[-2]), ("Low", ranked[0])):
+            assert m[f"Rho{word}{place}Param"] == macros.param_tex(n)
+            assert m[f"Rho{word}{place}Value"] == macros.num(mean_abs[n])
     assert m["RhoTopParam"] in {macros.param_tex(n) for n in db.PARAM_NAMES}
     assert macros.param_tex("C_build") == r"$C_\mathrm{build}$" and macros.param_tex("K") == "$K$"
+    # zeros: the ids whose central EVSI is 0, per group, and the break-even run count n*
+    for w, g in (("Physical", PHYS), ("LLM", LLM)):
+        idx = s.ids_in(g)
+        zero_ids = [s.scenarios[i].id for i in idx if not s.central["EVSI"][i] > 0]
+        assert s.out["zero_ids"][g] == zero_ids and m[f"NZero{w}"] == str(len(zero_ids))
+        assert m[f"ZeroIds{w}"] == (", ".join(map(str, zero_ids)) or "none")
+        assert m[f"ZeroShare{w}"] == macros.pct(len(zero_ids) / len(idx))
+        assert int(m[f"NZero{w}"]) + int(m[f"NChanges{w}"]) == len(idx)
+        ns = s.central["n_star"][idx]
+        fin = ns[np.isfinite(ns)]
+        assert m[f"NNstarFinite{w}"] == str(len(fin))
+        assert m[f"NstarMedian{w}"] == macros.num(float(np.median(fin)) if len(fin) else None)
+        p_fin = np.isfinite(s.draws["n_star"][idx]).mean(axis=1)
+        assert np.allclose(s.out["p_nstar_finite"][idx], p_fin)
+        assert m[f"PNstarFiniteMedian{w}"] == macros.pct(float(np.median(p_fin)))
+        meds = [float(np.median(row[np.isfinite(row)])) for row in s.draws["n_star"][idx]
+                if np.isfinite(row).any()]
+        assert m[f"NstarDrawMedian{w}"] == macros.num(float(np.median(meds)) if meds else None)
+    # the fixture's priors all leave the decision open; on a copy with two central EVSI set to zero
+    # (one per group) the zero macros name exactly those evaluations
+    import copy
+    z = copy.deepcopy(s)
+    zeroed = [int(phys[1]), int(llm[2])]
+    z.central["EVSI"][zeroed] = 0.0
+    z.central["eta"][zeroed] = 0.0
+    z.central["n_star"][zeroed] = np.inf
+    summary.compute(z)
+    mz = macros.collect(z)
+    assert z.out["zero_ids"] == {PHYS: [s.scenarios[zeroed[0]].id], LLM: [s.scenarios[zeroed[1]].id]}
+    assert mz["ZeroIdsPhysical"] == str(s.scenarios[zeroed[0]].id) and mz["NZeroLLM"] == "1"
+    assert mz["ZeroSharePhysical"] == macros.pct(1 / len(phys))
+    assert mz["ZeroShareLLM"] == macros.pct(1 / len(llm))
+    assert mz["NNstarFinitePhysical"] == str(len(phys) - 1) and mz["NChangesLLM"] == str(len(llm) - 1)
+    assert mz[f"Nstar{macros.scenario_keys(z)[zeroed[0]]}"] == macros.num(np.inf)
+    dom = {d["domain"]: d for d in z.out["domains"]}
+    assert dom["physical_harm"]["zero_share"] == 1 / len(phys)
+    assert sum(d["zero_share"] * d["n"] for d in dom.values()) == pytest.approx(2.0)
+    assert int(mz["EtaPSChangingN"]) == (len(phys) - 1) * (len(llm) - 1)
+    for i in range(len(s.scenarios)):
+        assert m[f"Nstar{macros.scenario_keys(s)[i]}"] == macros.num(s.central["n_star"][i])
+        assert s.central["n_star"][i] == (np.inf if s.central["EVSI"][i] <= s.pooled["C_run"][i]
+                                          else pytest.approx(s.pooled["C_build"][i]
+                                                             / (s.central["EVSI"][i] - s.pooled["C_run"][i])))
+
+
+def test_domains_are_ordered_by_median_rank_and_match_their_definitions(elicited):
+    """Per risk domain (the physical-AI evaluations all carry physical_harm, so
+    it doubles as their group): the rows, their order by the median central
+    rank under eta*, the Dom macros and the domains table."""
+    study, _ = elicited
+    s = summary.load(study.connect_copy(), "pS", draws=1000)
+    m, o = macros.collect(s), s.out
+    assert [d["domain"] for d in o["domains"]] and {d["domain"] for d in o["domains"]} == \
+        {"cyber", "cbrn", "physical_harm"}
+    med_ranks = [d["med_rank_central"] for d in o["domains"]]
+    assert med_ranks == sorted(med_ranks)
+    r = o["rank"][PRIMARY]
+    for d in o["domains"]:
+        idx = np.array([i for i, sc in enumerate(s.scenarios) if sc.domain == d["domain"]])
+        assert d["ids"].tolist() == idx.tolist() and d["n"] == len(idx)
+        assert d["label"] == {"cyber": "cyber", "cbrn": "CBRN", "physical_harm": "physical AI"}[d["domain"]]
+        assert d["med_rank_central"] == float(np.median(r["central"][idx]))
+        assert d["med_eta_ind"] == float(np.median(s.central["eta_ind"][idx]))
+        assert d["med_eta"] == float(np.median(s.central["eta"][idx]))
+        assert d["med_stakes"] == float(np.median((s.pooled["B"] + s.pooled["K"])[idx]))
+        assert d["zero_share"] == float((~(s.central["EVSI"][idx] > 0)).mean())
+        mean_rank = r["ranks"][idx].mean(axis=0)
+        assert d["mean_rank_q"] == pytest.approx(list(np.quantile(mean_rank, summary.QS)))
+        key = macros.camel(d["label"])
+        assert m[f"Dom{key}N"] == str(d["n"]) and m[f"Dom{key}MedRank"] == macros.rank(d["med_rank_central"])
+        assert m[f"Dom{key}MeanRankMed"] == macros.rank(d["mean_rank_q"][1])
+        assert m[f"Dom{key}MedEtaInd"] == macros.num(d["med_eta_ind"])
+        assert m[f"Dom{key}MedStakes"] == macros.usd(d["med_stakes"])
+        assert m[f"Dom{key}ZeroShare"] == macros.pct(d["zero_share"])
+    assert m["DomainOrder"] == ", ".join(d["label"] for d in o["domains"]) and m["NDomains"] == "3"
+    assert {k for k in m if k.startswith("Dom") and k.endswith("N")} == \
+        {"DomCyberN", "DomCBRNN", "DomPhysicalAIN"}
+    table = tables.domains_table(s)
+    labels = [ln.split(" & ")[0] for ln in table.splitlines() if ln.endswith(r" \\") and " & " in ln][1:]
+    assert labels == [d["label"] for d in o["domains"]]
+
+
+def test_orderings_and_the_headline_table_follow_the_primary_ranking(elicited):
+    study, _ = elicited
+    s = summary.load(study.connect_copy(), "pS", draws=1000)
+    for metric in RANKED:
+        r = s.out["rank"][metric]
+        idx = summary.order(s, metric)
+        assert sorted(idx) == list(range(9))
+        assert all(r["central"][a] <= r["central"][b] for a, b in zip(idx, idx[1:], strict=False))
+        assert all(s.central[metric][a] >= s.central[metric][b] for a, b in zip(idx, idx[1:], strict=False))
+        med = summary.order_by_median_rank(s, metric)
+        assert sorted(med) == list(range(9))
+        assert all(r["q"][a][1] <= r["q"][b][1] for a, b in zip(med, med[1:], strict=False))
+    assert summary.order(s) == summary.order(s, PRIMARY)
+    table = tables.headline_table(s)
+    rows = [ln.split(" & ") for ln in table.splitlines() if ln.endswith(r" \\") and " & " in ln]
+    header, body = rows[0], rows[1:]
+    assert header[:2] == ["id", "evaluation"] and len(header) == 13 and header[-1].startswith("$n^*$")
+    assert [int(r[0]) for r in body] == [s.scenarios[i].id for i in summary.order(s)]
+    r = s.out["rank"][PRIMARY]
+    for row, i in zip(body, summary.order(s), strict=True):
+        assert row[2] == macros.usd(s.central["EVSI_ind"][i])
+        assert row[5] == macros.num(s.central["eta_ind"][i])
+        assert row[7] == macros.rank(r["central"][i])
+        assert row[8] == f"{macros.rank(r['q'][i][0])}--{macros.rank(r['q'][i][2])}"
+        assert row[9] == macros.pct(r["p_le"][3][i]) and row[10] == macros.pct(r["p_le"][5][i])
+        assert row[11] == macros.pct(s.out["p_changes"][i])
+        assert row[12].rstrip(" \\") == macros.num(s.central["n_star"][i])
 
 
 def test_member_labels_are_shown_without_provider_prefix(elicited):
@@ -481,8 +680,9 @@ def test_row_labels_are_abbreviated_at_a_word():
 
 
 def test_robustness_outputs_match_their_definitions(elicited):
-    """The ROC area at the central estimate and on every draw is A; the
-    best-physical-rank curve and the rank IQR macros follow from the draws."""
+    """The ROC area at the central estimate and on every draw is P_S; the
+    per-metric rank blocks (ranks, quantiles, IQR, P(rank <= k), the best
+    physical-AI rank) and their macros follow from the draws."""
     study, _ = elicited
     s = summary.load(study.connect_copy(), "pS", draws=400)
     o, m = s.out, macros.collect(s)
@@ -492,12 +692,41 @@ def test_robustness_outputs_match_their_definitions(elicited):
         d_phys, d_llm = s.draws[metric][phys], s.draws[metric][llm]
         per_draw = [roc_area(*roc_curve(d_phys[:, d], d_llm[:, d])) for d in range(400)]
         assert np.allclose(per_draw, pairwise_share(s.draws[metric][phys], s.draws[metric][llm]))
-    ranks = ranks_desc(s.draws["eta"], axis=0)
-    best = ranks[phys].min(axis=0)
-    assert m["PBestPhysicalTopThree"] == macros.pct((best <= 3).mean())
-    assert o["best_phys_curve"][-1] == 1.0 and np.all(np.diff(o["best_phys_curve"]) >= 0)
-    assert m["BestPhysicalRankCentral"] == macros.rank(o["rank_central"][phys].min())
-    iqr = np.quantile(ranks, 0.75, axis=1) - np.quantile(ranks, 0.25, axis=1)
-    assert m["RankIQRMedian"] == macros.num(float(np.median(iqr)))
-    assert m["RankIQRMedianLLM"] == macros.num(float(np.median(iqr[llm])))
-    assert m["EtaMaxACentral"] == m["EtaIndACentral"] and m["MedEtaMaxLLM"] == m["MedEtaIndLLM"]
+    for metric, word in (("eta", "Eta"), ("eta_ind", "EtaInd")):
+        r = o["rank"][metric]
+        ranks = ranks_desc(s.draws[metric], axis=0)
+        assert np.array_equal(r["ranks"], ranks)
+        assert np.array_equal(r["central"], ranks_desc(s.central[metric]))
+        assert np.allclose(r["q"], np.quantile(ranks, summary.QS, axis=1).T)
+        iq = np.quantile(ranks, summary.IQR_QS, axis=1).T
+        assert np.allclose(r["iqr_q"], iq) and np.allclose(r["iqr"], iq[:, 1] - iq[:, 0])
+        for k in summary.TOP_K:
+            assert np.allclose(r["p_le"][k], (ranks <= k).mean(axis=1))
+        best = ranks[phys].min(axis=0)
+        assert r["best_phys_ns"].tolist() == list(range(1, 10))
+        assert np.allclose(r["best_phys_curve"], [(best <= n).mean() for n in range(1, 10)])
+        assert r["best_phys_curve"][-1] == 1.0 and np.all(np.diff(r["best_phys_curve"]) >= 0)
+        assert r["best_phys_central"] == r["central"][phys].min()
+        for n, tw in ((1, "One"), (3, "Three"), (5, "Five")):
+            assert m[f"{word}PBestPhysicalTop{tw}"] == macros.pct((best <= n).mean())
+        # nine evaluations: P(rank <= 10) is P(rank <= 9) = 1, so the macro is still defined
+        assert m[f"{word}PBestPhysicalTopTen"] == macros.pct(1.0)
+        assert m[f"{word}BestPhysicalRankCentral"] == macros.rank(r["central"][phys].min())
+        best_i = min(phys, key=lambda i: (r["central"][i], s.scenarios[i].id))
+        assert m[f"{word}BestPhysicalShort"] == macros.esc(s.scenarios[best_i].short)
+        assert m[f"{word}BestPhysicalValue"] == macros.num(s.central[metric][best_i])
+        top = int(np.argmin(r["central"]))
+        assert m[f"{word}TopShort"] == macros.esc(s.scenarios[top].short)
+        assert m[f"{word}TopValue"] == macros.num(s.central[metric][top])
+        assert s.central[metric][top] == s.central[metric].max()
+        assert m[f"{word}RankIQRMedian"] == macros.num(float(np.median(r["iqr"])))
+        assert m[f"{word}RankIQRMedianLLM"] == macros.num(float(np.median(r["iqr"][llm])))
+        assert m[f"{word}RankIQRMedianPhysical"] == macros.num(float(np.median(r["iqr"][phys])))
+    # the display alias: every EtaInd macro is repeated as EtaStar with the same value
+    ind = {k: v for k, v in m.items() if "EtaInd" in k}
+    assert ind and all(m[k.replace("EtaInd", "EtaStar")] == v for k, v in ind.items())
+    assert m["EtaStarPS"] == m["EtaIndPS"] and m["MedEtaStarLLM"] == m["MedEtaIndLLM"]
+    assert m["EtaStarRankIQRMedian"] == m["EtaIndRankIQRMedian"]
+    for i, key in enumerate(macros.scenario_keys(s)):
+        assert m[f"Rank{key}"] == macros.rank(o["rank"][PRIMARY]["central"][i])
+        assert m[f"EtaInd{key}"] == macros.num(s.central["eta_ind"][i])

@@ -5,10 +5,10 @@ A protocol has two stages (db.normalize_stages): a decision stage asking p,
 B, K, rendered from the scenario's agent, decision, theta text and its own
 decision_context, elicited once per scenario group (group_key 'self': every
 scenario is its own group) and stored on the group's representative scenario
-(its lowest id); and an instrument stage asking s, t, C_build, C_run, n,
+(its lowest id); and an instrument stage asking s, t, C_build, C_run,
 rendered from the title, agent, decision, theta text, instrument and
 instrument_context (as $context). Both templates also render the protocol's
-template_vars ($perspective, $context_mode, ...); a variable named decision_*
+template_vars ($context_mode, $anchors_*, ...); a variable named decision_*
 or anchors_decision renders only in the decision template, instrument_* or
 anchors_instrument only in the instrument template (TEMPLATE_VAR_OWNER; the
 other template naming it is refused). A slot is (scenario, protocol,
@@ -107,7 +107,7 @@ DECISION_COLUMNS = {f: f for f in DECISION_FIELDS}
 # anchors_decision render only in the decision template, instrument_* and
 # anchors_instrument only in the instrument template (DESIGN section 4: the
 # instrument prompt never carries a decision-level number); any other name
-# ($perspective, $context_mode) renders in both
+# ($context_mode, $anchors_*) renders in both
 # template_vars context_mode: 'curated' renders the scenario's context field
 # ($decision_context, $context); 'none' (the no-context ablation) renders it
 # empty and drops the template section ('## ' heading to the next one) that

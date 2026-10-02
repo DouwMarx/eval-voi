@@ -283,30 +283,36 @@ FINAL_MODELS = ["deepseek/deepseek-v4.1-flash", "z-ai/glm-5.3", "xiaomi/mimo-v2.
                 "openai/gpt-6-luna", "google/gemini-3.8-flash", "x-ai/grok-4.7"]
 
 
-@pytest.mark.parametrize("name, perspective", [("final", "society"), ("final_dev", "developer")])
-def test_final_protocols(name, perspective):
+@pytest.mark.parametrize("name, context_mode", [("final", "curated"), ("final_noctx", "none")])
+def test_final_protocols(name, context_mode):
     cfg = yaml.safe_load((STUDY / f"protocols/{name}.yaml").read_text())
-    p001 = yaml.safe_load((STUDY / "protocols/p001.yaml").read_text())
-    assert cfg["name"] == name and cfg["stages"] == p001["stages"]
-    assert [s["params"] for s in cfg["stages"]] == [DECISION_PARAMS, INSTRUMENT_PARAMS]
-    assert cfg["template_vars"] == {"perspective": perspective, "anchors_decision": "",
-                                    "anchors_instrument": "", "context_mode": "curated"}
+    assert cfg["name"] == name
+    assert cfg["stages"] == [
+        {"name": "decision", "template_path": "templates/decision.md", "params": DECISION_PARAMS,
+         "group_key": "self"},
+        {"name": "instrument", "template_path": "templates/instrument.md", "params": INSTRUMENT_PARAMS}]
+    assert cfg["template_vars"] == {"anchors_decision": "", "anchors_instrument": "",
+                                    "context_mode": context_mode}
     members = db.normalize_members(cfg)
     assert [m["model"] for m in members] == FINAL_MODELS
     assert all(m["provider"] == "openrouter" and m["k_repeats"] == 1 and m["provider_order"] for m in members)
     assert not any(m["model"].startswith("anthropic/") for m in members)
     assert len({m["model"].split("/")[0] for m in members}) == 6   # six developers
-    effort = {m["model"]: m.get("reasoning_effort") for m in members}
-    assert effort["deepseek/deepseek-v4.1-flash"] == effort["z-ai/glm-5.3"] == "low"
-    assert {effort[m] for m in FINAL_MODELS[2:]} == {"medium"}
+    assert {m["reasoning_effort"] for m in members} == {"medium"}   # one effort for every member
+    assert all(isinstance(m["est_output_tokens"], int) and m["est_output_tokens"] > 0 for m in members)
+    assert members[FINAL_MODELS.index("google/gemini-3.8-flash")]["temperature"] == "omit"   # Vertex
+    assert len(members[FINAL_MODELS.index("google/gemini-3.8-flash")]["provider_order"]) == 1
+    assert all(len(m["provider_order"]) == 1 for m in members)   # one pinned endpoint each
 
 
-def test_final_and_final_dev_differ_only_in_perspective_and_notes():
+def test_final_and_final_noctx_differ_only_in_context_mode_and_notes():
     final = yaml.safe_load((STUDY / "protocols/final.yaml").read_text())
-    dev = yaml.safe_load((STUDY / "protocols/final_dev.yaml").read_text())
-    for cfg in (final, dev):
-        cfg.pop("name"), cfg.pop("notes"), cfg["template_vars"].pop("perspective")
-    assert final == dev
+    noctx = yaml.safe_load((STUDY / "protocols/final_noctx.yaml").read_text())
+    assert final["template_vars"].pop("context_mode") == "curated"
+    assert noctx["template_vars"].pop("context_mode") == "none"
+    for cfg in (final, noctx):
+        cfg.pop("name"), cfg.pop("notes")
+    assert final == noctx
 
 
 def test_unbilled_failures_do_not_pull_the_stored_mean_to_zero(tmp_path):

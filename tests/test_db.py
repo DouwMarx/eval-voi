@@ -153,7 +153,8 @@ def test_scenario_param_fits_pools_members_and_ignores_unknown_names(tmp_path):
     _store(con, sid, 1, "openrouter", "m", 0, db.PARAM_NAMES)
     fits = db.scenario_param_fits(con, 1)
     assert set(fits[sid]) == set(db.PARAM_NAMES)
-    assert len(fits[sid]["p"]) == 3 and len(fits[sid]["n"]) == 3
+    assert len(fits[sid]["p"]) == 3 and len(fits[sid]["C_run"]) == 3
+    assert "n" not in fits[sid] and "e" not in fits[sid] and "C" not in fits[sid]
     assert [f["provider"] for f in fits[sid]["p"]] == ["claude_cli", "claude_cli", "openrouter"]
     assert db.valid_repeats(con, sid, 1, "claude_cli", "haiku") == {0, 1}
     assert db.valid_repeats(con, sid, 1, "openrouter", "m") == {0}
@@ -239,8 +240,8 @@ def test_archived_pilot_db_opens_read_only(tmp_path):
     Gaussian protocols, pre-restructure columns) opens without a migration
     error: connect_copy never writes the file, connect() on a copy adds the
     new columns, and the scenarios, protocols and elicitations read back.
-    Its runs are not replayable by the current model (no C_build, C_run,
-    n), so complete_fits is empty and that is all."""
+    Its runs are not replayable by the current model (no C_build, C_run),
+    so complete_fits is empty and that is all."""
     src = ARCHIVE / "pilots" / "ai-safety-evals" / "voi.db"
     before = src.read_bytes()
     con = db.connect_copy(src)   # the archived file itself, read-only
@@ -260,7 +261,7 @@ def test_archived_pilot_db_opens_read_only(tmp_path):
     assert {"p", "s", "t", "B", "K", "C"} <= names and "C_build" not in names
     fits = db.scenario_param_fits(con, prots["p003"]["id"], names=["p", "s", "t", "B", "K"])
     assert len(fits) == 15 and all(len(fits[s]["p"]) >= 10 for s in fits)
-    assert mc.complete_fits(con, prots["p003"]["id"]) == {}   # no C_build, C_run, n in an archived DB
+    assert mc.complete_fits(con, prots["p003"]["id"]) == {}   # no C_build, C_run in an archived DB
     assert db.latest_run(con, "p003")["data_hash"]
     con.close()
     # a writable copy migrates in place and stays consistent
@@ -276,7 +277,7 @@ def test_archived_pilot_db_opens_read_only(tmp_path):
 
 
 def test_replay_of_an_archived_run_is_refused_with_a_message():
-    """An archived run's protocol has no scenario with the eight parameters
+    """An archived run's protocol has no scenario with the seven parameters
     (its rows carry p, s, t, B, K and the retired C), so a replay says so
     instead of failing inside NumPy on an empty draw matrix. Read-only on
     the committed archive."""

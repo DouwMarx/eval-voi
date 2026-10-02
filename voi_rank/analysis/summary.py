@@ -11,17 +11,21 @@ mc.replay_efficiency does. --draws N then keeps the first N of the run's
 draws (a deterministic subsample, for speed); the verification always runs
 on the full set.
 
-Developer-perspective ablation (decision_from): the decision-level
-parameters p, B, K come from the valid decision-stage elicitations of
-another protocol (p002: the developer perspective, which elicits only the
-decision prompt), the instrument-level ones (s, t, C_build, C_run, n) from
-the headline run's protocol. No run stores this combination, so its draws
-use the headline run's seed and n_draws and are not verified, and the
-sensitivities are computed from the draws (as mc does) instead of read.
+decision_from: the decision-level parameters p, B, K come from the valid
+decision-stage elicitations of another protocol, the instrument-level ones
+(s, t, C_build, C_run) from the analysed run's protocol. No run stores this
+combination, so its draws use the run's seed and n_draws and are not
+verified, and the eta sensitivities are computed from the draws (as mc
+does) instead of read. Unused by the current documents; kept for ablations.
+
+Rankings: for eta and for eta* (eta_ind, EVSI*/C) alike, rank 1 = the
+highest value, ties averaged, on every draw and at the central estimate.
+The Spearman sensitivities against eta are the run's stored ones; those
+against eta* are computed from the re-drawn draws.
 
 Groups: scenarios.grp, "physical AI" or "LLM" (DESIGN section 2); the
-drafts' older label "frontier model" reads as "LLM". Ranks: rank 1 = the
-highest eta, ties averaged. Every pairwise share counts ties as one half.
+drafts' older label "frontier model" reads as "LLM". Every pairwise share
+counts ties as one half.
 """
 
 from __future__ import annotations
@@ -49,9 +53,17 @@ IQR_QS = (0.25, 0.75)
 BEST_TOP = (1, 3, 5, 10)                 # N of the reported P(best physical-AI rank <= N)
 ROC_FPR = np.linspace(0.0, 1.0, 101)     # the false-positive grid of the ROC band
 ROC_METRICS = ("eta", "eta_ind")
-DRAWN = ("EVSI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run", "n_star", "pays")
+DRAWN = ("EVSI", "EVSI_ind", "C", "eta", "eta_ind", "eta_run", "n_star")
 COMPARED = ("eta", "eta_ind", "eta_run")
+RANKED = ("eta", "eta_ind")              # per-draw rankings are kept for these
+PRIMARY = "eta_ind"                      # the ranking the documents lead with (eta*, EVSI*/C)
 LEVEL_METRICS = ("eta", "eta_ind")       # fidelity level against these (central estimates)
+# risk domains (scenarios.json attributes.risk_domain) in display order; the physical-AI
+# evaluations all carry physical_harm, so the domain doubles as the group there
+DOMAINS = ("cyber", "cbrn", "loss_of_control", "harmful_manipulation", "societal_harm", "physical_harm")
+DOMAIN_LABEL = {"cyber": "cyber", "cbrn": "CBRN", "loss_of_control": "loss of control",
+                "harmful_manipulation": "harmful manipulation", "societal_harm": "societal harm",
+                "physical_harm": "physical AI"}
 CHUNK = 20_000   # draws per block in the broadcasting comparisons (memory bound)
 
 
@@ -63,6 +75,7 @@ class Scenario:
     group: str | None
     level: float | None
     domain: str | None
+    sources: list[dict] = field(default_factory=list)   # scenarios.json 'sources' (key, kind, role, title)
 
 
 def scenario_info(row) -> Scenario:
@@ -75,9 +88,11 @@ def scenario_info(row) -> Scenario:
         raw = {}
     short = raw.get("key") or (attrs.get("eval_family") or "").split(" (")[0] or row["title"]
     level = attrs.get("level")
+    sources = raw.get("sources") if isinstance(raw.get("sources"), list) else []
     return Scenario(id=row["id"], title=row["title"], short=str(short),
                     group=GROUP_ALIASES.get(row["grp"], row["grp"]),
-                    level=None if level is None else float(level), domain=attrs.get("risk_domain"))
+                    level=None if level is None else float(level), domain=attrs.get("risk_domain"),
+                    sources=sources)
 
 
 # --- statistics on arrays (scenarios on axis 0, draws on axis 1) ------------
@@ -244,8 +259,9 @@ class Summary:
     member_labels: list[str]
     central: dict[str, np.ndarray]           # model.metrics at the pooled medians
     draws: dict[str, np.ndarray]             # DRAWN metrics, (S, D)
-    sensitivity: np.ndarray                  # (S, len(PARAM_NAMES)), NaN = undefined
+    sensitivity: np.ndarray                  # (S, len(PARAM_NAMES)) against eta, NaN = undefined
     health: list[dict]
+    sensitivity_ind: np.ndarray | None = None   # the same against eta* (from the draws)
     out: dict = field(default_factory=dict)  # every derived number (compute())
 
     def ids_in(self, group: str) -> np.ndarray:
@@ -387,12 +403,14 @@ def load(con, protocol: str, members: list[str] | None = None, draws: int | None
                            f" {len(stored_ids)} stored (elicitations changed since the run"
                            + (f", or scenarios {retired} left scenarios.json and are retired:"
                               " run voi_rank.mc again" if retired else "") + ")")
+    rho_ind = []
     for sid, d in mc.iter_scenario_draws(fits, run["seed"], run["n_draws"]):
         m = model.metrics(d)
         if decision_from:
             rho.append([spearman(d[n], m["eta"]) for n in PARAM_NAMES])
         else:
             _verify(con, run["id"], sid, m)
+        rho_ind.append([spearman(d[n], m["eta_ind"]) for n in PARAM_NAMES])
         ids.append(sid)
         for name in DRAWN:
             drawn[name].append(m[name][:keep])
@@ -401,6 +419,7 @@ def load(con, protocol: str, members: list[str] | None = None, draws: int | None
             "SELECT * FROM sensitivities WHERE run_id=?", (run["id"],))}
         rho = [[stored.get((sid, n)) for n in PARAM_NAMES] for sid in ids]
     sens = np.array([[np.nan if v is None else v for v in row] for row in rho], dtype=float)
+    sens_ind = np.array([[np.nan if v is None else v for v in row] for row in rho_ind], dtype=float)
 
     rows = {r["id"]: r for r in con.execute("SELECT * FROM scenarios")}
     scen = [scenario_info(rows[sid]) for sid in ids]
@@ -424,9 +443,49 @@ def load(con, protocol: str, members: list[str] | None = None, draws: int | None
     s = Summary(run=run_info, scenarios=scen, pooled=pooled, elicited=elicited, member_labels=all_labels,
                 central=central, draws={k: np.vstack(v) for k, v in drawn.items()}, sensitivity=sens,
                 health=health_rows(con, health_src, [m for ms in member_sets.values() for m in ms], labels,
-                                   scenario_ids=_row_scenarios(con, health_src, ids)))
+                                   scenario_ids=_row_scenarios(con, health_src, ids)),
+                sensitivity_ind=sens_ind)
     compute(s)
     return s
+
+
+def rank_block(s: Summary, metric: str, phys, llm) -> dict:
+    """Everything about the ranking by one metric: per-draw ranks, their
+    quantiles and interquartile range, P(rank <= k), the central ranks and
+    the rank of the best physical-AI evaluation (central and over draws)."""
+    ranks = ranks_desc(s.draws[metric], axis=0)
+    iq = np.quantile(ranks, IQR_QS, axis=1).T                             # (S, 2)
+    out = {"ranks": ranks, "central": ranks_desc(s.central[metric]),
+           "q": np.quantile(ranks, QS, axis=1).T,                           # (S, 3)
+           "iqr_q": iq, "iqr": iq[:, 1] - iq[:, 0],
+           "p_le": {k: (ranks <= k).mean(axis=1) for k in TOP_K}}
+    if len(phys) and len(llm):
+        ns = np.arange(1, len(s.scenarios) + 1)
+        out["best_phys_ns"] = ns
+        out["best_phys_curve"] = best_rank_curve(ranks[phys], ns)
+        out["best_phys_central"] = float(out["central"][phys].min())
+    return out
+
+
+def domain_block(s: Summary, rank: dict) -> list[dict]:
+    """Per risk domain (DOMAINS, in order, those present): the evaluations,
+    the median over them of the central eta*, eta and stakes B+K, the median
+    central rank by eta* and the median over draws of the domain's mean rank
+    by eta*."""
+    rows = []
+    for dom in DOMAINS:
+        idx = np.array([i for i, sc in enumerate(s.scenarios) if sc.domain == dom], dtype=int)
+        if not len(idx):
+            continue
+        rows.append({"domain": dom, "label": DOMAIN_LABEL.get(dom, dom), "ids": idx, "n": int(len(idx)),
+                     "med_eta_ind": float(np.median(s.central["eta_ind"][idx])),
+                     "med_eta": float(np.median(s.central["eta"][idx])),
+                     "med_stakes": float(np.median(s.pooled["B"][idx] + s.pooled["K"][idx])),
+                     "med_rank_central": float(np.median(rank["central"][idx])),
+                     "mean_rank_q": quantiles(rank["ranks"][idx].mean(axis=0)),
+                     "zero_share": float((~(s.central["EVSI"][idx] > 0)).mean())})
+    rows.sort(key=lambda r: r["med_rank_central"])
+    return rows
 
 
 def compute(s: Summary) -> dict:
@@ -436,15 +495,10 @@ def compute(s: Summary) -> dict:
     out["n_scenarios"] = len(s.scenarios)
     out["n_group"] = {PHYS: int(len(phys)), LLM: int(len(llm))}
 
-    eta = s.draws["eta"]
-    ranks = ranks_desc(eta, axis=0)
-    out["rank_central"] = ranks_desc(s.central["eta"])
-    out["rank_q"] = np.quantile(ranks, QS, axis=1).T                    # (S, 3)
-    out["p_rank_le"] = {k: (ranks <= k).mean(axis=1) for k in TOP_K}
-    iq = np.quantile(ranks, IQR_QS, axis=1).T                             # (S, 2)
-    out["rank_iqr_q"] = iq
-    out["rank_iqr"] = iq[:, 1] - iq[:, 0]
+    out["rank"] = {metric: rank_block(s, metric, phys, llm) for metric in RANKED}
 
+    # the probability of superiority P_S = P(a random physical-AI evaluation scores higher than
+    # a random LLM one), ties half: the Mann-Whitney U over the number of pairs
     out["groups"] = {}
     for metric in COMPARED:
         a_c, b_c = s.central[metric][phys], s.central[metric][llm]
@@ -453,17 +507,14 @@ def compute(s: Summary) -> dict:
             "A_central": pairwise_share(a_c, b_c),
             "A_q": quantiles(a_d) if len(phys) and len(llm) else [None] * 3,
             "mw_p": mann_whitney_p(a_c, b_c)}
-    # A among the evaluations whose result can change the decision (EVSI > 0 at the central estimate)
+    # P_S by eta among the evaluations whose result can change the decision (EVSI > 0, central)
     ch = s.central["EVSI"] > 0
     pc, lc = phys[ch[phys]], llm[ch[llm]]
     out["eta_A_changing"] = {"A": pairwise_share(s.central["eta"][pc], s.central["eta"][lc]),
                              "n_pairs": int(len(pc) * len(lc)), "n_phys": int(len(pc)),
                              "n_llm": int(len(lc))}
+    eta = s.draws["eta"]
     if len(phys) and len(llm):
-        top_ns = np.arange(1, len(s.scenarios) + 1)
-        out["best_phys_ns"] = top_ns
-        out["best_phys_curve"] = best_rank_curve(ranks[phys], top_ns)
-        out["best_phys_central"] = float(out["rank_central"][phys].min())
         out["roc"] = {}
         for metric in ROC_METRICS:
             f, t = roc_curve(s.central[metric][phys], s.central[metric][llm])
@@ -479,17 +530,24 @@ def compute(s: Summary) -> dict:
         med = np.percentile(eta[llm], 50, axis=0)
         out["p_beats_median"] = _above(eta[phys], med[None, :]).mean(axis=1)
 
+    # break-even run count n* = C_build / (EVSI - C_run): finite on the draws where one run is
+    # worth more than its run cost
     ns = s.draws["n_star"]
     out["nstar_q"] = np.array([quantiles(row) for row in ns], dtype=object)
     out["p_nstar_finite"] = np.isfinite(ns).mean(axis=1)
-    out["p_pays"] = s.draws["pays"].mean(axis=1)
     out["p_changes"] = (s.draws["EVSI"] > 0).mean(axis=1)
     out["changes_share"] = {g: (float((s.central["EVSI"][idx] > 0).mean()) if len(idx) else None)
                             for g, idx in ((PHYS, phys), (LLM, llm))}
+    out["zero_ids"] = {g: [s.scenarios[i].id for i in idx if not s.central["EVSI"][i] > 0]
+                       for g, idx in ((PHYS, phys), (LLM, llm))}
     with np.errstate(all="ignore"):
         out["mean_abs_rho"] = {n: (float(np.nanmean(np.abs(s.sensitivity[:, j])))
                                    if np.isfinite(s.sensitivity[:, j]).any() else None)
                                for j, n in enumerate(PARAM_NAMES)}
+        si = s.sensitivity_ind
+        out["mean_abs_rho_ind"] = {n: (float(np.nanmean(np.abs(si[:, j])))
+                                       if si is not None and np.isfinite(si[:, j]).any() else None)
+                                   for j, n in enumerate(PARAM_NAMES)}
 
     lev = [i for i in phys if s.scenarios[i].level is not None]
     out["level_ids"] = np.array(lev, dtype=int)
@@ -497,13 +555,14 @@ def compute(s: Summary) -> dict:
     out["youden"] = J
     levels = [s.scenarios[i].level for i in lev]
     # the fidelity question: does a higher level buy more value per dollar? Spearman of
-    # level with the central eta and eta_max; Youden's index and cost are secondary
+    # level with the central eta and eta*; Youden's index and cost are secondary
     for metric in LEVEL_METRICS:
         out[f"level_rho_{metric}"], out[f"level_p_{metric}"] = spearman_test(
             levels, list(s.central[metric][lev]))
     out["level_rho_J"], out["level_p_J"] = spearman_test(levels, list(J[lev]))
     out["level_rho_C"], out["level_p_C"] = spearman_test(levels, list(s.central["C"][lev]))
 
+    out["domains"] = domain_block(s, out["rank"][PRIMARY])
     out["member_p50"] = member_pooled(s)
     out["member_rho"] = member_agreement(s, out["member_p50"])
     return out
@@ -533,9 +592,17 @@ def member_agreement(s: Summary, mp: dict) -> dict[str, float | None]:
     return out
 
 
-def order(s: Summary) -> list[int]:
-    """Row indices by central rank (best first), ties by scenario id."""
-    return sorted(range(len(s.scenarios)), key=lambda i: (s.out["rank_central"][i], s.scenarios[i].id))
+def order(s: Summary, metric: str = PRIMARY) -> list[int]:
+    """Row indices by the central rank under `metric` (best first), ties by scenario id."""
+    return sorted(range(len(s.scenarios)),
+                  key=lambda i: (s.out["rank"][metric]["central"][i], s.scenarios[i].id))
+
+
+def order_by_median_rank(s: Summary, metric: str = PRIMARY) -> list[int]:
+    """Row indices by the median over draws of the rank under `metric` (best
+    first), ties by the central rank, then scenario id."""
+    r = s.out["rank"][metric]
+    return sorted(range(len(s.scenarios)), key=lambda i: (r["q"][i][1], r["central"][i], s.scenarios[i].id))
 
 
 def log_param(name: str) -> bool:
@@ -561,27 +628,33 @@ def to_json(s: Summary) -> str:
     o = s.out
     per = []
     for i, sc in enumerate(s.scenarios):
-        per.append({"id": sc.id, "short": sc.short, "group": sc.group, "level": sc.level,
-                    "domain": sc.domain, "pooled": {n: s.pooled[n][i] for n in PARAM_NAMES},
-                    "central": {k: v[i] for k, v in s.central.items()},
-                    "rank_central": o["rank_central"][i], "rank_q": o["rank_q"][i],
-                    "p_rank_le": {k: v[i] for k, v in o["p_rank_le"].items()},
-                    "rank_q25_q75": o["rank_iqr_q"][i], "rank_iqr": o["rank_iqr"][i],
-                    "p_changes": o["p_changes"][i], "p_pays": o["p_pays"][i],
-                    "nstar_q": list(o["nstar_q"][i])})
+        row = {"id": sc.id, "short": sc.short, "group": sc.group, "level": sc.level,
+               "domain": sc.domain, "pooled": {n: s.pooled[n][i] for n in PARAM_NAMES},
+               "central": {k: v[i] for k, v in s.central.items()},
+               "p_changes": o["p_changes"][i], "p_nstar_finite": o["p_nstar_finite"][i],
+               "nstar_q": list(o["nstar_q"][i])}
+        for metric in RANKED:
+            r = o["rank"][metric]
+            row[f"rank_{metric}"] = {"central": r["central"][i], "q": r["q"][i],
+                                     "p_le": {k: v[i] for k, v in r["p_le"].items()},
+                                     "q25_q75": r["iqr_q"][i], "iqr": r["iqr"][i]}
+        per.append(row)
     data = {"run": s.run, "n_group": o["n_group"], "groups": o["groups"],
-            "changes_share": o["changes_share"], "mean_abs_rho": o["mean_abs_rho"],
+            "changes_share": o["changes_share"], "zero_ids": o["zero_ids"],
+            "mean_abs_rho": o["mean_abs_rho"], "mean_abs_rho_ind": o["mean_abs_rho_ind"],
             **{f"level_{k}_{m}": o[f"level_{k}_{m}"]
                for k in ("rho", "p") for m in (*LEVEL_METRICS, "J", "C")},
             "eta_A_changing": o["eta_A_changing"],
+            "domains": [{k: v for k, v in d.items() if k != "ids"} for d in o["domains"]],
             "member_rho": o["member_rho"], "health": s.health, "scenarios": per}
     if "curve_q" in o:
         data["curve"] = {"q": CURVE_QS, "central": o["curve_central"], "q05_q50_q95": o["curve_q"]}
         data["physical_percentile"] = [
             {"id": s.scenarios[i].id, "central": o["pct_central"][k], "q05_q50_q95": o["pct_q"][k],
              "p_beats_median": o["p_beats_median"][k]} for k, i in enumerate(s.ids_in(PHYS))]
-        data["best_physical_rank"] = {"n": o["best_phys_ns"], "p_le": o["best_phys_curve"],
-                                      "central": o["best_phys_central"]}
+        data["best_physical_rank"] = {
+            metric: {"n": o["rank"][metric]["best_phys_ns"], "p_le": o["rank"][metric]["best_phys_curve"],
+                     "central": o["rank"][metric]["best_phys_central"]} for metric in RANKED}
         data["roc"] = {m: {"fpr": r["fpr"], "tpr": r["tpr"], "area": r["area"], "grid": ROC_FPR,
                            "tpr_q05_q50_q95": r["band"]} for m, r in o["roc"].items()}
     return json.dumps(_plain(data), indent=1, sort_keys=True) + "\n"

@@ -1,9 +1,9 @@
 """The committed study studies/safety-evals: the scenario file is the build of
 the fact-checked drafts that include.yaml keeps and follows the DESIGN section 5 schema, the
 templates respect the two prompts' separation (DESIGN section 4), the
-protocols are the headline (p001) and the developer-perspective ablation
-(p002), and the documented dry run plans both stages and renders the first
-prompt of each without a provider call or a voi.db."""
+protocols are the final run (final) and its no-context ablation
+(final_noctx), and the documented dry run plans both stages and renders the
+first prompt of each without a provider call or a voi.db."""
 
 from __future__ import annotations
 
@@ -29,6 +29,10 @@ SCENARIO_KEYS = {"title", "agent", "decision", "theta_definition", "instrument",
 STAKES = re.compile(r"\bB\b|\bK\b|\bprior\b|perspective|society|welfare|liability|financial exposure",
                     re.IGNORECASE)
 BANNED_DEC = re.compile(r"\b(?:instrument|evaluation|benchmark|cost)s?\b", re.IGNORECASE)
+# the one sentence of the decision prompt that names the evaluation, to say that none is described
+DEC_DISCLAIMER = ("No evaluation is described here; estimate the decision from what the developer already"
+                  " knows.")
+TEMPLATES = sorted(p.name for p in (ROOT / "studies" / "safety-evals" / "templates").glob("*"))
 
 _spec = importlib.util.spec_from_file_location("build_scenarios", ROOT / "scripts" / "build_scenarios.py")
 build_scenarios = importlib.util.module_from_spec(_spec)
@@ -123,27 +127,28 @@ def test_scenarios_follow_the_design_schema():
 
 
 def test_templates_keep_the_two_prompts_apart():
-    templates = STUDY / "templates"
-    decision = (templates / "decision.md").read_text()
-    instrument = (templates / "instrument.md").read_text()
-    anchors_dec = (templates / "anchors_decision.md").read_text()
-    anchors_ins = (templates / "anchors_instrument.md").read_text()
-    for text in (decision, anchors_dec):
-        assert BANNED_DEC.findall(text) == []
-        assert re.search(r"\$title\b|\$context\b|\$instrument\b", text) is None
+    assert TEMPLATES == ["decision.md", "instrument.md"]   # the anchors files are archived, not in the study
+    decision = template("decision.md").template
+    instrument = template("instrument.md").template
+    assert DEC_DISCLAIMER in decision
+    assert BANNED_DEC.findall(decision.replace(DEC_DISCLAIMER, "")) == []
+    assert re.search(r"\$title\b|\$context\b|\$instrument\b", decision) is None
     assert "$decision_context" in decision and "$agent" in decision and "$anchors_decision" in decision
-    assert "$perspective" in decision and "$context_mode" in decision
-    for text in (instrument, anchors_ins):
-        assert re.findall(r"\bB\b|\bK\b|\bprior\b", text, re.IGNORECASE) == []
+    assert "$context_mode" in decision and "$perspective" not in decision
+    assert re.findall(r"\bB\b|\bK\b|\bprior\b", instrument, re.IGNORECASE) == []
     assert STAKES.search(instrument) is None and "$perspective" not in instrument
     for field in ("$title", "$agent", "$decision", "$theta_definition", "$instrument", "$context",
                   "$anchors_instrument"):
         assert field in instrument
     assert "$decision_context" not in instrument
-    # both perspectives defined in the decision prompt
-    assert "- society: the harm avoided and the welfare forgone" in decision
-    assert "- developer: only the developer's own financial exposure: liability, recall, reputation," \
-           " lost revenue and delay" in decision
+    # one perspective, society, stated in the decision prompt's text; no developer alternative
+    assert "Value B and K for society: the harm avoided and the welfare forgone" in decision
+    assert "valued for society" in decision and "developer:" not in decision
+    for text in (decision, instrument):
+        # the action is mitigate, never respond; nothing is flagged
+        assert re.search(r"\brespond", text, re.IGNORECASE) is None
+        assert re.search(r"\bflag", text, re.IGNORECASE) is None
+        assert re.search(r"\bmitigat", text) is not None
     for text, names in ((decision, DECISION_PARAMS), (instrument, INSTRUMENT_PARAMS)):
         assert '"unit"' not in text
         # extremes first (elicitation_lit.md implication 6), plain decimals (implication 5)
@@ -157,20 +162,20 @@ def test_templates_keep_the_two_prompts_apart():
         contract = text.split("## Output")[1]
         assert re.findall(r'"(\w+)": \{"reasoning"', contract) == names
         assert contract.count('"p5": 0.0, "p95": 0.0, "p50": 0.0') == len(names)
-    # the anchor files (an ablation) carry their own heading and both anchors with every parameter
-    for text, names in ((anchors_dec, DECISION_PARAMS), (anchors_ins, INSTRUMENT_PARAMS)):
-        assert text.startswith("\n## Anchor scenarios")
-        assert "Anchor A1." in text and "Anchor A2." in text
-        for name in names:
-            assert text.count(f"- {name}") == 2 or text.count(f"- {name} (") == 2, name
+    assert "three decision parameters" in decision and "four instrument parameters" in instrument
+    assert re.search(r"\bn\b: ", decision + instrument) is None   # no reuse count asked anywhere
+
+
+ANCHORS = "\n## Anchor scenarios\n\nAnchor A1. A worked example.\n"
 
 
 @pytest.mark.parametrize("anchors", [False, True])
 def test_templates_render_cleanly_with_and_without_anchors(anchors):
+    """The protocols set both anchors variables to ''; the placeholders still
+    render an inline anchors block cleanly (the archived ablation's form)."""
     sc = scenarios()[0]
-    tv = {"perspective": "society", "context_mode": "curated",
-          "anchors_decision": (STUDY / "templates/anchors_decision.md").read_text() if anchors else "",
-          "anchors_instrument": (STUDY / "templates/anchors_instrument.md").read_text() if anchors else ""}
+    tv = {"context_mode": "curated",
+          "anchors_decision": ANCHORS if anchors else "", "anchors_instrument": ANCHORS if anchors else ""}
     dec = elicit.render_decision_prompt(template("decision.md"), sc,
                                         {k: v for k, v in tv.items() if k != "anchors_instrument"})
     ins = elicit.render_prompt(template("instrument.md"), sc,
@@ -182,15 +187,15 @@ def test_templates_render_cleanly_with_and_without_anchors(anchors):
 
 
 def test_every_rendered_prompt_keeps_the_two_prompts_apart():
-    cfg = protocol("p001")
+    cfg = protocol("final")
     tv = db.normalize_template_vars(cfg, STUDY)
-    assert tv["anchors_decision"] == "" and tv["anchors_instrument"] == ""
+    assert tv == {"anchors_decision": "", "anchors_instrument": "", "context_mode": "curated"}
     dec_t, ins_t = template("decision.md"), template("instrument.md")
     for sc in scenarios():
         dec = elicit.render_decision_prompt(dec_t, sc, tv)
         ins = elicit.render_prompt(ins_t, sc, tv)
         assert sc["instrument"] not in dec and sc["instrument_context"] not in dec and sc["title"] not in dec
-        assert sc["decision_context"] in dec and "from the society perspective" in dec
+        assert sc["decision_context"] in dec and "valued for society" in dec
         assert sc["instrument_context"] in ins and sc["decision_context"] not in ins
         assert "[" not in dec and "[" not in ins   # no citation markers reach either prompt
         # the instrument prompt carries no stakes words outside the scenario's own text
@@ -198,27 +203,35 @@ def test_every_rendered_prompt_keeps_the_two_prompts_apart():
         for field in ("title", "agent", "decision", "theta_definition", "instrument", "instrument_context"):
             own = own.replace(sc[field], "")
         assert STAKES.search(own) is None, (sc["title"], STAKES.findall(own))
-        assert BANNED_DEC.search(dec.split("## Decision to elicit")[0]) is None
+        assert BANNED_DEC.search(dec.split("## Decision to elicit")[0].replace(DEC_DISCLAIMER, "")) is None
 
 
-def test_protocols_p001_headline_and_p002_developer_ablation():
-    cfg = protocol("p001")
-    assert cfg["name"] == "p001"
+def protocol_names() -> list[str]:
+    return sorted(p.stem for p in (STUDY / "protocols").glob("*.yaml"))
+
+
+def test_protocols_final_and_final_noctx():
+    assert protocol_names() == ["final", "final_noctx"]   # p001-p003 and final_dev are archived or gone
+    cfg = protocol("final")
+    assert cfg["name"] == "final"
     dec, ins = cfg["stages"]
     assert (dec["name"], dec["params"], dec["group_key"]) == ("decision", DECISION_PARAMS, "self")
     assert (ins["name"], ins["params"]) == ("instrument", INSTRUMENT_PARAMS) and "group_key" not in ins
-    assert cfg["template_vars"] == {"perspective": "society", "anchors_decision": "",
-                                    "anchors_instrument": "", "context_mode": "curated"}
-    assert cfg["members"] == [{"provider": "claude_cli", "model": "haiku", "k_repeats": 2},
-                              {"provider": "claude_cli", "model": "sonnet", "k_repeats": 2}]
+    assert cfg["template_vars"] == {"anchors_decision": "", "anchors_instrument": "",
+                                    "context_mode": "curated"}
+    assert "perspective" not in cfg["template_vars"]
+    members = db.normalize_members(cfg)
+    assert len(members) == 6 and all(m["provider"] == "openrouter" and m["k_repeats"] == 1 for m in members)
+    assert {m["reasoning_effort"] for m in members} == {"medium"}
     assert [s["name"] for s in db.normalize_stages(cfg, STUDY)] == ["decision", "instrument"]
-    p2 = protocol("p002")
-    assert p2["name"] == "p002" and p2["template_vars"]["perspective"] == "developer"
-    assert "--stage decision" in p2["notes"]
+    assert "--protocol final" in cfg["notes"] and "seven-parameter" in cfg["notes"]
+    noctx = protocol("final_noctx")
+    assert noctx["name"] == "final_noctx" and noctx["template_vars"]["context_mode"] == "none"
+    assert "--protocol final_noctx" in noctx["notes"] and "--tag noctx" in noctx["notes"]
     strip = lambda c: {k: v for k, v in c.items() if k not in ("name", "notes")}   # noqa: E731
-    p1_rest, p2_rest = strip(cfg), strip(p2)
-    p1_rest["template_vars"] = {**cfg["template_vars"], "perspective": "developer"}
-    assert p1_rest == p2_rest   # identical except the name and the perspective
+    final_rest, noctx_rest = strip(cfg), strip(noctx)
+    final_rest["template_vars"] = {**cfg["template_vars"], "context_mode": "none"}
+    assert final_rest == noctx_rest   # identical except the name, the notes and the context mode
 
 
 @pytest.fixture
@@ -235,45 +248,58 @@ def fresh_study(tmp_path):
     return dst
 
 
+FINAL_MEMBERS = ["openrouter:deepseek/deepseek-v4.1-flash", "openrouter:z-ai/glm-5.3",
+                 "openrouter:xiaomi/mimo-v2.6-flash", "openrouter:openai/gpt-6-luna",
+                 "openrouter:google/gemini-3.8-flash", "openrouter:x-ai/grok-4.7"]
+
+
 def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys, fresh_study):
     monkeypatch.setattr(elicit, "get_provider",
                         lambda name: (_ for _ in ()).throw(AssertionError("provider called")))
     assert not list(fresh_study.glob("voi.db*"))
-    elicit.main(["--study", str(fresh_study), "--protocol", "p001", "--dry-run"])
+    elicit.main(["--study", str(fresh_study), "--protocol", "final", "--dry-run"])
     out = capsys.readouterr().out
     assert not list(fresh_study.glob("voi.db*"))   # the plan ran on an in-memory copy
-    assert "DRY RUN: protocol p001 (stages decision + instrument, hash" in out
+    assert "DRY RUN: protocol final (stages decision + instrument, hash" in out
+    assert "template_vars ['anchors_decision', 'anchors_instrument', 'context_mode'])" in out
     assert "stage decision (template templates/decision.md, params p, B, K, group_key self):" in out
-    assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run, n):" in out
+    assert "stage instrument (template templates/instrument.md, params s, t, C_build, C_run):" in out
     n = len(scenarios())
-    for member in ("claude_cli:haiku", "claude_cli:sonnet"):
+    assert [m["model"] for m in db.normalize_members(protocol("final"))] == [m.split(":", 1)[1]
+                                                                             for m in FINAL_MEMBERS]
+    for member in FINAL_MEMBERS:
         groups = ", ".join(str(i) for i in range(1, n + 1))
-        assert f"member {member} (k=2): {2 * n} pending slots over {n} groups ({groups})" in out
-        assert f"member {member} (k=2): {2 * n} pending slots over {n} scenarios (ids 1..{n})" in out
-        assert (f"{member}: {4 * n} slots (decision {2 * n}, instrument {2 * n}), estimated cost unknown"
-                in out)
-    assert f"{8 * n} slots would be elicited; no provider was called." in out
-    assert f"plan: protocol p001, {8 * n} pending slots" in out
-    assert "estimated total: $0.00 + unknown" in out
+        assert f"member {member} (k=1): {n} pending slots over {n} groups ({groups})" in out
+        assert f"member {member} (k=1): {n} pending slots over {n} scenarios (ids 1..{n})" in out
+        assert f"{member}: {2 * n} slots (decision {n}, instrument {n}), estimated cost" in out
+    # two stages x six members x one repeat per scenario
+    assert f"{12 * n} slots would be elicited; no provider was called." in out
+    assert f"plan: protocol final, {12 * n} pending slots" in out
+    assert out.index("estimated total: $") < out.index("first pending prompt of stage decision")
     assert "warning" not in out   # every rendered field is filled
     sc = scenarios()[0]
     dec, ins = out.split("first pending prompt of stage decision")[1].split(
         "first pending prompt of stage instrument")
     assert "(group '1', representative scenario 1," in dec and "(scenario 1," in ins
     assert sc["agent"] in dec and sc["decision"] in dec and sc["decision_context"] in dec
-    assert "from the society perspective" in dec and "Anchor" not in dec and "context mode: curated" in dec
+    assert "valued for society" in dec and "Anchor" not in dec and "context mode: curated" in dec
     assert sc["instrument"] not in dec and sc["title"] not in dec
     assert sc["title"] in ins and sc["instrument"] in ins and sc["instrument_context"] in ins
     assert "Anchor" not in ins and "C_build" in ins and "$context" not in ins
-    assert '"p":' in dec and '"p":' not in ins and '"n":' in ins and '"n":' not in dec
+    assert '"p":' in dec and '"p":' not in ins and '"C_run":' in ins and '"C_run":' not in dec
+    assert '"n":' not in dec and '"n":' not in ins   # no reuse count asked
+    assert "perspective" not in dec and "perspective" not in ins
 
 
-def test_dry_run_p002_decision_stage_only(capsys, fresh_study):
-    elicit.main(["--study", str(fresh_study), "--protocol", "p002", "--stage", "decision", "--dry-run"])
+def test_dry_run_final_noctx_decision_stage_only(capsys, fresh_study):
+    elicit.main(["--study", str(fresh_study), "--protocol", "final_noctx", "--stage", "decision",
+                 "--dry-run"])
     out = capsys.readouterr().out
-    assert f"plan: protocol p002, {4 * len(scenarios())} pending slots" in out
+    assert f"plan: protocol final_noctx, {6 * len(scenarios())} pending slots" in out
     assert "not planned (--stage decision)" in out
-    assert "from the developer perspective" in out
+    assert "first pending prompt of stage decision" in out
+    assert "first pending prompt of stage instrument" not in out
+    assert "Background facts" not in out and "valued for society" in out
     assert not list(fresh_study.glob("voi.db*"))
 
 
@@ -283,46 +309,46 @@ def test_dry_run_from_the_shell_entry_point(fresh_study):
     import subprocess
     import sys
     proc = subprocess.run([sys.executable, "-m", "voi_rank.elicit", "--study", str(fresh_study),
-                           "--protocol", "p001", "--dry-run"], cwd=ROOT, capture_output=True, text=True,
+                           "--protocol", "final", "--dry-run"], cwd=ROOT, capture_output=True, text=True,
                           timeout=120)
     assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
-    assert f"{8 * len(scenarios())} slots would be elicited; no provider was called." in proc.stdout
+    assert f"{12 * len(scenarios())} slots would be elicited; no provider was called." in proc.stdout
     assert not list(fresh_study.glob("voi.db*"))
 
 
-@pytest.mark.parametrize("name", ["decision.md", "instrument.md", "anchors_decision.md",
-                                  "anchors_instrument.md"])
+@pytest.mark.parametrize("name", TEMPLATES)
 def test_templates_have_no_trailing_whitespace(name):
     text = (STUDY / "templates" / name).read_text()
     assert all(line == line.rstrip() for line in text.splitlines()) and text.endswith("\n")
 
 
-def test_p003_renders_no_context_and_no_context_heading(capsys, fresh_study):
-    """The no-context ablation: p003 equals p001 but for context_mode none, and
-    its dry run renders neither prompt's facts nor the facts heading, while
-    the rest of each prompt is p001's."""
-    p1, p3 = protocol("p001"), protocol("p003")
-    assert p3["template_vars"].pop("context_mode") == "none"
-    p1["template_vars"].pop("context_mode")
-    assert {k: v for k, v in p3.items() if k not in ("name", "notes")} == \
-        {k: v for k, v in p1.items() if k not in ("name", "notes")}
+def test_final_noctx_renders_no_context_and_no_context_heading(capsys, fresh_study):
+    """The no-context ablation: final_noctx equals final but for context_mode
+    none, and its dry run renders neither prompt's facts nor the facts
+    heading, while the rest of each prompt is final's."""
     sc = scenarios()[0]
     out = {}
-    for name in ("p001", "p003"):
+    for name in ("final", "final_noctx"):
         elicit.main(["--study", str(fresh_study), "--protocol", name, "--dry-run"])
         text = capsys.readouterr().out
         dec, ins = text.split("first pending prompt of stage decision")[1].split(
             "first pending prompt of stage instrument")
         out[name] = (dec, ins)
-    dec, ins = out["p003"]
+    dec, ins = out["final_noctx"]
     assert sc["decision_context"] not in dec and sc["instrument_context"] not in ins
     assert "Background facts" not in dec and "Background facts" not in ins and "context mode" not in dec
     assert sc["agent"] in dec and sc["decision"] in dec and sc["theta_definition"] in dec
     assert sc["title"] in ins and sc["instrument"] in ins and "## Instructions" in ins
     assert "warning" not in dec
-    d1, i1 = out["p001"]
+    d1, i1 = out["final"]
     assert sc["decision_context"] in d1 and "## Decision to elicit" in dec and "## Output" in dec
     assert len(dec) < len(d1) and len(ins) < len(i1)
+    # the ablation's prompts are final's with the facts section cut out, nothing else
+    for cut, full in ((dec, d1), (ins, i1)):
+        body = lambda t: t.split("\n", 1)[1]   # noqa: E731  (drop the size-and-hash header line)
+        head, _, tail = body(full).partition("\n## Background facts")
+        _, _, tail = tail.partition("## Instructions")
+        assert body(cut) == head + "\n## Instructions" + tail
 
 
 def test_unknown_context_mode_is_refused():

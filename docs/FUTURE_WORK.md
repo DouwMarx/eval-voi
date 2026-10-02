@@ -2,16 +2,17 @@
 
 Items deliberately left out of the paper. None is claimed as a limitation in either document; the extended report points here.
 
-## Other decision-makers
+## Other decision-makers and valuations
 - A regulator or safety institute deciding whether to permit a deployment: the same binary structure with its own prior, B and K.
-- A funder deciding whether to build an evaluation for the field: its value is n EVSI minus the build cost, computable from the elicited reuse count n.
+- The developer's own exposure (liability, recall, reputation, lost revenue, delay) as B and K, instead of the societal valuation the paper uses. The iteration ran this as a decision-prompt ablation (archive/iteration-2026-09-30/p002.yaml); it was dropped from the paper.
+- A funder deciding whether to build an evaluation for the field: its value is n EVSI minus the build cost over the n decisions the built evaluation will inform. The paper reports the break-even run count n* and leaves n to the reader; the iteration elicited n and dropped it because nothing in an evaluation's sources determines how many decisions it will inform.
 - An insurer setting a premium: a continuous decision, outside the binary model.
 
 ## Growth over time
-The numbers are a present-day snapshot. As robot fleets grow, the stakes per release decision B and K grow, and so does the reuse count n. EVSI scales with the stakes at a fixed threshold K/(B+K), so the deployment scale at which physical-AI evaluations would match LLM ones follows from the stakes ratio reported in the paper. Eliciting stakes and base rates as a function of time is a separate study.
+The numbers are a present-day snapshot. As robot fleets grow, the stakes per release decision B and K grow, and so does the number of decisions an evaluation informs. EVSI scales with the stakes at a fixed threshold K/(B+K), so the deployment scale at which physical-AI evaluations would match LLM ones follows from the stakes ratio reported in the paper. Eliciting stakes and base rates as a function of time is a separate study.
 
 ## Richer decision models
-- Responses that are partial rather than respond or deploy.
+- Actions that are partial rather than mitigate or deploy.
 - Testing, fixing and re-testing the same system.
 - A continuous score read against a decision-specific cutoff instead of a fixed pass/fail mark.
 - Correlation between the elicited parameters.

@@ -1,8 +1,10 @@
 """The report figures (DESIGN section 7), PDF, drawn at the CoRL text width
-(5.5 in) with no text smaller than 6.5 pt and no titles (captions live in
-the tex). Two groups: physical AI (vermillion triangles) and LLM (blue
-circles), Okabe-Ito colours, the marker shape a second encoding. The
-pipeline diagram (F1's first panel) is TikZ in the tex, not here.
+(5.5 in) with no text smaller than 6.5 pt (6 pt for the row labels of the
+paper's combined row figure) and no titles (captions live in the tex). Two groups: physical AI (vermillion triangles) and LLM (blue
+circles), Okabe-Ito colours, the marker shape a second encoding; the
+per-evaluation row figures colour by risk domain instead and set the
+physical-AI rows apart with an ink outline and bold labels. The method
+diagram is TikZ in the tex, not here.
 
 Each fig_* takes a Summary and the output directory and returns the path
 written, or None with a printed reason when the data cannot support it
@@ -25,13 +27,18 @@ from matplotlib.transforms import offset_copy  # noqa: E402
 from voi_rank.analysis.summary import (  # noqa: E402
     BEST_TOP,
     CURVE_QS,
+    DOMAIN_LABEL,
+    DOMAINS,
     LLM,
     PHYS,
+    PRIMARY,
+    RANKED,
     ROC_FPR,
     Summary,
     log_param,
     member_display,
     order,
+    order_by_median_rank,
 )
 from voi_rank.fit import PARAM_NAMES  # noqa: E402
 
@@ -41,9 +48,14 @@ MIN_FONT = 6.5
 COLOR = {PHYS: "#D55E00", LLM: "#0072B2", None: "#7f7f7f"}
 MARKER = {PHYS: "^", LLM: "o", None: "s"}
 MEMBER_COLORS = ["#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#000000", "#F0E442"]
+# one Okabe-Ito colour per risk domain; physical AI keeps the group's vermillion
+DOMAIN_COLOR = {"cyber": "#0072B2", "cbrn": "#009E73", "loss_of_control": "#CC79A7",
+                "harmful_manipulation": "#E69F00", "societal_harm": "#56B4E9", "physical_harm": "#D55E00"}
 INK, MUTED, GRID = "#333333", "#8a8a8a", "#e3e3e3"
 PARAM_LABEL = {"p": "$p$", "s": "$s$", "t": "$t$", "B": "$B$ (USD)", "K": "$K$ (USD)",
-               "C_build": r"$C_\mathrm{build}$ (USD)", "C_run": r"$C_\mathrm{run}$ (USD)", "n": "$n$"}
+               "C_build": r"$C_\mathrm{b}$ (USD)", "C_run": r"$C_\mathrm{r}$ (USD)"}
+METRIC_TEX = {"eta": r"$\eta$", "eta_ind": r"$\eta^*$"}
+VALUE_TEX = {"EVSI": "EVSI (USD)", "EVSI_ind": r"$\mathrm{EVSI}^*$ (USD)"}
 STYLE = {
     "font.family": "serif", "mathtext.fontset": "cm", "font.size": 7,
     "axes.labelsize": 7, "xtick.labelsize": MIN_FONT, "ytick.labelsize": MIN_FONT,
@@ -81,6 +93,24 @@ def save(fig, out: Path, name: str) -> Path:
 def group_handles(groups) -> list:
     return [plt.Line2D([], [], marker=marker(g), ls="", color=color(g), ms=4, label=g)
             for g in (PHYS, LLM) if g in groups]
+
+
+def domain_color(domain) -> str:
+    return DOMAIN_COLOR.get(domain, COLOR[None])
+
+
+def domain_handles(s: Summary) -> list:
+    """One legend entry per risk domain present, in DOMAINS order, as a filled square."""
+    present = {sc.domain for sc in s.scenarios}
+    return [plt.Line2D([], [], marker="s", ls="", color=domain_color(d), ms=5, label=DOMAIN_LABEL.get(d, d))
+            for d in DOMAINS if d in present]
+
+
+def emphasise_physical(ax, pos, idx, s: Summary) -> None:
+    """Bold the y tick labels of the physical-AI rows (their bars also carry an ink outline)."""
+    for lab, i in zip(ax.get_yticklabels(), idx, strict=True):
+        if s.scenarios[i].group == PHYS:
+            lab.set_fontweight("bold")
 
 
 # --- labels ---------------------------------------------------------------------
@@ -202,20 +232,34 @@ ZERO_ROWS = (0.5, 1.0)   # decades below the zero row: the two staggered rows of
 ZERO_BAND = 1.35         # decades from the zero row to the bottom of the axes
 
 
-def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
-    """EVSI-type value (y) against C (x) at the central estimate, log-log
+def value_cost_panel(ax, s: Summary, metric: str, ylabel: str, show_zero: bool = True,
+                     legend: bool = True, eta_tex: str = r"\eta", labels: bool = True) -> None:
+    """EVSI-type value (y) against C (x) with every parameter at its median, log-log
     with equal decades, iso-efficiency lines, the 'better' arrow along
     (-1, +1) in log space (orthogonal to the iso-lines) in the corner
-    farthest from the points, ids as labels. Zero values sit on a row
-    labelled 0 at their true cost; their ids, which would collide (the
-    zeros cluster in cost), fan out below in two staggered rows with leader
-    lines, in cost order."""
+    farthest from the points, ids as labels. With show_zero, zero values
+    sit on a row labelled 0 at their true cost and their ids, which would
+    collide (the zeros cluster in cost), fan out below in two staggered rows
+    with leader lines, in cost order; without it, the zeros are left out
+    (the caption says how many)."""
     fig = ax.figure
     x, y = s.central["C"], s.central[metric]
     zero = ~(y > 0)
+    if not show_zero:
+        keep = ~zero
+        if not keep.any():
+            ax.text(0.5, 0.5, "every prior already decisive:\nno evaluation with EVSI > 0", transform=ax.transAxes,
+                    ha="center", va="center", fontsize=MIN_FONT, color=MUTED)
+            ax.set_xlabel("cost $C$ (USD)")
+            ax.set_ylabel(ylabel)
+            return
+        x, y, zero = x[keep], y[keep], zero[keep]
+        scen = [sc for sc, k in zip(s.scenarios, keep, strict=True) if k]
+    else:
+        scen = list(s.scenarios)
     floor = floor_of(y)
     lf = math.log10(floor)
-    ids = [str(sc.id) for sc in s.scenarios]
+    ids = [str(sc.id) for sc in scen]
     zi = np.flatnonzero(zero)
     pos = y[~zero]
     lx = [math.log10(x.min()) - 0.4, math.log10(x.max()) + 0.4]
@@ -236,7 +280,7 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
         xe = min(lx[1], ly[1] - k) - 0.35
         ye = xe + k
         if lx[0] + 0.5 < xe and lf + 1.0 < ye < ly[1] - 0.05 and k % 2 == 0:
-            ax.text(10 ** xe, 10 ** ye, rf"$\eta=10^{{{k}}}$", fontsize=MIN_FONT, color=MUTED,
+            ax.text(10 ** xe, 10 ** ye, rf"${eta_tex}=10^{{{k}}}$", fontsize=MIN_FONT, color=MUTED,
                     rotation=45, rotation_mode="anchor", ha="right", va="bottom")
     avoid, band_top = [], 0.0
     if zero.any():
@@ -248,7 +292,7 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
             lambda v, _: "0" if math.isclose(v, floor) else f"$10^{{{round(math.log10(v))}}}$"))
         ax.yaxis.set_minor_locator(mticker.NullLocator())
     yy = np.where(zero, floor, y)
-    groups = [sc.group for sc in s.scenarios]
+    groups = [sc.group for sc in scen]
     for g in sorted(set(groups), key=str):
         m = np.array([gg == g for gg in groups])
         ax.plot(x[m & ~zero], yy[m & ~zero], marker(g), ls="", color=color(g), ms=4.5, mec="white",
@@ -257,15 +301,16 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
                 mew=0.8, zorder=3)
     ax.set_xlabel("cost $C$ (USD)")
     ax.set_ylabel(ylabel)
-    handles = group_handles(groups)
-    if zero.any():
-        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec=INK, ms=4,
-                                  label="prior already decisive (value 0)"))
-    fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False,
-               handletextpad=0.3)
+    if legend:
+        handles = group_handles(groups)
+        if zero.any():
+            handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec=INK, ms=4,
+                                      label="prior already decisive (value 0)"))
+        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False,
+                   handletextpad=0.3)
     fig.draw_without_rendering()           # final layout: display coordinates are stable from here
     renderer = fig.canvas.get_renderer()
-    if len(zi):
+    if len(zi) and labels:
         fr = ax.get_window_extent(renderer)
         probe = ax.text(0, 0, "", fontsize=MIN_FONT)
         widths = []
@@ -302,8 +347,9 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str) -> None:
     for a in (arrow, word):
         a.set_in_layout(False)
     nz = np.flatnonzero(~zero)
-    place_labels(ax, np.column_stack([x[nz], yy[nz]]), [ids[i] for i in nz],
-                 avoid=[*avoid, arrow, word, *ax.texts])
+    if labels:
+        place_labels(ax, np.column_stack([x[nz], yy[nz]]), [ids[i] for i in nz],
+                     avoid=[*avoid, arrow, word, *ax.texts])
 
 
 def curve_panel(ax, s: Summary) -> None:
@@ -311,7 +357,7 @@ def curve_panel(ax, s: Summary) -> None:
     lo, med, hi = o["curve_q"].T
     ax.fill_between(CURVE_QS, lo, hi, color=COLOR[PHYS], alpha=0.25, lw=0, label="90% band over draws")
     ax.plot(CURVE_QS, med, color=COLOR[PHYS], lw=1.2, label="median over draws")
-    ax.plot(CURVE_QS, o["curve_central"], color=INK, lw=0.9, ls="--", label="central estimate")
+    ax.plot(CURVE_QS, o["curve_central"], color=INK, lw=0.9, ls="--", label="median parameters")
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 1)
     ax.yaxis.set_major_formatter(mticker.PercentFormatter(1.0))
@@ -320,23 +366,42 @@ def curve_panel(ax, s: Summary) -> None:
     ax.legend(loc="upper right", frameon=False)
 
 
+HEADLINE_W = 0.58   # share of the text width the paper gives the headline figure
+
+
+def headline_panels(s: Summary, width: float, labels: bool):
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(width, width / 2 + 0.25))
+    value_cost_panel(ax, s, "EVSI_ind", VALUE_TEX["EVSI_ind"], legend=True, eta_tex=r"\eta^*", labels=labels)
+    value_cost_panel(bx, s, "EVSI", VALUE_TEX["EVSI"], show_zero=False, legend=False, labels=labels)
+    for a, tag in ((ax, "(a)"), (bx, "(b)")):
+        a.set_title(tag, loc="left", fontsize=7, fontweight="bold", pad=3)
+    return fig
+
+
 def fig_headline(s: Summary, out: Path) -> Path | None:
+    """Left: EVSI* against C for every evaluation (EVSI* is positive for every
+    informative evaluation); right: EVSI against C for the evaluations whose
+    result can change the decision (EVSI > 0). Full text width with id labels
+    (the extended report)."""
     with plt.rc_context(STYLE):
-        if "curve_q" not in s.out:
-            fig, ax = plt.subplots(figsize=(FIG_W / 2, FIG_W / 2 + 0.3))
-            value_cost_panel(ax, s, "EVSI", "EVSI (USD)")
-        else:
-            fig, (ax, bx) = plt.subplots(1, 2, figsize=(FIG_W, FIG_W / 2 + 0.2))
-            value_cost_panel(ax, s, "EVSI", "EVSI (USD)")
-            curve_panel(bx, s)
-        return save(fig, out, "fig_headline.pdf")
+        return save(headline_panels(s, FIG_W, labels=True), out, "fig_headline.pdf")
 
 
-def fig_indifference(s: Summary, out: Path) -> Path | None:
+def fig_headline_small(s: Summary, out: Path) -> Path | None:
+    """The same at the paper's width, without id labels (Fig. rows names every evaluation)."""
     with plt.rc_context(STYLE):
-        fig, ax = plt.subplots(figsize=(FIG_W * 0.6, FIG_W * 0.6 + 0.3))
-        value_cost_panel(ax, s, "EVSI_ind", r"maximum EVSI $\mathrm{EVSI}_{\max}$ (USD)")
-        return save(fig, out, "fig_indifference.pdf")
+        return save(headline_panels(s, HEADLINE_W * FIG_W, labels=False), out, "fig_headline_small.pdf")
+
+
+def fig_curve(s: Summary, out: Path) -> Path | None:
+    """The percentile curve alone (extended report)."""
+    if "curve_q" not in s.out:
+        print("fig_curve: skipped (needs both groups)")
+        return None
+    with plt.rc_context(STYLE):
+        fig, ax = plt.subplots(figsize=(FIG_W * 0.6, FIG_W * 0.45))
+        curve_panel(ax, s)
+        return save(fig, out, "fig_curve.pdf")
 
 
 # --- distributions per evaluation ------------------------------------------------------
@@ -384,7 +449,7 @@ def fig_percentile_violins(s: Summary, out: Path) -> Path | None:
         _violins(ax, flat, pos, COLOR[PHYS])
         ax.plot([o["pct_q"][k][1] for k in rows], pos, "|", color=INK, ms=6, label="median over draws")
         ax.plot([o["pct_central"][k] for k in rows], pos, "D", color=INK, mfc="white", ms=3.2,
-                label="central estimate")
+                label="median parameters")
         ax.axvline(50, color=MUTED, lw=0.6, ls=":")
         ax.set_yticks(pos, [scenario_label(s, phys[k]) for k in rows])
         ax.set_xlim(0, 100)
@@ -393,65 +458,86 @@ def fig_percentile_violins(s: Summary, out: Path) -> Path | None:
         return save(fig, out, "fig_percentile_violins.pdf")
 
 
-def fig_rank_intervals(s: Summary, out: Path) -> Path | None:
-    o = s.out
-    idx = order(s)
+def rank_intervals(s: Summary, out: Path, metric: str, name: str) -> Path:
+    """Per evaluation, the rank under `metric` over the draws: median (tick),
+    interquartile range (thick bar) and 90% interval (thin bar), rows sorted
+    by the median rank, coloured by risk domain; physical-AI rows carry an
+    ink outline and bold labels."""
+    r = s.out["rank"][metric]
+    idx = order_by_median_rank(s, metric)
     with plt.rc_context(STYLE):
         fig, ax = plt.subplots(figsize=(FIG_W, _rows_height(len(idx))))
         pos = np.arange(len(idx))[::-1]
         for p, i in zip(pos, idx, strict=True):
-            g = s.scenarios[i].group
-            lo, med, hi = o["rank_q"][i]
-            q25, q75 = o["rank_iqr_q"][i]
-            ax.plot([lo, hi], [p, p], color=color(g), lw=0.8, alpha=0.8, solid_capstyle="butt")
-            ax.plot([q25, q75], [p, p], color=color(g), lw=3.2, alpha=0.55, solid_capstyle="butt")
-            ax.plot(o["rank_central"][i], p, marker(g), color=color(g), ms=4, mec="white", mew=0.4)
-            ax.plot(med, p, "|", color=INK, ms=5)
+            sc = s.scenarios[i]
+            col = domain_color(sc.domain)
+            lo, med, hi = r["q"][i]
+            q25, q75 = r["iqr_q"][i]
+            phys = sc.group == PHYS
+            ax.plot([lo, hi], [p, p], color=col, lw=0.9, solid_capstyle="butt", zorder=2)
+            if phys:
+                ax.plot([q25, q75], [p, p], color=INK, lw=5.2, solid_capstyle="butt", zorder=2.5)
+            ax.plot([q25, q75], [p, p], color=col, lw=3.6, solid_capstyle="butt", zorder=3)
+            ax.plot(med, p, "|", color=INK if not phys else "white", ms=6, mew=1.1, zorder=4)
         ax.set_yticks(pos, [scenario_label(s, i) for i in idx])
+        emphasise_physical(ax, pos, idx, s)
         ax.set_xlim(0.5, len(idx) + 0.5)
-        ax.set_xlabel("rank by $\\eta$ over the Monte Carlo draws (1 = best)")
-        handles = group_handles({sc.group for sc in s.scenarios})
-        handles += [plt.Line2D([], [], color=MUTED, lw=3.2, label="interquartile range"),
-                    plt.Line2D([], [], color=MUTED, lw=0.8, label="90% interval"),
-                    plt.Line2D([], [], marker="|", ls="", color=INK, ms=5, label="median")]
-        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False)
+        ax.set_xlabel(f"rank by {METRIC_TEX[metric]} over the Monte Carlo draws (1 = best)")
+        handles = domain_handles(s)
+        handles += [plt.Line2D([], [], color=MUTED, lw=3.6, label="interquartile range"),
+                    plt.Line2D([], [], color=MUTED, lw=0.9, label="90% interval"),
+                    plt.Line2D([], [], marker="|", ls="", color=INK, ms=6, mew=1.1, label="median"),
+                    plt.Line2D([], [], color=INK, lw=5.2, label="physical AI (outlined, bold)")]
+        fig.legend(handles=handles, loc="outside upper center", ncol=5, frameon=False,
+                   handletextpad=0.4, columnspacing=1.0)
         ax.grid(axis="y", visible=False)
-        return save(fig, out, "fig_rank_intervals.pdf")
+        return save(fig, out, name)
+
+
+def fig_rank_star(s: Summary, out: Path) -> Path | None:
+    return rank_intervals(s, out, "eta_ind", "fig_rank_star.pdf")
+
+
+def fig_rank_eta(s: Summary, out: Path) -> Path | None:
+    return rank_intervals(s, out, "eta", "fig_rank_eta.pdf")
 
 
 def fig_best_physical_rank(s: Summary, out: Path) -> Path | None:
     """P(the best-ranked physical-AI evaluation has rank <= N) against N, over
-    the draws, with the central estimate's step (0 below its best physical-AI
-    rank, 1 from it on)."""
+    the draws, one curve per ranking metric, with each median-parameter
+    best physical-AI rank as a dashed step."""
     o = s.out
-    if "best_phys_curve" not in o:
+    if "best_phys_curve" not in o["rank"][PRIMARY]:
         print("fig_best_physical_rank: skipped (needs both groups)")
         return None
-    ns, curve, c = o["best_phys_ns"], o["best_phys_curve"], o["best_phys_central"]
     with plt.rc_context(STYLE):
         fig, ax = plt.subplots(figsize=(FIG_W, 2.1))
-        ax.step(ns, curve, where="post", color=COLOR[PHYS], lw=1.4, label="over draws")
-        ax.step(ns, (ns >= c).astype(float), where="post", color=INK, lw=0.9, ls="--",
-                label=f"central estimate (best physical-AI rank {c:g})")
-        for n in BEST_TOP:
-            if n <= len(ns):
-                v = curve[n - 1]
-                ax.plot(n, v, "o", color=COLOR[PHYS], ms=3.5, mec="white", mew=0.4, zorder=3)
-                first = n == ns[0]   # left of the first point is the y axis: label to its right
-                ax.annotate(pct_text(v), (n, v), xytext=(2.5 if first else -2.5, 2.5),
-                            textcoords="offset points", ha="left" if first else "right",
-                            va="bottom", fontsize=MIN_FONT, color=INK, annotation_clip=False)
+        styles = {"eta_ind": (COLOR[PHYS], "-"), "eta": (INK, ":")}
+        for metric in RANKED:
+            r = o["rank"][metric]
+            ns, curve, c = r["best_phys_ns"], r["best_phys_curve"], r["best_phys_central"]
+            col, ls = styles[metric]
+            ax.step(ns, curve, where="post", color=col, lw=1.4, ls=ls,
+                    label=f"by {METRIC_TEX[metric]} over draws (central best rank {c:g})")
+            for n in BEST_TOP:
+                if n <= len(ns) and metric == PRIMARY:
+                    v = curve[n - 1]
+                    ax.plot(n, v, "o", color=col, ms=3.5, mec="white", mew=0.4, zorder=3)
+                    first = n == ns[0]
+                    ax.annotate(pct_text(v), (n, v), xytext=(2.5 if first else -2.5, 2.5),
+                                textcoords="offset points", ha="left" if first else "right",
+                                va="bottom", fontsize=MIN_FONT, color=INK, annotation_clip=False)
         ax.set_xlim(0.5, len(ns) + 0.5)
         ax.set_ylim(0, 1.03)
         ax.xaxis.set_major_locator(mticker.FixedLocator([1, *range(5, len(ns) + 1, 5)]))
         ax.yaxis.set_major_formatter(mticker.PercentFormatter(1.0))
-        ax.set_xlabel(f"$N$ (rank by $\\eta$ among all {len(ns)} evaluations, 1 = best)")
+        ax.set_xlabel(f"$N$ (rank among all {len(ns)} evaluations, 1 = best)")
         ax.set_ylabel("P(best physical-AI rank $\\leq N$)")
         ax.legend(loc="lower right", frameon=False)
         return save(fig, out, "fig_best_physical_rank.pdf")
 
 
-ROC_PANELS = (("eta", r"$\eta$"), ("eta_ind", r"$\eta_{\max}$"))
+ROC_PANELS = (("eta", r"$\eta$"), ("eta_ind", r"$\eta^*$"))
 
 
 def fig_roc(s: Summary, out: Path) -> Path | None:
@@ -469,9 +555,9 @@ def fig_roc(s: Summary, out: Path) -> Path | None:
             lo, med, hi = r["band"].T
             ax.fill_between(ROC_FPR, lo, hi, color=COLOR[PHYS], alpha=0.22, lw=0, label="5-95% over draws")
             ax.plot(ROC_FPR, med, color=COLOR[PHYS], lw=1.1, label="median over draws")
-            ax.plot(r["fpr"], r["tpr"], color=INK, lw=1.1, label="central estimate")
+            ax.plot(r["fpr"], r["tpr"], color=INK, lw=1.1, label="median parameters")
             ax.plot([0, 1], [0, 1], color=MUTED, lw=0.6, ls=":")
-            ax.text(0.04, 0.96, f"threshold on {name}\ncentral area $A$ = {pct_text(r['area'])}",
+            ax.text(0.04, 0.96, f"threshold on {name}\ncentral area $P_S$ = {pct_text(r['area'])}",
                     transform=ax.transAxes, ha="left", va="top", fontsize=7, color=INK, linespacing=1.4)
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
@@ -485,41 +571,119 @@ def fig_roc(s: Summary, out: Path) -> Path | None:
         return save(fig, out, "fig_roc.pdf")
 
 
-def fig_breakeven(s: Summary, out: Path) -> Path | None:
+def nstar_rows(ax, s: Summary, idx, pos, show_share: bool = True) -> bool:
+    """The break-even run count n* per row over the finite draws (violin, log10
+    x), coloured by domain, physical-AI rows outlined; returns whether any row
+    was drawn. With show_share, the share of finite draws in the right margin."""
     o = s.out
-    idx = order(s)
+    drawn = False
+    for p, i in zip(pos, idx, strict=True):
+        sc = s.scenarios[i]
+        ns = s.draws["n_star"][i]
+        v = np.log10(ns[np.isfinite(ns) & (ns > 0)])
+        col = domain_color(sc.domain)
+        if v.size >= 2 and np.ptp(v) > 0:
+            parts = ax.violinplot([v], positions=[p], orientation="horizontal", widths=0.8,
+                                  showextrema=False, points=120)
+            for b in parts["bodies"]:
+                b.set_facecolor(col)
+                b.set_alpha(0.75 if sc.group == PHYS else 0.5)
+                b.set_edgecolor(INK if sc.group == PHYS else "none")
+                b.set_linewidth(0.7)
+            ax.plot(np.median(v), p, "|", color=INK, ms=6, mew=1.0, zorder=4)
+            drawn = True
+        if show_share:
+            ax.annotate(pct_text(o["p_nstar_finite"][i]), (1.0, p), xycoords=("axes fraction", "data"),
+                        xytext=(3, 0), textcoords="offset points", va="center", fontsize=MIN_FONT,
+                        color=INK, annotation_clip=False)
+    if drawn:
+        lo, hi = ax.get_xlim()
+        step = max(1, math.ceil((hi - lo) / 6))
+        ax.xaxis.set_major_locator(mticker.MultipleLocator(step))
+        ax.xaxis.set_minor_locator(mticker.MultipleLocator(1))
+        ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"$10^{{{v:g}}}$"))
+        if show_share:
+            ax.annotate("share of\ndraws finite", (1.0, 1.0), xycoords="axes fraction", xytext=(3, 1),
+                        textcoords="offset points", ha="left", va="bottom", fontsize=MIN_FONT, color=INK,
+                        annotation_clip=False, linespacing=1.1)
+    return drawn
+
+
+def rank_rows(ax, s: Summary, metric: str, idx, pos) -> None:
+    """The rank under `metric` per row over the draws: 90% interval (thin),
+    interquartile range (thick), median (tick); physical-AI rows outlined."""
+    r = s.out["rank"][metric]
+    for p, i in zip(pos, idx, strict=True):
+        sc = s.scenarios[i]
+        col = domain_color(sc.domain)
+        lo, med, hi = r["q"][i]
+        q25, q75 = r["iqr_q"][i]
+        phys = sc.group == PHYS
+        ax.plot([lo, hi], [p, p], color=col, lw=0.9, solid_capstyle="butt", zorder=2)
+        if phys:
+            ax.plot([q25, q75], [p, p], color=INK, lw=5.2, solid_capstyle="butt", zorder=2.5)
+        ax.plot([q25, q75], [p, p], color=col, lw=3.6, solid_capstyle="butt", zorder=3)
+        ax.plot(med, p, "|", color="white" if phys else INK, ms=6, mew=1.1, zorder=4)
+    ax.set_xlim(0.5, len(s.scenarios) + 0.5)
+
+
+ROWS_H = 0.082   # inches per row in the paper's combined row figure
+
+
+def fig_rows(s: Summary, out: Path) -> Path | None:
+    """The paper's row figure: rank by eta* (left) and break-even run count
+    (right) per evaluation, one shared row order (by the median rank)."""
+    idx = order_by_median_rank(s, PRIMARY)
+    with plt.rc_context(STYLE):
+        fig, (ax, bx) = plt.subplots(1, 2, sharey=True, figsize=(FIG_W, ROWS_H * len(idx) + 0.75),
+                                     width_ratios=[1.0, 0.8])
+        pos = np.arange(len(idx))[::-1]
+        rank_rows(ax, s, PRIMARY, idx, pos)
+        drawn = nstar_rows(bx, s, idx, pos)
+        ax.set_yticks(pos, [scenario_label(s, i) for i in idx], fontsize=6.0)
+        emphasise_physical(ax, pos, idx, s)
+        ax.set_ylim(-0.7, len(idx) - 0.3)
+        ax.set_xlabel(f"rank by {METRIC_TEX[PRIMARY]} (1 = best)")
+        bx.set_xlabel("break-even run count $n^*$")
+        if not drawn:
+            bx.text(0.5, 0.5, "no finite break-even draws", transform=bx.transAxes, ha="center", va="center",
+                    fontsize=MIN_FONT, color=MUTED)
+        handles = domain_handles(s)
+        handles += [plt.Line2D([], [], color=MUTED, lw=3.6, label="interquartile range"),
+                    plt.Line2D([], [], color=MUTED, lw=0.9, label="90% interval"),
+                    plt.Line2D([], [], marker="|", ls="", color=INK, ms=6, mew=1.1, label="median")]
+        fig.legend(handles=handles, loc="outside upper center", ncol=5, frameon=False,
+                   handletextpad=0.4, columnspacing=1.0)
+        for a in (ax, bx):
+            a.grid(axis="y", visible=False)
+        return save(fig, out, "fig_rows.pdf")
+
+
+def fig_breakeven(s: Summary, out: Path) -> Path | None:
+    """Per evaluation, the break-even run count n* = C_build / (EVSI - C_run)
+    over the draws where it is finite (violin, log scale), rows sorted by the
+    median finite n* (evaluations with no finite draw last), coloured by risk
+    domain, physical-AI rows outlined and bold; right margin: the share of
+    draws on which n* is finite (one run worth more than its run cost)."""
+    o = s.out
+    med = [q[1] for q in o["nstar_q"]]
+    idx = sorted(range(len(s.scenarios)),
+                 key=lambda i: (med[i] is None, med[i] if med[i] is not None else 0.0, s.scenarios[i].id))
     with plt.rc_context(STYLE):
         fig, ax = plt.subplots(figsize=(FIG_W, _rows_height(len(idx))))
         pos = np.arange(len(idx))[::-1]
-        drawn = False
-        for p, i in zip(pos, idx, strict=True):
-            ns = s.draws["n_star"][i]
-            v = np.log10(ns[np.isfinite(ns) & (ns > 0)])
-            if v.size >= 2 and np.ptp(v) > 0:
-                _violins(ax, [v], [p], color(s.scenarios[i].group))
-                drawn = True
-            ax.plot(math.log10(s.pooled["n"][i]), p, "x", color=INK, ms=4, mew=0.9)
-            ax.annotate(pct_text(o["p_pays"][i]), (1.0, p), xycoords=("axes fraction", "data"),
-                        xytext=(3, 0), textcoords="offset points", va="center", fontsize=MIN_FONT,
-                        color=INK, annotation_clip=False)
-        if not drawn:
+        if not nstar_rows(ax, s, idx, pos):
             print("fig_breakeven: skipped (no scenario has finite break-even draws)")
             plt.close(fig)
             return None
         ax.set_yticks(pos, [scenario_label(s, i) for i in idx])
+        emphasise_physical(ax, pos, idx, s)
         ax.set_ylim(-0.7, len(idx) - 0.3)
-        lo, hi = ax.get_xlim()
-        step = max(1, math.ceil((hi - lo) / 8))
-        ax.xaxis.set_major_locator(mticker.MultipleLocator(step))
-        ax.xaxis.set_minor_locator(mticker.MultipleLocator(1))
-        ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"$10^{{{v:g}}}$"))
-        ax.set_xlabel("break-even reuse count $n^*$ (log scale; violin: finite draws over the Monte Carlo)")
-        ax.annotate("P(pays)", (1.0, 1.0), xycoords="axes fraction", xytext=(3, 1),
-                    textcoords="offset points", ha="left", va="bottom", fontsize=MIN_FONT, color=INK,
-                    annotation_clip=False)
-        handles = group_handles({sc.group for sc in s.scenarios})
-        handles.append(plt.Line2D([], [], marker="x", ls="", color=INK, ms=4, mew=0.9, label="elicited $n$"))
-        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False)
+        ax.set_xlabel("break-even run count $n^*$ (draws where one run is worth more than its run cost)")
+        handles = domain_handles(s)
+        handles.append(plt.Line2D([], [], marker="|", ls="", color=INK, ms=6, mew=1.0, label="median"))
+        fig.legend(handles=handles, loc="outside upper center", ncol=4, frameon=False,
+                   handletextpad=0.4, columnspacing=1.0)
         ax.grid(axis="y", visible=False)
         return save(fig, out, "fig_breakeven.pdf")
 
@@ -575,14 +739,14 @@ def fig_params(s: Summary, out: Path) -> Path | None:
         handles.append(plt.Line2D([], [], marker="|", ls="", ms=5, color=INK, label="pooled median"))
         handles += group_handles({sc.group for sc in s.scenarios})
         fig.legend(handles=handles, loc="outside upper center", ncol=min(len(handles), 5), frameon=False)
-        fig.supxlabel("elicited median per valid elicitation (USD for $B$, $K$, $C_\\mathrm{build}$,"
-                      " $C_\\mathrm{run}$)", fontsize=7)
+        fig.supxlabel("elicited median per valid elicitation (USD for $B$, $K$, $C_\\mathrm{b}$,"
+                      " $C_\\mathrm{r}$)", fontsize=7)
         return save(fig, out, "fig_params.pdf")
 
 
-def fig_sensitivity(s: Summary, out: Path) -> Path | None:
+def sensitivity_heatmap(s: Summary, out: Path, mat_all: np.ndarray, metric: str, name: str) -> Path:
     idx = order(s)
-    mat = s.sensitivity[idx]
+    mat = mat_all[idx]
     with plt.rc_context(STYLE):
         fig, ax = plt.subplots(figsize=(FIG_W, _rows_height(len(idx))))
         im = ax.imshow(mat, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto", interpolation="nearest")
@@ -599,14 +763,27 @@ def fig_sensitivity(s: Summary, out: Path) -> Path | None:
         for side in ("left", "bottom"):
             ax.spines[side].set_visible(False)
         cb = fig.colorbar(im, ax=ax, shrink=0.6, pad=0.01)
-        cb.set_label("Spearman of the draws with $\\eta$")
+        cb.set_label(f"Spearman of the draws with {METRIC_TEX[metric]}")
         cb.outline.set_visible(False)
-        return save(fig, out, "fig_sensitivity.pdf")
+        return save(fig, out, name)
+
+
+def fig_sensitivity(s: Summary, out: Path) -> Path | None:
+    """Spearman of each parameter's draws with eta* (the documents' primary metric)."""
+    if s.sensitivity_ind is None:
+        print("fig_sensitivity: skipped (no eta* sensitivities)")
+        return None
+    return sensitivity_heatmap(s, out, s.sensitivity_ind, "eta_ind", "fig_sensitivity.pdf")
+
+
+def fig_sensitivity_eta(s: Summary, out: Path) -> Path | None:
+    """The same against eta (the run's stored sensitivities)."""
+    return sensitivity_heatmap(s, out, s.sensitivity, "eta", "fig_sensitivity_eta.pdf")
 
 
 def fig_level(s: Summary, out: Path) -> Path | None:
-    """Physical-AI evaluations by fidelity level. Top: the central eta and
-    eta_max on log axes (a zero, the prior already decisive, sits on the "0"
+    """Physical-AI evaluations by fidelity level. Top: eta and eta* at the
+    median parameters on log axes (a zero, the prior already decisive, sits on the "0"
     row as an open marker), with Spearman's rho and its p-value in the
     title. Bottom, secondary: Youden's index and cost."""
     lev = s.out["level_ids"]
@@ -619,7 +796,7 @@ def fig_level(s: Summary, out: Path) -> Path | None:
     with plt.rc_context(STYLE):
         fig, axes = plt.subplots(2, 2, figsize=(FIG_W, 4.2))
         for a, metric, lab in ((axes[0, 0], "eta", r"$\eta=\mathrm{EVSI}/C$"),
-                               (axes[0, 1], "eta_ind", r"$\eta_\mathrm{max}=\mathrm{EVSI}_\mathrm{max}/C$")):
+                               (axes[0, 1], "eta_ind", r"$\eta^*=\mathrm{EVSI}^*/C$")):
             y = s.central[metric][lev]
             zero = ~(y > 0)
             floor = floor_of(y)
@@ -664,7 +841,9 @@ def fig_members(s: Summary, out: Path) -> Path | None:
     groups = [sc.group for sc in s.scenarios]
     with plt.rc_context(STYLE):
         fig, axes = plt.subplots(2, 4, figsize=(FIG_W, 3.0))
-        for ax, name in zip(axes.ravel(), PARAM_NAMES, strict=True):
+        for extra in axes.ravel()[len(PARAM_NAMES):]:
+            extra.set_visible(False)
+        for ax, name in zip(axes.ravel()[:len(PARAM_NAMES)], PARAM_NAMES, strict=True):
             pairs = []
             if len(labs) == 2:
                 pairs.append((labs[0], mp[name][labs[0]], mp[name][labs[1]]))
@@ -709,9 +888,9 @@ def fig_members(s: Summary, out: Path) -> Path | None:
         return save(fig, out, "fig_members.pdf")
 
 
-FIGURES = (fig_headline, fig_indifference, fig_percentile_violins, fig_rank_intervals,
-           fig_best_physical_rank, fig_roc, fig_breakeven, fig_params, fig_sensitivity, fig_level,
-           fig_members)
+FIGURES = (fig_headline, fig_headline_small, fig_rows, fig_curve, fig_percentile_violins, fig_rank_star,
+           fig_rank_eta, fig_best_physical_rank, fig_roc, fig_breakeven, fig_params, fig_sensitivity,
+           fig_sensitivity_eta, fig_level, fig_members)
 
 
 def write_all(s: Summary, out: Path) -> list[Path]:
