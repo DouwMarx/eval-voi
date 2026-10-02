@@ -46,6 +46,19 @@ METRIC_WORD = {"eta": "Eta", "eta_ind": "EtaInd", "eta_run": "EtaRun"}
 PARAM_TEX = {"C_build": r"$C_\mathrm{build}$", "C_run": r"$C_\mathrm{run}$"}   # else $<name>$
 
 
+# display names of the final ensemble's model ids (the documents' member list); an id not
+# listed prints as itself without the provider prefix
+MEMBER_NAMES = {"deepseek/deepseek-v4.1-flash": "DeepSeek V4.1 Flash", "z-ai/glm-5.3": "GLM 5.3",
+                "xiaomi/mimo-v2.6-flash": "MiMo v2.6 Flash", "openai/gpt-6-luna": "GPT-6 Luna",
+                "google/gemini-3.8-flash": "Gemini 3.8 Flash", "x-ai/grok-4.7": "Grok 4.7"}
+
+
+def member_name(label: str) -> str:
+    """'openrouter:openai/gpt-6-luna' -> 'GPT-6 Luna'; unknown ids print as member_display does."""
+    model = member_display(label)
+    return MEMBER_NAMES.get(model, model)
+
+
 def param_tex(name: str) -> str:
     """A parameter name as LaTeX text (math mode): C_build -> C sub build in roman, K -> K."""
     return PARAM_TEX.get(name, f"${name}$")
@@ -198,7 +211,7 @@ def group_medians(s: Summary, m: dict) -> None:
     m["StakesPerCostRatio"] = num(_ratio(med[LLM]["spc"], med[PHYS]["spc"]))
     m["StakesRatio"] = num(_ratio(_median(stakes[s.ids_in(LLM)]), _median(stakes[s.ids_in(PHYS)])))
     m["EtaIndRatio"] = num(_ratio(med[LLM]["ind"], med[PHYS]["ind"]))
-    m["MemberList"] = esc(", ".join(member_display(lab) for lab in s.member_labels))
+    m["MemberList"] = esc(", ".join(member_name(lab) for lab in s.member_labels))
 
 
 def collect(s: Summary) -> dict[str, str]:

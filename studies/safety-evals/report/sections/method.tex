@@ -4,7 +4,7 @@
 
 \begin{figure}[t]
   \centering
-  \resizebox{0.86\linewidth}{!}{\input{\reportdir pipeline.tex}}
+  \resizebox{0.82\linewidth}{!}{\input{\reportdir pipeline.tex}}
   \caption{Method. Step 2 holds the decision model: the hazard state $\theta$ (prior $p$) drives the result $x$ through sensitivity $s$ and specificity $t$; the developer sees $x$ and chooses $a$; the utility $U$ depends on $\theta$ and $a$ through $B$ and $K$; $\Cb$ and $\Cr$ are the build and run costs.}
   \label{fig:method}
 \end{figure}
@@ -19,9 +19,9 @@ where $\Cb$ is the cost to build the evaluation and $\Cr$ the cost of one run. W
 \EVSIst=\Lambda\,p(1-p)\,(s+t-1), \qquad \etast=\EVSIst/C,
 \label{eq:evsistar}
 \end{equation}
-stakes times the variance of the state times Youden's index $J=s+t-1$~\citep{youden1950index}. $\EVSIst$, the value to a still undecided decision maker (who is who builds an evaluation), is positive for every informative evaluation, so $\etast$ ranks all of them; the build is repaid after $n^*=\Cb/(\EVSI-\Cr)$ runs.
+stakes times the variance of the state times Youden's index $J=s+t-1$~\citep{youden1950index}. $\EVSIst$, the value to a still undecided decision maker such as the builder of an evaluation, is positive for every informative evaluation, so $\etast$ ranks all of them; the build is repaid after $n^*=\Cb/(\EVSI-\Cr)$ runs.
 
-\emph{Evaluations.} The \voiNLLM{} LLM safety evaluations are those LLM system cards report, ranked before any result was seen by how often system cards report them and how directly their score can be checked against the hazard, from five risk domains (cyber, chemical and biological, loss of control, harmful manipulation and societal harm). The \voiNPhysical{} physical-AI safety evaluations are published evaluations of embodied systems that score the rate of a physically harmful event, chosen to span the fidelity levels of the sim-to-real gap from text-only planning to track testing. Each evaluation gets one release decision written from its own sources, a definition of $\theta$, and two paragraphs of sourced facts (one about the decision, one about the evaluation) curated from cached primary sources and fact-checked by language-model agents (Claude Fable 5.1); the prompts are released with the code.
+\emph{Evaluations.} The \voiNLLM{} LLM safety evaluations are those LLM system cards report, ranked before any result was seen by how often system cards report them and how directly their score can be checked against the hazard, from five risk domains (cyber, chemical and biological, loss of control, harmful manipulation and societal harm). The \voiNPhysical{} physical-AI safety evaluations are published evaluations of embodied systems that score the rate of a physically harmful event, chosen to span the fidelity levels of the sim-to-real gap from text-only planning to track testing. Each evaluation gets one release decision written from its own sources, a definition of $\theta$, and two paragraphs of sourced facts (decision, evaluation) curated from cached primary sources and fact-checked by language-model agents (Claude Fable 5.1); the prompts are released with the code.
 
 \emph{Elicitation.} An ensemble of LLMs serves as a cost-efficient expert panel: LLMs have elicited priors before~\citep{capstick2024autoelicit,selby2025hadenough}, following expert-elicitation practice~\citep{ohagan2006uncertain}, and a diverse LLM crowd forecasts about as well as a human one~\citep{schoenegger2024wisdom}. The stakes and the instrument are elicited independently: a decision prompt asks for $p$, $B$ and $K$ and never describes the evaluation; an instrument prompt asks for $s$, $t$, $\Cb$ and $\Cr$ and never states the stakes. For each parameter the member writes its reasoning, then the 5th and 95th percentiles as values it would be surprised to see the truth fall outside, then its median. The members are \voiNMembers{} models from \voiNMembers{} developers (\voiMemberList), each answering each prompt once; of \voiAttempts{} answers, \voiValidShare{} were valid after one retry. % CHECK-DATA: members and repeats of the analysed run
 

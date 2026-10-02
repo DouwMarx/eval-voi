@@ -366,7 +366,7 @@ def curve_panel(ax, s: Summary) -> None:
     ax.legend(loc="upper right", frameon=False)
 
 
-HEADLINE_W = 0.58   # share of the text width the paper gives the headline figure
+HEADLINE_W = 0.55   # share of the text width the paper gives the headline figure
 
 
 def headline_panels(s: Summary, width: float, labels: bool):
@@ -627,7 +627,7 @@ def rank_rows(ax, s: Summary, metric: str, idx, pos) -> None:
     ax.set_xlim(0.5, len(s.scenarios) + 0.5)
 
 
-ROWS_H = 0.082   # inches per row in the paper's combined row figure
+ROWS_H = 0.08   # inches per row in the paper's combined row figure
 
 
 def fig_rows(s: Summary, out: Path) -> Path | None:
