@@ -33,3 +33,4 @@ archive/**/report/*.bbl
 archive/**/report/*.blg
 archive/**/report/*.png
 .claude/
+studies/*/report/scenario_sheet.tex

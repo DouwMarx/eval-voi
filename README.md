@@ -30,7 +30,8 @@ research/              literature catalogue, refs.bib, system-card mining, scena
                        fact-checked drafts, SELECTION.md), sources/ (cached source texts)
 archive/               iteration-2026-09-30/ (the iteration's protocols p001-p003 and templates);
                        read-only, never analysed
-scripts/               build_scenarios.py, regen.sh, build_paper.sh, check_pages.py
+scripts/               build_scenarios.py, regen.sh, build_paper.sh, check_pages.py, scenario_sheet.py
+                       (a review PDF of every evaluation's agent, decision, theta and instrument)
 docs/                  DESIGN.md, FUTURE_WORK.md
 ```
 
