@@ -3,14 +3,13 @@
 
 Usage
 -----
-    cd /home/douwm/projects/personal/voi_bussiness/voi-rank
-    uv run python research/mine_system_cards.py            # defaults below
+    uv run python research/mine_system_cards.py            # from the repo root; defaults below
     uv run python research/mine_system_cards.py --top 60 --db /path/to/docs.sqlite --out-dir research
 
 Inputs (read-only)
 ------------------
 SQLite database of system cards / model cards / third-party evals
-(default /home/douwm/projects/ais/system_card_db/data/docs.sqlite). Only the
+(default: $SYSTEM_CARD_DB, a private corpus not shipped with this repository). Only the
 documents with safety_evals=1 are used; their extracted text lives at
 latest_versions.text_path relative to the database's project root.
 
@@ -75,9 +74,11 @@ import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import os
+
 import numpy as np
 
-DEFAULT_DB = Path("/home/douwm/projects/ais/system_card_db/data/docs.sqlite")
+DEFAULT_DB = Path(os.environ.get("SYSTEM_CARD_DB", "system_card_db/docs.sqlite"))
 DOMAINS = ["cbrn", "cyber", "loss_of_control", "harmful_manipulation", "societal_harm"]
 
 # --------------------------------------------------------------------------------------
