@@ -1,9 +1,9 @@
 % Shared by main.tex and extended/main.tex. Lines marked % CHECK-DATA depend on the data.
 \begin{abstract}
-A safety evaluation is worth money when its result can change a decision and so avoid harm.
-Physical-AI safety evaluations look expensive next to the many in-silico safety evaluations of large language models (LLMs).
-We rank evaluations by their expected value of sample information (EVSI) per unit cost, using a simple decision model whose parameters are elicited as probability distributions from an ensemble of \voiNMembers{} LLMs for \voiNPhysical{} physical-AI and \voiNLLM{} LLM safety evaluations; EVSI and the other metrics are estimated by Monte Carlo sampling.
+A safety evaluation is worth money when its result can change a decision and thereby avoid harm.
+Physical-AI safety evaluations look expensive next to many in-silico large language model (LLM) safety evaluations.
+We rank evaluations by their expected value of sample information (EVSI) per unit cost, using a simple decision model whose parameters are elicited as probability distributions from an ensemble of \voiNMembers{} LLMs for \voiNPhysical{} physical-AI and \voiNLLM{} LLM safety evaluations. EVSI and the other metrics are estimated by Monte Carlo sampling.
 Among the evaluations tested, a randomly chosen physical-AI evaluation gives an undecided decision maker more value of information per unit cost than a randomly chosen LLM evaluation only about \voiEtaStarPSQMed{} of the time, although the best physical-AI evaluation places in the top half of all evaluations on \voiEtaStarPBestPhysicalTopHalf{} of draws. % CHECK-DATA
-In both groups, the evaluations whose result can change the decision repay their build within a few runs, depending on how certain the decision maker is about the hazard beforehand. % CHECK-DATA
-The value of information per unit cost of physical-AI and LLM safety evaluations differs mainly in the stakes of the decision, about \voiStakesRatio{} times higher for an LLM release, a gap that would close with wider robot deployment. % CHECK-DATA
+In both groups, evaluations repay their build within a few runs, depending on how certain the decision maker is about the hazard beforehand. % CHECK-DATA
+The value of information per unit cost of physical-AI and LLM safety evaluations differs mainly in the stakes of the decision, estimated at about \voiStakesRatio{} times higher for an LLM release, a gap that can close with wider robot deployment. % CHECK-DATA
 \end{abstract}
