@@ -127,18 +127,9 @@ def camel(text: str) -> str:
     return "".join(w[:1].upper() + w[1:] for w in re.split(r"[^A-Za-z]+", text) if w)
 
 
-# The bib key of an evaluation's primary source: the first source of its draft that is not a
-# system card, except where the draft's first source is a paper about the evaluation rather
-# than the evaluation itself (title prefix -> (bib key in report/extra.bib, source title)).
-BIBKEY_OVERRIDE = {"ISO 10218": ("iso10218_2025", "ISO 10218-1:2025 Robotics -- Safety requirements -- "
-                                                  "Part 1: Industrial robots")}
-
-
 def primary_source(sc) -> tuple[str, str] | None:
-    """(bib key, title) of the evaluation's primary source, None without one."""
-    for prefix, (key, title) in BIBKEY_OVERRIDE.items():
-        if sc.title.startswith(prefix):
-            return key, title
+    """(bib key, title) of the evaluation's primary source: the first source of its draft
+    that is not a system card; None without one."""
     primary = next((x for x in (sc.sources or []) if x.get("kind") != "system_card"), None)
     return (primary["key"], primary.get("title") or "") if primary else None
 

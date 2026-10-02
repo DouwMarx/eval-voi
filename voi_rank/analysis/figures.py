@@ -373,7 +373,7 @@ def curve_panel(ax, s: Summary) -> None:
 
 HEADLINE_W = 1.0   # share of the text width the paper gives the headline figure
 HEADLINE_H = 2.2   # its height (inches): two equal-decade panels and a one-column legend at the right
-HEADLINE_TITLES = ("(a) $\\mathrm{EVSI}^{*}$: value to an\nundecided developer",
+HEADLINE_TITLES = ("(a) $\\mathrm{EVSI}^{*}$: value to an\nundecided decision maker",
                    "(b) EVSI: value at the\nelicited prior")
 
 
@@ -646,7 +646,7 @@ def rank_rows(ax, s: Summary, metric: str, idx, pos) -> None:
     ax.xaxis.set_major_locator(mticker.FixedLocator([1, *range(5, n + 1, 5)]))
 
 
-ROWS_H = 0.14   # inches per row in the paper's combined row figure (MIN_FONT labels need >= 0.1)
+ROWS_H = 0.11   # inches per row in the paper's combined row figure (MIN_FONT labels need >= 0.1)
 
 
 def fig_rows(s: Summary, out: Path) -> Path | None:
