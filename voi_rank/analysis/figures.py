@@ -442,9 +442,11 @@ def abbreviate(text: str, limit: int = LABEL_CHARS) -> str:
 
 
 def scenario_label(s: Summary, i: int) -> str:
-    """'[id] short name', the id in brackets as the documents cite it."""
+    """'[id] evaluation', the id in brackets as the documents cite it and the
+    evaluation named as its title names it (the title up to ' before ', so the
+    label matches the cited reference; the short name is a family name)."""
     sc = s.scenarios[i]
-    return abbreviate(f"[{sc.id}] {sc.short}")
+    return abbreviate(f"[{sc.id}] {sc.title.split(' before ')[0]}")
 
 
 RANK_BW = 0.7   # rank violins: kernel width in ranks (ranks are integers; a data-driven bandwidth

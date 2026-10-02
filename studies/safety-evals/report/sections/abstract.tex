@@ -4,7 +4,7 @@ A safety evaluation is a measurement, worth money when its result can change a r
 Physical-AI safety evaluations look expensive next to a question set for a large language model (LLM).
 We price each evaluation by the expected value of sample information (EVSI) for the release decision it informs, per dollar of build and run cost.
 The parameters of this decision model are elicited as probability distributions from an ensemble of \voiNMembers{} LLMs for \voiNPhysical{} physical-AI and \voiNLLM{} LLM safety evaluations, and Monte Carlo sampling carries their uncertainty.
-Among the evaluations tested, a randomly chosen physical-AI evaluation is worth more per dollar than a randomly chosen LLM evaluation only about \voiEtaStarPSQMed{} of the time, and the best physical-AI evaluation places in the top half of all evaluations on \voiEtaStarPBestPhysicalTopHalf{} of draws. % CHECK-DATA
-Both groups pay for themselves: where a result can change the decision, an LLM evaluation repays its build within the first run and a physical-AI evaluation within a few runs. % CHECK-DATA
-The groups differ in the stakes of the decision, about \voiStakesRatio{} times higher for an LLM release; the gap closes as the stakes of physical-AI releases grow with every robot deployed. % CHECK-DATA
+Among the evaluations tested, a randomly chosen physical-AI evaluation gives an undecided developer more value per dollar than a randomly chosen LLM evaluation only about \voiEtaStarPSQMed{} of the time, though the best physical-AI evaluation places in the top half of all evaluations on \voiEtaStarPBestPhysicalTopHalf{} of draws. % CHECK-DATA
+The groups differ in the stakes of the decision, about \voiStakesRatio{} times higher for an LLM release, and the gap would close as the stakes of physical-AI releases grow with every robot deployed. % CHECK-DATA
+In both groups, the evaluations whose result can change the decision repay their build within a few runs. % CHECK-DATA
 \end{abstract}
