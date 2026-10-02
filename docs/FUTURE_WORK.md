@@ -22,7 +22,7 @@ The numbers are a present-day snapshot. As robot fleets grow, the stakes per rel
 - The value of a track record: results on past models let a developer forecast a new model's result and act before running the evaluation, which is value the single-run EVSI does not count.
 
 ## Checking the decision model
-- Compare the binary model with other value-of-information models (the pilots' Gaussian-state model is one; archived at tag pilot-2026-09-30) to see whether rankings survive a change of model.
+- Compare the binary model with other value-of-information models (the pilots' Gaussian-state model is one; kept outside the repository) to see whether rankings survive a change of model.
 
 ## Agentic elicitation
 - Elicitors with web search or an agent harness, compared with the one-shot prompt on the same scenarios. The literature we found suggests retrieval does not help strong models on forecasting and costs reproducibility, so this is an experiment, not a default.

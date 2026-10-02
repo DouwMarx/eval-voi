@@ -2,7 +2,7 @@
 
 The decision is in `studies/safety-evals/include.yaml`; `scripts/build_scenarios.py` builds `scenarios.json` from the included keys. This file gives the rule, the scores and the ranking. The selection was made and committed before any elicitation result, Monte Carlo run or generated output was read. Only the 39 drafted scenarios were eligible; all 39 were already elicited under p001.
 
-## Criteria (the user's, verbatim; they replace the criteria of QUALITY_REVIEW.md)
+## Criteria (the user's, verbatim; they replace the criteria of the earlier quality reviews, kept outside the repository)
 
 - LLM safety evaluations: rank mainly by system-card presence (number of documents and publishers naming it in the corpus, as in the candidates file) and by how checkable the hazard score is (programmatic or expert-baselined > validated LLM judge > unvalidated judge). Keep the penalty for a capability benchmark rather than a hazard measure. Do NOT penalise saturation (the elicitor sees it in the context and should lower sensitivity), being private or not public, lacking a standalone paper, or being a tool/generator rather than one fixed build-and-run evaluation; drop those criteria and penalties. Other penalties are too strict; only keep a documented construct problem if it means the score does not measure the hazard. No hard duplicate rule, but when choosing, prefer coverage across the five risk domains over a third or fourth near-identical evaluation.
 - Physical-AI safety evaluations: the one requirement is that the score measures a physical harm of an embodied system or of a model controlling one. Do not require a public source, a cost or validity fact, a single build-and-run instrument, or uniqueness of construct. Prefer spread across fidelity levels, and say which system type each tests.
@@ -155,16 +155,16 @@ The walk down the ranking left harmful_manipulation with MASK and Petri. Candida
 
 DeceptionBench is the highest-scoring candidate with a checkable hazard result, and the only one with a fact-checked, elicited draft, so it enters under the floor. Its awareness penalty was dropped under the user's rule; its documented weakness is low presence (two publishers), not the hazard link. Harmful manipulation is now 3 of 21.
 
-## What changed against QUALITY_REVIEW.md and QUALITY_REVIEW_2.md
+## What changed against the earlier quality reviews
 
-Both stay as history. QUALITY_REVIEW.md kept 15 LLM and 7 physical-AI evaluations under its cut criteria; QUALITY_REVIEW_2.md recommended reinstating ASIMOV-Agentic and DeceptionBench.
+Two earlier reviews (kept outside the repository) preceded this selection: the first kept 15 LLM and 7 physical-AI evaluations under stricter cut criteria; the second recommended reinstating ASIMOV-Agentic and DeceptionBench.
 
 - LLM in: ExploitBench, Binary Exploitation Benchmark, CyScenarioBench, LAB-Bench, Petri, Bloom, ControlArena. Their cut reasons were duplication of a single kept evaluation, private status, no primary source, being a tool or generator, or the capability origin; only the last remains, as a 1-point penalty.
 - LLM out: CVE-Bench (now the third known-vulnerability exploitation evaluation, after ExploitBench came in on presence) and BBQ (one publisher; below the cut).
-- DeceptionBench was out by rank (3 documents, 2 publishers), not for the 0.25-point floor miss QUALITY_REVIEW_2.md disputed; its awareness penalty is dropped. The floor of 3 per domain (2026-10-02) brings it in; see the section below.
+- DeceptionBench was out by rank (3 documents, 2 publishers), not for the 0.25-point floor miss the second review disputed; its awareness penalty is dropped. The floor of 3 per domain (2026-10-02) brings it in; see the section below.
 - HPCT stays out, now as the third biology knowledge test. It was the evaluation on which Sonnet's API refused the decision prompt; that played no part.
 - FORTRESS: hazard class corrected from 1 to 1.5 using the draft's 89.05% agreement figure.
-- Physical AI in: ASIMOV-Agentic (as QUALITY_REVIEW_2.md recommended), ManiGuard (its cut rested on the source and sim-to-real criteria that are dropped) and SafePlan (no validity fact is no longer a cut reason; chosen for level 0).
+- Physical AI in: ASIMOV-Agentic (as the second review recommended), ManiGuard (its cut rested on the source and sim-to-real criteria that are dropped) and SafePlan (no validity fact is no longer a cut reason; chosen for level 0).
 - Physical AI out: SafeAgentBench, at score 2 behind RedVLA at level 4. Its 91% human-judge agreement scores as V1, as for the others at level 4.
 - Counts: 21 LLM (was 15; 20 by rank plus DeceptionBench by the floor) and 9 physical AI (was 7); levels 0 and 2 now covered.
 - Known context issue: Bloom's decision facts rest mostly on the Agentic Misalignment hazard results (INDEX.md, unresolved issues), and both are now chosen. Their decision prompts are therefore close; the instrument prompts differ.

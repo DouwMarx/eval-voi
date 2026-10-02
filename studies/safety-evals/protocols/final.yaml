@@ -17,7 +17,7 @@ template_vars:
 # endpoint where it passes a zero-data-retention (ZDR) account setting:
 # Z.AI and xAI. The account of the 2026-10-01 smoke test enforces ZDR, which
 # removed the first-party endpoints of DeepSeek, Xiaomi, OpenAI and Google AI
-# Studio (HTTP 404, research/smoke_final_protocol.json); those four are
+# Studio (HTTP 404 in the smoke test of 2026-10-01); those four are
 # pinned to a ZDR endpoint instead: DeepInfra fp8 for DeepSeek and MiMo
 # (the first-party endpoints are fp8 too; DeepInfra is the cheapest ZDR host
 # with response_format and over 99.7% uptime), Azure for GPT-6 Luna (same
@@ -32,7 +32,7 @@ template_vars:
 # default-effort smoke-test means (5k-8k and 8k-16k reasoning tokens). est_output_tokens (cost estimate
 # only): the mean completion tokens (answer plus reasoning) per valid call
 # of the member in the smoke test of this protocol, rounded up
-# (research/smoke_final_protocol.json, 4 calls each).
+# (smoke test of 2026-10-01, 4 calls each; its log is kept outside the repository).
 members:
   - provider: openrouter
     model: deepseek/deepseek-v4.1-flash
@@ -78,7 +78,7 @@ notes: >
   valued for society, no anchors, curated context. Six members
   from six developers, three Chinese (DeepSeek, Z.ai, Xiaomi) and three US
   (OpenAI, Google, xAI); k=1 each, because between-member variance is at
-  least the within-member repeat variance (HANDOVER section 2), so a call
+  least the within-member repeat variance (iteration runs), so a call
   spent on a member is worth more than one spent on a repeat. No Anthropic
   member: two of the LLM evaluations are Anthropic's own (Agentic
   Misalignment, SHADE-Arena), and the pilots' main objection was

@@ -1,7 +1,8 @@
 """The report figures (DESIGN section 7), PDF, drawn at the CoRL text width
 (5.5 in) with no text smaller than 6.5 pt (6 pt for the row labels of the
 paper's combined row figure) and no titles (captions live in the tex). Two
-groups: physical AI (vermillion triangles) and LLM (blue circles), Okabe-Ito colours, the marker shape a second encoding; the
+groups: physical AI (vermillion triangles) and LLM (blue circles), Okabe-Ito
+colours, the marker shape a second encoding; the
 per-evaluation row figures colour by risk domain instead and set the
 physical-AI rows apart with an ink outline and bold labels. The method
 diagram is TikZ in the tex, not here.

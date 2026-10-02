@@ -34,7 +34,7 @@ from tests.test_pipeline import (  # noqa: F401  (the temporary study fixture)
 from voi_rank import db, dotenv, elicit
 from voi_rank.providers import claude_cli
 
-# the envelope the CLI printed during the 2026-09-29 outage (LEARNINGS), verbatim in shape
+# the envelope the CLI printed during the 2026-09-29 outage, verbatim in shape
 # (every one of the 1,620 stored rows carries api_error_status 429)
 LIMIT_ENVELOPE = {"type": "result", "subtype": "success", "is_error": True, "duration_ms": 467,
                   "num_turns": 1, "api_error_status": 429, "terminal_reason": "api_error",

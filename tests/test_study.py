@@ -151,7 +151,7 @@ def test_templates_keep_the_two_prompts_apart():
         assert re.search(r"\bmitigat", text) is not None
     for text, names in ((decision, DECISION_PARAMS), (instrument, INSTRUMENT_PARAMS)):
         assert '"unit"' not in text
-        # extremes first (elicitation_lit.md implication 6), plain decimals (implication 5)
+        # extremes first (the elicitation literature review, implication 6), plain decimals (implication 5)
         steps = text.split("## Instructions")[1]
         assert steps.index("- p5: a value you would be surprised to see the true value fall below") \
             < steps.index("- p95: a value you would be surprised to see the true value fall above") \

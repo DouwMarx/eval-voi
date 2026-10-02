@@ -1,6 +1,6 @@
 # Design and working assumptions (2026-10-02)
 
-Authoritative conventions for the code, the paper and the extended report. When the code and this file disagree, fix one of them the same day. Older documents (spec.md, README_methods.md, README_tracks.md, PILOT_ASSESSMENT.md, handover/) describe the pilots and are archived, not maintained.
+Authoritative conventions for the code, the paper and the extended report. When the code and this file disagree, fix one of them the same day. The pilot studies' documents and databases are kept outside the repository.
 
 ## 1. What the paper is
 
@@ -59,8 +59,8 @@ Not in the model, stated as limitations or in docs/FUTURE_WORK.md: batteries of 
 - Two prompts per scenario, rendered from studies/safety-evals/templates/decision.md and instrument.md. The decision prompt renders agent, decision, theta definition and the scenario's `decision_context`; it never mentions the instrument. It asks p, B, K, with B and K valued for society. The instrument prompt renders title, agent, decision, theta definition, instrument and the scenario's `instrument_context` (the agent and decision text fix the release cadence the costs depend on and carry no number); it never mentions B, K, p or the `decision_context`, and tells the member not to let the stakes move its estimate of the evaluation's quality or cost. It asks s, t, C_build, C_run. The two are independent calls (the pilots showed a single prompt lets instrument text move the prior).
 - The templates state the model, define each parameter in one line, give the facts block and one sentence on how to use it ("Use these facts. Where they give a quantity, take it as given and reason from it; where they are silent, reason from base rates and typical magnitudes."), then the instructions and the JSON shape. They carry no caps on any parameter, no perspective paragraph, no order-of-magnitude instruction and no list of forbidden quantities.
 - Every scenario is its own decision (`group_key: self`). Protocol-level decision contexts are gone.
-- Reasoning paragraph before each parameter's three percentiles, asked extremes first: p5 and p95 as exclusion questions ("a value you would be surprised to see the true value fall below / above"), then p50 (research/elicitation_lit.md implication 6). Strict JSON: {"parameters": {"p": {"reasoning": "...", "p5": .., "p95": .., "p50": ..}, ...}}. The prompts ask for plain decimal numbers (implication 5); the parser also reads scientific notation. No unit field: the units are fixed by the template.
-- Anchors: both templates keep an optional block (`$anchors_decision`, `$anchors_instrument`: protocol template variables). Both current protocols set them to '' and render none (research/elicitation_lit.md implication 2); the anchor files of the iteration are in archive/iteration-2026-09-30/templates/ and no current protocol inlines them.
+- Reasoning paragraph before each parameter's three percentiles, asked extremes first: p5 and p95 as exclusion questions ("a value you would be surprised to see the true value fall below / above"), then p50 (the elicitation literature review, kept outside the repository). Strict JSON: {"parameters": {"p": {"reasoning": "...", "p5": .., "p95": .., "p50": ..}, ...}}. The prompts ask for plain decimal numbers (implication 5); the parser also reads scientific notation. No unit field: the units are fixed by the template.
+- Anchors: both templates keep an optional block (`$anchors_decision`, `$anchors_instrument`: protocol template variables). Both current protocols set them to '' and render none (the elicitation literature review, kept outside the repository); the anchor files of the iteration are in archive/iteration-2026-09-30/templates/ and no current protocol inlines them.
 - Template variables: the protocol's `template_vars` render in both prompts, except that a name `decision_*` or `anchors_decision` renders only in the decision prompt and `instrument_*` or `anchors_instrument` only in the instrument prompt; the renderer refuses the other template, so no variable carries a decision-level number into the instrument prompt. `context_mode` is `curated` (the facts) or `none` (no facts and no facts heading in either prompt).
 - Validation: exact parameter set for the prompt, p5 < p50 < p95, probabilities in (0,1), USD > 0, median s > 1 - median t, prior median in [0.001, 0.999]. One retry. Error classes: json, schema, constraint, fit, refusal (no JSON and the text declines, or finish_reason content_filter), truncated (finish_reason length: the answer hit max_tokens), cli, http, api, provider (an exception escaping a provider call).
 - Fitting: Beta for p, s, t; lognormal for B, K, C_build, C_run; least squares on the three quantiles; stored at elicitation time.
@@ -123,10 +123,9 @@ studies/safety-evals/ scenarios.json, include.yaml, protocols/{final, final_noct
                      templates/{decision, instrument}.md, voi.db, report/, report/extended/
 research/            literature catalogue, refs.bib, system-card mining, scenarios_draft/ (the drafts,
                      SELECTION.md, PROVENANCE.md), sources/ (cached source texts), smoke-test records
-archive/             business/ (data the external chapter reads), pilots/ (frozen at tag pilot-2026-09-30),
-                     iteration-2026-09-30/ (protocols p001-p003, their templates and anchors)
+archive/             iteration-2026-09-30/ (the iteration's protocols and templates; its rows stay in voi.db)
 scripts/             build_scenarios.py, regen.sh, build_paper.sh, check_pages.py
-docs/                DESIGN.md, FUTURE_WORK.md, QUESTIONS.md
+docs/                DESIGN.md, FUTURE_WORK.md
 ```
 
 Archive policy: archive/ is a read-only record. A protocol or template that leaves the study moves there with its date; nothing under archive/ is edited, re-run or analysed, and `Study.connect` refuses a database under it. The iteration's elicitations (p001, p002) and its Monte Carlo runs stay in studies/safety-evals/voi.db; they are not analysed, and the archived protocol files describe them. The final run's rows and runs live in the same database under the protocols final and final_noctx.

@@ -4,7 +4,6 @@ seeding idempotence, retirement, and the pooling of fits over members."""
 import json
 import shutil
 import sqlite3
-from pathlib import Path
 
 import pytest
 import yaml
@@ -12,8 +11,6 @@ import yaml
 from voi_rank import db, mc
 from voi_rank.fit import DECISION_PARAMS, INSTRUMENT_PARAMS, fit_param
 from voi_rank.study import Study
-
-ARCHIVE = Path(__file__).resolve().parent.parent / "archive"
 
 _REAL_GIT_STATE = db.git_state   # captured before the hermetic fixture replaces it
 
@@ -43,6 +40,80 @@ def make_v1_db(path):
     con.execute("INSERT INTO scenarios (title, source) VALUES ('S', 'seed')")
     con.execute("INSERT INTO elicitations (scenario_id, protocol_id, repeat_ix, valid)"
                 " VALUES (1, 1, 0, 1)")
+    con.commit()
+    con.close()
+
+
+# the pilot studies' shape (frozen before the two-stage restructure, kept
+# outside the repository): the v1 tables plus the columns of their day and the
+# unique valid-slot index without the stage; no decision_context,
+# instrument_context, sources, stage, stages_json, template_vars_json
+PILOT_SCHEMA = V1_SCHEMA + """
+ALTER TABLE scenarios ADD COLUMN context TEXT;
+ALTER TABLE scenarios ADD COLUMN grp TEXT;
+ALTER TABLE scenarios ADD COLUMN attributes TEXT;
+ALTER TABLE protocols ADD COLUMN members_json TEXT;
+ALTER TABLE protocols ADD COLUMN scenario_selector TEXT;
+ALTER TABLE protocols ADD COLUMN model_kind TEXT;
+ALTER TABLE elicitations ADD COLUMN provider TEXT;
+ALTER TABLE elicitations ADD COLUMN model TEXT;
+ALTER TABLE runs ADD COLUMN data_hash TEXT;
+CREATE UNIQUE INDEX ux_elicitations_valid_slot
+  ON elicitations (scenario_id, protocol_id, provider, model, repeat_ix) WHERE valid=1;
+"""
+# the pilots' six parameters (C the retired single cost) and the retired reuse
+# count n of the iteration templates; the current model's C_build, C_run are absent
+PILOT_PARAMS = ["p", "s", "t", "B", "K", "C", "n"]
+PILOT_MODELS = ("haiku", "sonnet", "opus")
+PILOT_K = 2
+
+
+def make_pilot_db(path):
+    """A pilot database: two scenarios with the single facts block, a legacy
+    p001 row (no members_json), the three-member p003 and the Gaussian g001,
+    PILOT_K valid single-stage elicitations per (scenario, member) under
+    p003 carrying PILOT_PARAMS, one pre-v2 p001 row without a member
+    identity, and a p003 run with an eta result row."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(path)
+    con.executescript(PILOT_SCHEMA)
+    for title, grp in (("Eval A", "AI safety eval"), ("Eval B", "robot safety eval")):
+        con.execute("INSERT INTO scenarios (title, agent, decision, theta_definition, instrument, source,"
+                    " context, grp, attributes) VALUES (?, 'a', 'd', 't', 'i', 'seed', 'facts', ?, '{}')",
+                    (title, grp))
+    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats)"
+                " VALUES ('p001', 'templates/elicitor.md', 'h1', 'haiku', 3)")
+    members = [{"provider": "claude_cli", "model": m, "k_repeats": PILOT_K} for m in PILOT_MODELS]
+    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats,"
+                " members_json, scenario_selector)"
+                " VALUES ('p003', 'templates/elicitor.md', 'h3', ?, ?, ?, 'all')",
+                (",".join(f"claude_cli:{m}" for m in PILOT_MODELS), PILOT_K * len(members),
+                 db.members_json(members)))
+    con.execute("INSERT INTO protocols (name, template_path, template_hash, model_alias, k_repeats,"
+                " members_json, model_kind)"
+                " VALUES ('g001', 'templates/gaussian.md', 'hg', 'claude_cli:haiku', 1, ?, 'gaussian')",
+                (db.members_json(members[:1]),))
+    con.execute("INSERT INTO elicitations (scenario_id, protocol_id, repeat_ix, prompt_hash, raw_response,"
+                " valid) VALUES (1, 1, 0, 'h', '{}', 1)")   # pre-v2: provider and model NULL
+    for sid in (1, 2):
+        for m in PILOT_MODELS:
+            for rix in range(PILOT_K):
+                cur = con.execute(
+                    "INSERT INTO elicitations (scenario_id, protocol_id, repeat_ix, prompt_hash,"
+                    " raw_response, valid, provider, model) VALUES (?, 2, ?, 'h', '{}', 1, 'claude_cli', ?)",
+                    (sid, rix, m))
+                for name in PILOT_PARAMS:
+                    q = (0.1, 0.3, 0.6) if name in ("p", "s", "t") else (10.0, 100.0, 1000.0)
+                    fit = fit_param({"C": "C_run", "n": "K"}.get(name, name), *q)
+                    con.execute("INSERT INTO parameters (elicitation_id, name, p5, p50, p95, unit, reasoning,"
+                                " dist_family, fit_params, fit_residual, fit_warning)"
+                                " VALUES (?,?,?,?,?,'u','r',?,?,?,?)",
+                                (cur.lastrowid, name, *q, fit.family, fit.params_json(), fit.residual,
+                                 int(fit.warning)))
+    cur = con.execute("INSERT INTO runs (seed, n_draws, code_hash, protocol_id, data_hash)"
+                      " VALUES (42, 1000, 'abc123', 2, 'd0')")
+    con.execute("INSERT INTO results (run_id, scenario_id, metric, q05, q25, q50, q75, q95, p_positive)"
+                " VALUES (?, 1, ?, 0.1, 0.2, 0.3, 0.4, 0.5, 0.9)", (cur.lastrowid, mc.PRIMARY_METRIC))
     con.commit()
     con.close()
 
@@ -236,31 +307,38 @@ def test_duplicate_members_rejected():
 
 
 def test_archived_pilot_db_opens_read_only(tmp_path):
-    """A pilot database under archive/ (six parameters, single-prompt and
-    Gaussian protocols, pre-restructure columns) opens without a migration
-    error: connect_copy never writes the file, connect() on a copy adds the
-    new columns, and the scenarios, protocols and elicitations read back.
-    Its runs are not replayable by the current model (no C_build, C_run),
-    so complete_fits is empty and that is all."""
-    src = ARCHIVE / "pilots" / "ai-safety-evals" / "voi.db"
+    """A pilot database (six parameters, single-prompt and Gaussian
+    protocols, pre-restructure columns) opens without a migration error:
+    connect_copy never writes the file, connect() on a copy adds the new
+    columns and replaces the stage-less index, and the scenarios, protocols
+    and elicitations read back. Its runs are not replayable by the current
+    model (no C_build, C_run), so complete_fits is empty and that is all."""
+    src = tmp_path / "frozen" / "voi.db"
+    make_pilot_db(src)
     before = src.read_bytes()
-    con = db.connect_copy(src)   # the archived file itself, read-only
+    con = db.connect_copy(src)   # the frozen file itself, read-only
     assert src.read_bytes() == before
     scen = db.get_scenarios(con)
-    assert len(scen) == 15 and {r["grp"] for r in scen} == {"AI safety eval", "robot safety eval"}
+    assert len(scen) == 2 and {r["grp"] for r in scen} == {"AI safety eval", "robot safety eval"}
     assert all(r["context"] and r["decision_context"] is None and r["sources"] is None for r in scen)
     prots = {r["name"]: r for r in con.execute("SELECT * FROM protocols ORDER BY id")}
-    assert {"p001", "p003", "g001"} <= set(prots)
+    assert set(prots) == {"p001", "p003", "g001"}
     assert prots["g001"]["model_kind"] == "gaussian" and db.protocol_stages(prots["p003"]) is None
     assert db.protocol_members(prots["p003"]) == [
-        {"provider": "claude_cli", "model": m, "k_repeats": 5} for m in ("haiku", "sonnet", "opus")]
+        {"provider": "claude_cli", "model": m, "k_repeats": PILOT_K} for m in PILOT_MODELS]
+    assert db.protocol_members(prots["p001"]) == [
+        {"provider": "claude_cli", "model": "haiku", "k_repeats": 3}]   # a legacy row
     assert db.protocol_template_vars(prots["p003"]) == {}
+    # the pre-v2 row took the legacy member identity; every row is single-stage
+    assert con.execute("SELECT COUNT(*) FROM elicitations WHERE provider IS NULL OR model IS NULL"
+                       " OR stage IS NOT NULL").fetchone()[0] == 0
     n_elic = con.execute("SELECT COUNT(*) FROM elicitations WHERE valid=1").fetchone()[0]
-    assert n_elic > 100
+    assert n_elic == 1 + 2 * len(PILOT_MODELS) * PILOT_K
     names = {r[0] for r in con.execute("SELECT DISTINCT name FROM parameters")}
-    assert {"p", "s", "t", "B", "K", "C"} <= names and "C_build" not in names
+    assert names == set(PILOT_PARAMS) and "C_build" not in names
     fits = db.scenario_param_fits(con, prots["p003"]["id"], names=["p", "s", "t", "B", "K"])
-    assert len(fits) == 15 and all(len(fits[s]["p"]) >= 10 for s in fits)
+    assert len(fits) == 2 and all(len(fits[s]["p"]) == len(PILOT_MODELS) * PILOT_K for s in fits)
+    assert all(set(fits[s]) == {"p", "s", "t", "B", "K"} for s in fits)   # C and n never read back
     assert mc.complete_fits(con, prots["p003"]["id"]) == {}   # no C_build, C_run in an archived DB
     assert db.latest_run(con, "p003")["data_hash"]
     con.close()
@@ -271,20 +349,24 @@ def test_archived_pilot_db_opens_read_only(tmp_path):
     cols = {r[1] for r in con.execute("PRAGMA table_info(scenarios)")}
     assert {"decision_context", "instrument_context", "sources"} <= cols
     assert db.migrate(con) == []
+    indexes = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+    assert "ux_elicitations_valid_slot_stage" in indexes and "ux_elicitations_valid_slot" not in indexes
     assert con.execute("SELECT COUNT(*) FROM elicitations").fetchone()[0] >= n_elic
     con.close()
     assert src.read_bytes() == before
 
 
-def test_replay_of_an_archived_run_is_refused_with_a_message():
+def test_replay_of_an_archived_run_is_refused_with_a_message(tmp_path):
     """An archived run's protocol has no scenario with the seven parameters
     (its rows carry p, s, t, B, K and the retired C), so a replay says so
     instead of failing inside NumPy on an empty draw matrix. Read-only on
-    the committed archive."""
-    src = ARCHIVE / "pilots" / "sim2real" / "voi.db"
+    the frozen file."""
+    src = tmp_path / "frozen" / "voi.db"
+    make_pilot_db(src)
     before = src.read_bytes()
     con = db.connect_copy(src)
     run = db.latest_run(con)
+    assert con.execute("SELECT COUNT(*) FROM results WHERE run_id=?", (run["id"],)).fetchone()[0] == 1
     with pytest.raises(RuntimeError, match=rf"^run {run['id']}: no scenarios with complete valid elicitations"
                                            r" under its protocol \(an archived six-parameter run cannot be"):
         mc.replay_efficiency(con, run["id"])
@@ -293,22 +375,20 @@ def test_replay_of_an_archived_run_is_refused_with_a_message():
 
 
 def test_archived_study_is_refused_by_connect_and_mc(tmp_path, monkeypatch):
-    """DESIGN section 9: never write to a database under archive/. On a copy
-    of a pilot study placed under <root>/archive/ (the repo root redirected
-    to tmp_path, so the committed file is never touched), Study.connect and
-    mc.main (whose first act is to connect, which would migrate the file in
-    place) exit before writing; connect_copy still reads it."""
-    src = ARCHIVE / "pilots" / "sim2real" / "voi.db"
+    """DESIGN section 9: never write to a database under archive/. On a
+    pilot study placed under <root>/archive/ (the repo root redirected to
+    tmp_path), Study.connect and mc.main (whose first act is to connect,
+    which would migrate the file in place) exit before writing; connect_copy
+    still reads it."""
     root = tmp_path.resolve()
     study_dir = root / "archive" / "pilots" / "sim2real"
-    study_dir.mkdir(parents=True)
-    shutil.copy(src, study_dir / "voi.db")
+    make_pilot_db(study_dir / "voi.db")
     before = (study_dir / "voi.db").read_bytes()
     monkeypatch.setattr(db, "ROOT", root)
     study = Study.resolve(study_dir)
     assert study.archived
     with pytest.raises(SystemExit, match="archived study .*read-only"):
-        mc.main(["--study", str(study_dir), "--protocol", "p004", "--allow-dirty"])
+        mc.main(["--study", str(study_dir), "--protocol", "p003", "--allow-dirty"])
     with pytest.raises(SystemExit, match="archived study"):
         study.connect()
     assert (study_dir / "voi.db").read_bytes() == before
@@ -317,7 +397,7 @@ def test_archived_study_is_refused_by_connect_and_mc(tmp_path, monkeypatch):
     ro.close()
     assert "decision_context" not in cols   # the archived schema, not migrated
     con = study.connect_copy()   # reading stays allowed
-    assert db.protocol_by_name(con, "p004")["name"] == "p004"
+    assert db.protocol_by_name(con, "p003")["name"] == "p003"
     con.close()
     assert (study_dir / "voi.db").read_bytes() == before
     # a study elsewhere under the same root is not archived
@@ -330,14 +410,14 @@ def test_archived_study_is_refused_by_connect_and_mc(tmp_path, monkeypatch):
     # of another checkout (db.ROOT elsewhere) is refused before the file changes
     elsewhere = root / "elsewhere" / "archive" / "pilots" / "x"
     elsewhere.mkdir(parents=True)
-    shutil.copy(src, elsewhere / "voi.db")
+    shutil.copy(study_dir / "voi.db", elsewhere / "voi.db")
     monkeypatch.setattr(db, "ROOT", root / "checkout")
     foreign = Study.resolve(elsewhere)
     assert foreign.archived and not foreign.root.is_relative_to(db.ROOT)
     with pytest.raises(SystemExit, match="archived study .*read-only"):
         foreign.connect()
     with pytest.raises(SystemExit, match="archived study"):
-        mc.main(["--study", str(elsewhere), "--protocol", "p004", "--allow-dirty"])
+        mc.main(["--study", str(elsewhere), "--protocol", "p003", "--allow-dirty"])
     assert (elsewhere / "voi.db").read_bytes() == before
 
 

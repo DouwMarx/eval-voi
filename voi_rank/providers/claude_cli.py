@@ -1,4 +1,4 @@
-"""Headless `claude -p` provider (deviations recorded in LEARNINGS.md and
+"""Headless `claude -p` provider (deviations from the documented CLI,
 verified against `claude --help` on CLI 2.1.220):
 - `--bare` exists but restricts Anthropic auth to ANTHROPIC_API_KEY, which is
   absent under OAuth login. Context is instead isolated with `--tools ""`,
@@ -22,7 +22,7 @@ Usage-limit outages: during a claude.ai usage-limit window the CLI exits 1
 "is_error": true, "api_error_status": 429, "result": "You've hit your
 session limit · resets 4:30am (Europe/Brussels)", "total_cost_usd": 0,
 "usage": {"input_tokens": 0, "output_tokens": 0}}`, i.e. no model call was
-made and nothing was billed (LEARNINGS 2026-09-29: the old harness stored
+made and nothing was billed (on 2026-09-29 the old harness stored
 1,620 such exits as 'cli: exit 1' failures in one night). Any API error
 the CLI meets before a model answers gives the same zero-usage shape, so
 the status decides: usage_limit_envelope is a zero-usage envelope with

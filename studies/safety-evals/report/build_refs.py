@@ -2,8 +2,7 @@
 """Write refs.bib with exactly the entries the paper and the extended report cite.
 
 Sources, first match wins: extra.bib (entries added for this report, checked against
-arXiv or the publisher when added), research/bib/*.bib, research/refs.bib, the archived
-pilots' refs.bib. Drops provenance fields (note, abstract). Fails if a cited key is
+arXiv or the publisher when added), research/bib/*.bib, research/refs.bib. Drops provenance fields (note, abstract). Fails if a cited key is
 in no source, or if an entry carries no DOI, arXiv id or URL (CoRL desk-rejects
 papers that cite references which do not exist).
 
@@ -20,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 TEX = sorted(HERE.glob("*.tex")) + sorted(HERE.glob("sections/*.tex")) + sorted(HERE.glob("extended/*.tex"))
 SOURCES = [HERE / "extra.bib", *sorted((ROOT / "research" / "bib").glob("*.bib")),
-           ROOT / "research" / "refs.bib", *sorted((ROOT / "archive" / "pilots").glob("*/report/refs.bib"))]
+           ROOT / "research" / "refs.bib"]
 CITE = re.compile(r"\\cite[a-z]*\*?(?:\[[^\]]*\])*\{([^}]*)\}")
 KEEP_NOTE = re.compile(r"arXiv[:\s]*\d{4}\.\d{4,5}(v\d+)?", re.I)
 DROP = ("note", "abstract", "file", "keywords", "month", "urldate", "version")

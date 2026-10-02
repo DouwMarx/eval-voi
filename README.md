@@ -6,7 +6,7 @@ seven parameters elicited from an ensemble of language models in two
 independent prompts, propagated by Monte Carlo over the combined belief, and
 compared with the LLM safety evaluations that system cards report.
 `docs/DESIGN.md` is the authority on the model, the terminology, the
-elicitation and the outputs; `LEARNINGS.md` is the lab notebook.
+elicitation and the outputs.
 
 ## Install
 
@@ -28,10 +28,10 @@ voi_rank/              model, fit, mc, db, study, elicit, validate, sensitivity,
 studies/safety-evals/  scenarios.json, include.yaml, protocols/, templates/, voi.db, report/
 research/              literature catalogue, refs.bib, system-card mining, scenarios_draft/ (the
                        fact-checked drafts, SELECTION.md), sources/ (cached source texts)
-archive/               business/, pilots/ (frozen at tag pilot-2026-09-30), iteration-2026-09-30/
-                       (protocols p001-p003 and their templates); read-only, never analysed
+archive/               iteration-2026-09-30/ (the iteration's protocols p001-p003 and templates);
+                       read-only, never analysed
 scripts/               build_scenarios.py, regen.sh, build_paper.sh, check_pages.py
-docs/                  DESIGN.md, FUTURE_WORK.md, QUESTIONS.md
+docs/                  DESIGN.md, FUTURE_WORK.md
 ```
 
 A study is self-contained: `scenarios.json`, `protocols/` (immutable YAML
@@ -202,13 +202,12 @@ mean stored cost of its past attempts, else catalogue prices (`GET
 and `est_output_tokens` output tokens, as low / central / high with output
 x0.5 / x1 / x2.
 
-## Archived databases
+## Archive
 
-`archive/business/voi.db` and `archive/pilots/*/voi.db` were written by the
-retired code (six parameters, single-prompt and Gaussian protocols). The
-current code opens them read-only (`db.connect_copy`, used by every dry run)
-or migrates a copy in place; it cannot elicit their protocols or replay
-their runs. Never write to a database under `archive/`: `Study.connect`
-refuses a study whose path has an `archive` component, so `elicit` and `mc`
-exit before touching the file; copy the study outside `archive/` to migrate
-it.
+`archive/iteration-2026-09-30/` holds the protocols and templates of the
+iteration runs whose rows remain in `studies/safety-evals/voi.db` (protocols
+p001 and p002; not analysed). The two pilot studies that preceded this one
+and the earlier business-decision study are kept outside the repository.
+Never write to a database under `archive/`: `Study.connect` refuses a study
+whose path has an `archive` component, so `elicit` and `mc` exit before
+touching the file.

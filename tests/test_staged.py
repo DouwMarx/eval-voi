@@ -26,7 +26,6 @@ SEED = {
     "C_run": (300.0, 1000.0, 5000.0),
 }
 HAIKU, SONNET = "claude_cli:haiku", "claude_cli:sonnet"
-ARCHIVE_SIM2REAL = Path(__file__).resolve().parent.parent / "archive" / "pilots" / "sim2real"
 HOME, AV = "home manipulator", "AV AEB"
 MEMBERS = [{"provider": "claude_cli", "model": "haiku", "k_repeats": 2},
            {"provider": "claude_cli", "model": "sonnet", "k_repeats": 2}]
@@ -615,21 +614,41 @@ def test_empty_rendered_field_warns_in_the_dry_run_and_refuses_the_paid_stage(tm
         elicit.main([*base, "--dry-run"])
 
 
-@pytest.mark.parametrize("protocol, match", [
+def retired_protocol(name: str) -> dict:
+    """A protocol file in one of the pilots' retired forms: p004 with
+    protocol-level decision_contexts on its decision stage, p003 a
+    single-prompt protocol (a template_path, no stages), g001 the
+    Gaussian-state model."""
+    if name == "p004":
+        cfg = protocol(name, "attributes.context_group")
+        cfg["stages"][0]["decision_contexts"] = {HOME: "Decision facts.", AV: "Decision facts."}
+        return cfg
+    if name == "p003":
+        return {"name": name, "notes": "test", "template_path": "templates/elicitor.md", "members": MEMBERS}
+    return protocol(name, "self", model="gaussian")
+
+
+@pytest.mark.parametrize("protocol_name, match", [
     ("p004", r"^protocol p004: stage decision: protocol-level decision_contexts are gone"),
     ("p003", r"^protocol p003: .*single-prompt protocols were retired"),
     ("g001", r"^protocol g001: .*only the binary model remains"),
 ])
-def test_dry_run_of_an_archived_protocol_exits_with_its_message(protocol, match):
+def test_dry_run_of_an_archived_protocol_exits_with_its_message(tmp_path, protocol_name, match):
     """The documented read of an archived study (README: connect_copy, used
     by every dry run) meets a protocol in one of the retired forms: the
     registration's refusal is the exit message, not a traceback, and the
-    frozen file is untouched. Read-only on the committed archive."""
-    src = ARCHIVE_SIM2REAL / "voi.db"
-    before = src.read_bytes()
+    frozen database (a pilot study rebuilt under <tmp>/archive/pilots/) is
+    untouched."""
+    study = build(tmp_path.resolve() / "archive" / "pilots")   # <tmp>/archive/pilots/study
+    assert study.archived
+    write_cfg(study, retired_protocol(protocol_name))
+    con = db.connect(study.db)   # the frozen file, written once here (Study.connect would refuse)
+    db.seed_scenarios(con, study.scenarios_json)
+    con.close()
+    before = study.db.read_bytes()
     with pytest.raises(SystemExit, match=match):
-        elicit.main(["--study", str(ARCHIVE_SIM2REAL), "--protocol", protocol, "--dry-run"])
-    assert src.read_bytes() == before
+        elicit.main(["--study", str(study.root), "--protocol", protocol_name, "--dry-run"])
+    assert study.db.read_bytes() == before
 
 
 def test_archived_study_dry_runs_but_is_never_elicited(tmp_path, monkeypatch, capsys):

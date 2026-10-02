@@ -43,7 +43,8 @@ GROUP_WORD = {PHYS: "Physical", LLM: "LLM"}
 # display aliases: the code and the DB keep eta_ind (EtaInd); the documents say eta* (EtaStar)
 ALIASES = (("EtaInd", "EtaStar"),)
 METRIC_WORD = {"eta": "Eta", "eta_ind": "EtaInd", "eta_run": "EtaRun"}
-PARAM_TEX = {"C_build": r"$C_\mathrm{b}$", "C_run": r"$C_\mathrm{r}$"}   # else $<name>$ (the documents' notation)
+# the documents' notation; any other name prints as $<name>$
+PARAM_TEX = {"C_build": r"$C_\mathrm{b}$", "C_run": r"$C_\mathrm{r}$"}
 
 
 def param_tex(name: str) -> str:
@@ -175,7 +176,6 @@ def group_medians(s: Summary, m: dict) -> None:
     per_cost = stakes / s.central["C"]
     p, sens, spec = pl["p"], pl["s"], pl["t"]
     p1 = p * sens + (1 - p) * (1 - spec)
-    pi1 = p * sens / p1
     pi0 = p * (1 - sens) / (1 - p1)
     pistar = pl["K"] / stakes
     zero = ~(s.central["EVSI"] > 0)
@@ -291,7 +291,8 @@ def collect(s: Summary) -> dict[str, str]:
     # ties on the median rank are joined with "and" and marked "(tied)"
     groups: list[list[str]] = []
     for d in o["domains"]:
-        if groups and o["domains"][sum(len(g) for g in groups) - 1]["med_rank_central"] == d["med_rank_central"]:
+        previous = o["domains"][sum(len(g) for g in groups) - 1] if groups else None
+        if previous is not None and previous["med_rank_central"] == d["med_rank_central"]:
             groups[-1].append(d["label"])
         else:
             groups.append([d["label"]])

@@ -69,8 +69,8 @@ class Study:
 
     @property
     def archived(self) -> bool:
-        """Whether the study lies under an archive/ directory (the pilots,
-        frozen at tag pilot-2026-09-30): read through connect_copy only. The
+        """Whether the study lies under an archive/ directory (a read-only
+        record): read through connect_copy only. The
         test is on the path's shape (any `archive` component), not on this
         checkout's root, so the archive of another checkout or worktree is
         refused too."""
@@ -81,7 +81,7 @@ class Study:
         by connect() (whose migration would otherwise alter the tracked file
         in place) and by elicit's paid path before the confirmation."""
         if self.archived:
-            raise SystemExit(f"archived study {self.root}: read-only (frozen at tag pilot-2026-09-30);"
+            raise SystemExit(f"archived study {self.root}: read-only (a frozen record);"
                              " read it with connect_copy (a dry run needs a two-stage protocol file),"
                              " or copy it outside archive/")
 

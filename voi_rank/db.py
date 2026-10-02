@@ -68,7 +68,7 @@ def check_model(value) -> str:
     if kind != BINARY_KIND:
         raise ValueError(f"protocol model {value!r} is not supported: only the binary model remains"
                          " (the Gaussian-state family was retired on 2026-09-30; its protocols and data"
-                         " are under archive/, frozen at tag pilot-2026-09-30)")
+                         " are under archive/, a read-only record)")
     return kind
 
 
@@ -459,7 +459,7 @@ def member_label(m: dict) -> str:
 # every member. Every reader of a run's elicitations (fits, pooled medians,
 # counts) takes the same `members` argument: a list of labels, or None for
 # all. Pooling incoherent members yields a ranking that belongs to nobody
-# (LEARNINGS, eval studies iteration 2), so an ablation scores one elicitor
+# (seen in the iteration runs), so an ablation scores one elicitor
 # as its own stored run.
 
 def parse_member_labels(spec: str | None) -> list[str] | None:
