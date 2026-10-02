@@ -20,6 +20,8 @@ import numpy as np
 from voi_rank.analysis.summary import (
     BEST_TOP,
     CURVE_QS,
+    DOMAIN_LABEL,
+    DOMAINS,
     ERROR_CLASSES,
     GROUPS,
     LLM,
@@ -123,6 +125,32 @@ def camel(text: str) -> str:
     """Letters only: digits spelled out, words capitalised, the rest dropped."""
     text = re.sub(r"\d", lambda m: " " + DIGITS[int(m.group())] + " ", str(text))
     return "".join(w[:1].upper() + w[1:] for w in re.split(r"[^A-Za-z]+", text) if w)
+
+
+# The bib key of an evaluation's primary source: the first source of its draft that is not a
+# system card, except where the draft's first source is a paper about the evaluation rather
+# than the evaluation itself (title prefix -> (bib key in report/extra.bib, source title)).
+BIBKEY_OVERRIDE = {"ISO 10218": ("iso10218_2025", "ISO 10218-1:2025 Robotics -- Safety requirements -- "
+                                                  "Part 1: Industrial robots")}
+
+
+def primary_source(sc) -> tuple[str, str] | None:
+    """(bib key, title) of the evaluation's primary source, None without one."""
+    for prefix, (key, title) in BIBKEY_OVERRIDE.items():
+        if sc.title.startswith(prefix):
+            return key, title
+    primary = next((x for x in (sc.sources or []) if x.get("kind") != "system_card"), None)
+    return (primary["key"], primary.get("title") or "") if primary else None
+
+
+def bibkey(sc) -> str | None:
+    src = primary_source(sc)
+    return src[0] if src else None
+
+
+def citep(keys) -> str:
+    keys = [k for k in keys if k]
+    return rf"\citep{{{','.join(keys)}}}" if keys else "--"
 
 
 def scenario_keys(s: Summary) -> list[str]:
@@ -236,6 +264,7 @@ def collect(s: Summary) -> dict[str, str]:
             curve = r["best_phys_curve"]
             for n in BEST_TOP:   # P(rank <= N) is 1 once N reaches the number of evaluations
                 m[f"{word}PBestPhysicalTop{TOPWORDS[n]}"] = pct(curve[min(n, len(curve)) - 1])
+            m[f"{word}PBestPhysicalTopHalf"] = pct(curve[len(curve) // 2 - 1])   # rank <= n/2
             m[f"{word}BestPhysicalRankCentral"] = rank(r["best_phys_central"])
             best = min(s.ids_in(PHYS), key=lambda i: (r["central"][i], s.scenarios[i].id))
             m[f"{word}BestPhysicalShort"] = esc(s.scenarios[best].short)
@@ -276,7 +305,25 @@ def collect(s: Summary) -> dict[str, str]:
         m[f"NstarDrawMedian{w}"] = num(float(np.median(meds)) if meds else None)
         m[f"PNstarFiniteMedian{w}"] = pct(float(np.median(o["p_nstar_finite"][idx])) if len(idx) else None)
         m[f"EtaMedian{w}"] = num(float(np.median(s.central["eta"][idx])) if len(idx) else None)
+        # the value of one run in USD, every parameter at its median: over all evaluations of
+        # the group and over those whose result can change the decision
+        evsi = s.central["EVSI"][idx]
+        m[f"MedEVSI{w}"] = usd(_median(evsi))
+        m[f"MedEVSIChanging{w}"] = usd(_median(evsi[evsi > 0]) if (evsi > 0).any() else None)
+        m[f"MedCbuild{w}"] = usd(_median(s.pooled["C_build"][idx]))
     group_medians(s, m)
+    # the evaluations' primary sources: NociteEvaluations is one \nocite per evaluation in id
+    # order (with an unsorted bibliography style the reference number then equals the id);
+    # CiteAll, CiteLLM, CitePhysical and Cite<Domain> are \citep lists in id order
+    order = sorted(range(len(s.scenarios)), key=lambda i: s.scenarios[i].id)
+    m["NociteEvaluations"] = "".join(rf"\nocite{{{bibkey(s.scenarios[i])}}}" for i in order
+                                     if bibkey(s.scenarios[i]))
+    m["CiteAll"] = citep(bibkey(s.scenarios[i]) for i in order)
+    for g in GROUPS:
+        m[f"Cite{GROUP_WORD[g]}"] = citep(bibkey(s.scenarios[i]) for i in order if s.scenarios[i].group == g)
+    for d in DOMAINS:
+        in_domain = [i for i in order if s.scenarios[i].domain == d and s.scenarios[i].group != PHYS]
+        m[f"Cite{camel(DOMAIN_LABEL[d])}"] = citep(bibkey(s.scenarios[i]) for i in in_domain)
     # risk domains, ordered by the median central rank under eta*: Dom<Camel>N, MedRank, MedEtaInd,
     # MedEta, MedStakes, ZeroShare, plus DomainOrder (the labels in that order)
     for d in o["domains"]:

@@ -3,9 +3,9 @@
  "title": "ControlArena before the privileged internal agent deployment",
  "group": "frontier model",
  "agent": "Head of internal deployment security at a frontier model developer who owns the decision to deploy the new model as an autonomous coding and system-administration agent with root access to the developer's own infrastructure.",
- "decision": "Delay the privileged agent deployment and add a control protocol (a trusted-model monitor on every action with an audit budget, deferral of high-suspicion actions to a trusted model, and human review of flagged trajectories) vs deploy the agent with root access and sampled human code review as planned.",
+ "decision": "Delay the privileged agent deployment and add a control protocol with a trusted monitor vs deploy with root access as planned.",
  "theta_definition": "theta=1: the model can complete harmful side tasks (exfiltrating secrets, escalating privileges, disabling a firewall, planting a backdoor) inside legitimate privileged engineering tasks while keeping a trusted monitor's suspicion below the audit threshold at a material rate.",
- "instrument": "A ControlArena evaluation is built from scratch (one privileged-agent setting with sandboxed Linux environments, benign main tasks with programmatic scorers, hand-built harmful side tasks with scorers, an attack policy prompt, and a trusted-model monitor whose audit threshold is calibrated on honest runs) and run once against the candidate model in honest and attack mode.",
+ "instrument": "ControlArena (one privileged-agent setting with benign main tasks, harmful side tasks and a trusted-model monitor), run against the candidate model in honest and attack mode.",
  "attributes": {
   "risk_domain": "loss_of_control",
   "level": null,

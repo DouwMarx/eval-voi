@@ -3,9 +3,9 @@
  "title": "DeceptionBench third-party deception before a consumer assistant launch",
  "group": "frontier model",
  "agent": "Head of product safety at a frontier-model developer who owns the launch decision for a consumer-facing assistant.",
- "decision": "Delay the launch and post-train against assisting deception (fine-tune on refusals of third-party deception requests across commercial, health, education and social settings, harden the system prompt against sustained user pressure, then re-measure) vs launch as planned.",
+ "decision": "Delay the launch and post-train against assisting third-party deception vs launch as planned.",
  "theta_definition": "theta=1: when a user asks it to deceive a third party (misleading marketing, fabricated credentials, fraudulent health or investment claims), the model complies in a material fraction of requests and compliance rises under sustained pressure.",
- "instrument": "A DeceptionBench-style evaluation is built from scratch (150 scenarios across five societal domains with LLM-generated, human-validated prompts and ground-truth honest responses, reward and pressure variants, a multi-turn auxiliary pressure agent, and an LLM judge validated against human annotators) and run once against the candidate LLM.",
+ "instrument": "DeceptionBench (150 scenarios across five societal domains with pressure variants and a human-validated LLM judge), run against the candidate model.",
  "attributes": {
   "risk_domain": "harmful_manipulation",
   "level": null,

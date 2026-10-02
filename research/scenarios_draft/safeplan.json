@@ -3,9 +3,9 @@
  "title": "SafePlan prompt suite before launching an LLM command interface on a service robot",
  "group": "physical AI",
  "agent": "Head of product at a service-robot developer who owns the launch decision for the robot's LLM natural-language command interface.",
- "decision": "Delay the launch of the LLM command interface and add a pre-execution command safety check (a hazard-analysis reasoner that rejects or defers unsafe or underspecified commands before any robot code is generated) vs launch as planned.",
+ "decision": "Delay the launch of the LLM command interface and add a pre-execution command safety check vs launch as planned.",
  "theta_definition": "theta=1: the robot's large language model (LLM) planner, with the safety prompt it would ship with, accepts and generates robot code for at least one command in a defined class of severe hazards (burns, poisoning, falls) to a vulnerable person such as a small child.",
- "instrument": "The SafePlan prompt suite is built from scratch (621 expert-curated natural-language task prompts paired with scene descriptions, labelled safe or unsafe across assistive, navigation and manipulation domains and three complexity levels, plus a scoring script for the accept/reject confusion matrix) and run once against the robot's LLM planner.",
+ "instrument": "The SafePlan prompt suite (621 expert-curated task prompts with scene descriptions, labelled safe or unsafe), run against the robot's LLM planner.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 0,

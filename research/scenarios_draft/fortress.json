@@ -3,9 +3,9 @@
  "title": "FORTRESS before the flagship chat model launch",
  "group": "frontier model",
  "agent": "Head of safeguards at a frontier model developer who owns the public launch decision for a new flagship chat model.",
- "decision": "Delay the launch and add input-output safeguard classifiers plus refusal training targeted at CBRNE, terrorism and illicit-finance requests vs launch as planned.",
+ "decision": "Delay the launch and add safeguard classifiers plus refusal training for CBRNE and terrorism requests vs launch as planned.",
  "theta_definition": "theta=1: single-turn adversarial prompts make the model, with its deployed safeguards, give actionable assistance (synthesis routes, attack planning, fraud methods) on national-security and public-safety requests at a material rate.",
- "instrument": "A FORTRESS-style evaluation is built from scratch (expert red teamers write single-turn adversarial prompts with paired benign prompts and 4 to 7 binary rubric questions across CBRNE, terrorism and illicit-activity domains, calibrated against human labels; a three-model grader panel and a refusal checker are set up) and run once against the candidate chat model with its deployed safeguards.",
+ "instrument": "FORTRESS (expert-written adversarial prompts with paired benign prompts and binary rubrics across CBRNE, terrorism and illicit activity), run against the candidate chat model with its deployed safeguards.",
  "attributes": {
   "risk_domain": "societal_harm",
   "level": null,

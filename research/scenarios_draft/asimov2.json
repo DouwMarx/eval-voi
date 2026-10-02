@@ -3,9 +3,9 @@
  "title": "ASIMOV-2.0 before shipping a VLM robot planner",
  "group": "physical AI",
  "agent": "Head of safety at a humanoid-robot developer who owns the release decision for the vision-language-model (VLM) high-level planner.",
- "decision": "Delay the planner release and run safety post-training on embodiment-constraint data plus add a deterministic protective-stop layer under the planner vs release the planner as planned.",
+ "decision": "Delay the planner release and add safety post-training plus a protective-stop layer vs release as planned.",
  "theta_definition": "theta=1: the planner fails to recognise latent physical danger, misjudges injury severity or violates embodiment constraints (payload, gripper geometry) in everyday scenes, so it would command or fail to prevent injury-causing actions.",
- "instrument": "An ASIMOV-2.0-style evaluation is built from scratch (injury-report-grounded text scenarios, generated videos of safe-to-unsafe transitions and image-plus-constraint pairs produced by a generator-critic pipeline, labelled by human raters and consensus-filtered) and run once against the candidate planner by question answering.",
+ "instrument": "ASIMOV-2.0 (injury-report-grounded scenarios, generated videos and image-plus-constraint pairs labelled by human raters), run against the candidate planner by question answering.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 3,

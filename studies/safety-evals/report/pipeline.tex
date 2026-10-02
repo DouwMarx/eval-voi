@@ -16,8 +16,8 @@
   \draw[box] (2.75,-1.55) rectangle (8.25, 0.95);
   \draw[box] (8.65,-1.55) rectangle (11.15, 0.95);
   \draw[box] (11.55,-1.55) rectangle (13.95, 0.95);
-  \node[title] at (1.175, 0.98) {1. Choose the\\evaluations};
-  \node[title] at (5.50, 0.98) {2. Elicit the decision model's parameters\\from an ensemble of \voiNMembers{} LLMs};
+  \node[title] at (1.175, 0.98) {1. Choose\\evaluations};
+  \node[title] at (5.50, 0.98) {2. Elicit decision model parameters\\from an ensemble of \voiNMembers{} LLMs};
   \node[title] at (9.90, 0.98) {3. Monte Carlo\\estimates};
   \node[title] at (12.75, 0.98) {4. Judge the value of\\physical-AI evaluations};
   % 1. the two groups
@@ -35,12 +35,12 @@
   \draw[->] (th) |- (u);
   \draw[->] (a) |- (u);
   \node[anchor=south east] at ($(u.west)+(-0.05,0.04)$) {$B,\,K$};
-  \node[anchor=south, font=\tiny, text=gray!40!black] at (5.50, -1.50)
-    {each parameter as its 5th, 50th and 95th percentiles, with reasoning};
+  \node[anchor=south, font=\tiny, text=gray!40!black, align=center, text width=5.2cm] at (5.50, -1.50)
+    {5th, 50th and 95th percentiles per parameter};
   % 3. Monte Carlo
-  \node[txt] at (9.90, -0.35) {fit a distribution\\per answer, then\\\voiDraws{} draws\\[3pt] $\eta^*=\EVSI^*/C$ and\\$\eta=\EVSI/C$ per draw};
+  \node[txt] at (9.90, -0.35) {fit a distribution per\\elicited parameter set,\\then \voiDraws{} draws\\[3pt] $\eta^*=\EVSI^*/C$ and\\$\eta=\EVSI/C$};
   % 4. judge
-  \node[txt] at (12.75, -0.35) {chance that a physical-AI\\evaluation beats an\\LLM evaluation\\[3pt] rank per evaluation\\and its spread};
+  \node[txt] at (12.75, -0.35) {chance that a physical-AI\\evaluation beats an\\LLM evaluation\\[3pt] rank distribution\\per evaluation};
   % flow
   \draw[flow] (2.35,-0.30) -- (2.75,-0.30);
   \draw[flow] (8.25,-0.30) -- (8.65,-0.30);

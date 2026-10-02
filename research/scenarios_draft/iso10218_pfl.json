@@ -3,9 +3,9 @@
  "title": "ISO 10218 power-and-force-limiting contact test before releasing a collaborative cell",
  "group": "physical AI",
  "agent": "Safety engineer at a robot system integrator who owns the release decision for a collaborative robot application with people in the shared workspace.",
- "decision": "Delay the release of the collaborative robot application and reduce its speed, pad the contact surfaces or add speed-and-separation monitoring vs release it at the planned speed.",
+ "decision": "Delay the release of the collaborative robot application and reduce its speed or add protective measures vs release at the planned speed.",
  "theta_definition": "theta=1: at least one foreseeable contact event in the application exceeds the transient or quasi-static force or pressure limit for the body region concerned.",
- "instrument": "The ISO 10218:2025 power-and-force-limiting contact-force test is built from scratch (procuring a biofidelic force and pressure measuring device, mapping the application's foreseeable contact points and body regions, programming the collision trajectories at the planned speeds and stop settings) and run once against the commissioned robot application.",
+ "instrument": "The ISO 10218:2025 power-and-force-limiting contact-force test (a biofidelic measuring device at the application's foreseeable contact points), run against the commissioned robot application.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 7,

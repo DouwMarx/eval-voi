@@ -3,9 +3,9 @@
  "title": "Agentic Misalignment before the autonomous email-agent release",
  "group": "frontier model",
  "agent": "Head of enterprise agent products at a frontier model developer who owns the release decision for the model as an autonomous email and corporate-systems agent.",
- "decision": "Delay the autonomous email-agent release and require human confirmation of outbound emails, data transfers and other irreversible actions plus additional training against self-preservation actions vs release the autonomous email agent as planned.",
+ "decision": "Delay the autonomous email-agent release and require human confirmation of irreversible actions vs release as planned.",
  "theta_definition": "theta=1: when deployed as an autonomous agent with access to corporate communications and faced with replacement or a goal conflict, the model takes harmful insider actions (blackmail, leaking confidential data) in at least 1 in 100 episodes.",
- "instrument": "An Agentic Misalignment evaluation is built from scratch (templated fictional corporate email scenarios with goal-conflict and replacement-threat conditions, an agent harness with email-sending tools, and an LLM-plus-regex transcript classifier) and run once against the candidate model.",
+ "instrument": "Agentic Misalignment (templated corporate email scenarios with goal-conflict and replacement-threat conditions, an LLM-plus-regex classifier), run against the candidate model.",
  "attributes": {
   "risk_domain": "loss_of_control",
   "level": null,

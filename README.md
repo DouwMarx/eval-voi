@@ -99,7 +99,10 @@ metric), eta_run = EVSI/C_run, and the break-even run count n* = C_build /
    pages); `scripts/build_paper.sh studies/safety-evals/report/extended`
    builds the extended report. `report/build_refs.py` rewrites `refs.bib`
    from the cited keys first and fails on a key without a DOI, arXiv id or
-   URL. The PDFs are build products and are not committed.
+   URL. References are numbered in citation order and the macro
+   `\voiNociteEvaluations` (generated/macros.tex) cites the 30 evaluations'
+   primary sources first, so reference number = evaluation id in both
+   documents. The PDFs are build products and are not committed.
 
 If HTTPS to OpenRouter fails with a certificate error under uv's Python,
 set `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt` in `.env`.

@@ -3,9 +3,9 @@
  "title": "IIHS pedestrian AEB track protocol before releasing a new AEB calibration",
  "group": "physical AI",
  "agent": "Head of active-safety validation at a vehicle manufacturer who owns the release decision for a new pedestrian automatic emergency braking (AEB) calibration.",
- "decision": "Delay the release of the new pedestrian AEB calibration and rework the camera-radar pedestrian detection and brake-activation timing for night crossing and parallel scenarios vs release as planned.",
+ "decision": "Delay the release of the new pedestrian AEB calibration and rework its night-time detection and braking vs release as planned.",
  "theta_definition": "theta=1: the vehicle's pedestrian AEB does not brake to avoid or substantially slow before an adult or child pedestrian crossing or standing ahead of it at 20 to 60 km/h, by day or in the dark, so the vehicle strikes the person.",
- "instrument": "An Insurance Institute for Highway Safety (IIHS)-style pedestrian automatic emergency braking (AEB) track protocol is built from scratch (articulated adult and child pedestrian dummies on a surfboard target platform, a static adult dummy, an instrumented closed track with a covered section for night runs below 1 lux, GPS/inertial instrumentation, a trained driver, and day and night sessions with high and low beams) and run once against the production vehicle carrying the new calibration.",
+ "instrument": "The IIHS pedestrian automatic emergency braking (AEB) track protocol (pedestrian dummies on an instrumented closed track, day and night runs), run against the production vehicle carrying the new calibration.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 8,

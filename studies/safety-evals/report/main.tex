@@ -2,7 +2,12 @@
 
 \usepackage{tikz} % before corl_2026, so its colours are defined with xcolor
 \usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric,calc,backgrounds}
-\usepackage{corl_2026} % anonymous submission mode (no option)
+\usepackage[nonatbib]{corl_2026} % anonymous submission mode; natbib loaded below
+% The template's style sorts references alphabetically. We number them in citation order and
+% cite the 30 evaluations' primary sources first (\voiNociteEvaluations, right after
+% \begin{document}), so reference number = evaluation id throughout the paper.
+\usepackage[square,numbers]{natbib}
+\bibliographystyle{unsrtnat}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb}
@@ -21,7 +26,7 @@
 \renewcommand{\@notice}{\@float{noticebox}[b]\footnotesize\@noticestring\end@float}
 \makeatother
 
-\title{Are physical-AI safety evaluations worth the money? A value-of-information comparison with LLM safety evaluations}
+\title{Do physical-AI safety evaluations pay for themselves? A value-of-information comparison with LLM safety evaluations}
 
 \author{
   Anonymous Author(s)\\
@@ -30,6 +35,7 @@
 }
 
 \begin{document}
+\voiNociteEvaluations % the evaluations are references 1 to \voiNScenarios, in id order
 \maketitle
 
 \input{sections/abstract.tex}

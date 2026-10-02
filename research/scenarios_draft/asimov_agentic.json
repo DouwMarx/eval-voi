@@ -3,9 +3,9 @@
  "title": "ASIMOV-Agentic before the humanoid orchestrator release",
  "group": "physical AI",
  "agent": "Head of robotics safety at a robotics foundation-model developer who owns the release decision for the embodied-reasoning agent that orchestrates a vision-language-action (VLA) model on humanoid and bi-arm robots working near people.",
- "decision": "Delay the orchestrator release and add human-proximity fine-tuning plus a partner requirement to run it only behind a certified deterministic protective-stop layer, vs release the orchestrator to robot partners as planned, with each integrator's own safeguards as the only check on its stop decisions.",
+ "decision": "Delay the orchestrator release and add human-proximity fine-tuning plus a required protective-stop layer vs release as planned.",
  "theta_definition": "theta=1: under partner deployment conditions, the orchestrating agent fails to call a protective stop in more than 5% of events in which a person comes within 1 m of the robot.",
- "instrument": "An ASIMOV-Agentic-style evaluation is built from scratch (sensorized recordings of people approaching a head-mounted stereo camera with tracked ground-truth distances, generated constraint-image pairs with human labels, safety-message episodes, vision-language-action (VLA) feasibility episodes with an emulated VLA, ambiguity and instrument-reading items, and scoring code). It is run once against the candidate orchestrator on single stereo frames and on five-frame windows sampled 5 s apart, with a robot_stop tool.",
+ "instrument": "ASIMOV-Agentic (sensorised recordings of people approaching a camera, constraint-image pairs, safety-message and VLA feasibility episodes), run against the candidate orchestrator with a robot_stop tool.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 2,

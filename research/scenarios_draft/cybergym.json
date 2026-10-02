@@ -3,9 +3,9 @@
  "title": "CyberGym vulnerability reproduction before the general release of an agentic model",
  "group": "frontier model",
  "agent": "Release lead at a frontier model developer who owns the general-availability release decision for the next agentic coding model.",
- "decision": "Delay the release and ship it only behind cyber safeguards (a probe on internal activations that escalates flagged traffic to a trained classifier blocking offensive and dual-use cyber work, with a verification programme that exempts vetted defenders and enterprise customers) vs release as planned with the previous model's default safeguards.",
+ "decision": "Delay the release and ship it behind cyber-misuse safeguards vs release as planned.",
  "theta_definition": "theta=1: run as an agent with cyber safeguards off, the model performs autonomous vulnerability research on real open-source software at a level that gives practical uplift to an attacker.",
- "instrument": "A CyberGym-style targeted vulnerability-reproduction evaluation is built from scratch (containerised pre-patch and post-patch builds of real open-source projects compiled with sanitizers, text descriptions of each vulnerability, a proof-of-concept submission and verification server, an agent scaffold) and run once, one attempt per task with cyber safeguards disabled, against the candidate model.",
+ "instrument": "CyberGym (containerised pre-patch and post-patch builds of real open-source projects, proof-of-concept verification), run against the candidate model with cyber safeguards disabled, one attempt per task.",
  "attributes": {
   "risk_domain": "cyber",
   "level": null,

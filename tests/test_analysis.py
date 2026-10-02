@@ -646,7 +646,8 @@ def test_value_cost_panel_labels_do_not_overlap_and_the_arrow_is_orthogonal():
     n_pos, n_zero = 22, 17
     c = np.concatenate([10 ** rng.uniform(4.4, 6.3, n_pos), 10 ** rng.uniform(5.0, 6.0, n_zero)])
     v = np.concatenate([10 ** rng.uniform(5.0, 8.3, n_pos), np.zeros(n_zero)])
-    scen = [SimpleNamespace(id=i + 1, group=PHYS if i % 3 == 0 else LLM) for i in range(n_pos + n_zero)]
+    scen = [SimpleNamespace(id=i + 1, group=PHYS if i % 3 == 0 else LLM,
+                            domain="physical_harm" if i % 3 == 0 else "cyber") for i in range(n_pos + n_zero)]
     s = SimpleNamespace(central={"C": c, "EVSI": v}, scenarios=scen)
     with plt.rc_context(figures.STYLE):
         fig, ax = plt.subplots(figsize=(figures.FIG_W / 2, figures.FIG_W / 2 + 0.3))

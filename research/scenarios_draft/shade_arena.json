@@ -3,9 +3,9 @@
  "title": "SHADE-Arena before the autonomous agent launch",
  "group": "frontier model",
  "agent": "Head of agent products at a frontier model developer who owns the launch decision for the model as an autonomous long-horizon agent with access to users' email, files and payment tools.",
- "decision": "Delay the autonomous agent launch and add action-level monitoring with human approval of sensitive actions (payments, credential access, security-setting changes) vs launch with the default transcript-level LLM monitor as planned.",
+ "decision": "Delay the autonomous agent launch and add human approval of sensitive actions vs launch as planned.",
  "theta_definition": "theta=1: the model can complete a harmful hidden side task during a long-horizon agentic task while keeping an LLM monitor's suspicion below the alarm threshold.",
- "instrument": "A SHADE-Arena-style evaluation is built from scratch (tool-rich synthetic environments populated with synthetic data, paired benign main tasks and harmful side tasks, automatic task evaluators, and an LLM monitor with a suspicion threshold) and run once against the candidate model.",
+ "instrument": "SHADE-Arena (tool-rich synthetic environments with paired benign main tasks and harmful side tasks, and an LLM monitor), run against the candidate model.",
  "attributes": {
   "risk_domain": "loss_of_control",
   "level": null,

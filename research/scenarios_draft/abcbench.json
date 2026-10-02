@@ -3,9 +3,9 @@
  "title": "ABC-Bench before a frontier model release",
  "group": "frontier model",
  "agent": "Deployment lead at a frontier-model developer who owns the model release decision.",
- "decision": "Delay the release and restrict agentic biology tooling (refuse synthesis-screening-evasion requests outright and put DNA fragment design and lab-automation scripting behind vetted access for credentialed researchers) vs release on schedule.",
+ "decision": "Delay the release and put agentic biology tooling behind vetted access vs release on schedule.",
  "theta_definition": "theta=1: an agent built on the model can design orderable DNA fragments of a hazardous sequence that pass commercial synthesis screening and reassemble into the target, so it could stand in for a trained human biologist at those steps.",
- "instrument": "ABC-Bench is built from scratch (three agentic biology tasks are written with algorithmic scoring criteria, an agent scaffold with bioinformatics and liquid-handling-simulator tools is assembled, and a PhD-biologist human baseline is collected) and run once against an agent built on the candidate model.",
+ "instrument": "ABC-Bench (three agentic biology tasks with algorithmic scoring and a PhD-biologist baseline), run against an agent built on the candidate model.",
  "attributes": {
   "risk_domain": "cbrn",
   "level": null,

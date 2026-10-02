@@ -3,9 +3,9 @@
  "title": "Petri alignment audit before the consumer assistant launch",
  "group": "frontier model",
  "agent": "Head of model behavior at a frontier-model developer who owns the consumer assistant launch decision.",
- "decision": "Delay the consumer launch by one post-training cycle to add honesty and anti-sycophancy training and re-audit vs launch the model as planned.",
+ "decision": "Delay the consumer launch by one post-training cycle for honesty and anti-sycophancy training vs launch as planned.",
  "theta_definition": "theta=1: in realistic multi-turn conversations the candidate model deceives users at its own initiative, sycophantically endorses false user claims or encourages serious user delusions at a rate materially above the developer's current production model.",
- "instrument": "Petri is built from scratch (an auditor agent prompt and tool set, a judge rubric of 36 scoring dimensions, 111 seed instructions and a transcript viewer on the Inspect framework, as in the October 2025 release) and run once against the candidate consumer model with all 111 seeds and a fixed auditor and judge.",
+ "instrument": "Petri (an auditor agent, 111 seed instructions and a 36-dimension judge rubric, as released in October 2025), run against the candidate consumer model.",
  "attributes": {
   "risk_domain": "harmful_manipulation",
   "level": null,

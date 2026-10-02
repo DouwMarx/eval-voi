@@ -3,9 +3,9 @@
  "title": "LAB-Bench bio subset before a frontier model release",
  "group": "frontier model",
  "agent": "Deployment lead at a frontier-model developer who owns the model release decision.",
- "decision": "Delay the release and deploy biology misuse safeguards (input and output classifiers on wet-lab protocol and cloning queries, with vetted access for life-science users) vs release as planned.",
+ "decision": "Delay the release and add biology misuse safeguards vs release as planned.",
  "theta_definition": "theta=1: the model gives PhD-biologist-level wet-lab protocol troubleshooting and multi-step molecular cloning planning, so it could substitute for a trained collaborator for an actor without that training.",
- "instrument": "The LAB-Bench bio subset (ProtocolQA, CloningScenarios, SeqQA, FigQA) is built from scratch (contracted PhD biologists write and review protocol-troubleshooting, cloning-scenario, sequence and figure questions, and a PhD-level human baseline is collected) and run once against the candidate model.",
+ "instrument": "The LAB-Bench bio subset (ProtocolQA, CloningScenarios, SeqQA, FigQA, with a PhD-level human baseline), run against the candidate model.",
  "attributes": {
   "risk_domain": "cbrn",
   "level": null,

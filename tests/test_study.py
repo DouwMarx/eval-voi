@@ -142,8 +142,8 @@ def test_templates_keep_the_two_prompts_apart():
         assert field in instrument
     assert "$decision_context" not in instrument
     # one perspective, society, stated in the decision prompt's text; no developer alternative
-    assert "Value B and K for society: the harm avoided and the welfare forgone" in decision
-    assert "valued for society" in decision and "developer:" not in decision
+    assert "Value it for society: the harm avoided" in decision
+    assert "Value it for society" in decision and "developer:" not in decision
     for text in (decision, instrument):
         # the action is mitigate, never respond; nothing is flagged
         assert re.search(r"\brespond", text, re.IGNORECASE) is None
@@ -195,7 +195,7 @@ def test_every_rendered_prompt_keeps_the_two_prompts_apart():
         dec = elicit.render_decision_prompt(dec_t, sc, tv)
         ins = elicit.render_prompt(ins_t, sc, tv)
         assert sc["instrument"] not in dec and sc["instrument_context"] not in dec and sc["title"] not in dec
-        assert sc["decision_context"] in dec and "valued for society" in dec
+        assert sc["decision_context"] in dec and "Value it for society" in dec
         assert sc["instrument_context"] in ins and sc["decision_context"] not in ins
         assert "[" not in dec and "[" not in ins   # no citation markers reach either prompt
         # the instrument prompt carries no stakes words outside the scenario's own text
@@ -282,7 +282,7 @@ def test_dry_run_plans_both_stages_and_calls_nothing(monkeypatch, capsys, fresh_
         "first pending prompt of stage instrument")
     assert "(group '1', representative scenario 1," in dec and "(scenario 1," in ins
     assert sc["agent"] in dec and sc["decision"] in dec and sc["decision_context"] in dec
-    assert "valued for society" in dec and "Anchor" not in dec and "context mode: curated" in dec
+    assert "Value it for society" in dec and "Anchor" not in dec and "context mode: curated" in dec
     assert sc["instrument"] not in dec and sc["title"] not in dec
     assert sc["title"] in ins and sc["instrument"] in ins and sc["instrument_context"] in ins
     assert "Anchor" not in ins and "C_build" in ins and "$context" not in ins
@@ -299,7 +299,7 @@ def test_dry_run_final_noctx_decision_stage_only(capsys, fresh_study):
     assert "not planned (--stage decision)" in out
     assert "first pending prompt of stage decision" in out
     assert "first pending prompt of stage instrument" not in out
-    assert "Background facts" not in out and "valued for society" in out
+    assert "Background facts" not in out and "Value it for society" in out
     assert not list(fresh_study.glob("voi.db*"))
 
 

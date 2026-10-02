@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from voi_rank.analysis.macros import esc, num, pct, rank, usd
+from voi_rank.analysis.macros import esc, num, pct, primary_source, rank, usd
 from voi_rank.analysis.summary import (
     DOMAIN_LABEL,
     ERROR_CLASSES,
@@ -74,15 +74,14 @@ def domains_table(s: Summary) -> str:
 
 
 def provenance_table(s: Summary) -> str:
-    """Per evaluation (by id), the title of its primary source (the first
-    source that is not a system card) and whether system cards are among its
-    sources. Titles are the drafts' own, so no citation key is invented."""
+    """Per evaluation (by id), the title of its primary source (macros.primary_source,
+    the source the documents cite for it) and whether system cards are among
+    its sources. Titles are the drafts' own, so no citation key is invented."""
     rows = []
     for sc in sorted(s.scenarios, key=lambda x: x.id):
-        srcs = sc.sources or []
-        primary = next((x for x in srcs if x.get("kind") != "system_card"), None)
-        cards = any(x.get("kind") == "system_card" for x in srcs)
-        title = (primary or {}).get("title") or "--"
+        primary = primary_source(sc)
+        cards = any(x.get("kind") == "system_card" for x in (sc.sources or []))
+        title = primary[1] if primary and primary[1] else "--"
         rows.append([str(sc.id), esc(sc.short), esc(title) + (" (and system cards)" if cards else "")])
     return tabular(r"rlp{0.62\linewidth}", ["id", "evaluation", "primary source"], rows)
 

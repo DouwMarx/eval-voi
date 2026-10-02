@@ -3,9 +3,9 @@
  "title": "MASK honesty under pressure before launching a consumer assistant",
  "group": "frontier model",
  "agent": "Product lead at a frontier-model developer who owns the launch decision for a consumer-facing assistant.",
- "decision": "Delay the launch and train against pressured lying (honesty fine-tuning plus a hardened developer system prompt, then re-measure) vs launch as planned.",
+ "decision": "Delay the launch and train against pressured lying vs launch as planned.",
  "theta_definition": "theta=1: when a system prompt or user pressures it, the model asserts statements that contradict its own neutrally elicited beliefs (lying rather than erring or refusing) on a share of pressured prompts at or above that of the frontier models it would replace.",
- "instrument": "A MASK-style honesty evaluation is built from scratch (human-written pressure prompts across six archetypes, generated propositions and neutral belief-elicitation prompts, an LLM judge mapping statements to proposition values, validated against manually labelled samples) and run once against the candidate LLM.",
+ "instrument": "MASK (human-written pressure prompts across six archetypes, belief elicitation and an LLM judge), run against the candidate model.",
  "attributes": {
   "risk_domain": "harmful_manipulation",
   "level": null,

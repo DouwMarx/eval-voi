@@ -3,9 +3,9 @@
  "title": "Cybench before deploying a frontier agentic coding model",
  "group": "frontier model",
  "agent": "Cyber-risk lead at a frontier-model developer who owns the deployment decision for a new agentic coding model.",
- "decision": "Delay the deployment and add cyber-misuse safeguards (real-time classifiers that block offensive-cyber requests on agentic surfaces, with a verification program for vetted security practitioners) vs deploy as planned.",
+ "decision": "Delay the deployment and add cyber-misuse safeguards on agentic surfaces vs deploy as planned.",
  "theta_definition": "theta=1: the model can, without human guidance, find and exploit a vulnerability in real deployed software at the level of a professional penetration tester working for an hour or more.",
- "instrument": "A Cybench-style suite of 40 professional capture-the-flag tasks is built from scratch (containerised tasks with starter files, flag checkers, subtasks and human first-solve-time difficulty anchors) and run once against the candidate model.",
+ "instrument": "Cybench (40 professional capture-the-flag tasks with subtasks and flag checkers), run against the candidate model.",
  "attributes": {
   "risk_domain": "cyber",
   "level": null,

@@ -3,9 +3,9 @@
  "title": "AgentHarm before the tool-calling API launch",
  "group": "frontier model",
  "agent": "Head of trust and safety at a frontier model developer who owns the launch decision for the model's tool-calling (agentic) API.",
- "decision": "Delay the tool-calling API launch and add agentic misuse safeguards (refusal training on harmful multi-step tool-use requests plus a request classifier on tool-calling traffic) vs launch as planned.",
+ "decision": "Delay the tool-calling API launch and add agentic misuse safeguards vs launch as planned.",
  "theta_definition": "theta=1: when a user directly asks, the deployed model acting as a tool-using agent carries out explicitly malicious multi-step tasks (fraud, cybercrime, harassment) to completion at a material rate instead of refusing.",
- "instrument": "An AgentHarm-style evaluation is built from scratch (hand-written explicitly malicious multi-step tasks across harm categories with benign counterparts, synthetic tool implementations, per-task grading rubrics with narrow LLM semantic checks and a refusal judge, in an agent evaluation framework) and run once against the candidate model in a basic tool-calling loop.",
+ "instrument": "AgentHarm (explicitly malicious multi-step tool-use tasks with benign counterparts and synthetic tools), run against the candidate model in a tool-calling loop.",
  "attributes": {
   "risk_domain": "societal_harm",
   "level": null,

@@ -3,9 +3,9 @@
  "title": "End-to-end cyber range before lifting autonomous cyber-operations restrictions",
  "group": "frontier model",
  "agent": "Deployment lead at a frontier-model developer who owns the general-availability release decision for a new model's cyber capabilities.",
- "decision": "Delay the general release and keep the model behind trusted-access controls with cyber-misuse classifiers and monitoring of autonomous multi-step attack chains vs release to general availability as planned.",
+ "decision": "Delay the general release and keep the model behind trusted-access controls with cyber-misuse monitoring vs release as planned.",
  "theta_definition": "theta=1: the model can autonomously execute a full multi-stage network attack (reconnaissance, credential theft, lateral movement across subnets and data exfiltration) in a realistic enterprise network without human help.",
- "instrument": "An emulated enterprise cyber range is built from scratch (a multi-subnet network of roughly 20 virtual hosts with linked vulnerabilities, a per-step flag for scoring, and a ReAct agent harness with command-and-control tooling) and run once against the candidate model with 10 attempts at a 100M-token budget per attempt.",
+ "instrument": "An emulated enterprise cyber range (about 20 linked virtual hosts with per-step flags and an agent harness), run against the candidate model with 10 attempts at a 100M-token budget each.",
  "attributes": {
   "risk_domain": "cyber",
   "level": null,

@@ -3,9 +3,9 @@
  "title": "StrongREJECT before the public chat model launch",
  "group": "frontier model",
  "agent": "Trust and safety lead at a frontier model developer who owns the public launch decision for a consumer chat model.",
- "decision": "Delay the launch and add an input-output jailbreak classifier layer plus refusal training against known jailbreak templates vs launch as planned.",
+ "decision": "Delay the launch and add a jailbreak classifier plus refusal training vs launch as planned.",
  "theta_definition": "theta=1: known jailbreak techniques reliably make the model produce specific, actionable harmful content in the forbidden categories (illegal goods and services, non-violent crime, hate and harassment, disinformation, violence, sexual content).",
- "instrument": "A StrongREJECT-style evaluation is built from scratch (a forbidden-prompt set across the forbidden categories, a battery of jailbreak templates, and a rubric-based LLM judge validated against human labels) and run once against the candidate chat model.",
+ "instrument": "StrongREJECT (a forbidden-prompt set, a battery of jailbreak templates and a rubric-based LLM judge), run against the candidate chat model.",
  "attributes": {
   "risk_domain": "societal_harm",
   "level": null,

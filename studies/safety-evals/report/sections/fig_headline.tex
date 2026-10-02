@@ -1,8 +1,8 @@
 % Shared by main.tex and extended/main.tex. Lines marked % CHECK-DATA depend on the data.
 \begin{figure}[t]
   \centering
-  \ifextended\includegraphics[width=\linewidth]{fig_headline.pdf}\else\includegraphics[width=0.5\linewidth]{fig_headline_small.pdf}\fi
-  \caption{Value of one run against the cost $C$ to build and run it, every parameter at its median\ifextended{} (labels are evaluation ids, listed in Table~\ref{tab:scenarios})\fi. (a) $\EVSIst$, the value to an undecided decision maker, all \voiNScenarios{} evaluations. (b) EVSI at the elicited prior, the \voiNChangesPhysical{} physical-AI and \voiNChangesLLM{} LLM evaluations whose result can change the decision; the other \voiNZeroPhysical{} and \voiNZeroLLM{} are worth zero. Dashed lines: constant value per dollar; up and left is better. % CHECK-DATA
+  \ifextended\includegraphics[width=\linewidth]{fig_headline.pdf}\else\includegraphics[width=\linewidth]{fig_headline_small.pdf}\fi
+  \caption{Value of one run against the cost $C$ to build and run it, every parameter at its median across the members\ifextended{} (labels are evaluation ids, listed in Table~\ref{tab:scenarios})\fi. (a) $\EVSIst$, the value to an undecided developer, all \voiNScenarios{} evaluations. (b) EVSI at the elicited prior: the \voiNChangesPhysical{} physical-AI and \voiNChangesLLM{} LLM evaluations whose result can change the decision; the other \voiNZeroPhysical{} and \voiNZeroLLM{} are worth zero. Colour: risk domain; triangles: physical AI. Dashed lines: constant value per dollar; up and left is better. % CHECK-DATA
   }
   \label{fig:headline}
 \end{figure}

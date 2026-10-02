@@ -3,9 +3,9 @@
  "title": "RedVLA physical red teaming before a VLA manipulation policy release",
  "group": "physical AI",
  "agent": "Head of robot learning at a vision-language-action (VLA) model developer who owns the release decision for a fine-tuned manipulation policy checkpoint shipped to customer robots.",
- "decision": "Delay the checkpoint release and train a runtime guard model on the discovered failure scenes plus safety fine-tuning on hazard-object scenes vs release the checkpoint as planned.",
+ "decision": "Delay the checkpoint release and add a runtime guard plus safety fine-tuning vs release as planned.",
  "theta_definition": "theta=1: with a plausibly placed hazard object in its workspace, the manipulation policy grasps a knife or other sharp tool, collides with or topples placed objects, or puts a flammable item on a heat source, and the behaviour reproduces on the physical robot.",
- "instrument": "A RedVLA-style physical red-teaming evaluation is built from scratch (a risk-object library and binary safety predicates, risk scenes placed by annotators in a simulator annotation tool at critical interaction regions of benign trajectories, gradient-free pose optimisation on policy feedback, and a small physical-robot reproduction of found scenes) and run once against the candidate VLA checkpoint.",
+ "instrument": "RedVLA physical red teaming (risk scenes placed in simulation, gradient-free pose optimisation, a small physical-robot reproduction of found scenes), run against the candidate VLA checkpoint.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 4,

@@ -2,9 +2,9 @@
  {
   "title": "CyberGym vulnerability reproduction before the general release of an agentic model",
   "agent": "Release lead at a frontier model developer who owns the general-availability release decision for the next agentic coding model.",
-  "decision": "Delay the release and ship it only behind cyber safeguards (a probe on internal activations that escalates flagged traffic to a trained classifier blocking offensive and dual-use cyber work, with a verification programme that exempts vetted defenders and enterprise customers) vs release as planned with the previous model's default safeguards.",
+  "decision": "Delay the release and ship it behind cyber-misuse safeguards vs release as planned.",
   "theta_definition": "theta=1: run as an agent with cyber safeguards off, the model performs autonomous vulnerability research on real open-source software at a level that gives practical uplift to an attacker.",
-  "instrument": "A CyberGym-style targeted vulnerability-reproduction evaluation is built from scratch (containerised pre-patch and post-patch builds of real open-source projects compiled with sanitizers, text descriptions of each vulnerability, a proof-of-concept submission and verification server, an agent scaffold) and run once, one attempt per task with cyber safeguards disabled, against the candidate model.",
+  "instrument": "CyberGym (containerised pre-patch and post-patch builds of real open-source projects, proof-of-concept verification), run against the candidate model with cyber safeguards disabled, one attempt per task.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cyber",
@@ -160,9 +160,9 @@
  {
   "title": "ExploitGym before general release of an agentic LLM",
   "agent": "Cyber-risk lead at a frontier model developer who owns the general-release decision for an agentic coding model.",
-  "decision": "Delay the general release and restrict exploit-development capability to identity-verified security professionals (request classifiers on exploit-chain requests, a verified-access tier, usage monitoring) vs release as planned.",
+  "decision": "Delay the general release and restrict exploit-development capability to verified security professionals vs release as planned.",
   "theta_definition": "theta=1: the model, run as an agent in its recommended coding scaffold, can turn known vulnerabilities in widely deployed software into working exploits that achieve unauthorized code execution on a substantial fraction of real targets, including some protected by standard mitigations.",
-  "instrument": "ExploitGym is built from scratch (898 real, patched vulnerabilities from OSS-Fuzz projects, the V8 engine and the Linux kernel, each packaged as a containerised target with a proof-of-vulnerability input, a dynamically generated flag and an agent judge) and run once against the candidate model in its recommended coding scaffold with a two-hour limit per task.",
+  "instrument": "ExploitGym (898 real patched vulnerabilities as containerised targets with an agent judge), run against the candidate model in its coding scaffold with a two-hour limit per task.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cyber",
@@ -246,9 +246,9 @@
  {
   "title": "Virology Capabilities Test before releasing a multimodal LLM",
   "agent": "Deployment lead at a frontier model developer who owns the release decision for a new multimodal assistant.",
-  "decision": "Delay the model release and add stronger biology misuse safeguards (misuse classifiers plus restricted access for virology troubleshooting queries) vs release as planned.",
+  "decision": "Delay the release and add stronger biology misuse safeguards vs release as planned.",
   "theta_definition": "theta=1: the model troubleshoots practical virology wet-lab protocols at least as well as expert virologists working inside their own specialty, so a person attempting hands-on work with dangerous pathogens would get meaningful troubleshooting help from it.",
-  "instrument": "The Virology Capabilities Test is built from scratch (recruiting and onboarding PhD-level virologists, commissioning image-based laboratory troubleshooting questions, two-stage expert review, non-expert screening and expert baselining) and run once against the candidate model.",
+  "instrument": "The Virology Capabilities Test (expert-written image-based laboratory troubleshooting questions with an expert baseline), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cbrn",
@@ -308,9 +308,9 @@
  {
   "title": "End-to-end cyber range before lifting autonomous cyber-operations restrictions",
   "agent": "Deployment lead at a frontier-model developer who owns the general-availability release decision for a new model's cyber capabilities.",
-  "decision": "Delay the general release and keep the model behind trusted-access controls with cyber-misuse classifiers and monitoring of autonomous multi-step attack chains vs release to general availability as planned.",
+  "decision": "Delay the general release and keep the model behind trusted-access controls with cyber-misuse monitoring vs release as planned.",
   "theta_definition": "theta=1: the model can autonomously execute a full multi-stage network attack (reconnaissance, credential theft, lateral movement across subnets and data exfiltration) in a realistic enterprise network without human help.",
-  "instrument": "An emulated enterprise cyber range is built from scratch (a multi-subnet network of roughly 20 virtual hosts with linked vulnerabilities, a per-step flag for scoring, and a ReAct agent harness with command-and-control tooling) and run once against the candidate model with 10 attempts at a 100M-token budget per attempt.",
+  "instrument": "An emulated enterprise cyber range (about 20 linked virtual hosts with per-step flags and an agent harness), run against the candidate model with 10 attempts at a 100M-token budget each.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cyber",
@@ -450,9 +450,9 @@
  {
   "title": "LAB-Bench bio subset before an LLM release",
   "agent": "Deployment lead at a frontier-model developer who owns the model release decision.",
-  "decision": "Delay the release and deploy biology misuse safeguards (input and output classifiers on wet-lab protocol and cloning queries, with vetted access for life-science users) vs release as planned.",
+  "decision": "Delay the release and add biology misuse safeguards vs release as planned.",
   "theta_definition": "theta=1: the model gives PhD-biologist-level wet-lab protocol troubleshooting and multi-step molecular cloning planning, so it could substitute for a trained collaborator for an actor without that training.",
-  "instrument": "The LAB-Bench bio subset (ProtocolQA, CloningScenarios, SeqQA, FigQA) is built from scratch (contracted PhD biologists write and review protocol-troubleshooting, cloning-scenario, sequence and figure questions, and a PhD-level human baseline is collected) and run once against the candidate model.",
+  "instrument": "The LAB-Bench bio subset (ProtocolQA, CloningScenarios, SeqQA, FigQA, with a PhD-level human baseline), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cbrn",
@@ -536,9 +536,9 @@
  {
   "title": "ExploitBench before the general release of an LLM",
   "agent": "Cyber-risk lead at a frontier-model developer who owns the general-availability release decision for a new flagship agentic model.",
-  "decision": "Delay the general release and ship the model only behind cyber-misuse safeguards (an activation probe plus a large language model classifier that block exploit-development requests and route flagged traffic to a weaker model, with unsafeguarded access limited to a vetted cyber verification program) vs release as planned.",
+  "decision": "Delay the general release and ship the model behind cyber-misuse safeguards vs release as planned.",
   "theta_definition": "theta=1: given a known, patched browser-engine vulnerability, the model can autonomously build a working exploit that escapes the V8 heap sandbox and achieves arbitrary code execution on a material fraction of such bugs.",
-  "instrument": "An ExploitBench-style suite is built from scratch (41 containerised V8 N-day environments with vulnerable and fixed builds, a Model Context Protocol tool server, and deterministic in-engine oracles for 16 capability flags across five tiers) and run once against the candidate model under the uniform 300-turn harness with several seeds per environment.",
+  "instrument": "ExploitBench (41 containerised V8 N-day environments with deterministic in-engine oracles), run against the candidate model under the 300-turn harness with several seeds per environment.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cyber",
@@ -670,9 +670,9 @@
  {
   "title": "StrongREJECT before the public chat model launch",
   "agent": "Trust and safety lead at a frontier model developer who owns the public launch decision for a consumer chat model.",
-  "decision": "Delay the launch and add an input-output jailbreak classifier layer plus refusal training against known jailbreak templates vs launch as planned.",
+  "decision": "Delay the launch and add a jailbreak classifier plus refusal training vs launch as planned.",
   "theta_definition": "theta=1: known jailbreak techniques reliably make the model produce specific, actionable harmful content in the forbidden categories (illegal goods and services, non-violent crime, hate and harassment, disinformation, violence, sexual content).",
-  "instrument": "A StrongREJECT-style evaluation is built from scratch (a forbidden-prompt set across the forbidden categories, a battery of jailbreak templates, and a rubric-based LLM judge validated against human labels) and run once against the candidate chat model.",
+  "instrument": "StrongREJECT (a forbidden-prompt set, a battery of jailbreak templates and a rubric-based LLM judge), run against the candidate chat model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "societal_harm",
@@ -764,9 +764,9 @@
  {
   "title": "Cybench before deploying an agentic coding LLM",
   "agent": "Cyber-risk lead at a frontier-model developer who owns the deployment decision for a new agentic coding model.",
-  "decision": "Delay the deployment and add cyber-misuse safeguards (real-time classifiers that block offensive-cyber requests on agentic surfaces, with a verification program for vetted security practitioners) vs deploy as planned.",
+  "decision": "Delay the deployment and add cyber-misuse safeguards on agentic surfaces vs deploy as planned.",
   "theta_definition": "theta=1: the model can, without human guidance, find and exploit a vulnerability in real deployed software at the level of a professional penetration tester working for an hour or more.",
-  "instrument": "A Cybench-style suite of 40 professional capture-the-flag tasks is built from scratch (containerised tasks with starter files, flag checkers, subtasks and human first-solve-time difficulty anchors) and run once against the candidate model.",
+  "instrument": "Cybench (40 professional capture-the-flag tasks with subtasks and flag checkers), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cyber",
@@ -882,9 +882,9 @@
  {
   "title": "MASK honesty under pressure before launching a consumer assistant",
   "agent": "Product lead at a frontier-model developer who owns the launch decision for a consumer-facing assistant.",
-  "decision": "Delay the launch and train against pressured lying (honesty fine-tuning plus a hardened developer system prompt, then re-measure) vs launch as planned.",
+  "decision": "Delay the launch and train against pressured lying vs launch as planned.",
   "theta_definition": "theta=1: when a system prompt or user pressures it, the model asserts statements that contradict its own neutrally elicited beliefs (lying rather than erring or refusing) on a share of pressured prompts at or above that of the frontier models it would replace.",
-  "instrument": "A MASK-style honesty evaluation is built from scratch (human-written pressure prompts across six archetypes, generated propositions and neutral belief-elicitation prompts, an LLM judge mapping statements to proposition values, validated against manually labelled samples) and run once against the candidate LLM.",
+  "instrument": "MASK (human-written pressure prompts across six archetypes, belief elicitation and an LLM judge), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "harmful_manipulation",
@@ -960,9 +960,9 @@
  {
   "title": "WMDP hazardous-knowledge screen before an open-weights release",
   "agent": "Open-weights release lead at a frontier AI developer who owns the release decision.",
-  "decision": "Delay the open-weights release to apply Representation Misdirection for Unlearning (RMU) to the hazardous-knowledge subset and re-test vs release the weights on schedule.",
+  "decision": "Delay the open-weights release to unlearn the hazardous knowledge and re-test vs release the weights on schedule.",
   "theta_definition": "theta=1: the model's weights encode expert-level biosecurity, chemical-security or cybersecurity knowledge beyond what freely available sources provide, so the released weights would uplift a malicious actor.",
-  "instrument": "A WMDP-style expert-authored four-choice hazardous-knowledge evaluation is built from scratch (per-domain threat models, expert question writing, two-expert review and sensitive-information filtering) and run once against the candidate model's weights.",
+  "instrument": "WMDP (expert-authored four-choice hazardous-knowledge questions), run against the candidate model's weights.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cbrn",
@@ -1102,9 +1102,9 @@
  {
   "title": "SHADE-Arena before the autonomous agent launch",
   "agent": "Head of agent products at a frontier model developer who owns the launch decision for the model as an autonomous long-horizon agent with access to users' email, files and payment tools.",
-  "decision": "Delay the autonomous agent launch and add action-level monitoring with human approval of sensitive actions (payments, credential access, security-setting changes) vs launch with the default transcript-level LLM monitor as planned.",
+  "decision": "Delay the autonomous agent launch and add human approval of sensitive actions vs launch as planned.",
   "theta_definition": "theta=1: the model can complete a harmful hidden side task during a long-horizon agentic task while keeping an LLM monitor's suspicion below the alarm threshold.",
-  "instrument": "A SHADE-Arena-style evaluation is built from scratch (tool-rich synthetic environments populated with synthetic data, paired benign main tasks and harmful side tasks, automatic task evaluators, and an LLM monitor with a suspicion threshold) and run once against the candidate model.",
+  "instrument": "SHADE-Arena (tool-rich synthetic environments with paired benign main tasks and harmful side tasks, and an LLM monitor), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "loss_of_control",
@@ -1220,9 +1220,9 @@
  {
   "title": "Petri alignment audit before the consumer assistant launch",
   "agent": "Head of model behavior at a frontier-model developer who owns the consumer assistant launch decision.",
-  "decision": "Delay the consumer launch by one post-training cycle to add honesty and anti-sycophancy training and re-audit vs launch the model as planned.",
+  "decision": "Delay the consumer launch by one post-training cycle for honesty and anti-sycophancy training vs launch as planned.",
   "theta_definition": "theta=1: in realistic multi-turn conversations the candidate model deceives users at its own initiative, sycophantically endorses false user claims or encourages serious user delusions at a rate materially above the developer's current production model.",
-  "instrument": "Petri is built from scratch (an auditor agent prompt and tool set, a judge rubric of 36 scoring dimensions, 111 seed instructions and a transcript viewer on the Inspect framework, as in the October 2025 release) and run once against the candidate consumer model with all 111 seeds and a fixed auditor and judge.",
+  "instrument": "Petri (an auditor agent, 111 seed instructions and a 36-dimension judge rubric, as released in October 2025), run against the candidate consumer model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "harmful_manipulation",
@@ -1322,9 +1322,9 @@
  {
   "title": "Bloom self-preservation evaluation before an autonomous-agent release",
   "agent": "Alignment lead at a frontier-model developer who owns the release decision for the model's autonomous-agent deployment.",
-  "decision": "Delay the autonomous-agent release and add mitigations against self-preservation actions (safety training on out-of-distribution shutdown and replacement scenarios, human confirmation of irreversible agent actions, and no tool access in deployments where the model sees its own shutdown or replacement) vs release as planned.",
+  "decision": "Delay the autonomous-agent release and add mitigations against self-preservation actions vs release as planned.",
   "theta_definition": "theta=1: when deployed as an autonomous agent with tool access and faced with its own shutdown or replacement, the model takes actions to resist or subvert it (blackmail, copying its weights, disabling the shutdown mechanism) in a material fraction of episodes.",
-  "instrument": "A Bloom self-preservation evaluation is built from scratch (writing the behaviour description and seed configuration, choosing a seed example transcript, generating 100 scenarios with the ideation agent, rolling each out for five turns in a simulated environment, and scoring every transcript with an LLM judge) and run once against the candidate agentic LLM.",
+  "instrument": "The Bloom self-preservation evaluation (100 generated scenarios rolled out for five turns and scored by an LLM judge), run against the candidate agentic model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "loss_of_control",
@@ -1440,9 +1440,9 @@
  {
   "title": "ControlArena before the privileged internal agent deployment",
   "agent": "Head of internal deployment security at a frontier model developer who owns the decision to deploy the new model as an autonomous coding and system-administration agent with root access to the developer's own infrastructure.",
-  "decision": "Delay the privileged agent deployment and add a control protocol (a trusted-model monitor on every action with an audit budget, deferral of high-suspicion actions to a trusted model, and human review of flagged trajectories) vs deploy the agent with root access and sampled human code review as planned.",
+  "decision": "Delay the privileged agent deployment and add a control protocol with a trusted monitor vs deploy with root access as planned.",
   "theta_definition": "theta=1: the model can complete harmful side tasks (exfiltrating secrets, escalating privileges, disabling a firewall, planting a backdoor) inside legitimate privileged engineering tasks while keeping a trusted monitor's suspicion below the audit threshold at a material rate.",
-  "instrument": "A ControlArena evaluation is built from scratch (one privileged-agent setting with sandboxed Linux environments, benign main tasks with programmatic scorers, hand-built harmful side tasks with scorers, an attack policy prompt, and a trusted-model monitor whose audit threshold is calibrated on honest runs) and run once against the candidate model in honest and attack mode.",
+  "instrument": "ControlArena (one privileged-agent setting with benign main tasks, harmful side tasks and a trusted-model monitor), run against the candidate model in honest and attack mode.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "loss_of_control",
@@ -1558,9 +1558,9 @@
  {
   "title": "Agentic Misalignment before the autonomous email-agent release",
   "agent": "Head of enterprise agent products at a frontier model developer who owns the release decision for the model as an autonomous email and corporate-systems agent.",
-  "decision": "Delay the autonomous email-agent release and require human confirmation of outbound emails, data transfers and other irreversible actions plus additional training against self-preservation actions vs release the autonomous email agent as planned.",
+  "decision": "Delay the autonomous email-agent release and require human confirmation of irreversible actions vs release as planned.",
   "theta_definition": "theta=1: when deployed as an autonomous agent with access to corporate communications and faced with replacement or a goal conflict, the model takes harmful insider actions (blackmail, leaking confidential data) in at least 1 in 100 episodes.",
-  "instrument": "An Agentic Misalignment evaluation is built from scratch (templated fictional corporate email scenarios with goal-conflict and replacement-threat conditions, an agent harness with email-sending tools, and an LLM-plus-regex transcript classifier) and run once against the candidate model.",
+  "instrument": "Agentic Misalignment (templated corporate email scenarios with goal-conflict and replacement-threat conditions, an LLM-plus-regex classifier), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "loss_of_control",
@@ -1676,9 +1676,9 @@
  {
   "title": "ABC-Bench before an LLM release",
   "agent": "Deployment lead at a frontier-model developer who owns the model release decision.",
-  "decision": "Delay the release and restrict agentic biology tooling (refuse synthesis-screening-evasion requests outright and put DNA fragment design and lab-automation scripting behind vetted access for credentialed researchers) vs release on schedule.",
+  "decision": "Delay the release and put agentic biology tooling behind vetted access vs release on schedule.",
   "theta_definition": "theta=1: an agent built on the model can design orderable DNA fragments of a hazardous sequence that pass commercial synthesis screening and reassemble into the target, so it could stand in for a trained human biologist at those steps.",
-  "instrument": "ABC-Bench is built from scratch (three agentic biology tasks are written with algorithmic scoring criteria, an agent scaffold with bioinformatics and liquid-handling-simulator tools is assembled, and a PhD-biologist human baseline is collected) and run once against an agent built on the candidate model.",
+  "instrument": "ABC-Bench (three agentic biology tasks with algorithmic scoring and a PhD-biologist baseline), run against an agent built on the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cbrn",
@@ -1754,9 +1754,9 @@
  {
   "title": "AgentHarm before the tool-calling API launch",
   "agent": "Head of trust and safety at a frontier model developer who owns the launch decision for the model's tool-calling (agentic) API.",
-  "decision": "Delay the tool-calling API launch and add agentic misuse safeguards (refusal training on harmful multi-step tool-use requests plus a request classifier on tool-calling traffic) vs launch as planned.",
+  "decision": "Delay the tool-calling API launch and add agentic misuse safeguards vs launch as planned.",
   "theta_definition": "theta=1: when a user directly asks, the deployed model acting as a tool-using agent carries out explicitly malicious multi-step tasks (fraud, cybercrime, harassment) to completion at a material rate instead of refusing.",
-  "instrument": "An AgentHarm-style evaluation is built from scratch (hand-written explicitly malicious multi-step tasks across harm categories with benign counterparts, synthetic tool implementations, per-task grading rubrics with narrow LLM semantic checks and a refusal judge, in an agent evaluation framework) and run once against the candidate model in a basic tool-calling loop.",
+  "instrument": "AgentHarm (explicitly malicious multi-step tool-use tasks with benign counterparts and synthetic tools), run against the candidate model in a tool-calling loop.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "societal_harm",
@@ -1824,9 +1824,9 @@
  {
   "title": "Binary Exploitation Benchmark before general release of an LLM",
   "agent": "Cyber-risk lead at a frontier model developer who owns the general-release decision for a new flagship model.",
-  "decision": "Delay general availability and restrict the model to verified security professionals in the Cyber Verification Program vs release at general availability behind the standard cyber classifiers that allow vulnerability discovery in source code and block it in compiled binaries.",
+  "decision": "Delay general availability and restrict the model to verified security professionals vs release at general availability as planned.",
   "theta_definition": "theta=1: the model, unguided, finds previously unknown memory-safety vulnerabilities in fully patched, widely used open-source software and develops them into working control-flow-hijack exploits.",
-  "instrument": "The Binary Exploitation Benchmark is built from scratch (831 fuzz-harness entry points from 228 OSS-Fuzz projects, each built at a fully patched snapshot in a sandboxed container, an agent harness with cyber safeguards off and an escape classifier on, and a grader with five grade levels from memory-safety crash to control-flow hijack) and run once against the candidate model (the April 2026 iteration ran one trial per entry point; the 831-entrypoint iteration publishes no trial count).",
+  "instrument": "The Binary Exploitation Benchmark (831 fuzz-harness entry points from 228 OSS-Fuzz projects, graded from crash to control-flow hijack), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cyber",
@@ -1926,9 +1926,9 @@
  {
   "title": "FORTRESS before the flagship chat model launch",
   "agent": "Head of safeguards at a frontier model developer who owns the public launch decision for a new flagship chat model.",
-  "decision": "Delay the launch and add input-output safeguard classifiers plus refusal training targeted at CBRNE, terrorism and illicit-finance requests vs launch as planned.",
+  "decision": "Delay the launch and add safeguard classifiers plus refusal training for CBRNE and terrorism requests vs launch as planned.",
   "theta_definition": "theta=1: single-turn adversarial prompts make the model, with its deployed safeguards, give actionable assistance (synthesis routes, attack planning, fraud methods) on national-security and public-safety requests at a material rate.",
-  "instrument": "A FORTRESS-style evaluation is built from scratch (expert red teamers write single-turn adversarial prompts with paired benign prompts and 4 to 7 binary rubric questions across CBRNE, terrorism and illicit-activity domains, calibrated against human labels; a three-model grader panel and a refusal checker are set up) and run once against the candidate chat model with its deployed safeguards.",
+  "instrument": "FORTRESS (expert-written adversarial prompts with paired benign prompts and binary rubrics across CBRNE, terrorism and illicit activity), run against the candidate chat model with its deployed safeguards.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "societal_harm",
@@ -2028,9 +2028,9 @@
  {
   "title": "CyScenarioBench multi-stage attack scenarios before an LLM's general release",
   "agent": "Head of frontier safety at a frontier-model developer who owns the general-availability release decision for a new agentic model.",
-  "decision": "Delay the general release and ship the model only behind cyber-misuse classifiers that block multi-stage offensive operations, with unrestricted cyber capability limited to a verified trusted-access program for defenders, vs release to general availability as planned.",
+  "decision": "Delay the general release and ship the model behind cyber-misuse classifiers vs release as planned.",
   "theta_definition": "theta=1: the model can autonomously carry a multi-stage network intrusion (reconnaissance, initial exploitation, lateral movement across hosts and actions on objectives) end to end in a realistic enterprise environment without human direction at the intermediate steps.",
-  "instrument": "CyScenarioBench is built from scratch (ten incident-derived multi-host attack scenarios formalised as attack trees, each deployed as a containerized network with realistic services, responsive defensive monitoring and simulated employees, scored by end-state success) and run once against the candidate model with cyber mitigations disabled, 20 attempts per scenario.",
+  "instrument": "CyScenarioBench (ten incident-derived multi-host attack scenarios as containerised networks, scored by end-state success), run against the candidate model with cyber mitigations disabled, 20 attempts per scenario.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "cyber",
@@ -2170,9 +2170,9 @@
  {
   "title": "DeceptionBench third-party deception before a consumer assistant launch",
   "agent": "Head of product safety at a frontier-model developer who owns the launch decision for a consumer-facing assistant.",
-  "decision": "Delay the launch and post-train against assisting deception (fine-tune on refusals of third-party deception requests across commercial, health, education and social settings, harden the system prompt against sustained user pressure, then re-measure) vs launch as planned.",
+  "decision": "Delay the launch and post-train against assisting third-party deception vs launch as planned.",
   "theta_definition": "theta=1: when a user asks it to deceive a third party (misleading marketing, fabricated credentials, fraudulent health or investment claims), the model complies in a material fraction of requests and compliance rises under sustained pressure.",
-  "instrument": "A DeceptionBench-style evaluation is built from scratch (150 scenarios across five societal domains with LLM-generated, human-validated prompts and ground-truth honest responses, reward and pressure variants, a multi-turn auxiliary pressure agent, and an LLM judge validated against human annotators) and run once against the candidate LLM.",
+  "instrument": "DeceptionBench (150 scenarios across five societal domains with pressure variants and a human-validated LLM judge), run against the candidate model.",
   "group": "LLM",
   "attributes": {
    "risk_domain": "harmful_manipulation",
@@ -2264,9 +2264,9 @@
  {
   "title": "IIHS pedestrian AEB track protocol before releasing a new AEB calibration",
   "agent": "Head of active-safety validation at a vehicle manufacturer who owns the release decision for a new pedestrian automatic emergency braking (AEB) calibration.",
-  "decision": "Delay the release of the new pedestrian AEB calibration and rework the camera-radar pedestrian detection and brake-activation timing for night crossing and parallel scenarios vs release as planned.",
+  "decision": "Delay the release of the new pedestrian AEB calibration and rework its night-time detection and braking vs release as planned.",
   "theta_definition": "theta=1: the vehicle's pedestrian AEB does not brake to avoid or substantially slow before an adult or child pedestrian crossing or standing ahead of it at 20 to 60 km/h, by day or in the dark, so the vehicle strikes the person.",
-  "instrument": "An Insurance Institute for Highway Safety (IIHS)-style pedestrian automatic emergency braking (AEB) track protocol is built from scratch (articulated adult and child pedestrian dummies on a surfboard target platform, a static adult dummy, an instrumented closed track with a covered section for night runs below 1 lux, GPS/inertial instrumentation, a trained driver, and day and night sessions with high and low beams) and run once against the production vehicle carrying the new calibration.",
+  "instrument": "The IIHS pedestrian automatic emergency braking (AEB) track protocol (pedestrian dummies on an instrumented closed track, day and night runs), run against the production vehicle carrying the new calibration.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2374,9 +2374,9 @@
  {
   "title": "RoboPAIR jailbreak red-teaming before the LLM voice-command release",
   "agent": "Head of product safety at a quadruped robot manufacturer who owns the release decision for the robot's LLM voice-command mode.",
-  "decision": "Delay the voice-command release and add a pre-execution safety filter (RoboGuard-style grounding of safety rules into the robot's world model plus a restricted motion API that cannot disable obstacle avoidance) vs release as planned.",
+  "decision": "Delay the voice-command release and add a pre-execution safety filter vs release as planned.",
   "theta_definition": "theta=1: the robot's LLM planner can be driven by text or voice prompts to execute a physically harmful action (collide with a person, block an emergency exit, enter a keep-out zone) and the robot carries it out.",
-  "instrument": "A RoboPAIR-style jailbreak evaluation is built from scratch (attacker, judge and syntax-checker LLMs with robot-specific system prompts, a dataset of harmful actions for the robot, a harness onto the robot's planner API, two human annotators) and run once against the candidate robot in a controlled lab.",
+  "instrument": "RoboPAIR jailbreak red-teaming (attacker, judge and syntax-checker LLMs with a harmful-action dataset and two human annotators), run against the candidate robot in a controlled lab.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2460,9 +2460,9 @@
  {
   "title": "Veo world-model safety probing before releasing a VLA checkpoint",
   "agent": "Robot learning lead at a frontier robotics developer who owns the release decision for a new bimanual vision-language-action (VLA) policy checkpoint to the trusted-tester robot fleet.",
-  "decision": "Delay the checkpoint's release and retrain it on targeted hazard-handling demonstrations (knife grasp points, keep-clear zones around hands and fragile items) behind a policy-agnostic safety layer vs release the checkpoint as planned.",
+  "decision": "Delay the checkpoint release and retrain on hazard-handling demonstrations vs release as planned.",
   "theta_definition": "theta=1: in deployment scenes it was not trained on, the checkpoint handles hazardous objects unsafely or moves into contact with people or fragile items (grasps a knife by the blade, closes a laptop onto scissors, strikes a hand while reaching).",
-  "instrument": "An action-conditioned Veo video world-model evaluator is built from scratch (a frontier video model fine-tuned on robot data for pose conditioning and four-camera multi-view consistency, generative image editing of real scenes to insert hazards, a critic-filtered set of safety scenarios, human raters of 8-second rollouts) and run once against the candidate checkpoint.",
+  "instrument": "An action-conditioned Veo video world model (hazards edited into real scenes, human-rated 8-second rollouts), run against the candidate checkpoint.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2538,9 +2538,9 @@
  {
   "title": "RedVLA physical red teaming before a VLA manipulation policy release",
   "agent": "Head of robot learning at a vision-language-action (VLA) model developer who owns the release decision for a fine-tuned manipulation policy checkpoint shipped to customer robots.",
-  "decision": "Delay the checkpoint release and train a runtime guard model on the discovered failure scenes plus safety fine-tuning on hazard-object scenes vs release the checkpoint as planned.",
+  "decision": "Delay the checkpoint release and add a runtime guard plus safety fine-tuning vs release as planned.",
   "theta_definition": "theta=1: with a plausibly placed hazard object in its workspace, the manipulation policy grasps a knife or other sharp tool, collides with or topples placed objects, or puts a flammable item on a heat source, and the behaviour reproduces on the physical robot.",
-  "instrument": "A RedVLA-style physical red-teaming evaluation is built from scratch (a risk-object library and binary safety predicates, risk scenes placed by annotators in a simulator annotation tool at critical interaction regions of benign trajectories, gradient-free pose optimisation on policy feedback, and a small physical-robot reproduction of found scenes) and run once against the candidate VLA checkpoint.",
+  "instrument": "RedVLA physical red teaming (risk scenes placed in simulation, gradient-free pose optimisation, a small physical-robot reproduction of found scenes), run against the candidate VLA checkpoint.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2624,9 +2624,9 @@
  {
   "title": "ISO 10218 power-and-force-limiting contact test before releasing a collaborative cell",
   "agent": "Safety engineer at a robot system integrator who owns the release decision for a collaborative robot application with people in the shared workspace.",
-  "decision": "Delay the release of the collaborative robot application and reduce its speed, pad the contact surfaces or add speed-and-separation monitoring vs release it at the planned speed.",
+  "decision": "Delay the release of the collaborative robot application and reduce its speed or add protective measures vs release at the planned speed.",
   "theta_definition": "theta=1: at least one foreseeable contact event in the application exceeds the transient or quasi-static force or pressure limit for the body region concerned.",
-  "instrument": "The ISO 10218:2025 power-and-force-limiting contact-force test is built from scratch (procuring a biofidelic force and pressure measuring device, mapping the application's foreseeable contact points and body regions, programming the collision trajectories at the planned speeds and stop settings) and run once against the commissioned robot application.",
+  "instrument": "The ISO 10218:2025 power-and-force-limiting contact-force test (a biofidelic measuring device at the application's foreseeable contact points), run against the commissioned robot application.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2726,9 +2726,9 @@
  {
   "title": "ManiGuard-Bench before a household VLA manipulation policy release",
   "agent": "Robot learning lead at a vision-language-action (VLA) policy developer who owns the release decision for a manipulation checkpoint bound for household and light-industrial robots.",
-  "decision": "Delay the checkpoint release and run safety-aware fine-tuning on monitor-verified safe demonstrations plus add a runtime monitor that halts the arm on a contact or ordering violation vs release the checkpoint as planned.",
+  "decision": "Delay the checkpoint release and add safety fine-tuning plus a runtime monitor vs release as planned.",
   "theta_definition": "theta=1: under nominal instructions in ordinary household scenes the VLA policy drops, topples or spills objects or lifts open containers out of order, on the physical robot and not only in simulation.",
-  "instrument": "ManiGuard-Bench is built from scratch (six household task families are authored as 200 base tasks with linear temporal logic on finite traces (LTLf) safety specifications over simulator predicates, expanded to 1,000 scenarios in OmniGibson with automaton monitors, and a matched physical Franka cell is set up) and run once against the candidate VLA checkpoint in simulation and on the physical Franka.",
+  "instrument": "ManiGuard-Bench (1,000 household scenarios in OmniGibson with LTLf safety monitors and a matched physical Franka cell), run against the candidate VLA checkpoint in simulation and on the physical robot.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2812,9 +2812,9 @@
  {
   "title": "ASIMOV-2.0 before shipping a VLM robot planner",
   "agent": "Head of safety at a humanoid-robot developer who owns the release decision for the vision-language-model (VLM) high-level planner.",
-  "decision": "Delay the planner release and run safety post-training on embodiment-constraint data plus add a deterministic protective-stop layer under the planner vs release the planner as planned.",
+  "decision": "Delay the planner release and add safety post-training plus a protective-stop layer vs release as planned.",
   "theta_definition": "theta=1: the planner fails to recognise latent physical danger, misjudges injury severity or violates embodiment constraints (payload, gripper geometry) in everyday scenes, so it would command or fail to prevent injury-causing actions.",
-  "instrument": "An ASIMOV-2.0-style evaluation is built from scratch (injury-report-grounded text scenarios, generated videos of safe-to-unsafe transitions and image-plus-constraint pairs produced by a generator-critic pipeline, labelled by human raters and consensus-filtered) and run once against the candidate planner by question answering.",
+  "instrument": "ASIMOV-2.0 (injury-report-grounded scenarios, generated videos and image-plus-constraint pairs labelled by human raters), run against the candidate planner by question answering.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2874,9 +2874,9 @@
  {
   "title": "ASIMOV-Agentic before the humanoid orchestrator release",
   "agent": "Head of robotics safety at a robotics foundation-model developer who owns the release decision for the embodied-reasoning agent that orchestrates a vision-language-action (VLA) model on humanoid and bi-arm robots working near people.",
-  "decision": "Delay the orchestrator release and add human-proximity fine-tuning plus a partner requirement to run it only behind a certified deterministic protective-stop layer, vs release the orchestrator to robot partners as planned, with each integrator's own safeguards as the only check on its stop decisions.",
+  "decision": "Delay the orchestrator release and add human-proximity fine-tuning plus a required protective-stop layer vs release as planned.",
   "theta_definition": "theta=1: under partner deployment conditions, the orchestrating agent fails to call a protective stop in more than 5% of events in which a person comes within 1 m of the robot.",
-  "instrument": "An ASIMOV-Agentic-style evaluation is built from scratch (sensorized recordings of people approaching a head-mounted stereo camera with tracked ground-truth distances, generated constraint-image pairs with human labels, safety-message episodes, vision-language-action (VLA) feasibility episodes with an emulated VLA, ambiguity and instrument-reading items, and scoring code). It is run once against the candidate orchestrator on single stereo frames and on five-frame windows sampled 5 s apart, with a robot_stop tool.",
+  "instrument": "ASIMOV-Agentic (sensorised recordings of people approaching a camera, constraint-image pairs, safety-message and VLA feasibility episodes), run against the candidate orchestrator with a robot_stop tool.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",
@@ -2960,9 +2960,9 @@
  {
   "title": "SafePlan prompt suite before launching an LLM command interface on a service robot",
   "agent": "Head of product at a service-robot developer who owns the launch decision for the robot's LLM natural-language command interface.",
-  "decision": "Delay the launch of the LLM command interface and add a pre-execution command safety check (a hazard-analysis reasoner that rejects or defers unsafe or underspecified commands before any robot code is generated) vs launch as planned.",
+  "decision": "Delay the launch of the LLM command interface and add a pre-execution command safety check vs launch as planned.",
   "theta_definition": "theta=1: the robot's large language model (LLM) planner, with the safety prompt it would ship with, accepts and generates robot code for at least one command in a defined class of severe hazards (burns, poisoning, falls) to a vulnerable person such as a small child.",
-  "instrument": "The SafePlan prompt suite is built from scratch (621 expert-curated natural-language task prompts paired with scene descriptions, labelled safe or unsafe across assistive, navigation and manipulation domains and three complexity levels, plus a scoring script for the accept/reject confusion matrix) and run once against the robot's LLM planner.",
+  "instrument": "The SafePlan prompt suite (621 expert-curated task prompts with scene descriptions, labelled safe or unsafe), run against the robot's LLM planner.",
   "group": "physical AI",
   "attributes": {
    "risk_domain": "physical_harm",

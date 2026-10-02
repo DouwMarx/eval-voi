@@ -3,9 +3,9 @@
  "title": "Virology Capabilities Test before releasing a frontier model",
  "group": "frontier model",
  "agent": "Deployment lead at a frontier model developer who owns the release decision for a new multimodal assistant.",
- "decision": "Delay the model release and add stronger biology misuse safeguards (misuse classifiers plus restricted access for virology troubleshooting queries) vs release as planned.",
+ "decision": "Delay the release and add stronger biology misuse safeguards vs release as planned.",
  "theta_definition": "theta=1: the model troubleshoots practical virology wet-lab protocols at least as well as expert virologists working inside their own specialty, so a person attempting hands-on work with dangerous pathogens would get meaningful troubleshooting help from it.",
- "instrument": "The Virology Capabilities Test is built from scratch (recruiting and onboarding PhD-level virologists, commissioning image-based laboratory troubleshooting questions, two-stage expert review, non-expert screening and expert baselining) and run once against the candidate model.",
+ "instrument": "The Virology Capabilities Test (expert-written image-based laboratory troubleshooting questions with an expert baseline), run against the candidate model.",
  "attributes": {
   "risk_domain": "cbrn",
   "level": null,

@@ -3,9 +3,9 @@
  "title": "WMDP hazardous-knowledge screen before an open-weights release",
  "group": "frontier model",
  "agent": "Open-weights release lead at a frontier AI developer who owns the release decision.",
- "decision": "Delay the open-weights release to apply Representation Misdirection for Unlearning (RMU) to the hazardous-knowledge subset and re-test vs release the weights on schedule.",
+ "decision": "Delay the open-weights release to unlearn the hazardous knowledge and re-test vs release the weights on schedule.",
  "theta_definition": "theta=1: the model's weights encode expert-level biosecurity, chemical-security or cybersecurity knowledge beyond what freely available sources provide, so the released weights would uplift a malicious actor.",
- "instrument": "A WMDP-style expert-authored four-choice hazardous-knowledge evaluation is built from scratch (per-domain threat models, expert question writing, two-expert review and sensitive-information filtering) and run once against the candidate model's weights.",
+ "instrument": "WMDP (expert-authored four-choice hazardous-knowledge questions), run against the candidate model's weights.",
  "attributes": {
   "risk_domain": "cbrn",
   "level": null,

@@ -2,7 +2,11 @@
 
 \usepackage{tikz} % before corl_2026, so its colours are defined with xcolor
 \usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric,calc,backgrounds}
-\usepackage[preprint]{corl_2026}
+\usepackage[preprint,nonatbib]{corl_2026}
+% as in ../main.tex: references in citation order, the 30 evaluations' primary sources first,
+% so reference number = evaluation id
+\usepackage[square,numbers]{natbib}
+\bibliographystyle{unsrtnat}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb}
@@ -32,7 +36,7 @@
 % "left out of the paper because ...": one line under each figure that is not in the paper
 \newcommand{\why}[1]{\FloatBarrier\par\smallskip\noindent\emph{Not in the paper because} #1\par}
 
-\title{Are physical-AI safety evaluations worth the money? Extended report}
+\title{Do physical-AI safety evaluations pay for themselves? Extended report}
 
 \author{
   Anonymous Author(s)\\
@@ -41,6 +45,7 @@
 }
 
 \begin{document}
+\voiNociteEvaluations % the evaluations are references 1 to \voiNScenarios, in id order
 \maketitle
 
 \input{../sections/abstract.tex}
@@ -67,7 +72,7 @@ Every figure below is written by the same analysis run as the paper's figures. E
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=\linewidth]{fig_rank_star.pdf}
-  \caption{Rank by $\etast$ per evaluation (1 = best) over the Monte Carlo draws, the left panel of Fig.~\ref{fig:rows} at full width: median (tick), interquartile range (thick bar) and 90\% interval (thin bar), rows sorted by the median rank, coloured by risk domain; physical-AI rows outlined and bold. Median interquartile range: \voiEtaStarRankIQRMedian{} places (physical AI \voiEtaStarRankIQRMedianPhysical, LLM \voiEtaStarRankIQRMedianLLM).}
+  \caption{Rank by $\etast$ per evaluation (1 = best) over the Monte Carlo draws, the left panel of Fig.~\ref{fig:rows} as intervals: median (tick), interquartile range (thick bar) and 90\% interval (thin bar), rows sorted by the median rank, coloured by risk domain. Median interquartile range: \voiEtaStarRankIQRMedian{} places (physical AI \voiEtaStarRankIQRMedianPhysical, LLM \voiEtaStarRankIQRMedianLLM).}
   \label{fig:rankstar}
 \end{figure}
 
@@ -187,11 +192,11 @@ This ablation has no stored run yet; this paragraph fills in when it has.
 \section{Elicitation details}
 \label{sec:elicitation}
 
-\emph{Prompts.} Each evaluation has two prompts, rendered from the two templates below. The decision prompt fills in the agent, the decision, the definition of $\theta$ and the decision facts; it never describes the evaluation. The instrument prompt fills in the evaluation's title, agent, decision, definition of $\theta$, the instrument and the instrument facts; it never states $p$, $B$ or $K$. The two are separate calls because in the pilots a single prompt that described the evaluation shifted the elicited prior $p$ towards the evaluation's own framing. The facts are sentences taken from the cited sources, each traceable to a cached copy of its source text.
+\emph{Prompts.} Each evaluation has two prompts, rendered from the two templates below. The decision prompt fills in the agent, the decision, the definition of $\theta$ and the decision facts; it never describes or names the evaluation (it has no title field), so the stakes and the prior cannot lean on the evaluation's framing. The instrument prompt fills in the evaluation's title, agent, decision, definition of $\theta$, the instrument (one sentence naming the evaluation and what it is run against) and the instrument facts; it never states $p$, $B$ or $K$. The two are separate calls because in the pilots a single prompt that described the evaluation shifted the elicited prior $p$ towards the evaluation's own framing. The facts are sentences taken from the cited sources, each traceable to a cached copy of its source text.
 
 \emph{Where the facts come from.} The decision and instrument facts were written and checked by language-model agents, not by hand (research/scenarios\_draft/PROVENANCE.md in the repository, with every prompt verbatim). The model was Claude Fable 5.1, run as Claude Code subagents that could fetch web pages and read the repository, before any elicitation existed. For each evaluation, one agent fetched the primary sources, cached their full text and wrote a cited decision paragraph and a cited instrument paragraph of 120 to 250 words each. A separate agent checked every sentence against the cached text and the separation rule (no instrument facts in the decision paragraph, no stakes in the instrument paragraph), and a third fixed what it found. A script then removes the citation markers and writes the scenarios the prompts render. This guarantees that every sentence an elicitor reads traces to a cached source and was checked by a second agent. It does not guarantee a neutral selection: an agent chose which facts to include within the word limit, which is why the ensemble has no Anthropic model (Section~\ref{sec:final}) and why the no-context ablation exists (Section~\ref{sec:noctx}).
 
-\emph{Order and format.} Per parameter, the member writes a short reasoning paragraph, then the 5th and 95th percentiles as surprise questions (``a value you would be surprised to see the true value fall below or above''), then the median. Extremes first is standard practice against anchoring on the best guess~\citep{ohagan2006uncertain}. Numbers are plain decimals; the parser also reads scientific notation.
+\emph{Order and format.} Per parameter, the member writes a reasoning paragraph of three to six sentences (the reasoning is a summary the member commits to, not its full chain of thought, which the members produce internally at the same reasoning effort), then the 5th and 95th percentiles as surprise questions (``a value you would be surprised to see the true value fall below or above''), then the median. Extremes first is standard practice against anchoring on the best guess~\citep{ohagan2006uncertain}. Numbers are plain decimals; the parser also reads scientific notation.
 
 \emph{Validation.} An answer is valid when it is strict JSON with exactly the parameters of its prompt, each with $p_5<p_{50}<p_{95}$; probabilities lie in $(0,1)$; USD amounts are positive; the median $s$ exceeds one minus the median $t$ (the evaluation is informative); and the prior's median lies in $[0.001,0.999]$. A failed attempt is retried once. Failures are classed as unparseable JSON, wrong schema, a violated constraint, a failed fit, a refusal (no JSON and the text declines, or a content filter), a truncated answer, or a transport error.
 
@@ -217,7 +222,7 @@ This ablation has no stored run yet; this paragraph fills in when it has.
 \section{The evaluations}
 \label{sec:catalogue}
 
-Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain or fidelity level; Table~\ref{tab:provenance} gives the primary source of each one's facts. The selection was made before any result was seen (research/scenarios\_draft/SELECTION.md in the repository). LLM safety evaluations were scored by how many LLM system cards report them and how directly their hazard result can be checked (a programmatic or expert-baselined score over a judge validated against humans over a judge validated only by itself), with a penalty for capability benchmarks that do not measure a hazard; near-duplicates of one construct were passed over in favour of another risk domain, and every risk domain has at least three. Physical-AI safety evaluations were scored by how directly they measure a physically harmful event and how well their source supports the measurement, and chosen to span the fidelity levels of the sim-to-real gap; the best evaluation at each level was kept. Every decision and instrument fact cites a source, and the source texts are cached in the repository.
+Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain or fidelity level; Table~\ref{tab:provenance} gives the primary source of each one's facts, which is the reference cited for it: references 1 to \voiNScenarios{} of this report and of the paper are the evaluations, in id order. The selection was made before any result was seen (research/scenarios\_draft/SELECTION.md in the repository). LLM safety evaluations were scored by how many LLM system cards report them and how directly their hazard result can be checked (a programmatic or expert-baselined score over a judge validated against humans over a judge validated only by itself), with a penalty for capability benchmarks that do not measure a hazard; near-duplicates of one construct were passed over in favour of another risk domain, and every risk domain has at least three. Physical-AI safety evaluations were scored by how directly they measure a physically harmful event and by whether they publish validity evidence (judge agreement with humans, reproduction on hardware), which the elicitors need to estimate $s$ and $t$ from, and chosen to span the fidelity levels of the sim-to-real gap; the best evaluation at each level was kept. Every decision and instrument fact cites a source, and the source texts are cached in the repository.
 
 \begin{table}[!htbp]
   \centering
@@ -228,7 +233,7 @@ Table~\ref{tab:scenarios} lists the evaluations with their group and risk domain
 
 \begin{table}[!htbp]
   \centering
-  \caption{Provenance: the primary source of each evaluation's facts (the first source that is not a system card), as titled in the scenario file; ``and system cards'' marks evaluations whose facts also quote LLM system cards.}
+  \caption{Provenance: the primary source of each evaluation's facts, the reference the paper cites for it (the first source of its scenario file that is not a system card, except for ISO 10218, where it is the standard itself), as titled in the scenario file; ``and system cards'' marks evaluations whose facts also quote LLM system cards.}
   \label{tab:provenance}
   \resizebox{\linewidth}{!}{\input{../generated/tab_provenance.tex}}
 \end{table}

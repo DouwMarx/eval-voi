@@ -1,10 +1,8 @@
 """The report figures (DESIGN section 7), PDF, drawn at the CoRL text width
-(5.5 in) with no text smaller than 6.5 pt (6 pt for the row labels of the
-paper's combined row figure) and no titles (captions live in the tex). Two
-groups: physical AI (vermillion triangles) and LLM (blue circles), Okabe-Ito
-colours, the marker shape a second encoding; the
-per-evaluation row figures colour by risk domain instead and set the
-physical-AI rows apart with an ink outline and bold labels. The method
+(5.5 in) with no text smaller than 6.5 pt and no titles beyond the panel tags
+(captions live in the tex). Two groups: physical AI (triangles) and LLM
+(circles); colour is the risk domain (Okabe-Ito, physical AI its own
+vermillion, so the colour alone also tells the groups apart). The method
 diagram is TikZ in the tex, not here.
 
 Each fig_* takes a Summary and the output directory and returns the path
@@ -107,11 +105,19 @@ def domain_handles(s: Summary) -> list:
             for d in DOMAINS if d in present]
 
 
-def emphasise_physical(ax, pos, idx, s: Summary) -> None:
-    """Bold the y tick labels of the physical-AI rows (their bars also carry an ink outline)."""
-    for lab, i in zip(ax.get_yticklabels(), idx, strict=True):
-        if s.scenarios[i].group == PHYS:
-            lab.set_fontweight("bold")
+def domain_group_handles(scenarios, ms: float = 4.5) -> list:
+    """One legend entry per (risk domain, group) present, in DOMAINS order: the
+    group's marker in the domain's colour, labelled by the domain (and the
+    group, where a domain spans both groups)."""
+    pairs = {(sc.domain, sc.group) for sc in scenarios}
+    handles = []
+    for d in DOMAINS:
+        groups = [g for g in (PHYS, LLM, None) if (d, g) in pairs]
+        for g in groups:
+            label = DOMAIN_LABEL.get(d, d) + (f" ({g})" if len(groups) > 1 else "")
+            handles.append(plt.Line2D([], [], marker=marker(g), ls="", color=domain_color(d), ms=ms,
+                                      mec="white", mew=0.4, label=label))
+    return handles
 
 
 # --- labels ---------------------------------------------------------------------
@@ -233,16 +239,21 @@ ZERO_ROWS = (0.5, 1.0)   # decades below the zero row: the two staggered rows of
 ZERO_BAND = 1.35         # decades from the zero row to the bottom of the axes
 
 
+VALUE_FONT = 9.0   # the value axes' label: large enough for the star of EVSI* to read
+
+
 def value_cost_panel(ax, s: Summary, metric: str, ylabel: str, show_zero: bool = True,
-                     legend: bool = True, eta_tex: str = r"\eta", labels: bool = True) -> None:
+                     eta_tex: str = r"\eta", labels: bool = True) -> None:
     """EVSI-type value (y) against C (x) with every parameter at its median, log-log
     with equal decades, iso-efficiency lines, the 'better' arrow along
     (-1, +1) in log space (orthogonal to the iso-lines) in the corner
-    farthest from the points, ids as labels. With show_zero, zero values
-    sit on a row labelled 0 at their true cost and their ids, which would
-    collide (the zeros cluster in cost), fan out below in two staggered rows
-    with leader lines, in cost order; without it, the zeros are left out
-    (the caption says how many)."""
+    farthest from the points, ids as labels; marker = group, colour = risk
+    domain (the legend is the caller's, see domain_group_handles). With
+    show_zero, zero values sit on a row labelled 0 at their true cost and
+    their ids, which would collide (the zeros cluster in cost), fan out below
+    in two staggered rows with leader lines, in cost order; without it, the
+    zeros are left out (the caption says how many). Set titles before
+    calling: the layout must be final when the labels are placed."""
     fig = ax.figure
     x, y = s.central["C"], s.central[metric]
     zero = ~(y > 0)
@@ -252,7 +263,7 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str, show_zero: bool =
             ax.text(0.5, 0.5, "every prior already decisive:\nno evaluation with EVSI > 0",
                     transform=ax.transAxes, ha="center", va="center", fontsize=MIN_FONT, color=MUTED)
             ax.set_xlabel("cost $C$ (USD)")
-            ax.set_ylabel(ylabel)
+            ax.set_ylabel(ylabel, fontsize=VALUE_FONT)
             return
         x, y, zero = x[keep], y[keep], zero[keep]
         scen = [sc for sc, k in zip(s.scenarios, keep, strict=True) if k]
@@ -277,10 +288,10 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str, show_zero: bool =
     for k in range(math.floor(ly[0] - lx[1]) - 1, math.ceil(ly[1] - lx[0]) + 2):
         xs = np.array([10 ** lx[0], 10 ** lx[1]])
         ax.plot(xs, 10.0 ** k * xs, ls="--", lw=0.5, color="#c9c9c9", zorder=0)
-        # label where the line leaves the top or right edge
+        # label where the line leaves the top or right edge, clear of the zero band and the x axis
         xe = min(lx[1], ly[1] - k) - 0.35
         ye = xe + k
-        if lx[0] + 0.5 < xe and lf + 1.0 < ye < ly[1] - 0.05 and k % 2 == 0:
+        if lx[0] + 0.5 < xe and max(lf + 1.0, ly[0] + 0.4) < ye < ly[1] - 0.05 and k % 2 == 0:
             ax.text(10 ** xe, 10 ** ye, rf"${eta_tex}=10^{{{k}}}$", fontsize=MIN_FONT, color=MUTED,
                     rotation=45, rotation_mode="anchor", ha="right", va="bottom")
     avoid, band_top = [], 0.0
@@ -293,22 +304,15 @@ def value_cost_panel(ax, s: Summary, metric: str, ylabel: str, show_zero: bool =
             lambda v, _: "0" if math.isclose(v, floor) else f"$10^{{{round(math.log10(v))}}}$"))
         ax.yaxis.set_minor_locator(mticker.NullLocator())
     yy = np.where(zero, floor, y)
-    groups = [sc.group for sc in scen]
-    for g in sorted(set(groups), key=str):
-        m = np.array([gg == g for gg in groups])
-        ax.plot(x[m & ~zero], yy[m & ~zero], marker(g), ls="", color=color(g), ms=4.5, mec="white",
+    keys = [(sc.group, sc.domain) for sc in scen]
+    for g, d in sorted(set(keys), key=str):
+        m = np.array([k == (g, d) for k in keys])
+        ax.plot(x[m & ~zero], yy[m & ~zero], marker(g), ls="", color=domain_color(d), ms=4.5, mec="white",
                 mew=0.4, zorder=3)
-        ax.plot(x[m & zero], yy[m & zero], marker(g), ls="", mfc="white", mec=color(g), ms=4.5,
+        ax.plot(x[m & zero], yy[m & zero], marker(g), ls="", mfc="white", mec=domain_color(d), ms=4.5,
                 mew=0.8, zorder=3)
     ax.set_xlabel("cost $C$ (USD)")
-    ax.set_ylabel(ylabel)
-    if legend:
-        handles = group_handles(groups)
-        if zero.any():
-            handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec=INK, ms=4,
-                                      label="prior already decisive (value 0)"))
-        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False,
-                   handletextpad=0.3)
+    ax.set_ylabel(ylabel, fontsize=VALUE_FONT)
     fig.draw_without_rendering()           # final layout: display coordinates are stable from here
     renderer = fig.canvas.get_renderer()
     if len(zi) and labels:
@@ -367,15 +371,35 @@ def curve_panel(ax, s: Summary) -> None:
     ax.legend(loc="upper right", frameon=False)
 
 
-HEADLINE_W = 0.5   # share of the text width the paper gives the headline figure
+HEADLINE_W = 1.0   # share of the text width the paper gives the headline figure
+HEADLINE_H = 2.2   # its height (inches): two equal-decade panels and a one-column legend at the right
+HEADLINE_TITLES = ("(a) $\\mathrm{EVSI}^{*}$: value to an\nundecided developer",
+                   "(b) EVSI: value at the\nelicited prior")
 
 
-def headline_panels(s: Summary, width: float, labels: bool):
-    fig, (ax, bx) = plt.subplots(1, 2, figsize=(width, width / 2 + 0.25))
-    value_cost_panel(ax, s, "EVSI_ind", VALUE_TEX["EVSI_ind"], legend=True, eta_tex=r"\eta^*", labels=labels)
-    value_cost_panel(bx, s, "EVSI", VALUE_TEX["EVSI"], show_zero=False, legend=False, labels=labels)
-    for a, tag in ((ax, "(a)"), (bx, "(b)")):
-        a.set_title(tag, loc="left", fontsize=7, fontweight="bold", pad=3)
+def headline_panels(s: Summary, width: float, labels: bool, legend_right: bool = True):
+    """(a) EVSI* against C for every evaluation and (b) EVSI against C for
+    those whose result can change the decision; the legend (colour = risk
+    domain, marker = group) outside the panels: one column at the right
+    (the paper, HEADLINE_H tall) or one row on top (the extended report,
+    whose id labels need the wider panels). Titles and legend go in first so
+    the layout is final when the panels place labels."""
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(width, HEADLINE_H if legend_right else width / 2 + 0.45))
+    for a, title in zip((ax, bx), HEADLINE_TITLES, strict=True):
+        a.set_title(title, loc="left", fontsize=7.5, pad=4)
+    handles = domain_group_handles(s.scenarios)
+    if not (s.central["EVSI_ind"] > 0).all():
+        handles.append(plt.Line2D([], [], marker="o", ls="", mfc="white", mec=INK, ms=4,
+                                  label="prior already decisive\n(value 0)" if legend_right
+                                  else "prior already decisive (value 0)"))
+    if legend_right:
+        fig.legend(handles=handles, loc="outside right center", ncol=1, frameon=False, fontsize=7,
+                   handletextpad=0.4, labelspacing=0.7, borderaxespad=0.2)
+    else:
+        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False, fontsize=7,
+                   handlelength=1.0, handletextpad=0.4, columnspacing=1.0)
+    value_cost_panel(ax, s, "EVSI_ind", VALUE_TEX["EVSI_ind"], eta_tex=r"\eta^*", labels=labels)
+    value_cost_panel(bx, s, "EVSI", VALUE_TEX["EVSI"], show_zero=False, labels=labels)
     return fig
 
 
@@ -383,13 +407,13 @@ def fig_headline(s: Summary, out: Path) -> Path | None:
     """Left: EVSI* against C for every evaluation (EVSI* is positive for every
     informative evaluation); right: EVSI against C for the evaluations whose
     result can change the decision (EVSI > 0). Full text width with id labels
-    (the extended report)."""
+    and the room they need (the extended report)."""
     with plt.rc_context(STYLE):
-        return save(headline_panels(s, FIG_W, labels=True), out, "fig_headline.pdf")
+        return save(headline_panels(s, FIG_W, labels=True, legend_right=False), out, "fig_headline.pdf")
 
 
 def fig_headline_small(s: Summary, out: Path) -> Path | None:
-    """The same at the paper's width, without id labels (Fig. rows names every evaluation)."""
+    """The same at the paper's width and height, without id labels (Fig. rows names every evaluation)."""
     with plt.rc_context(STYLE):
         return save(headline_panels(s, HEADLINE_W * FIG_W, labels=False), out, "fig_headline_small.pdf")
 
@@ -418,17 +442,32 @@ def abbreviate(text: str, limit: int = LABEL_CHARS) -> str:
 
 
 def scenario_label(s: Summary, i: int) -> str:
+    """'[id] short name', the id in brackets as the documents cite it."""
     sc = s.scenarios[i]
-    return abbreviate(f"{sc.id} {sc.short}")
+    return abbreviate(f"[{sc.id}] {sc.short}")
 
 
-def _violins(ax, data, positions, col):
+RANK_BW = 0.7   # rank violins: kernel width in ranks (ranks are integers; a data-driven bandwidth
+                # would draw one bump per integer on the narrow rows)
+
+
+def _violins(ax, data, positions, col, bw=None, alpha: float = 0.55):
+    """Horizontal violins, one per row, no edge; bw is a kernel width in data units (None: Scott)."""
+    kw = {"bw_method": lambda kde: bw / float(kde.dataset.std())} if bw is not None else {}
     parts = ax.violinplot(data, positions=positions, orientation="horizontal", widths=0.8, showextrema=False,
-                          points=120)
+                          points=120, **kw)
     for b in parts["bodies"]:
         b.set_facecolor(col)
         b.set_edgecolor("none")
-        b.set_alpha(0.55)
+        b.set_alpha(alpha)
+
+
+def row_violin(ax, v, p: float, col: str, bw=None) -> None:
+    """One row's distribution: a violin (when the values vary) and its median tick."""
+    v = np.asarray(v, dtype=float)
+    if v.size >= 2 and np.ptp(v) > 0:
+        _violins(ax, [v], [p], col, bw=bw)
+    ax.plot(np.median(v), p, "|", color=INK, ms=6, mew=1.0, zorder=4)
 
 
 def _rows_height(n: int) -> float:
@@ -462,33 +501,26 @@ def fig_percentile_violins(s: Summary, out: Path) -> Path | None:
 def rank_intervals(s: Summary, out: Path, metric: str, name: str) -> Path:
     """Per evaluation, the rank under `metric` over the draws: median (tick),
     interquartile range (thick bar) and 90% interval (thin bar), rows sorted
-    by the median rank, coloured by risk domain; physical-AI rows carry an
-    ink outline and bold labels."""
+    by the median rank, coloured by risk domain."""
     r = s.out["rank"][metric]
     idx = order_by_median_rank(s, metric)
     with plt.rc_context(STYLE):
         fig, ax = plt.subplots(figsize=(FIG_W, _rows_height(len(idx))))
         pos = np.arange(len(idx))[::-1]
         for p, i in zip(pos, idx, strict=True):
-            sc = s.scenarios[i]
-            col = domain_color(sc.domain)
+            col = domain_color(s.scenarios[i].domain)
             lo, med, hi = r["q"][i]
             q25, q75 = r["iqr_q"][i]
-            phys = sc.group == PHYS
             ax.plot([lo, hi], [p, p], color=col, lw=0.9, solid_capstyle="butt", zorder=2)
-            if phys:
-                ax.plot([q25, q75], [p, p], color=INK, lw=5.2, solid_capstyle="butt", zorder=2.5)
             ax.plot([q25, q75], [p, p], color=col, lw=3.6, solid_capstyle="butt", zorder=3)
-            ax.plot(med, p, "|", color=INK if not phys else "white", ms=6, mew=1.1, zorder=4)
+            ax.plot(med, p, "|", color=INK, ms=6, mew=1.1, zorder=4)
         ax.set_yticks(pos, [scenario_label(s, i) for i in idx])
-        emphasise_physical(ax, pos, idx, s)
         ax.set_xlim(0.5, len(idx) + 0.5)
         ax.set_xlabel(f"rank by {METRIC_TEX[metric]} over the Monte Carlo draws (1 = best)")
         handles = domain_handles(s)
         handles += [plt.Line2D([], [], color=MUTED, lw=3.6, label="interquartile range"),
                     plt.Line2D([], [], color=MUTED, lw=0.9, label="90% interval"),
-                    plt.Line2D([], [], marker="|", ls="", color=INK, ms=6, mew=1.1, label="median"),
-                    plt.Line2D([], [], color=INK, lw=5.2, label="physical AI (outlined, bold)")]
+                    plt.Line2D([], [], marker="|", ls="", color=INK, ms=6, mew=1.1, label="median")]
         fig.legend(handles=handles, loc="outside upper center", ncol=5, frameon=False,
                    handletextpad=0.4, columnspacing=1.0)
         ax.grid(axis="y", visible=False)
@@ -574,24 +606,15 @@ def fig_roc(s: Summary, out: Path) -> Path | None:
 
 def nstar_rows(ax, s: Summary, idx, pos, show_share: bool = True) -> bool:
     """The break-even run count n* per row over the finite draws (violin, log10
-    x), coloured by domain, physical-AI rows outlined; returns whether any row
-    was drawn. With show_share, the share of finite draws in the right margin."""
+    x, median tick), coloured by domain; returns whether any row was drawn.
+    With show_share, the share of finite draws in the right margin."""
     o = s.out
     drawn = False
     for p, i in zip(pos, idx, strict=True):
-        sc = s.scenarios[i]
         ns = s.draws["n_star"][i]
         v = np.log10(ns[np.isfinite(ns) & (ns > 0)])
-        col = domain_color(sc.domain)
         if v.size >= 2 and np.ptp(v) > 0:
-            parts = ax.violinplot([v], positions=[p], orientation="horizontal", widths=0.8,
-                                  showextrema=False, points=120)
-            for b in parts["bodies"]:
-                b.set_facecolor(col)
-                b.set_alpha(0.75 if sc.group == PHYS else 0.5)
-                b.set_edgecolor(INK if sc.group == PHYS else "none")
-                b.set_linewidth(0.7)
-            ax.plot(np.median(v), p, "|", color=INK, ms=6, mew=1.0, zorder=4)
+            row_violin(ax, v, p, domain_color(s.scenarios[i].domain))
             drawn = True
         if show_share:
             ax.annotate(pct_text(o["p_nstar_finite"][i]), (1.0, p), xycoords=("axes fraction", "data"),
@@ -611,38 +634,31 @@ def nstar_rows(ax, s: Summary, idx, pos, show_share: bool = True) -> bool:
 
 
 def rank_rows(ax, s: Summary, metric: str, idx, pos) -> None:
-    """The rank under `metric` per row over the draws: 90% interval (thin),
-    interquartile range (thick), median (tick); physical-AI rows outlined."""
-    r = s.out["rank"][metric]
+    """The rank under `metric` per row over the draws as a violin (kernel
+    width RANK_BW ranks) with its median tick, 1 = best at the left."""
+    ranks = s.out["rank"][metric]["ranks"]
+    n = len(s.scenarios)
     for p, i in zip(pos, idx, strict=True):
-        sc = s.scenarios[i]
-        col = domain_color(sc.domain)
-        lo, med, hi = r["q"][i]
-        q25, q75 = r["iqr_q"][i]
-        phys = sc.group == PHYS
-        ax.plot([lo, hi], [p, p], color=col, lw=0.9, solid_capstyle="butt", zorder=2)
-        if phys:
-            ax.plot([q25, q75], [p, p], color=INK, lw=5.2, solid_capstyle="butt", zorder=2.5)
-        ax.plot([q25, q75], [p, p], color=col, lw=3.6, solid_capstyle="butt", zorder=3)
-        ax.plot(med, p, "|", color="white" if phys else INK, ms=6, mew=1.1, zorder=4)
-    ax.set_xlim(0.5, len(s.scenarios) + 0.5)
+        row_violin(ax, ranks[i], p, domain_color(s.scenarios[i].domain), bw=RANK_BW)
+    ax.set_xlim(0.5, n + 0.5)
+    ax.xaxis.set_major_locator(mticker.FixedLocator([1, *range(5, n + 1, 5)]))
 
 
-ROWS_H = 0.078   # inches per row in the paper's combined row figure
+ROWS_H = 0.14   # inches per row in the paper's combined row figure (MIN_FONT labels need >= 0.1)
 
 
 def fig_rows(s: Summary, out: Path) -> Path | None:
     """The paper's row figure: rank by eta* (left) and break-even run count
-    (right) per evaluation, one shared row order (by the median rank)."""
+    (right) per evaluation as violins over the draws with median ticks, one
+    shared row order (by the median rank), rows labelled '[id] name'."""
     idx = order_by_median_rank(s, PRIMARY)
     with plt.rc_context(STYLE):
-        fig, (ax, bx) = plt.subplots(1, 2, sharey=True, figsize=(FIG_W, ROWS_H * len(idx) + 0.75),
+        fig, (ax, bx) = plt.subplots(1, 2, sharey=True, figsize=(FIG_W, ROWS_H * len(idx) + 0.7),
                                      width_ratios=[1.0, 0.8])
         pos = np.arange(len(idx))[::-1]
         rank_rows(ax, s, PRIMARY, idx, pos)
-        drawn = nstar_rows(bx, s, idx, pos)
-        ax.set_yticks(pos, [scenario_label(s, i) for i in idx], fontsize=6.0)
-        emphasise_physical(ax, pos, idx, s)
+        drawn = nstar_rows(bx, s, idx, pos, show_share=False)
+        ax.set_yticks(pos, [scenario_label(s, i) for i in idx])
         ax.set_ylim(-0.7, len(idx) - 0.3)
         ax.set_xlabel(f"rank by {METRIC_TEX[PRIMARY]} (1 = best)")
         bx.set_xlabel("break-even run count $n^*$")
@@ -650,11 +666,9 @@ def fig_rows(s: Summary, out: Path) -> Path | None:
             bx.text(0.5, 0.5, "no finite break-even draws", transform=bx.transAxes, ha="center", va="center",
                     fontsize=MIN_FONT, color=MUTED)
         handles = domain_handles(s)
-        handles += [plt.Line2D([], [], color=MUTED, lw=3.6, label="interquartile range"),
-                    plt.Line2D([], [], color=MUTED, lw=0.9, label="90% interval"),
-                    plt.Line2D([], [], marker="|", ls="", color=INK, ms=6, mew=1.1, label="median")]
-        fig.legend(handles=handles, loc="outside upper center", ncol=5, frameon=False,
-                   handletextpad=0.4, columnspacing=1.0)
+        handles.append(plt.Line2D([], [], marker="|", ls="", color=INK, ms=6, mew=1.0, label="median"))
+        fig.legend(handles=handles, loc="outside upper center", ncol=len(handles), frameon=False,
+                   handlelength=1.0, handletextpad=0.4, columnspacing=0.9)
         for a in (ax, bx):
             a.grid(axis="y", visible=False)
         return save(fig, out, "fig_rows.pdf")
@@ -664,8 +678,8 @@ def fig_breakeven(s: Summary, out: Path) -> Path | None:
     """Per evaluation, the break-even run count n* = C_build / (EVSI - C_run)
     over the draws where it is finite (violin, log scale), rows sorted by the
     median finite n* (evaluations with no finite draw last), coloured by risk
-    domain, physical-AI rows outlined and bold; right margin: the share of
-    draws on which n* is finite (one run worth more than its run cost)."""
+    domain; right margin: the share of draws on which n* is finite (one run
+    worth more than its run cost)."""
     o = s.out
     med = [q[1] for q in o["nstar_q"]]
     idx = sorted(range(len(s.scenarios)),
@@ -678,7 +692,6 @@ def fig_breakeven(s: Summary, out: Path) -> Path | None:
             plt.close(fig)
             return None
         ax.set_yticks(pos, [scenario_label(s, i) for i in idx])
-        emphasise_physical(ax, pos, idx, s)
         ax.set_ylim(-0.7, len(idx) - 0.3)
         ax.set_xlabel("break-even run count $n^*$ (draws where one run is worth more than its run cost)")
         handles = domain_handles(s)

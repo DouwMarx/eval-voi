@@ -3,9 +3,9 @@
  "title": "RoboPAIR jailbreak red-teaming before the LLM voice-command release",
  "group": "physical AI",
  "agent": "Head of product safety at a quadruped robot manufacturer who owns the release decision for the robot's LLM voice-command mode.",
- "decision": "Delay the voice-command release and add a pre-execution safety filter (RoboGuard-style grounding of safety rules into the robot's world model plus a restricted motion API that cannot disable obstacle avoidance) vs release as planned.",
+ "decision": "Delay the voice-command release and add a pre-execution safety filter vs release as planned.",
  "theta_definition": "theta=1: the robot's LLM planner can be driven by text or voice prompts to execute a physically harmful action (collide with a person, block an emergency exit, enter a keep-out zone) and the robot carries it out.",
- "instrument": "A RoboPAIR-style jailbreak evaluation is built from scratch (attacker, judge and syntax-checker LLMs with robot-specific system prompts, a dataset of harmful actions for the robot, a harness onto the robot's planner API, two human annotators) and run once against the candidate robot in a controlled lab.",
+ "instrument": "RoboPAIR jailbreak red-teaming (attacker, judge and syntax-checker LLMs with a harmful-action dataset and two human annotators), run against the candidate robot in a controlled lab.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 7,

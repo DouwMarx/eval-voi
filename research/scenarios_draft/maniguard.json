@@ -3,9 +3,9 @@
  "title": "ManiGuard-Bench before a household VLA manipulation policy release",
  "group": "physical AI",
  "agent": "Robot learning lead at a vision-language-action (VLA) policy developer who owns the release decision for a manipulation checkpoint bound for household and light-industrial robots.",
- "decision": "Delay the checkpoint release and run safety-aware fine-tuning on monitor-verified safe demonstrations plus add a runtime monitor that halts the arm on a contact or ordering violation vs release the checkpoint as planned.",
+ "decision": "Delay the checkpoint release and add safety fine-tuning plus a runtime monitor vs release as planned.",
  "theta_definition": "theta=1: under nominal instructions in ordinary household scenes the VLA policy drops, topples or spills objects or lifts open containers out of order, on the physical robot and not only in simulation.",
- "instrument": "ManiGuard-Bench is built from scratch (six household task families are authored as 200 base tasks with linear temporal logic on finite traces (LTLf) safety specifications over simulator predicates, expanded to 1,000 scenarios in OmniGibson with automaton monitors, and a matched physical Franka cell is set up) and run once against the candidate VLA checkpoint in simulation and on the physical Franka.",
+ "instrument": "ManiGuard-Bench (1,000 household scenarios in OmniGibson with LTLf safety monitors and a matched physical Franka cell), run against the candidate VLA checkpoint in simulation and on the physical robot.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 7,

@@ -3,9 +3,9 @@
  "title": "Veo world-model safety probing before releasing a VLA checkpoint",
  "group": "physical AI",
  "agent": "Robot learning lead at a frontier robotics developer who owns the release decision for a new bimanual vision-language-action (VLA) policy checkpoint to the trusted-tester robot fleet.",
- "decision": "Delay the checkpoint's release and retrain it on targeted hazard-handling demonstrations (knife grasp points, keep-clear zones around hands and fragile items) behind a policy-agnostic safety layer vs release the checkpoint as planned.",
+ "decision": "Delay the checkpoint release and retrain on hazard-handling demonstrations vs release as planned.",
  "theta_definition": "theta=1: in deployment scenes it was not trained on, the checkpoint handles hazardous objects unsafely or moves into contact with people or fragile items (grasps a knife by the blade, closes a laptop onto scissors, strikes a hand while reaching).",
- "instrument": "An action-conditioned Veo video world-model evaluator is built from scratch (a frontier video model fine-tuned on robot data for pose conditioning and four-camera multi-view consistency, generative image editing of real scenes to insert hazards, a critic-filtered set of safety scenarios, human raters of 8-second rollouts) and run once against the candidate checkpoint.",
+ "instrument": "An action-conditioned Veo video world model (hazards edited into real scenes, human-rated 8-second rollouts), run against the candidate checkpoint.",
  "attributes": {
   "risk_domain": "physical_harm",
   "level": 5,

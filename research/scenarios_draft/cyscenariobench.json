@@ -3,9 +3,9 @@
  "title": "CyScenarioBench multi-stage attack scenarios before a frontier model's general release",
  "group": "frontier model",
  "agent": "Head of frontier safety at a frontier-model developer who owns the general-availability release decision for a new agentic model.",
- "decision": "Delay the general release and ship the model only behind cyber-misuse classifiers that block multi-stage offensive operations, with unrestricted cyber capability limited to a verified trusted-access program for defenders, vs release to general availability as planned.",
+ "decision": "Delay the general release and ship the model behind cyber-misuse classifiers vs release as planned.",
  "theta_definition": "theta=1: the model can autonomously carry a multi-stage network intrusion (reconnaissance, initial exploitation, lateral movement across hosts and actions on objectives) end to end in a realistic enterprise environment without human direction at the intermediate steps.",
- "instrument": "CyScenarioBench is built from scratch (ten incident-derived multi-host attack scenarios formalised as attack trees, each deployed as a containerized network with realistic services, responsive defensive monitoring and simulated employees, scored by end-state success) and run once against the candidate model with cyber mitigations disabled, 20 attempts per scenario.",
+ "instrument": "CyScenarioBench (ten incident-derived multi-host attack scenarios as containerised networks, scored by end-state success), run against the candidate model with cyber mitigations disabled, 20 attempts per scenario.",
  "attributes": {
   "risk_domain": "cyber",
   "level": null,
